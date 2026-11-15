@@ -434,3 +434,23 @@ def test_lost_capacity_treemap_prefers_the_capacity_cause():
                    "capacity": {"elements": [
                        {"name": "Pump", "share": {"mean": 1.0}, "main_cause": "pm"}]}}
     assert lost_capacity_treemap(attribution).series[0]["cause"] == "pm"
+
+
+def test_quartile_lines_on_run_to_run_and_chance_of_reaching():
+    """U16: both charts show where a quarter, half and three quarters of
+    the runs fall; equal quartiles share one line."""
+    from raptor.api.insight.charts import ecdf, quartile_marks, trial_outcome
+    from raptor.render.charts_svg import render
+
+    per_run = [{"availability": v} for v in (0.90, 0.92, 0.94, 0.96, 0.98)]
+    dots = trial_outcome(per_run)
+    assert [(m["label"], round(m["value"], 3)) for m in dots.marks
+            if m["kind"] == "quartile"] == [("Q1", 0.92), ("median", 0.94), ("Q3", 0.96)]
+    assert "between 92 % and 96 %" in dots.caption
+    curve = ecdf(per_run)
+    assert [(m["label"], m["share"]) for m in curve.marks if m["kind"] == "quartile"] == [
+        ("1 in 4", 0.25), ("half", 0.5), ("3 in 4", 0.75)]
+    assert "median 94 %" in render(dots) and "half: 94 %" in render(curve)
+    same = quartile_marks([1.0] * 8)
+    assert [m["label"] for m in same] == ["Q1, median, Q3"]
+    assert quartile_marks([0.9, 1.0]) == []      # too few runs for quartiles

@@ -88,6 +88,29 @@ def _values(per_run: list[dict], field_name: str) -> list[float]:
             and not isinstance(row.get(field_name), bool)]
 
 
+def _quartile(values: list[float], q: float) -> float:
+    """The `q` quantile of `values` (sorted, not empty), interpolated."""
+    pos = q * (len(values) - 1)
+    low = int(pos)
+    high = min(low + 1, len(values) - 1)
+    return values[low] + (values[high] - values[low]) * (pos - low)
+
+
+def quartile_marks(values: list[float]) -> list[dict[str, Any]]:
+    """U16: Q1, median and Q3 of the runs, as quiet reference lines."""
+    if len(values) < 4:
+        return []
+    ordered = sorted(values)
+    marks: list[dict[str, Any]] = []
+    for label, q in (("Q1", 0.25), ("median", 0.5), ("Q3", 0.75)):
+        value = _quartile(ordered, q)
+        if marks and marks[-1]["value"] == value:     # one line, one label
+            marks[-1]["label"] += f", {label}"
+        else:
+            marks.append({"kind": "quartile", "label": label, "value": value})
+    return marks
+
+
 def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
                   label: str = "Availability", target: float | None = None,
                   units: str = "") -> ChartSpec:
@@ -100,6 +123,13 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
     if mean is not None:
         from raptor.api.insight.axes import format_value
         caption += f", mean {format_value(mean, value_format(field_name, units), 6)}"
+    quartiles = quartile_marks(values)
+    if len(quartiles) > 1:
+        from raptor.api.insight.axes import format_value
+        fmt = value_format(field_name, units)
+        caption += (f"; the middle half of the runs lie between "
+                    f"{format_value(quartiles[0]['value'], fmt, 5)} and "
+                    f"{format_value(quartiles[-1]['value'], fmt, 5)} (Q1 to Q3)")
     if target is not None:
         caption += (f"; {met} of {len(values)} "
                     f"({pct(met / len(values))}) met the target.")
@@ -109,7 +139,8 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
         "dot_plot", f"Run-to-run {label.lower()}",
         "one dot per quantile slice of the runs", label, "runs",
         series=[{"name": "runs", "dots": dots, "values": values}],
-        marks=[{"kind": "target", "value": target}] if target is not None else [],
+        marks=([{"kind": "target", "value": target}] if target is not None else [])
+        + quartiles,
         caption=caption,
         provenance={"runs": len(values), "units": units,
                     "format": value_format(field_name, units),
@@ -194,7 +225,12 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
         "read across from a share of runs to the value they reached",
         "share of runs", label,
         series=[{"name": label, "points": points}],
-        marks=[{"kind": "target", "value": target}] if target is not None else [],
+        marks=([{"kind": "target", "value": target}] if target is not None else [])
+        # U16: where 1 run in 4, half and 3 in 4 sit on the curve
+        + ([{"kind": "quartile", "label": label_q, "share": share,
+             "value": _reached(points, share)}
+            for label_q, share in (("1 in 4", 0.25), ("half", 0.5), ("3 in 4", 0.75))]
+           if len(values) >= 4 else []),
         caption=caption,
         provenance={"runs": len(values), "units": units, "format": fmt,
                     "measure": field_name, "reached": word,

@@ -405,6 +405,34 @@ class ChartWidget(QWidget):
             painter.setPen(stop)
             painter.drawText(plate, Qt.AlignmentFlag.AlignCenter, label)
 
+    def _quartile_lines(self, painter, spec, palette, frame: _Frame, *,
+                        at_share: bool) -> None:
+        """U16: quiet dotted lines at the quartiles, labelled along the top
+        under the target's label; a label that would overlap the one
+        before it drops a line."""
+        marks = [m for m in spec.marks
+                 if m.get("kind") == "quartile" and _number(m.get("value"))]
+        if not marks:
+            return
+        fm = QFontMetrics(self.font())
+        r = frame.rect
+        muted = QColor(palette["muted"])
+        last_right, row = -1e9, 0
+        for mark in marks:
+            x = frame.x(float(mark["share"]) if at_share else float(mark["value"]))
+            painter.setPen(QPen(muted, 1.0, Qt.PenStyle.DotLine))
+            painter.drawLine(QPointF(x, r.top()), QPointF(x, r.bottom()))
+            label = (f"{mark.get('label', '')}: " if at_share else f"{mark.get('label', '')} ") \
+                + self._value(float(mark["value"]), 4)
+            w = fm.horizontalAdvance(label) + 6
+            left = min(max(r.left(), x - w / 2), r.right() - w)
+            row = row + 1 if left < last_right + 4 else 0
+            plate = QRectF(left, r.top() + fm.height() * (1 + row) + 2, w, fm.height())
+            painter.fillRect(plate, QColor(palette["surface"]))
+            painter.setPen(muted)
+            painter.drawText(plate, Qt.AlignmentFlag.AlignCenter, label)
+            last_right = left + w
+
     def _hit(self, rect: QRectF, kind: str, name: str, tip: str) -> None:
         self._hits.append((rect, kind, name))
         self._tips.append(tip)
@@ -437,6 +465,7 @@ class ChartWidget(QWidget):
                             y_range=(0, 1), x_fmt=fmt, y_ticks=[], y_label="",
                             y_axis=False)
         r = frame.rect
+        self._quartile_lines(painter, spec, palette, frame, at_share=False)
         diameter, levels = fit_dots([frame.x(v) for v in values], r.height() * 0.85)
         accent, stop = QColor(palette["accent"]), QColor(palette["stop"])
         radius = diameter / 2 - 0.6
@@ -476,6 +505,7 @@ class ChartWidget(QWidget):
                             y_range=(low, high), x_fmt="percent", y_fmt=fmt,
                             x_ticks=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
                                      0.8, 0.9, 1.0])
+        self._quartile_lines(painter, spec, palette, frame, at_share=True)
         # A step curve: the value holds until the share of runs reaching it
         # rises past the next run.
         path = QPainterPath(QPointF(frame.x(0.0), frame.y(values[0])))

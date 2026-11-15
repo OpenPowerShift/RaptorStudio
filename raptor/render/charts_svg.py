@@ -336,6 +336,29 @@ def _target_line(out: list[str], frame: _Frame, value: float, *,
         out.append(_text(left + 4, box.top + 11, label, size=10, colour=STOP))
 
 
+def _quartile_lines(out: list[str], spec: ChartSpec, frame: _Frame, *,
+                    at_share: bool) -> None:
+    """U16: the GUI's dotted quartile lines, labelled along the top."""
+    box = frame.box
+    fmt = _fmt_of(spec)
+    last_right, row = -1e9, 0
+    for mark in spec.marks:
+        if mark.get("kind") != "quartile" or not _number(mark.get("value")):
+            continue
+        x = frame.x(float(mark["share"]) if at_share else float(mark["value"]))
+        out.append(_line(x, box.top, x, box.bottom, MUTED, width=1.0, dash="2,3"))
+        label = (f"{mark.get('label', '')}: " if at_share else f"{mark.get('label', '')} ") \
+            + format_value(float(mark["value"]), fmt, 4)
+        w = _width(label) + 6
+        left = min(max(box.left, x - w / 2), box.right - w)
+        row = row + 1 if left < last_right + 4 else 0
+        top = box.top + LINE_H * (1 + row) + 2
+        out.append(_rect(left, top, w, LINE_H, "#ffffff"))
+        out.append(_text(left + w / 2, top + 11, label, size=10, anchor="middle",
+                         colour=MUTED))
+        last_right = left + w
+
+
 def _fmt_of(spec: ChartSpec) -> str:
     return str(spec.provenance.get("format", ""))
 
@@ -358,6 +381,7 @@ def _dot_plot(spec: ChartSpec, area: _Box) -> list[str]:
     frame = _frame(out, spec, area, x_range=(low, high), y_range=(0, 1),
                    x_fmt=fmt, y_ticks=[], y_label="", y_axis=False)
     box = frame.box
+    _quartile_lines(out, spec, frame, at_share=False)
     diameter, levels = fit_dots([frame.x(v) for v in values], box.height * 0.85)
     radius = diameter / 2 - 0.6
     for value, (x, level) in zip(values, levels, strict=True):
@@ -389,6 +413,7 @@ def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
     frame = _frame(out, spec, area, x_range=(0.0, 1.0), y_range=(low, high),
                    x_fmt="percent", y_fmt=fmt,
                    x_ticks=[i / 10 for i in range(11)])
+    _quartile_lines(out, spec, frame, at_share=True)
     path = [f"M{_fmt(frame.x(0.0))},{_fmt(frame.y(values[0]))}"]
     previous = 0.0
     for point in points:

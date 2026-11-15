@@ -92,7 +92,9 @@ def test_each_chart_is_well_formed_svg(name):
     root = ET.fromstring(svg)
     assert root.tag.endswith("svg")
     assert spec.title in svg
-    assert spec.caption in svg
+    # a long caption wraps over several text lines: every word is there
+    shown = " ".join(t.text or "" for t in root.iter() if t.tag.endswith("text"))
+    assert " ".join(spec.caption.split()) in " ".join(shown.split())
     assert "None" not in svg and ">nan<" not in svg.lower()
     assert len(svg) > 400
 
