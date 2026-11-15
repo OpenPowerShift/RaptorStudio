@@ -432,3 +432,21 @@ def test_each_element_keeps_what_caused_its_lost_capacity():
     row = next(r for r in rows["elements"] if r["name"] == "A")
     assert row["main_cause"] in row["causes"]
     assert sum(row["causes"].values()) == pytest.approx(1.0)
+
+
+def test_lost_capacity_shares_are_pooled_and_add_up_to_the_whole():
+    """C11: the share was the mean of each run's own share, so a run with
+    no loss counted as zero for every element and the shares summed to less
+    than the whole; a trickle weighed like a plant's output."""
+    from types import SimpleNamespace
+
+    from raptor.api.insight.capacity_attribution import TrialCapacity, aggregate_capacity
+    a, b = ("block", 1), ("block", 2)
+    runs = [TrialCapacity(lost_energy=100.0, by_element={a: 100.0}),
+            TrialCapacity(lost_energy=1.0, by_element={b: 1.0}),
+            TrialCapacity(lost_energy=0.0)]
+    out = aggregate_capacity([SimpleNamespace(capacity=c, names={a: "A", b: "B"})
+                              for c in runs])
+    shares = {row["name"]: row["share"]["mean"] for row in out["elements"]}
+    assert shares["A"] == pytest.approx(100 / 101)
+    assert sum(shares.values()) == pytest.approx(1.0)

@@ -647,7 +647,9 @@ planned maintenance.
 stem:["lost"_e = sum_t L(t) dot w_e / (sum_j w_j)]
 |At every instant the lost flow is shared among the elements that were
 down, in proportion to their *standalone capacity contribution* stem:[w].
-Shares sum to the engine's own lost flow, every run.
+Shares sum to the engine's own lost flow, every run. Reported pooled over
+the runs, like DTCI: the element's lost energy summed over every run, over
+all lost energy summed over every run, with the delta-method SEM.
 
 |Standalone capacity contribution
 |stem:[w_e = F_"gen" - F("only" e "down")]

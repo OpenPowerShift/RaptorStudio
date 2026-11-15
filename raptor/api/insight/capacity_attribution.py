@@ -937,9 +937,14 @@ def aggregate_capacity(
     """The `capacity` block of `attribution.json`, or None without capacity.
 
     `trials` are `TrialAttribution`s; only those with a `.capacity` count.
-    Every per-element figure is a mean over the runs; the share is a per-run
-    ratio averaged like DTCI, so it has an SEM.
+    Every per-element figure is a mean over the runs.  The share is pooled
+    like DTCI: the element's lost energy summed over the runs, over all lost
+    energy summed over the runs, with a delta-method SEM.  It was the mean
+    of each run's own share, which counted a run with no loss as a zero for
+    every element (so the shares summed to less than the whole) and weighed
+    a run that lost a trickle like one that lost a plant's output.
     """
+    from raptor.api.insight.attribution import _ratio_stat
     trials = list(trials) if names is None else trials
     if names is None:
         found: dict[Key, str] = {}
@@ -956,18 +961,16 @@ def aggregate_capacity(
                   | {k for c in entries for k in c.through_dependents})
     rows = []
     for key in keys:
-        energies, shares, dependents = [], [], []
+        energies, dependents = [], []
         for cap in entries:
-            value = cap.by_element.get(key, 0.0)
-            energies.append(value)
-            shares.append(value / cap.lost_energy if cap.lost_energy > 0 else 0.0)
+            energies.append(cap.by_element.get(key, 0.0))
             dependents.append(cap.through_dependents.get(key, 0.0))
         own = _own_causes(entries, key)
         rows.append({
             "kind": key[0], "id": key[1],
             "name": names.get(key, "(no single element)"),
             "lost_energy": _stat(energies),
-            "share": _stat(shares),
+            "share": _ratio_stat(energies, total),
             "through_dependents": _stat(dependents),
             "standalone": next((c.standalone.get(key) for c in entries
                                 if key in c.standalone), None),
