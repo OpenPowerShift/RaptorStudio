@@ -61,3 +61,18 @@ def test_replace_changes_only_matching_editable_cells(win):
     assert table.item(1, 0).text() == "Seal_B"
     assert table.item(2, 0).text() == "Valve"
     assert table.item(0, 1).text() == "keep"
+
+
+def test_a_replace_that_changes_nothing_leaves_no_undo_step(win):
+    """G16: a replace with no match, or one that writes the same text back,
+    pushed an empty "Replace in table" step onto the undo stack."""
+    tables = win._data_tables
+    table = QTableWidget(1, 1)
+    item = QTableWidgetItem("Pump")
+    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+    table.setItem(0, 0, item)
+    stack = win._undo_stack
+    before = stack.count()
+    assert tables._replace_cells(table, "valve", "Seal", False, False) == 0
+    assert tables._replace_cells(table, "pump", "Pump", False, False) == 0
+    assert stack.count() == before

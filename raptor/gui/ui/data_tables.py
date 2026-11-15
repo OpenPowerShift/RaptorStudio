@@ -680,9 +680,14 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         from raptor.gui.ui.modality import exec_dialog
         if exec_dialog(dlg) != QDialog.DialogCode.Accepted:
             return
-        count.setText(f"{self._replace_cells(
-            table, find.text(), replace.text(), whole.isChecked(),
-            sensitive.isChecked())} cell(s) changed")
+        changed = self._replace_cells(table, find.text(), replace.text(),
+                                      whole.isChecked(), sensitive.isChecked())
+        # The dialog has closed, so its own label would tell no one.
+        win = self.window()
+        if hasattr(win, "statusBar"):
+            win.statusBar().showMessage(
+                f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
+                if changed else "Nothing to replace: no cell changed.", 5000)
 
     def _replace_cells(self, table: QTableWidget, needle: str,
                        replacement: str, whole: bool, case: bool) -> int:
@@ -714,21 +719,26 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                 if hay == key if whole else key in hay:
                     target: Any = edit if edit is not None else item
                     targets.append(target)
+        edits: list[tuple[Any, str]] = []
+        for target in targets:
+            text = target.text()
+            if case:
+                new = replacement if whole else text.replace(needle, replacement)
+            else:
+                import re
+                new = (replacement if whole else re.sub(
+                    re.escape(needle), replacement, text, flags=re.IGNORECASE))
+            if new != text:
+                edits.append((target, new))
+        if not edits:
+            # No macro: an empty one is still an undo step that does nothing.
+            return 0
         stack = getattr(getattr(self, "_view", None), "_stack", None)
         if stack is not None:
             stack.beginMacro("Replace in table")
         changed = 0
         try:
-            for target in targets:
-                text = target.text()
-                if case:
-                    new = (replacement if whole
-                           else text.replace(needle, replacement))
-                else:
-                    import re
-                    new = (replacement if whole else re.sub(
-                        re.escape(needle), replacement, text,
-                        flags=re.IGNORECASE))
+            for target, new in edits:
                 target.setText(new)
                 if hasattr(target, "editingFinished"):
                     target.editingFinished.emit()
