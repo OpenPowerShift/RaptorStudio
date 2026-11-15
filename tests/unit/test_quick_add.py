@@ -99,3 +99,30 @@ def test_parallel_units_stack_and_never_reuse_a_name(win):
     new = [str(r.get("blockName")) for r in rows if int(r["ID"]) in ids]
     old = [str(r.get("blockName")) for r in rows if int(r["ID"]) not in ids]
     assert len(set(new)) == 3 and not set(new) & set(old), (new, old)
+
+
+def test_quick_add_offers_blocks_from_every_level(qapp):
+    """G16: only the blocks drawn at the current level could be copied."""
+    window = MainWindow()
+    window._load_into_app(load_rbd(str(GOLD / "HierarchyExample/input.rbd")), "x")
+    view = window._diagram_dock.view
+    every = {str(r["ID"]) for r in window._rbd.section("BLOCK_DATA").rows
+             if str(r.get("ID")) != "0"}
+    here = {str(b.id) for b in view.blocks.values()}
+    assert every - here, "the fixture should have blocks inside a hierarchy"
+    from raptor.gui.ui.quick_add import QuickAdd
+    popup = QuickAdd(view)
+    _cands, data = popup._candidates()
+    offered = {k.split(":", 1)[1] for k in data if k.startswith("block:")}
+    assert offered == every
+    deep = next(iter(every - here))
+    popup._model_xy = (10.0, 10.0)
+    popup._data = data
+    from PySide6.QtWidgets import QListWidgetItem
+    item = QListWidgetItem("copy")
+    item.setData(Qt.ItemDataRole.UserRole, f"block:{deep}")
+    popup.list.addItem(item)
+    popup.list.setCurrentItem(item)
+    before = _blocks(window)
+    popup._choose()
+    assert _blocks(window) == before + 1

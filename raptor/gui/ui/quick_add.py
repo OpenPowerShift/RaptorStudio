@@ -97,14 +97,21 @@ class QuickAdd(QFrame):
             out.append(Candidate(label, "Element kind", keywords=(kind,),
                                  data=f"kind:{kind}",
                                  recent=recent.get(f"kind:{kind}", 99)))
-        for block in getattr(self._view, "blocks", {}).values():
-            key = f"block:{block.id}"
-            data[key] = block
-            out.append(Candidate(f"{block.name} (copy)", "In this model",
+        rbd = getattr(self._view, "rbd", None)
+        # Every block in the model, not only those drawn at this level: a
+        # block inside a hierarchy is as good a template as one beside you.
+        rows = (rbd.section("BLOCK_DATA").rows
+                if rbd is not None and "BLOCK_DATA" in rbd.sections else [])
+        for row in rows:
+            block_id = str(row.get("ID", ""))
+            if not block_id or block_id == "0":
+                continue
+            key = f"block:{block_id}"
+            data[key] = block_id
+            out.append(Candidate(f"{row.get('Name') or block_id} (copy)", "In this model",
                                  keywords=("block", "duplicate"), data=key,
                                  recent=recent.get(key, 99)))
         from raptor.api.library.links import local_parts
-        rbd = getattr(self._view, "rbd", None)
         if rbd is not None:
             for part in local_parts(rbd).values():
                 key = f"part:{part.id}"
@@ -175,7 +182,7 @@ class QuickAdd(QFrame):
             view.add_hierarchy("Hierarchy", x, y)
         elif isinstance(key, str) and key.startswith("block:"):
             row = next((r for r in view.rbd.section("BLOCK_DATA").rows
-                        if str(r.get("ID")) == str(value.id)), None)
+                        if str(r.get("ID")) == str(value)), None)
             if row is not None:
                 view.add_block_from_template(dict(row), at_model=(x, y))
         elif isinstance(key, str) and key.startswith("part:"):
