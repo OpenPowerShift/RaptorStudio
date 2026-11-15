@@ -646,8 +646,7 @@ class _NodeItem(QGraphicsEllipseItem):
         ifont = QFont("sans-serif", 8 if node_type in (1, 3) else 7)
         ifont.setBold(True)
         inner.setFont(ifont)
-        inner.setToolTip({"1": "Start node", "3": "End node"}.get(
-            str(node_type), "k-of-n node"))  # same default as _inner_tip()
+        inner.setToolTip(node_kind_tip(node_type))
         tm = inner.boundingRect()
         inner.setPos(-tm.width() / 2, -tm.height() / 2)
 
@@ -697,8 +696,7 @@ class _NodeItem(QGraphicsEllipseItem):
         self._name_label.setDefaultTextColor(QColor(c["text"]))
 
     def _inner_tip(self) -> str:
-        return {"1": "Start node", "3": "End node"}.get(
-            str(self._node_type), "k-of-n node")
+        return node_kind_tip(self._node_type)
 
     def set_anal_label(self, text: str | None,
                        tooltip: str | None = None) -> None:
@@ -938,3 +936,21 @@ def _view_status(view, msg: str):
     sink = getattr(view, "status_message_sink", None)
     if callable(sink):
         sink(msg)
+
+
+#: What each kind of node is, for its hover text. Only a regular node (type
+#: 2) is a k-out-of-n vote; the others are markers. In/Out used to fall
+#: through to "k-of-n node".
+NODE_KIND_TIPS = {
+    1: "Start node: where the diagram's paths begin",
+    2: "k-out-of-n node: up when at least k of the paths into it are up",
+    3: "End node: the system is up while a path reaches it",
+    4: "Hierarchy In: where the paths inside this hierarchy begin "
+       "(its connection from the level above)",
+    5: "Hierarchy Out: where the paths inside this hierarchy end; the "
+       "hierarchy is up while a path reaches it",
+}
+
+
+def node_kind_tip(node_type: int) -> str:
+    return NODE_KIND_TIPS.get(int(node_type), "Node")

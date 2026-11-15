@@ -35,3 +35,12 @@ def test_selected_names_skip_a_deleted_block_item(qapp):
     shiboken6.delete(second)
     names = w._results._selected_block_names_fn()
     assert names == {view.blocks[first_id].name}
+
+
+@pytest.mark.parametrize(("kind", "word"), [(1, "Start"), (2, "k-out-of-n"), (3, "End"),
+                                            (4, "Hierarchy In"), (5, "Hierarchy Out")])
+def test_a_node_says_what_kind_it_is(kind, word):
+    """U11: hovering a hierarchy's In or Out said "k-of-n node"."""
+    from raptor.gui.ui.diagram_item_core import node_kind_tip
+    assert node_kind_tip(kind).startswith(word)
+    assert (kind == 2) == ("k-out-of-n" in node_kind_tip(kind))
