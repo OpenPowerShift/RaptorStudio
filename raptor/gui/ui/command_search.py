@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
@@ -25,11 +26,50 @@ class CommandSearch(QDialog):
                                       "export…")
         lay.addWidget(self.query)
         self.results = QListWidget()
+        # U19: the focus stays in the query, so the list is "inactive" and
+        # its current row was drawn in the faint inactive colour; draw it
+        # as strongly as when the list has focus.
+        palette = self.results.palette()
+        for role in (QPalette.ColorRole.Highlight, QPalette.ColorRole.HighlightedText):
+            palette.setColor(QPalette.ColorGroup.Inactive, role,
+                             palette.color(QPalette.ColorGroup.Active, role))
+        self.results.setPalette(palette)
         lay.addWidget(self.results, 1)
+        # ... and the arrow keys move through the list while typing
+        self.query.installEventFilter(self)
         self.query.textChanged.connect(self._fill)
         self.query.returnPressed.connect(self._run)
         self.results.itemActivated.connect(lambda _item: self._run())
         self._fill("")
+
+    _MOVES = {Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_PageUp, Qt.Key.Key_PageDown}
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (watched is self.query and event.type() == QEvent.Type.KeyPress
+                and isinstance(event, QKeyEvent) and event.key() in self._MOVES):
+            self.move(event.key())
+            return True
+        return super().eventFilter(watched, event)
+
+    def move(self, key: Qt.Key) -> None:
+        """Move the current row as the list itself would, skipping rows
+        that cannot run."""
+        count = self.results.count()
+        if not count:
+            return
+        step = {Qt.Key.Key_Up: -1, Qt.Key.Key_Down: 1,
+                Qt.Key.Key_PageUp: -10, Qt.Key.Key_PageDown: 10}[key]
+        row = self.results.currentRow()
+        target = max(0, min(count - 1, row + step))
+        direction = 1 if step > 0 else -1
+        probe = target
+        while 0 <= probe < count and not (
+                self.results.item(probe).flags() & Qt.ItemFlag.ItemIsEnabled):
+            probe += direction
+        if 0 <= probe < count:
+            target = probe
+        self.results.setCurrentRow(target)
+        self.results.scrollToItem(self.results.item(target))
 
     def _recent(self) -> list[str]:
         from PySide6.QtCore import QSettings

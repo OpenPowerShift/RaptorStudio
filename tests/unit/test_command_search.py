@@ -56,3 +56,23 @@ def test_filter_finds_duplicate_and_disabled_commands_explain(win):
                         & Qt.ItemFlag.ItemIsEnabled)]
     for item in disabled:
         assert "(" in item.text() and ")" in item.text()
+
+
+def test_arrow_keys_move_the_list_while_typing(win, qapp):
+    """U19: Up and Down in the query box did nothing."""
+    from PySide6.QtGui import QPalette
+    from PySide6.QtTest import QTest
+
+    dialog = CommandSearch(win)
+    dialog.query.setText("a")
+    assert dialog.results.currentRow() == 0
+    QTest.keyClick(dialog.query, Qt.Key.Key_Down)
+    first_move = dialog.results.currentRow()
+    assert first_move > 0
+    assert dialog.results.item(first_move).flags() & Qt.ItemFlag.ItemIsEnabled
+    QTest.keyClick(dialog.query, Qt.Key.Key_Up)
+    assert dialog.results.currentRow() < first_move
+    assert dialog.query.text() == "a"     # the keys went to the list, not the text
+    palette = dialog.results.palette()
+    assert (palette.color(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight)
+            == palette.color(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight))
