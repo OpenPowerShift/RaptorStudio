@@ -85,3 +85,14 @@ def test_a_fall_in_time_down_is_counted_as_better():
     _stat, p_up = _paired(base, shorter)
     _stat, p_better = _paired(base, shorter, lower_better=True)
     assert p_up < 0.05 and p_better > 0.95
+
+
+def test_the_caption_follows_the_direction_of_the_change():
+    from raptor.api.scenarios.runner import _caption
+
+    def row(name, delta):
+        return {"name": name, "metrics": {"availability": {"delta": {"mean": delta}}}}
+    assert "does not change" in _caption([row("S", 0.0)])
+    assert "largest gain" in _caption([row("S", 0.01), row("T", -0.01)])
+    text = _caption([row("S", -0.02), row("T", -0.01)])
+    assert text.startswith("No scenario improves") and "T" in text

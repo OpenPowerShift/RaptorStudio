@@ -238,3 +238,29 @@ def test_estimate_from_experience_writes_the_law_as_one_undo_step(win):
     win._undo_stack.undo()
     row = next(r for r in _rows(win, "BLOCK_DATA") if r.get("blockName") == "Valve")
     assert int(float(row["FDist"])) == 4 and float(row["FParam1"]) == pytest.approx(400)
+
+
+def test_a_stopped_study_says_its_results_are_partial_and_cannot_be_applied(win):
+    dlg = win._open_whatif_dialog()
+    dlg._block.setCurrentText("Pump")
+    dlg._preset.setCurrentText("half the repair time")
+    dlg._add_preset()
+    dlg._trials.setValue(2)
+    _run(dlg)
+    dlg._job.abort.set()                # as if Stop came before the end
+    dlg._poll()
+    assert dlg._progress.format() == "Stopped: partial results"
+    assert dlg.caption.text().startswith("Stopped before the end")
+    dlg.table.selectRow(1)
+    assert not dlg._apply_btn.isEnabled()
+
+
+def test_a_failed_study_shows_the_message_not_the_exception_class(win):
+    from raptor.gui.ui.analysis_dialog import AnalysisJob
+
+    def work(ws, mid, progress, abort):
+        raise ValueError("no input could be varied in this model")
+    job = AnalysisJob(win._rbd, work)
+    job.start()
+    job.wait(10)
+    assert job.error == "no input could be varied in this model"

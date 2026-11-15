@@ -281,12 +281,18 @@ def _caption(rows: list[dict[str, Any]]) -> str:
     delta = (best["metrics"]["availability"]["delta"] or {}).get("mean")
     if delta is None:
         return f"{len(usable)} scenario(s) compared with Base."
-    direction = "better" if delta > 0 else "worse"
     note = (" With several scenarios, each is compared with Base; the "
             "largest is not a league table of noise."
             if len(usable) > 1 else "")
-    return (f"{best['name']} is the largest change in availability: "
-            f"{100 * delta:+.3g} points ({direction})." + note)
+    if abs(delta) < 1e-12:
+        lead = ("No scenario changes availability against Base"
+                if len(usable) > 1 else f"{best['name']} does not change availability")
+        return lead + " at this run count." + note
+    if delta > 0:
+        return (f"{best['name']} gives the largest gain in availability: "
+                f"{100 * delta:+.3g} points." + note)
+    return ("No scenario improves availability; the least harmful, "
+            f"{best['name']}, changes it by {100 * delta:+.3g} points." + note)
 
 
 #: (metric, label, is a fraction) in the order the text shows them.

@@ -41,6 +41,7 @@ def _watched(metric: str, complement: bool) -> str:
 
 class PrecisionDialog(AnalysisDialog):
     TITLE = "Trials to Precision"
+    apply_partial = True
     INTRO = ("How many trials the answer needs. State a precision instead of a "
              "trial count: the model runs on a copy in growing batches with the "
              "same seed until the confidence interval is within the target. "

@@ -14,6 +14,7 @@ holds that once:
 """
 from __future__ import annotations
 
+import logging
 import tempfile
 import threading
 from collections.abc import Callable
@@ -25,6 +26,8 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QHBoxLayout, QLabel, QLayout, QProgressBar, QPushButton,
     QSpinBox, QVBoxLayout, QWidget,
 )
+
+log = logging.getLogger(__name__)
 
 #: work(workspace, model_id, progress, abort) -> result
 Work = Callable[[Any, str, Callable[[int, int, str], None], threading.Event], Any]
@@ -69,7 +72,9 @@ class AnalysisJob:
             mid = ws.register_model(self._rbd, name="analysis")["model_id"]
             self.result = self._work_fn(ws, mid, self._progress, self.abort)
         except Exception as exc:                          # noqa: BLE001
-            self.error = (f"{type(exc).__name__}: {exc}"
+            log.warning("analysis failed", exc_info=True)
+            # the message is for the user; the exception's class is in the log
+            self.error = ((str(exc) or type(exc).__name__)
                           if not self.abort.is_set() else "Stopped.")
         finally:
             self.done = True
@@ -129,6 +134,9 @@ class AnalysisDialog(QDialog):
     INTRO = ""
     FIRST_LABEL = "Starting"
     SIZE = (980, 520)
+    #: Whether a stopped job's partial result may be applied (the precision
+    #: search keeps its last whole pass, which is a sound answer).
+    apply_partial = False
 
     def __init__(self, win: Any) -> None:
         super().__init__(win)
@@ -294,14 +302,23 @@ class AnalysisDialog(QDialog):
         self._run_btn.setEnabled(True)
         self._stop_btn.setEnabled(False)
         self._set_inputs_enabled(True)
+        self._partial = False
         if job.error or job.result is None:
             self._progress.setVisible(False)
-            self.caption.setText(job.error or "Nothing ran.")
+            self.caption.setText(job.error or ("Stopped before anything finished."
+                                               if job.abort.is_set() else "Nothing ran."))
         else:
+            self._partial = job.abort.is_set()
             self._progress.setRange(0, 1)
             self._progress.setValue(1)
-            self._progress.setFormat("Done")
+            self._progress.setFormat("Stopped: partial results" if self._partial else "Done")
             self.show_result(job.result)
+            if self._partial:
+                self.caption.setText(
+                    "Stopped before the end: what is shown is only what finished"
+                    + ("." if self.apply_partial else
+                       ", so nothing here can be applied. Run again for a full answer.")
+                    + "\n" + self.caption.text())
         self.sync_buttons()
 
     def finish(self, timeout: float = 600.0) -> None:
@@ -314,7 +331,8 @@ class AnalysisDialog(QDialog):
         chosen = self.selection()
         self._apply_btn.setEnabled(
             chosen is not None and bool(chosen[2]) and chosen[0] not in self._applied
-            and not self.running())
+            and not self.running()
+            and (self.apply_partial or not getattr(self, "_partial", False)))
         self._copy_btn.setEnabled(self.result is not None and not self.running())
         # Enter does the next useful thing: run, or write the answer in
         can_apply = self._apply_btn.isEnabled()
