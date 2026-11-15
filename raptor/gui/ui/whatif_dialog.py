@@ -203,6 +203,10 @@ class WhatIfDialog(AnalysisDialog):
             rows.append((row["name"], (metric.get("value") or {}).get("mean"),
                          delta, metric.get("p_better"), (mdt.get("delta") or {}).get("mean"),
                          row.get("error")))
+        units = (self._win._current_units() or "") if hasattr(self._win, "_current_units") else ""
+        header = self.table.horizontalHeaderItem(len(RESULT_COLUMNS) - 1)
+        if header is not None:
+            header.setText(f"{RESULT_COLUMNS[-1]} ({units})" if units else RESULT_COLUMNS[-1])
         self.table.setRowCount(len(rows))
         for index, (name, value, delta, chance, mdt, error) in enumerate(rows):
             texts = (name,

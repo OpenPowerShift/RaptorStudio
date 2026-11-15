@@ -280,7 +280,12 @@ def _caption(rows: list[dict[str, Any]]) -> str:
     usable = [row for row in rows
               if not row.get("error") and row.get("metrics")]
     if not usable:
-        return "No scenario ran."
+        failed = [row for row in rows if row.get("error")]
+        if failed:
+            first = failed[0]
+            return (f"No scenario ran: {len(failed)} could not be applied or run "
+                    f"(\"{first['name']}\": {first['error']}).")
+        return "No scenario to compare: add one with a change to the model."
     best = max(usable, key=lambda row: (
         (row["metrics"]["availability"]["delta"] or {}).get("mean") or 0.0))
     delta = (best["metrics"]["availability"]["delta"] or {}).get("mean")

@@ -104,3 +104,11 @@ def test_p_better_uses_students_t_at_small_counts():
     other = [1.0, 2.0, 3.0]            # mean 2, sem 0.577, t = 3.46 on 2 df
     _stat, p = _paired(base, other)
     assert abs(p - 0.9629) < 1e-3     # the normal said 0.9997
+
+
+def test_the_caption_says_why_nothing_ran():
+    from raptor.api.scenarios.runner import _caption
+    text = _caption([{"name": "Bad", "error": "no element named Pmp"}])
+    assert text.startswith("No scenario ran: 1 could not be applied or run")
+    assert "Pmp" in text
+    assert _caption([]).startswith("No scenario to compare")
