@@ -36,7 +36,7 @@ from PySide6.QtWidgets import QAbstractItemView
 from typing import Any, cast
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QStandardItemModel
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
@@ -154,13 +154,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.addTab(self._drivers_page, "Drivers")
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
-        from raptor.gui.ui.charts_page import ChartsPage
-        self._charts_page = ChartsPage()
         self._charts_page.locate_requested.connect(
             lambda _kind, name: self.element_clicked.emit("block", name))
         self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
-        self._tabs.addTab(self._graphs_page, "Graphs")
         self._tabs.addTab(self._raw_page, "Report Text")
         # The whole results dock is sized by the TALLEST page, because a
         # QTabWidget's stacked layout takes the max over its pages -- so a
@@ -500,11 +497,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # A second population replaced the page before the deferred
             # restore ran; there is nothing left to scroll.
             pass
-
-    def _restore_graph_run(self, index: int) -> None:
-        """Keep the Graphs run selector on the run the reader was viewing."""
-        if 0 <= index < self._graph_run.count():
-            self._graph_run.setCurrentIndex(index)
 
     def _restore_raw_view(self, tab_index: int, scroll: int) -> None:
         """Keep the Report Text tab and its scroll position."""
@@ -1257,6 +1249,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 QApplication.restoreOverrideCursor()
         attribution["units"] = self._units
         outages = attribution.pop("outages", None)
+        # the run-to-run state ribbon draws from the outage timeline
+        self._outages = outages
         self._drivers_page.set_attribution(attribution)
         self._period_summary = self._yearly(outages)
         self._drivers_page.set_periods(self._period_summary)
@@ -1295,6 +1289,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._manifest = None
         self._rbd = None
         self._period_summary = None
+        self._outages = None
         if hasattr(self, "_story_page"):
             self._story_page.set_story(None)
         self._event_logs = []
@@ -1338,14 +1333,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # leaving them here let Save Raw Report export a previous batch
         # from an empty-looking dock (and kept its stream alive).
         self._raw_sources = {}
-        if hasattr(self, "_ao_plot"):
-            self._ao_plot.set_data([])
-            self._ao_plot.set_cap_data([])
-            self._ao_plot.set_convergence_data([])
-            self._graph_run.clear()
-            self._graph_run.setEnabled(False)
-            self._graph_mode.setCurrentIndex(0)
-            self._graph_note.hide()
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_series([], [])
+            self._charts_page.set_inputs()
+            self._charts_page.set_note("")
         self._tabs.hide()
         self._placeholder.show()
         self._refresh_scope_banner()
@@ -1438,7 +1429,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 previous_scroll = current_page.verticalScrollBar().value()
         previous_run = self._run_selector.currentIndex()
         previous_log_scroll = self._log_tree.verticalScrollBar().value()
-        previous_graph_run = self._graph_run.currentIndex()
         previous_raw_tab = self._raw_tabs.currentIndex()
         previous_raw_scroll = 0
         raw_page = self._raw_tabs.widget(previous_raw_tab)
@@ -1454,7 +1444,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._restore_details_view(previous_tab, previous_scroll)
         stage("graphs", 4, 6)
         self._update_graphs()
-        self._restore_graph_run(previous_graph_run)
         stage("raw report", 5, 6)
         self._populate_raw(end_of_run_lines, final_results_lines)
         self._restore_raw_view(previous_raw_tab, previous_raw_scroll)
@@ -1640,15 +1629,36 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             per_run = [_rd_to_dict(rd) for rd in self._report_data]
             attribution = (self._drivers_page.attribution()
                            if hasattr(self, "_drivers_page") else None)
+            if attribution is not None and getattr(self, "_outages", None):
+                attribution = {**attribution, "outages": self._outages}
             manifest = self._manifest or {}
             periods = (self._drivers_page.periods()
                        if hasattr(self, "_drivers_page") else None)
+            logs = [log for log in (self._event_logs or []) if log]
+            drivers = ("ready" if attribution is not None
+                       else "pending" if self._drivers_stale
+                       else "ready" if logs else "unavailable")
+            from raptor.core.engine import weak_metric
+            dependability = (
+                weak_metric.canonical(getattr(self, "_weak_anal_type", ""))
+                == weak_metric.DEPENDABILITY
+                and any(row.get("dependability") is not None for row in per_run))
+            generated = None
+            if getattr(self, "_rbd", None) is not None:
+                try:
+                    from raptor.api.insight.capacity_attribution import flow_generated_of
+                    generated = flow_generated_of(self._rbd) or None
+                except Exception:  # noqa: BLE001 - only a reference line
+                    generated = None
             page.set_inputs(
                 per_run=per_run, attribution=attribution,
                 importance=getattr(self, "_importance", None),
                 report_data=list(self._report_data), periods=periods,
                 units=self._units,
-                run_id=str(manifest.get("run_id") or ""))
+                run_id=str(manifest.get("run_id") or ""),
+                drivers=drivers,
+                measure="dependability" if dependability else "availability",
+                generated=generated)
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
             logging.getLogger(__name__).exception("could not build the charts")
@@ -2129,10 +2139,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """Capacity snapshots received so far during a batch run. The
         engine appends each completed run's capacity snapshot rows to its
         capacity sink; MainWindow forwards the sink (plain list or
-        disk-backed ResultStream) here, so the Graphs tab's Capacity
-        (Flow) plot fills in run-by-run rather than only after the whole
-        batch. The first update for a batch switches the view to the
-        Capacity plot (Raptor 7 shows its capacity display live too);
+        disk-backed ResultStream) here, so the Charts tab's capacity
+        charts fill in run-by-run rather than only after the whole
+        batch. The first update for a batch switches the view to a
+        capacity chart (Raptor 7 shows its capacity display live too);
         later updates only refresh the data. Live refresh pauses past
         `_LIVE_CAP_REFRESH_ROWS` rows, since re-parsing a huge file on
         every progress tick is the memory/CPU blow-up this opt-in design
@@ -2142,39 +2152,33 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._cap_lines = cap_lines
         row_count = getattr(cap_lines, "count", len(cap_lines))
         if row_count > self._LIVE_CAP_REFRESH_ROWS:
-            if not self._graph_note.isVisible():
-                self._graph_note.setText(
-                    "Live plot paused — data large; the full set "
+            if not self._charts_page.note.isVisible():
+                self._charts_page.set_note(
+                    "Live charts paused — the data is large; the full set "
                     "appears when the batch completes")
-                self._graph_note.show()
             return
         self._update_graphs()
         self._placeholder.hide()
         self._tabs.show()
         if not getattr(self, "_live_cap_autoswitch", False):
             self._live_cap_autoswitch = True
-            item = cast(QStandardItemModel,
-                        self._graph_mode.model()).item(3)
-            if item is not None and item.isEnabled():
-                self._graph_mode.setCurrentIndex(3)  # Capacity (Flow)
-                self._tabs.setCurrentWidget(self._graphs_page)
+            self._show_live_chart("capacity")
 
     def update_live_ao(self, ao_lines) -> None:
         """Availability-plot rows received so far during a batch run.
         Mirrors `update_live_capacity`: the engine appends each completed
         run's Ao rows to its sink, and MainWindow forwards them here so
-        the Graphs tab's Ao plot fills in run-by-run rather than only at
+        the Charts tab's availability charts fill in run-by-run rather than only at
         batch end."""
         if not ao_lines or len(ao_lines) == 0:
             return
         self._ao_lines = ao_lines
         row_count = getattr(ao_lines, "count", len(ao_lines))
         if row_count > self._LIVE_CAP_REFRESH_ROWS:
-            if not self._graph_note.isVisible():
-                self._graph_note.setText(
-                    "Live plot paused — data large; the full set "
+            if not self._charts_page.note.isVisible():
+                self._charts_page.set_note(
+                    "Live charts paused — the data is large; the full set "
                     "appears when the batch completes")
-                self._graph_note.show()
             return
         self._update_graphs()
         self._placeholder.hide()
@@ -2184,8 +2188,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if not getattr(self, "_live_ao_autoswitch", False) and \
                 not getattr(self, "_live_cap_autoswitch", False):
             self._live_ao_autoswitch = True
-            self._graph_mode.setCurrentIndex(0)   # "Per Trial Ao"
-            self._tabs.setCurrentWidget(self._graphs_page)
+            self._show_live_chart("availability")
+
+    def _show_live_chart(self, kind: str) -> None:
+        """Bring the chart a running batch is filling in to the front: the
+        across-runs bands once two runs are in, one run before that."""
+        page = self._charts_page
+        for key in (f"{kind}-band", f"{kind}-through-run"):
+            if not page.missing_reason(key) and page.select(key):
+                self._tabs.setCurrentWidget(page)
+                return
 
     # ------------------------------------------------------------------
     # Raw

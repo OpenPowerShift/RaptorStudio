@@ -96,7 +96,7 @@ EXPORT_SECTIONS = [
     ("results", "Results (summary, logistics, sparing, cost, ...)", True,
      True),
     ("weak", "Weak link analysis", True, True),
-    ("graphs", "Graph (the one on the Graphs tab)", True, True),
+    ("graphs", "Chart over time (the one shown on the Charts tab)", True, True),
     ("event_log", "Event log (the current run and filter; long)", True,
      False),
     ("raw", "Raw reports (End of Run, Final Results, Interim Cost; long)",

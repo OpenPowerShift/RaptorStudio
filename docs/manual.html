@@ -796,6 +796,11 @@ Raptor 7 there.</p>
 percentages, availability at a glance.</p>
 </li>
 <li>
+<p><strong>Drivers</strong> — which elements, and which kind of waiting, caused the
+system&#8217;s downtime (and, with Capacity analysis, its lost capacity),
+worked out by replaying the event log (see <code>docs/advisor.adoc</code>).</p>
+</li>
+<li>
 <p><strong>Final Results</strong> — the Final_Results report: Minimum/Mean/Maximum/
 St.Dev/SEM for Availability, MTBDE, MDT, Reliability, plus the
 LOGISTICS, SPARING, COST and CAPACITY sections when enabled.</p>
@@ -806,17 +811,62 @@ LOGISTICS, SPARING, COST and CAPACITY sections when enabled.</p>
 session this tab fills line by line.</p>
 </li>
 <li>
-<p><strong>Graphs</strong> — availability/convergence and capacity plots. A plot mode
-is selectable only when the run collected enough data; otherwise its
-tooltip/empty state says exactly what to tick under Run panel ▸
-Recording (<a href="../new_docs/book.html#ch-trials">Many Trials</a>).
-<strong>Multi-run Ao</strong> auto-fits its Y axis to the observed min/max, so a
-narrow availability band is readable instead of a flat line at 1.0.
-<strong>Y-axis min</strong> is <strong>Auto</strong> at 0; a saved non-zero value is a manual floor
-used by every availability plot. Capacity and Convergence do not use it.
-The single-run <strong>Capacity (Flow)</strong> plot shows the run&#8217;s average flow
-and capacity as horizontal reference lines; <strong>Multi-run Capacity
-(Flow)</strong> shows min/average/max flow and capacity across every run.</p>
+<p><strong>Charts</strong> — every result chart in one place. The list on the left
+groups them by the question they answer: <strong>The answer</strong> (run-to-run
+outcome, chance of reaching a value, availability ladder, has the run
+settled), <strong>Over time</strong> (availability through a run, interval by
+interval and across all runs; capacity through a run and across all
+runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by year</strong>, <strong>Cost</strong> and
+<strong>What matters most</strong>. Click a group heading to fold it. A chart the run
+cannot draw stays in the list, greyed; choosing it says what to tick
+or turn on (for the charts over time, Availability Plot or Capacity
+Plot under Run panel ▸ Recording) and, for the downtime charts, offers
+to work out the drivers there and then. Above the chart are only the
+controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
+for an availability chart over time, and <strong>Export</strong> (copy, PNG, SVG,
+the chart&#8217;s data as CSV, and, for a chart over time, every recorded
+plot row in Raptor&#8217;s <code>rpt_*_plot</code> layout). Hover a chart over time to
+read every layer at that moment.</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Availability through a run</strong> shows the share of time so far spent
+fully up (green), degraded (yellow) and down (red); the top of the
+yellow band is the run&#8217;s availability to date.</p>
+</li>
+<li>
+<p><strong>Availability interval by interval</strong> is the availability of each
+recording interval, with the availability to date dashed. A run with
+more intervals than the chart can show is grouped, keeping the worst
+interval of each group, so a dip is never smoothed away.</p>
+</li>
+<li>
+<p><strong>Availability across all runs</strong> draws the mean with two bands: 8 runs
+in 10, and every run. Where the bands stop narrowing, a longer run no
+longer changes the answer.</p>
+</li>
+<li>
+<p><strong>Capacity through a run</strong> draws the flow delivered against the
+model&#8217;s flow generated; the shaded gap is the capacity lost, the same
+loss the lost-capacity charts split by element. The capacity plot
+records only changes, so the last value is held to the end of the run.</p>
+</li>
+<li>
+<p><strong>Capacity across all runs</strong> draws the mean flow with the same two
+bands, and the share of the flow generated the runs delivered.</p>
+</li>
+<li>
+<p><strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
+saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
+availability chart over time.</p>
+<div class="paragraph">
+<p>The same charts come from the command line (<code>raptor explain MODEL
+--chart NAME</code>, with <code>--chart-run N</code> and <code>--y-floor F</code> for the charts over
+time; <code>--list-charts</code> names them) and from the MCP <code>run_chart</code> tool.</p>
+</div>
+</li>
+</ul>
+</div>
 </li>
 <li>
 <p><strong>Report Text</strong> — the report text exactly as produced.</p>
@@ -1428,12 +1478,12 @@ default).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Availability Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Per-Trial / Interval / Multi-run Ao data for the Graphs tab (the
+<td class="tableblock halign-left valign-top"><p class="tableblock">The availability charts over time on the Charts tab (the
 availability plot file).</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Capacity Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Flow-vs-capacity data for the Graphs tab&#8217;s Capacity plot and the live
+<td class="tableblock halign-left valign-top"><p class="tableblock">The capacity charts over time on the Charts tab and the live
 per-node capacity readouts (capacity plot file). Requires Capacity
 Analysis.</p></td>
 </tr>
@@ -1444,7 +1494,7 @@ Analysis.</p></td>
 </tbody>
 </table>
 <div class="paragraph">
-<p>Use <strong>the Graphs tab’s Export Data… button</strong> to save a plot&#8217;s rows to a file. If a FailSim/CycleSim run reaches the
+<p>Use <strong>Charts ▸ Export ▸ Save the recorded plot rows</strong> to save a plot&#8217;s rows to a file. If a FailSim/CycleSim run reaches the
 t = 10,000,000 safety bound without meeting its termination condition,
 a warning is shown in the status bar and the Summary notes — the
 numbers then cover only the simulated portion.</p>

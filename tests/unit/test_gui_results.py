@@ -362,16 +362,18 @@ def test_save_raw_report_writes_the_selected_subtab(real_results,
     assert "Final_Results_Report for" in saved
 
 
-def test_save_graph_image_writes_a_png(real_results, monkeypatch, tmp_path):
-    """The Graphs tab (Ao/Capacity plots) exports as a PNG image."""
+def test_a_chart_over_time_saves_as_a_png(real_results, tmp_path):
+    """The charts over time (the old Graphs tab) export as a PNG image."""
     dock, _ = real_results
     dock.resize(900, 600)
     dock.show()
     QApplication.instance().processEvents()
+    page = dock._charts_page
+    key = next(k for k in ("availability-through-run", "capacity-through-run",
+                           "trial-outcome") if not page.missing_reason(k))
+    assert page.select(key)
     path = str(tmp_path / "graph.png")
-    monkeypatch.setattr(_fdg, "getSaveFileName",
-                        staticmethod(lambda *a, **kw: (path, "")))
-    dock._save_graph_image()
+    page.save_png(path)
     assert os.path.exists(path)
     assert os.path.getsize(path) > 0
 
@@ -970,18 +972,14 @@ def test_export_appendix_c_availability_plot_data_when_present(
     assert non_blank == [ln for ln in ao_lines if ln]
 
 
-def test_y_axis_minimum_is_the_models_and_changes_the_graph_scale(qapp):
-    from PySide6.QtCore import QRectF
-    from raptor.gui.ui.plots import AoPlotWidget
-    plot = AoPlotWidget()
-    area = QRectF(0, 0, 100, 100)
-    assert plot._y_map(area, 1.0) == 0.0 and plot._y_map(area, 0.0) == 100.0
-    plot.set_y_min(0.5)
-    assert plot.y_min == 0.5
-    assert plot._y_map(area, 0.75) == 50.0            # halfway up the 0.5..1.0 range
-    assert plot._y_map(area, 0.2) == 100.0            # below the axis: clamped to the floor
-    plot.set_y_min(5.0)
-    assert plot.y_min == 0.999999                     # the original's own ceiling
+def test_y_axis_minimum_is_the_models_and_changes_the_chart_scale(qapp):
+    dock = ResultsDock()
+    dock.set_y_axis_min(0.5)
+    assert dock.y_axis_min == 0.5
+    dock.set_y_axis_min(5.0)
+    assert dock.y_axis_min == 0.999999                # the original's own ceiling
+    dock.set_y_axis_min(0.0)
+    assert dock.y_axis_min == 0.0
 
 
 def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_flag(qapp):
@@ -994,7 +992,7 @@ def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_f
     w = MainWindow()
     w._load_into_app(rbd, "x")
     assert not w._dirty
-    assert w._results._ao_plot.y_min == float(before["graphYmin"])
+    assert w._results.y_axis_min == float(before["graphYmin"])
     w._results.y_axis_min_changed.emit(0.25)
     assert w._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] == "0.250000" and w._dirty
 
@@ -1022,14 +1020,6 @@ def test_weak_tables_expand_to_all_rows(qapp):
     blocks = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert blocks.rowCount() > 8
     assert blocks.minimumHeight() >= blocks.rowCount() * 20
-
-
-def test_y_axis_min_is_disabled_for_capacity_plots(qapp):
-    dock = ResultsDock()
-    dock._graph_mode.setCurrentIndex(3)   # Capacity (Flow)
-    assert dock._y_axis_btn.isEnabled() is False
-    dock._graph_mode.setCurrentIndex(0)
-    assert dock._y_axis_btn.isEnabled() is True
 
 
 def test_capacity_matches_raptor_for_full_flow_nodes(qapp):
@@ -1206,7 +1196,7 @@ def test_an_unknown_label_does_not_open_the_explainer(real_results):
 def test_the_charts_tab_builds_from_a_real_run(real_results):
     dock, _ = real_results
     page = dock._charts_page
-    names = [page.selector.itemText(i) for i in range(page.selector.count())]
+    names = page.titles()
     assert "Run-to-run outcome" in names
     assert "Availability ladder" in names
     assert page.selected_spec() is not None

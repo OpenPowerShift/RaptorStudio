@@ -2812,7 +2812,11 @@ enough for whole periods, and `annual-capacity-fan` (capacity delivered
 year by year) needs both. `importance-quadrant` needs importance
 measures; `cost-pareto` and `cost-treemap` (spare pools included) need
 cost analysis; ask for them only when
-the run has those.
+the run has those. Over time: `availability-through-run`,
+`interval-availability` and `availability-band` need the availability
+plot recorded (`availability_plot=true`), `capacity-through-run` and
+`capacity-band` capacity analysis; `run` picks the run of a one-run
+chart and `y_floor` (0 to 1) the bottom of an availability axis.
 
 **Parameters**
 
@@ -2820,7 +2824,9 @@ the run has those.
 | --- | --- | --- | --- | --- |
 | `chart` | string | no | `trial-outcome` | — |
 | `render_svg` | boolean | no | `true` | — |
+| `run` | integer | no | `1` | — |
 | `run_id` | string | yes | — | — |
+| `y_floor` | number \| null | no | `null` | — |
 
 **Returns**
 

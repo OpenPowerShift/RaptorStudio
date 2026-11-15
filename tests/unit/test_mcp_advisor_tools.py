@@ -164,3 +164,15 @@ def test_run_chart_matches_the_api_and_renders_svg(server, model):
     plain = ok(call(server, "run_chart", run_id=run["run_id"],
                     chart="trial-outcome", render_svg=False))
     assert "svg" not in plain and plain["kind"] == "dot_plot"
+
+
+def test_run_chart_draws_a_chart_over_time(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5, availability_plot=True))
+    data = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="availability-through-run", run=2, y_floor=0.5))
+    assert data["kind"] == "timeline" and data["title"] == "Availability through run 2"
+    assert data["provenance"]["y_range"] == [0.5, 1.0]
+    assert data["svg"].startswith("<svg")
+    missing = call(server, "run_chart", run_id=run["run_id"], chart="capacity-band")
+    assert missing.is_error
+    assert "capacity plot" in " ".join(c.text for c in missing.content)

@@ -459,23 +459,54 @@ After a run (or a stepped Finish) the Results dock offers:
 
 * **Overview** — health-bar summary per run: green/yellow/red
   percentages, availability at a glance.
+* **Drivers** — which elements, and which kind of waiting, caused the
+  system's downtime (and, with Capacity analysis, its lost capacity),
+  worked out by replaying the event log (see `docs/advisor.adoc`).
 * **Final Results** — the Final_Results report: Minimum/Mean/Maximum/
   St.Dev/SEM for Availability, MTBDE, MDT, Reliability, plus the
   LOGISTICS, SPARING, COST and CAPACITY sections when enabled.
 * **Event Log** — the per-trial story, one coloured row per event
   (xref:../new_docs/book.html#ch-redundancy[Redundancy]). Filter by text ("Failed", a block name). During a stepped
   session this tab fills line by line.
-* **Graphs** — availability/convergence and capacity plots. A plot mode
-  is selectable only when the run collected enough data; otherwise its
-  tooltip/empty state says exactly what to tick under Run panel ▸
-  Recording (xref:../new_docs/book.html#ch-trials[Many Trials]).
-  **Multi-run Ao** auto-fits its Y axis to the observed min/max, so a
-  narrow availability band is readable instead of a flat line at 1.0.
-  **Y-axis min** is *Auto* at 0; a saved non-zero value is a manual floor
-  used by every availability plot. Capacity and Convergence do not use it.
-  The single-run **Capacity (Flow)** plot shows the run's average flow
-  and capacity as horizontal reference lines; **Multi-run Capacity
-  (Flow)** shows min/average/max flow and capacity across every run.
+* **Charts** — every result chart in one place. The list on the left
+  groups them by the question they answer: *The answer* (run-to-run
+  outcome, chance of reaching a value, availability ladder, has the run
+  settled), *Over time* (availability through a run, interval by
+  interval and across all runs; capacity through a run and across all
+  runs), *Why it goes down*, *Lost capacity*, *Year by year*, *Cost* and
+  *What matters most*. Click a group heading to fold it. A chart the run
+  cannot draw stays in the list, greyed; choosing it says what to tick
+  or turn on (for the charts over time, Availability Plot or Capacity
+  Plot under Run panel ▸ Recording) and, for the downtime charts, offers
+  to work out the drivers there and then. Above the chart are only the
+  controls it uses: **Run** for a one-run chart over time, **Axis from**
+  for an availability chart over time, and **Export** (copy, PNG, SVG,
+  the chart's data as CSV, and, for a chart over time, every recorded
+  plot row in Raptor's `rpt_*_plot` layout). Hover a chart over time to
+  read every layer at that moment.
+** *Availability through a run* shows the share of time so far spent
+   fully up (green), degraded (yellow) and down (red); the top of the
+   yellow band is the run's availability to date.
+** *Availability interval by interval* is the availability of each
+   recording interval, with the availability to date dashed. A run with
+   more intervals than the chart can show is grouped, keeping the worst
+   interval of each group, so a dip is never smoothed away.
+** *Availability across all runs* draws the mean with two bands: 8 runs
+   in 10, and every run. Where the bands stop narrowing, a longer run no
+   longer changes the answer.
+** *Capacity through a run* draws the flow delivered against the
+   model's flow generated; the shaded gap is the capacity lost, the same
+   loss the lost-capacity charts split by element. The capacity plot
+   records only changes, so the last value is held to the end of the run.
+** *Capacity across all runs* draws the mean flow with the same two
+   bands, and the share of the flow generated the runs delivered.
+** **Axis from** is *auto* at 0 (the axis is fitted to the data); a
+   saved non-zero value (`graphYmin`) is a fixed floor for every
+   availability chart over time.
++
+The same charts come from the command line (`raptor explain MODEL
+--chart NAME`, with `--chart-run N` and `--y-floor F` for the charts over
+time; `--list-charts` names them) and from the MCP `run_chart` tool.
 * **Report Text** — the report text exactly as produced.
 * **Capacity** / **Cost** / **Weak Link** — sub-tabs of Final Results.
   They are always present after a run; each has an explanatory empty
@@ -919,11 +950,11 @@ The four kinds are:
 default).
 
 |Availability Plot
-|Per-Trial / Interval / Multi-run Ao data for the Graphs tab (the
+|The availability charts over time on the Charts tab (the
 availability plot file).
 
 |Capacity Plot
-|Flow-vs-capacity data for the Graphs tab's Capacity plot and the live
+|The capacity charts over time on the Charts tab and the live
 per-node capacity readouts (capacity plot file). Requires Capacity
 Analysis.
 
@@ -931,7 +962,7 @@ Analysis.
 |Interim cost rows (interim cost file). Requires Cost Analysis.
 |===
 
-Use **the Graphs tab’s Export Data… button** to save a plot's rows to a file. If a FailSim/CycleSim run reaches the
+Use **Charts ▸ Export ▸ Save the recorded plot rows** to save a plot's rows to a file. If a FailSim/CycleSim run reaches the
 t = 10,000,000 safety bound without meeting its termination condition,
 a warning is shown in the status bar and the Summary notes — the
 numbers then cover only the simulated portion.

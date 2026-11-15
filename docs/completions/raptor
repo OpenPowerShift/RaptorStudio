@@ -18,7 +18,7 @@ _raptor() {
     doctor) opts="--format --help" ;;
     edit) opts="--help" ;;
     estimate) opts="--format --help --length --runs" ;;
-    explain) opts="--below --capacity-rule --chart --chart-svg --format --help --jobs --list-charts --progress --report --report-include --runs --seed --story --top --year-length --year-offset --yearly" ;;
+    explain) opts="--below --capacity-rule --chart --chart-run --chart-svg --format --help --jobs --list-charts --progress --report --report-include --runs --seed --story --top --y-floor --year-length --year-offset --yearly" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
     fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
     fit) opts="--format --help --law --quantile" ;;

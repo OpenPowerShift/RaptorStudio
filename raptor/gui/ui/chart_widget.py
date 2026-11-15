@@ -127,6 +127,17 @@ class ChartWidget(QWidget):
             return
         with open(path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
+            if spec.kind == "timeline":
+                # one row per corner point: layer, time, then its value or band
+                writer.writerow(["layer", "time", "value", "low", "high"])
+                for layer in spec.series:
+                    for k, t in enumerate(layer.get("t") or []):
+                        writer.writerow([
+                            layer.get("name", ""), t,
+                            (layer.get("y") or [""] * (k + 1))[k],
+                            (layer.get("lo") or [""] * (k + 1))[k],
+                            (layer.get("hi") or [""] * (k + 1))[k]])
+                return
             writer.writerow(["series", "name", "x", "y", "value", "note"])
             for series in spec.series:
                 rows = series.get("dots") or series.get("points") or [series]
@@ -240,7 +251,24 @@ class ChartWidget(QWidget):
                   "ribbon": (("system up", "result_green"), ("system down", "result_red"))}
         for label, key in solids.get(spec.kind, ()):
             entries.append((label, solid(palette[key])))
+        if spec.kind == "timeline":
+            for layer in spec.series:
+                entries.append((str(layer.get("name", "")),
+                                self._layer_swatch(painter, palette, layer)))
         return entries
+
+    def _layer_swatch(self, painter: QPainter, palette: dict[str, str],
+                      layer: dict) -> Callable[[QRectF], None]:
+        colour = _tone(palette, layer)
+
+        def swatch(rect: QRectF) -> None:
+            if layer.get("role") == "area":
+                painter.fillRect(rect, colour)
+                return
+            painter.setPen(_layer_pen(palette, layer))
+            y = rect.center().y()
+            painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
+        return swatch
 
     def _paint_key(self, painter: QPainter, spec: ChartSpec,
                    palette: dict[str, str], top: float) -> float:
@@ -886,6 +914,7 @@ class ChartWidget(QWidget):
         r = frame.rect
         band = r.height() / len(rows)
         bar_h = max(2.0, min(12.0, band * 0.32))
+        labels: list[tuple[QRectF, str]] = []
         for i, row in enumerate(rows):
             top = r.top() + i * band + band / 2 - bar_h - 1
             for j, (key, colour) in enumerate((("value", palette["accent"]),
@@ -894,10 +923,9 @@ class ChartWidget(QWidget):
                 y = top + j * (bar_h + 2)
                 painter.fillRect(QRectF(r.left(), y, frame.x(value) - r.left(), bar_h),
                                  QColor(colour))
-                painter.setPen(QColor(palette["text"]))
-                painter.drawText(QRectF(frame.x(value) + 4, y - 3, value_w, bar_h + 6),
-                                 Qt.AlignmentFlag.AlignVCenter,
-                                 format_value(value, "percent", 3))
+                # the values go on after every bar, so no bar covers a label
+                labels.append((QRectF(frame.x(value) + 4, y - 3, value_w + 20, bar_h + 6),
+                               format_value(value, "percent", 3)))
             painter.setPen(QColor(palette["text"]))
             painter.drawText(QRectF(area.left(), top - 2, gutter - 8, 2 * bar_h + 6),
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -908,6 +936,9 @@ class ChartWidget(QWidget):
                       f"{row['name']}: {100 * float(row.get('value') or 0):.3g} % of "
                       f"lost capacity, {100 * float(row.get('downtime') or 0):.3g} % "
                       "of downtime")
+        painter.setPen(QColor(palette["text"]))
+        for rect, text in labels:
+            painter.drawText(rect, Qt.AlignmentFlag.AlignVCenter, text)
 
     def _paint_fan(self, painter, spec, palette, area) -> None:
         rows = [row for row in spec.series if _number(row.get("p50"))]
@@ -966,6 +997,69 @@ class ChartWidget(QWidget):
             return [(pt(i, mids[i]), text)]
 
         self._probe = (frame, read)
+
+    def _paint_timeline(self, painter, spec, palette, area) -> None:
+        layers = [layer for layer in spec.series if layer.get("t")]
+        if not layers:
+            return self._paint_none(painter, spec, palette, area)
+        fmt = self._fmt()
+        t_end = max(float(layer["t"][-1]) for layer in layers)
+        t_start = min(float(layer["t"][0]) for layer in layers)
+        y_low, y_high = (float(v) for v in (spec.provenance.get("y_range") or [0.0, 1.0])[:2])
+        if y_high <= y_low:
+            y_high = y_low + 1.0
+        if fmt != "percent":
+            y_low, y_high = nice_range(y_low, y_high, 5)
+        frame = self._frame(painter, spec, palette, area,
+                            x_range=(t_start, max(t_end, t_start + 1e-9)),
+                            y_range=(y_low, y_high), y_fmt=fmt,
+                            y_ticks=nice_ticks(y_low, y_high, 5))
+
+        def pt(t: float, value: float) -> QPointF:
+            return QPointF(frame.x(t), frame.y(min(y_high, max(y_low, value))))
+
+        painter.save()
+        painter.setClipRect(frame.rect)
+        for layer in layers:
+            self._timeline_layer(painter, palette, layer, pt, y_low)
+        painter.restore()
+        target = self._target(spec)
+        if target is not None and y_low <= target <= y_high:
+            self._target_line(painter, palette, frame, target, horizontal=True,
+                              label=f"target {format_value(target, fmt, 5)}")
+        self._probe = (frame, _timeline_reader(
+            layers, fmt, str(spec.provenance.get("time_units") or ""), frame, pt))
+
+    @staticmethod
+    def _timeline_layer(painter: QPainter, palette: dict[str, str], layer: dict,
+                        pt: Callable[[float, float], QPointF], y_low: float) -> None:
+        """One layer: an area between `lo` and `hi`, or a line through `y`."""
+        ts = [float(x) for x in layer["t"]]
+        colour = _tone(palette, layer)
+        if layer.get("role") == "area":
+            lo = [float(v) for v in layer["lo"]]
+            hi = [float(v) for v in layer["hi"]]
+            polygon = QPolygonF([pt(t, v) for t, v in zip(ts, hi, strict=True)]
+                                + [pt(t, v) for t, v in zip(reversed(ts), reversed(lo),
+                                                             strict=True)])
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(colour)
+            painter.drawPolygon(polygon)
+            return
+        ys = [float(v) for v in layer["y"]]
+        if layer.get("fill"):
+            under = QColor(colour)
+            under.setAlpha(40)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(under)
+            painter.drawPolygon(QPolygonF([pt(t, v) for t, v in zip(ts, ys, strict=True)]
+                                          + [pt(ts[-1], y_low), pt(ts[0], y_low)]))
+        path = QPainterPath(pt(ts[0], ys[0]))
+        for t, v in zip(ts[1:], ys[1:], strict=True):
+            path.lineTo(pt(t, v))
+        painter.setPen(_layer_pen(palette, layer))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
 
     def _cell_text(self, painter, rect: QRectF, cause: str, lines: Sequence[str]) -> None:
         fm = QFontMetrics(self.font())
@@ -1093,8 +1187,9 @@ class ChartWidget(QWidget):
             painter.setPen(QPen(QColor(palette["surface"]), 2))
             painter.setBrush(QColor(palette["accent"]))
             painter.drawEllipse(point, 5, 5)
-            w = fm.horizontalAdvance(text) + 14
-            h = fm.height() + 8
+            rows = text.split("\n")
+            w = max(fm.horizontalAdvance(row) for row in rows) + 14
+            h = fm.height() * len(rows) + 8
             left = point.x() + 10 if point.x() + 10 + w <= r.right() else point.x() - 10 - w
             top = point.y() - h - 8 if point.y() - h - 8 >= r.top() else point.y() + 8
             box = QRectF(max(r.left(), left), top, w, h)
@@ -1160,6 +1255,62 @@ class ChartWidget(QWidget):
                                               "CSV (*.csv)")
         if path:
             self.save_csv(path)
+
+
+_TONES = {"up": "result_green", "degraded": "result_yellow", "down": "result_red",
+          "accent": "accent", "muted": "muted", "ink": "text"}
+
+
+def _tone(palette: dict[str, str], layer: dict) -> QColor:
+    """A timeline layer's colour: its theme tone, with its alpha for an area."""
+    colour = QColor(palette[_TONES.get(str(layer.get("tone")), "accent")])
+    if layer.get("role") == "area":
+        alpha = layer.get("alpha")
+        colour.setAlphaF(float(alpha) if isinstance(alpha, (int, float)) else 0.85)
+    return colour
+
+
+def _layer_pen(palette: dict[str, str], layer: dict) -> QPen:
+    pen = QPen(_tone(palette, layer), float(layer.get("width") or 1.5))
+    if layer.get("dash"):
+        pen.setStyle(Qt.PenStyle.DashLine)
+    return pen
+
+
+def _at(ts: Sequence[float], values: Sequence[float], t: float) -> float:
+    """A layer's value at time `t`, joining its corner points."""
+    from raptor.api.series import _interp
+    return _interp(list(ts), [float(v) for v in values], t)
+
+
+def _timeline_reader(layers: list[dict], fmt: str, units: str, frame: _Frame,
+                     pt: Callable[[float, float], QPointF]
+                     ) -> Callable[[float], list[tuple[QPointF, str]]]:
+    """The cursor of a chart over time: every layer's value at one moment."""
+    def shown(value: float) -> str:
+        return format_value(value, fmt, 5) if fmt == "percent" else f"{value:,.4g}"
+
+    def read(px: float) -> list[tuple[QPointF, str]]:
+        t = frame.value_at_x(px)
+        lines = [f"at {_short(t)} {units}".rstrip()]
+        anchor = None
+        for layer in layers:
+            ts = [float(x) for x in layer["t"]]
+            how = layer.get("read", "span")
+            if how == "none":
+                continue
+            if layer.get("role") != "area":
+                value = _at(ts, layer["y"], t)
+                anchor = anchor or pt(t, value)
+                text = shown(value)
+            elif how == "range":
+                text = f"{shown(_at(ts, layer['lo'], t))} to {shown(_at(ts, layer['hi'], t))}"
+            else:
+                text = shown(_at(ts, layer["hi"], t) - _at(ts, layer["lo"], t))
+            lines.append(f"{layer.get('name', '')}: {text}")
+        return [(anchor or QPointF(px, frame.rect.center().y()), "\n".join(lines))]
+
+    return read
 
 
 def _points(fraction: float) -> str:

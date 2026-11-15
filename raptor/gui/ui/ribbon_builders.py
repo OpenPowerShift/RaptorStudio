@@ -843,7 +843,7 @@ class RibbonBuilders(_Base):
         # Files & Reports tab): plot/log collection is opt-in. The
         # original writes these files only when ticked and streams them
         # to disk; collecting every plot row in RAM unconditionally lets
-        # a long simulation balloon memory and freeze the Graphs tab.
+        # a long simulation balloon memory and freeze the Charts tab.
         # Off by default like Raptor 7; the Event Log stays on (the
         # Results tab's live view depends on it).
         #
@@ -871,13 +871,14 @@ class RibbonBuilders(_Base):
              "tab. Unchecked: no log collection (faster large batches)."),
             ("ao_plot", "Availability Plot", False,
              "Collect the Availability plot data (the rpt_"
-             "availability_plot file): the Graphs tab's Per Trial / "
-             "Interval / Multi-run Ao plots. Streamed to a temp file — "
-             "never held in RAM."),
+             "availability_plot file): the Charts tab's availability "
+             "charts over time (through a run, interval by interval, "
+             "across all runs). Streamed to a temp file — never held in "
+             "RAM."),
             ("capacity_plot", "Capacity Plot", False,
              "Collect capacity plot data (the rpt_capacity_plot "
-             "file) for the Graphs tab's Capacity (Flow) plot and the "
-             "live capacity readouts. Requires Capacity Analysis."),
+             "file) for the Charts tab's capacity charts over time and "
+             "the live capacity readouts. Requires Capacity Analysis."),
             ("cost_plot", "Cost Plot", False,
              "Collect interim cost data (the rpt_interim_cost "
              "file). Requires Cost Analysis."),

@@ -127,24 +127,32 @@ def render_diagrams(win, folder: Path, tiles: int = 1) -> list[Figure]:
 
 
 def _render_graph(win, folder: Path) -> list[Figure]:
-    """The plot on the Graphs tab, drawn at a fixed page-friendly size
-    rather than whatever size the dock happens to be."""
-    plot = getattr(win._results, "_ao_plot", None)
-    if plot is None:
+    """The chart over time the reader is looking at (or the first one the
+    run recorded), drawn at a fixed page-friendly size."""
+    page = getattr(win._results, "_charts_page", None)
+    if page is None:
         return []
-    old = plot.size()
-    try:
-        plot.resize(1800, 800)
-        QApplication.processEvents()
-        pm = plot.grab()
-    finally:
-        plot.resize(old)
+    from raptor.api.insight.timecharts import TIME_CHARTS
+    key = page.selected_key() or ""
+    if key not in TIME_CHARTS or page.missing_reason(key):
+        key = next((k for k in ("availability-band", "availability-through-run",
+                                "capacity-band", "capacity-through-run")
+                    if not page.missing_reason(k)), "")
+    if not key:
+        return []
+    spec = page._time_spec(key)
+    if spec is None:
+        return []
+    from raptor.gui.ui.chart_widget import ChartWidget
+    widget = ChartWidget()
+    widget.resize(1800, 800)
+    widget.set_spec(spec)
+    pm = widget.grab()
+    widget.deleteLater()
     if pm.isNull() or pm.width() <= 1:
         return []
     pm.save(str(folder / "graph.png"))
-    mode = getattr(win._results, "_graph_mode", None)
-    title = mode.currentText() if mode is not None else "Graph"
-    return [Figure(title, "graph.png")]
+    return [Figure(spec.title, "graph.png")]
 
 
 def _event_log(win) -> Table | None:

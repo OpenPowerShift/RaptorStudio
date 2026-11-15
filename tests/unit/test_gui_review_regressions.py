@@ -52,22 +52,13 @@ def test_enabling_ao_plot_seeds_only_the_default_interval():
     assert panel.experiment()["recording"]["ao_interval"] == 5.0
 
 
-def test_multirun_ao_autoscales_to_the_envelope():
-    from raptor.gui.ui.plots import AoPlotWidget
-
-    qapp()
-    plot = AoPlotWidget()
-    runs = [
-        {"t": [0, 1], "ao": [0.9991, 0.9992], "g": [1, 1],
-         "y": [0, 0], "r": [0, 0], "iv": [None, None]},
-        {"t": [0, 1], "ao": [0.9994, 0.9995], "g": [1, 1],
-         "y": [0, 0], "r": [0, 0], "iv": [None, None]},
-    ]
-    plot.set_data(runs)
-    plot.set_mode(AoPlotWidget.MULTI_RUN)
-    low, high = plot._y_bounds()
-    assert 0.9990 < low < 0.9992
-    assert 0.9994 < high < 1.0
+def test_the_across_runs_availability_chart_fits_its_axis_to_the_runs():
+    from raptor.api.insight.timecharts import availability_band
+    runs = [{"t": [0, 1], "values": [0.9991, 0.9992]},
+            {"t": [0, 1], "values": [0.9994, 0.9995]}]
+    low, high = availability_band(runs).provenance["y_range"]
+    assert 0.99 <= low < 0.9991
+    assert high == 1.0
 
 
 def test_simulate_restores_a_minimised_run_panel():
