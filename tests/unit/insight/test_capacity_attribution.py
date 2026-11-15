@@ -352,3 +352,39 @@ def test_a_long_loss_with_nothing_down_is_still_shown_as_no_single_element():
     tracker.finish(20.0, {}, {})
     assert tracker.out.by_element[SYSTEM_KEY] == pytest.approx(80.0)
     assert tracker.out.notes
+
+
+def test_a_run_carries_the_dependants_part_to_the_aggregate_and_text(tmp_path):
+    # the hand-worked model above, run end to end: B is Idle while A is down,
+    # so A owns all 1600 a run and 30/80 of it (600) is B's part
+    spec = parallel_spec([fixed("A", 1, 10, 20),
+                          fixed("B", 2, 1000, 1, dep_type="RBDBlock", dep_num=1),
+                          fixed("C", 3, 1000, 1)], [50, 30, 20], length=40.0)
+    path = tmp_path / "dep.rbds"
+    save_rbds(build.build_from_spec(spec), str(path))
+    workspace = Workspace(tmp_path / "ws")
+    model_id = workspace.open_model(path)["model_id"]
+    from raptor.api.run import run
+    result = run(workspace, model_id, num_runs=2, attribution=True,
+                 confirm_long_run=True)
+    run_dir = tmp_path / "ws" / "runs" / result.run_id
+    capacity = json.loads((run_dir / "attribution.json").read_text())["capacity"]
+    rows = {row["name"]: row for row in capacity["elements"]}
+    assert list(rows) == ["A"]
+    assert rows["A"]["lost_energy"]["mean"] == pytest.approx(1600.0)
+    assert rows["A"]["through_dependents"]["mean"] == pytest.approx(600.0)
+    lines = text_lines(capacity)
+    assert any("Of which via dependants" in line for line in lines)
+    assert any(line.startswith("A ") and line.rstrip().endswith("600") for line in lines)
+
+
+def test_without_a_held_dependant_the_text_says_why_rather_than_zeros():
+    from raptor.api.insight.capacity_attribution import NO_DEPENDANTS
+    stat = {"mean": 0.0, "n": 1}
+    capacity = {"rule": "proportional", "lost_energy": {"mean": 10.0, "n": 1},
+                "causes": {}, "notes": [],
+                "elements": [{"name": "A", "lost_energy": {"mean": 10.0},
+                              "share": {"mean": 1.0}, "through_dependents": stat}]}
+    lines = text_lines(capacity)
+    assert not any("via dependants" in line and "Of which" in line for line in lines)
+    assert NO_DEPENDANTS in lines

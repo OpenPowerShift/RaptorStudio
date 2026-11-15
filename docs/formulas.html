@@ -996,7 +996,14 @@ Shares sum to the engine&#8217;s own lost flow, every run.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$w_e = F_"gen" - F("only" e "down")\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The flow lost if that element alone were down, from the Failure Effects
 view (no simulation, no random draw). Elements Idle through a dependency
-are charged to the element they depend on.</p></td>
+on a block or an event are charged to the element they depend on. The
+<strong>Of which via dependants</strong> figure is the part of that charge the Idle
+dependants explain: the master&#8217;s charge scaled by the dependants' own
+contributions over the master&#8217;s, at most the whole charge. A dependency
+on a node, a hierarchy or the whole system has no element to follow, so
+it is charged to the dependant itself. When nothing was charged this
+way, <code>raptor explain</code> says so in a line instead of printing a column of
+zeros.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Marginal lost capacity</p></td>

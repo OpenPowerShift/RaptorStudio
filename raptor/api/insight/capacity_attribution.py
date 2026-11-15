@@ -979,6 +979,14 @@ def aggregate_capacity(
     }
 
 
+#: Why the "via dependants" figures are all zero, said instead of a column
+#: of zeros.
+NO_DEPENDANTS = (
+    "Nothing was charged via dependants: no element was held Idle by a block "
+    "or event it depends on while flow was lost. (A dependency on a node, a "
+    "hierarchy or the whole system is charged to the dependant itself.)")
+
+
 def text_lines(capacity: Mapping[str, Any], n: int = 10) -> list[str]:
     """The lost-capacity attribution as a plain-text table."""
     rule = capacity.get("rule", DEFAULT_RULE)
@@ -992,14 +1000,21 @@ def text_lines(capacity: Mapping[str, Any], n: int = 10) -> list[str]:
     if shown and lost:
         lines.append("By cause: " + ", ".join(
             f"{c.replace('_', ' ')} {100 * v / lost:.3g} %" for c, v in shown))
+    rows = capacity["elements"][:n]
+    # the column only means something when a master held a dependant Idle
+    held = any((row["through_dependents"]["mean"] or 0.0) > 0
+               for row in capacity["elements"])
     lines += ["", f"{'Element':<22}{'Lost capacity':>16}{'Share':>10}"
-                  f"{'Of which via dependants':>26}"]
-    for row in capacity["elements"][:n]:
+                  + (f"{'Of which via dependants':>26}" if held else "")]
+    for row in rows:
         value = row["lost_energy"]["mean"] or 0.0
         share = row["share"]["mean"] or 0.0
         dependants = row["through_dependents"]["mean"] or 0.0
         lines.append(f"{row['name'][:21]:<22}{_amount(value):>16}"
-                     f"{100 * share:>9.3g}%{_amount(dependants):>26}")
+                     f"{100 * share:>9.3g}%"
+                     + (f"{_amount(dependants):>26}" if held else ""))
+    if not held:
+        lines += ["", NO_DEPENDANTS]
     for note in capacity.get("notes") or []:
         lines += ["", f"Note: {note}"]
     return lines
