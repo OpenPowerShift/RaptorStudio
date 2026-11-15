@@ -17,8 +17,13 @@ PARAM_INFO: dict[int, dict[str, Any]] = {
     2: {"params": ["degrees_of_freedom"], "ranges": {"degrees_of_freedom": "> 0"}},
     3: {"params": ["trials", "probability"], "ranges": {"trials": ">= 1 integer", "probability": "0-1"}},
     4: {"params": ["mean", "location"], "ranges": {"mean": "> 0", "location": ">= 0"}},
-    5: {"params": ["mean", "k"], "ranges": {"mean": "> 0", "k": ">= 1 integer"}},
-    6: {"params": ["mean", "k", "location"], "ranges": {"mean": "> 0", "k": "> 0", "location": ">= 0"}},
+    # Erlang and Gamma: the file's first slot is the shape and the second the
+    # scale (`rng._erlang(p[0] * p[1], round(p[0]))`); the mean is their product
+    5: {"params": ["k", "scale"],
+        "ranges": {"k": ">= 1 integer (stages)", "scale": "> 0 (each stage's mean; mean = k x scale)"}},
+    6: {"params": ["shape", "scale", "location"],
+        "ranges": {"shape": "> 0", "scale": "> 0 (mean = shape x scale + location)",
+                   "location": ">= 0"}},
     7: {"params": ["mean", "stdev"], "ranges": {"mean": "> 0", "stdev": "> 0"}},
     8: {"params": ["mean", "stdev"], "ranges": {"mean": ">= 0", "stdev": "> 0"}},
     9: {"params": ["lower", "upper"], "ranges": {"lower": "integer", "upper": ">= lower"}},
@@ -101,7 +106,7 @@ def describe_dist(code: int, params: list[float]) -> dict[str, Any]:
 #: (CV) by scaling spread too; The fixed and uniform laws scale their values.
 _SCALE_SLOTS: dict[int, tuple[int, ...]] = {
     4: (0, 1),        # Exponential: mean and location shift together
-    5: (1,),          # Erlang: the second slot (mean * k is the mean)
+    5: (1,),          # Erlang: the scale (k x scale is the mean)
     6: (1, 2),        # Gamma: scale and location
     7: (0, 1),        # Lognormal: mean and stdev keep sigma
     8: (0, 1),        # Normal: mean and stdev keep the CV

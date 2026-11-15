@@ -44,3 +44,15 @@ def test_the_original_parameters_are_not_changed():
     params = [2.0, 100.0, 0.0]
     scale_mean(15, params, 4.0)
     assert params == [2.0, 100.0, 0.0]
+
+
+def test_erlang_and_gamma_name_their_slots_as_the_engine_reads_them():
+    """The engine draws Erlang(p1 * p2, round(p1)): slot 1 is k, slot 2 the
+    scale. They were labelled the other way round ("mean", "k")."""
+    from raptor.api.distributions import describe_dist
+    erlang = describe_dist(5, [3, 10])
+    assert erlang["params"] == {"k": 3, "scale": 10}
+    assert erlang["mean"] == 30.0
+    gamma = describe_dist(6, [2.0, 5.0, 1.0])
+    assert gamma["params"] == {"shape": 2.0, "scale": 5.0, "location": 1.0}
+    assert gamma["mean"] == 11.0
