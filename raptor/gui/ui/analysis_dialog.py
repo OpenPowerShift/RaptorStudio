@@ -175,6 +175,7 @@ class AnalysisDialog(QDialog):
         self._copy_note.setVisible(False)
         layout.addWidget(self._copy_note)
         self._revision: int | None = None
+        self._eta: Any = None
         layout.addLayout(self._build_buttons())
 
     # ---- for subclasses ----------------------------------------------------------
@@ -278,6 +279,8 @@ class AnalysisDialog(QDialog):
         self._applied.clear()
         self._job = AnalysisJob(_model_copy(self._win), work, first_label=self.FIRST_LABEL)
         self._revision = getattr(self._win, "_model_revision", 0)
+        from raptor.gui.ui.run_eta import RunEstimate
+        self._eta = RunEstimate()       # U18: the main run's "about N left"
         self._copy_note.setText(
             "This runs on a copy of the model taken when you pressed Run. You can "
             "keep editing; changes made now are not in this result.")
@@ -316,7 +319,9 @@ class AnalysisDialog(QDialog):
                 # says only how far, so the label is not read twice.
                 self._progress.setFormat(f"{job.done_count:,} of {job.total:,}"
                                          if job.done_count else "")
-                self.caption.setText(f"{job.label[:1].upper()}{job.label[1:]}…")
+                step = f"{job.label[:1].upper()}{job.label[1:]}…"
+                eta = self._eta.text(job.done_count, job.total) if self._eta else None
+                self.caption.setText(f"{step}  ·  {eta}" if eta else step)
             return
         self._timer.stop()
         self._run_btn.setEnabled(True)

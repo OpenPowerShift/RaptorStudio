@@ -456,6 +456,8 @@ class _BatchDialog(QDialog):
         self._export_btn.setEnabled(False)
         self._set_inputs_enabled(False)
         self._shown = 0
+        from raptor.gui.ui.run_eta import RunEstimate
+        self._eta = RunEstimate()       # U18: "approximately N left", as a run says
         self._show_results()
         self._job.start()
         self._timer.start()
@@ -481,8 +483,11 @@ class _BatchDialog(QDialog):
         if not job.done:
             self._progress.setValue(n)
             if not job.abort.is_set():
+                eta = getattr(self, "_eta", None)
+                left = eta.text(n, job.total) if eta is not None else None
                 self._progress.setFormat(
-                    f"{n} of {job.total} — running {job.current}")
+                    f"{n} of {job.total} — running {job.current}"
+                    + (f" · {left}" if left else ""))
             return
         self._timer.stop()
         self._show_results()

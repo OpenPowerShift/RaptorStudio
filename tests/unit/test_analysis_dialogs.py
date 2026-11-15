@@ -365,3 +365,20 @@ def test_a_study_says_it_runs_on_a_copy_and_when_the_model_changed(win):
     assert not dlg._copy_note.isHidden() and "edited while this ran" in dlg._copy_note.text()
     _run(dlg)                                   # run again: current, so the note goes
     assert not dlg.model_changed_since_run() and dlg._copy_note.isHidden()
+
+
+def test_a_study_says_how_long_is_left(win):
+    """U18: the main run said "Approximately N left"; the studies did not."""
+    import threading
+
+    from raptor.gui.ui.run_eta import RunEstimate
+
+    dlg = win._open_whatif_dialog()
+    job = type("Job", (), {"done": False, "done_count": 2, "total": 8,
+                           "label": "scenario 2 of 8", "abort": threading.Event()})()
+    dlg._job = job
+    dlg._eta = RunEstimate(started=time.monotonic() - 60.0)    # 2 steps in a minute
+    dlg._poll()
+    assert dlg.caption.text().startswith("Scenario 2 of 8…")
+    assert "Approximately 3 minutes left" in dlg.caption.text()
+    dlg._job = None
