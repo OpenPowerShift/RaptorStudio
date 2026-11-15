@@ -551,6 +551,15 @@ edits, Base and the scenario run with the same seed, and the result gives
 each metric's paired difference with its standard error and the chance the
 scenario is better. The open model is untouched.
 
+`recommend_changes` goes from the downtime drivers to decisions: it picks
+the `top` blocks causing the most downtime, proposes one change for each
+from the cause behind its outages (repair or delays halved, one more spare
+or crew, PM half as often, a part that lasts twice as long), and tests each
+against Base with paired runs. Every row gives the PATH=VALUE change, the
+availability gain with its standard error and chance of being better, the
+downtime saved per run, the unit cost the model holds (null when none) and
+a verdict; "worth doing" needs at least 95 % confidence.
+
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
 application paints, with the figure itself as SVG unless `render_svg` is
 false. The base charts (`trial-outcome`, `ecdf`, `convergence`,

@@ -143,7 +143,8 @@ def test_read_only_refuses_every_tool_that_edits(server, model):
         if info.name.startswith("tools_"):
             importlib.import_module(f"raptor.mcp.{info.name}")
     allowed = {"simulate", "start_run", "cancel_run", "open_model",
-               "compare_models", "what_if", "sensitivity", "sweep_parameter"}
+               "compare_models", "what_if", "sensitivity", "sweep_parameter",
+               "recommend_changes"}
     ungated = []
     for tool in asyncio.run(server.mcp.list_tools()):
         if tool.annotations is None or tool.annotations.read_only_hint:
