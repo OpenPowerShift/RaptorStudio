@@ -1055,12 +1055,16 @@ def hierarchy_depths(rbd) -> dict[int, int]:
             parents[hid] = _int(row, "Parent")
     depths: dict[int, int] = {}
     for hid in parents:
-        depth, seen, at = 0, set(), hid
-        while at and at in parents and at not in seen:
-            seen.add(at)
-            depth += 1
+        # Walk up to a hierarchy already counted (or the top), then number
+        # the chain on the way back: each hierarchy is counted once.
+        chain: list[int] = []
+        at = hid
+        while at and at in parents and at not in depths and at not in chain:
+            chain.append(at)
             at = parents[at]
-        depths[hid] = depth
+        base = depths.get(at, 0)
+        for depth, node in enumerate(reversed(chain), start=base + 1):
+            depths[node] = depth
     return depths
 
 

@@ -433,11 +433,23 @@ def validate(rbd: RbdFile) -> list[str]:
     # makes the walk miss a whole subtree, leaving an empty downstream set
     # and `NEW(array, 1..0)` -- Raptor 7 then dies on Simulate with
     # "Array allocation: high bound is less than low bound".
-    def _depth(hid: str, seen: frozenset[str] = frozenset()) -> int:
-        parent = str(hiers[hid].get("Parent", "0"))
-        if parent in ("0", "", hid) or parent not in hiers or parent in seen:
-            return 1
-        return _depth(parent, seen | {hid}) + 1
+    # Walked, not recursed, and remembered: a file with a long parent
+    # chain hit the recursion limit, and each level copied a set.
+    known: dict[str, int] = {}
+
+    def _depth(hid: str) -> int:
+        chain: list[str] = []
+        at = hid
+        while at not in known:
+            chain.append(at)
+            parent = str(hiers[at].get("Parent", "0"))
+            if parent in ("0", "", at) or parent not in hiers or parent in chain:
+                break
+            at = parent
+        base = known.get(at, 0)
+        for depth, node in enumerate(reversed(chain), start=base + 1):
+            known[node] = depth
+        return known[hid]
 
     for hid, hier_row in hiers.items():
         declared_level = _int_or_none(hier_row.get("level"))

@@ -72,11 +72,19 @@ def _append(rbd: Any, plan: Any) -> None:
     build.sync_counts(rbd)
 
 
+#: The most elements one `duplicate_elements` call may add.
+MAX_DUPLICATED = 10_000
+
+
 def duplicate_elements(workspace: Any, model_id: str,
                        elements: Sequence[str], *, copies: int = 1,
                        offset: tuple[float, float] = (40.0, 40.0)
                        ) -> dict[str, Any]:
-    """Copy elements `copies` times with fresh ids and names."""
+    """Copy elements `copies` times with fresh ids and names.
+
+    At most `MAX_DUPLICATED` new elements a call: copies times the
+    selection (hierarchy contents included) grows fast, and one call could
+    otherwise write a model too large to open."""
     if copies < 1:
         raise ValueError("copies must be at least 1")
     rbd = workspace.get(model_id).rbd
@@ -88,18 +96,25 @@ def duplicate_elements(workspace: Any, model_id: str,
                        nodes=selection["node"], events=selection["event"],
                        sel_hiers=selection["hier"], parent=0)
     made: list[dict[str, Any]] = []
+    blocks = {_int(row.get("ID")): row for row in rbd.section("BLOCK_DATA").rows}
+    existing = {str(row.get("blockName") or "") for row in blocks.values()}
     for index in range(copies):
         plan = plan_paste(
             rbd, buffer, _live(rbd), dx=offset[0] * (index + 1),
             dy=offset[1] * (index + 1), parent=0,
             parent_level=None)
-        existing = {str(row.get("blockName") or "")
-                    for row in rbd.section("BLOCK_DATA").rows}
+        if index == 0:
+            per_copy = sum(len(rows) for rows in plan.new_rows.values())
+            if per_copy * copies > MAX_DUPLICATED:
+                raise ValueError(
+                    f"{copies} copies of this selection would add "
+                    f"{per_copy * copies:,} elements; at most "
+                    f"{MAX_DUPLICATED:,} can be added at once. Use fewer "
+                    "copies, or duplicate in several steps.")
+        new_blocks = {_int(row.get("ID")): row for row in plan.new_rows["block"]}
         for old_id, new_id in plan.id_maps.get("block", {}).items():
-            source = next((row for row in rbd.section("BLOCK_DATA").rows
-                           if _int(row.get("ID")) == old_id), None)
-            target = next((row for row in plan.new_rows["block"]
-                           if _int(row.get("ID")) == new_id), None)
+            source = blocks.get(old_id)
+            target = new_blocks.get(new_id)
             if source is not None and target is not None:
                 name = next_free_name(existing,
                                       str(source.get("blockName") or "Block"))

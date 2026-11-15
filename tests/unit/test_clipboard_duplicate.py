@@ -139,3 +139,18 @@ def test_duplicate_in_parallel_adds_copies_between_the_neighbours(win):
     assert view.blocks[bid].name != view.blocks[ids[0]].name
     win._undo_stack.undo()
     assert len(view._block_items) == before
+
+
+def test_duplicate_refuses_more_than_its_limit_and_changes_nothing(tmp_path, monkeypatch):
+    """S6: copies times the selection had no bound."""
+    from raptor.api import edit
+    from raptor.api.workspace import Workspace
+    from raptor.core.fileio.rbd import load_rbd
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(load_rbd(str(GOLD / "SpaceStation/input.rbd")),
+                            name="m")["model_id"]
+    before = len(ws.get(mid).rbd.section("BLOCK_DATA").rows)
+    monkeypatch.setattr(edit, "MAX_DUPLICATED", 5)
+    with pytest.raises(ValueError, match="at most 5"):
+        edit.duplicate_elements(ws, mid, ["Attitude"], copies=6)
+    assert len(ws.get(mid).rbd.section("BLOCK_DATA").rows) == before
