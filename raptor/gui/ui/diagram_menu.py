@@ -401,15 +401,16 @@ class ContextMenuMixin:
         elif chosen is dup_act:
             self.duplicate_selection()
         elif chosen is par_act:
-            from PySide6.QtWidgets import QInputDialog
-            copies, ok = QInputDialog.getInt(
-                self, "Duplicate in Parallel", "Copies:", 1, 1, 50)
-            if ok:
-                k, ok = QInputDialog.getInt(
-                    self, "Duplicate in Parallel", "Required (k):",
-                    copies + 1, 1, copies + 1)
-                if ok:
-                    self.duplicate_parallel(copies, k)
+            # the ribbon's form: k starts at 1 (U26: copies+1 was a
+            # series chain) and says what the choice means
+            from raptor.gui.ui.count_form import ask_redundancy
+            answer = ask_redundancy(
+                self, "Duplicate in Parallel", count_label="Copies to add:",
+                count_default=1, count_max=50, already=1,
+                intro="Copies of the selected block side by side with it, "
+                      "between the same neighbours.")
+            if answer is not None:
+                self.duplicate_parallel(*answer)
         elif chosen is arr_act:
             from PySide6.QtWidgets import QInputDialog
             copies, ok = QInputDialog.getInt(self, "Array", "Copies:", 3, 1,

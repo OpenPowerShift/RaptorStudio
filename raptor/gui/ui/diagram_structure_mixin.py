@@ -1461,7 +1461,7 @@ class StructureMixin(_Base):
         added_nodes = 0
         self._stack.beginMacro(f"Add {info[2]} in parallel")
         try:
-            oid, added_nodes = self._parallel_steps(kind, target_key, info)
+            oid, added_nodes, _join = self._parallel_steps(kind, target_key, info)
         finally:
             self._stack.endMacro()
         item = self._item_for_insert_kind(kind, oid)
@@ -1478,9 +1478,12 @@ class StructureMixin(_Base):
                            f"{target_name}{extra}")
         return oid
 
-    def _parallel_steps(self, kind: str, target_key, info) -> tuple[int, int]:
+    def _parallel_steps(self, kind: str, target_key, info, make=None
+                        ) -> tuple[int, int, int]:
         """The undoable steps of `insert_element_in_parallel` (no macro).
-        Returns (new element id, number of nodes added)."""
+        `make(centre)` creates the new element (a fresh one by default; a
+        copy for Duplicate in Parallel). Returns (new element id, number of
+        nodes added, join node id)."""
         node_info = ("node", "Node", "Node")
         added = 0
 
@@ -1522,7 +1525,7 @@ class StructureMixin(_Base):
             provisional = QPointF(centre.x(), centre.y() + 2.0 * hh + gap)
         else:
             provisional = QPointF(centre.x() + 2.0 * hw + gap, centre.y())
-        oid = self._create_inserted_element(kind, provisional)
+        oid = (make or (lambda at: self._create_inserted_element(kind, at)))(provisional)
         first = self._next_link_id()
         self._stack.push(AddCmd(self, "link", [
             self._make_link_row("Node", split[1], info[1], oid, first),
@@ -1530,7 +1533,7 @@ class StructureMixin(_Base):
         ]))
 
         self._layout_parallel_group(split, join, page_flow)
-        return oid, added
+        return oid, added, join[1]
 
     def _layout_parallel_group(self, split, join, page_flow: str) -> None:
         """Lay out the split node, the join node and every branch between
@@ -1727,10 +1730,15 @@ class StructureMixin(_Base):
                            ) -> list[int]:
         """Add `copies` copies of the one selected block in parallel.
 
-        The copies sit between the block's existing neighbours (nodes are
-        created when a side has no neighbour). If the downstream neighbour
-        is a node, its k is raised to the full path count unless `k` says
-        otherwise. One undo macro.
+        A block with one link in and one link out gets the same treatment
+        as Add in Parallel (U26): a split node before it and a join node
+        after it are reused when they are ordinary nodes and added
+        otherwise (beside Start, End, a hierarchy's In and Out, or a
+        neighbouring block), and the group is laid out again. A new join
+        node needs 1 path (any one copy keeps the system up) unless `k`
+        says otherwise; a reused join keeps its k unless `k` is given.
+        A block missing a link gets its own split and join nodes. One undo
+        macro.
         """
         if copies < 1 or self._rbd_ref is None:
             return []
@@ -1762,6 +1770,33 @@ class StructureMixin(_Base):
                          and link.connect_from_id == bid), None)
         x, y = block.x_position, block.y_position
         ids: list[int] = []
+        info = ("block", "Block", "Block")
+        item = self._block_items[bid]
+        if incoming is not None and outgoing is not None \
+                and self._parallel_refusal(item, info) is None:
+            key = self._item_key(item)
+            self._clear_link_insert_hover()
+            self._stack.beginMacro(f"Add {copies} in parallel")
+            try:
+                join = 0
+                for _index in range(copies):
+                    clone = dict(row)
+                    clone["blockName"] = self._unique_block_name(block.name)
+
+                    def make(at: QPointF, clone: dict = clone) -> int:
+                        return self.add_block_from_template(
+                            clone, at_model=self.scene_to_model(at))
+                    new_id, _added, join = self._parallel_steps(
+                        "block", key, info, make=make)
+                    ids.append(new_id)
+                if k is not None and join in self.nodes:
+                    n = len(self._item_links(self._node_items[join])[0])
+                    wanted = max(1, min(int(k), n))
+                    self._stack.push(ParamsCmd(self, "node k", join,
+                                               self.nodes[join].good_paths, wanted))
+            finally:
+                self._stack.endMacro()
+            return ids
         self._stack.beginMacro(f"Add {copies} in parallel")
         try:
             upstream = endpoint(incoming, True) if incoming else None
@@ -1798,7 +1833,8 @@ class StructureMixin(_Base):
             if downstream[0] == "Node":
                 node = self.nodes.get(downstream[1])
                 old = node.good_paths if node is not None else -1
-                wanted = int(k) if k is not None else copies + 1
+                # any one path by default: all of them is a series chain
+                wanted = int(k) if k is not None else 1
                 wanted = max(1, min(wanted, copies + 1))
                 self._stack.push(ParamsCmd(self, "node k", downstream[1],
                                            old, wanted))
