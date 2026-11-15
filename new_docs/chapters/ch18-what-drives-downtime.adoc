@@ -307,17 +307,26 @@ raptor optimise spares DC1.rbds --target 'system.ao>=0.999' --apply
 
 The model needs a finite spare pool that its blocks draw on; VanFlat keeps
 no pool, so the data-centre model is used here. It holds three cooling-unit
-spares today, and one is enough:
+spares today, and two are enough:
 
 ----
-Base: 0.99966 (lower 0.99943), holding cost 3
-   CRAC_Spares 0                    0.99919 (lower 0.99859)  cost 0
- * CRAC_Spares 1                    0.9996 (lower 0.99934)  cost 1
+Base: 0.99952 (lower 0.99931), holding cost 3
+   CRAC_Spares 0                    0.99935 (lower 0.9989)  cost 0
+   CRAC_Spares 1                    0.99903 (lower 0.99831)  cost 1
+ * CRAC_Spares 2                    0.99948 (lower 0.9992)  cost 2
+   CRAC_Spares 3                    0.99952 (lower 0.99931)  cost 3
 
-Recommended: CRAC_Spares 1 — availability 99.96 % (lower bound 99.93 %)
+Recommended: CRAC_Spares 2 — availability 99.95 % (lower bound 99.92 %)
 against a target of 99.9 %; ... That is fewer than the 3 held today: the
 extra stock buys no measurable availability at this run count.
 ----
+
+Look at the first two rows: no spares measured *better* than one. That is
+noise, not a property of the model: at this run count the differences
+between 0, 1 and 2 spares are about the size of their standard errors.
+The lower bound is what keeps a lucky row from being recommended (no
+spares has the mean but not the lower bound), and more runs (`-n`) would
+separate them.
 
 A point counts as meeting the target only when the cautious end of its
 confidence interval does: the *lower* bound for availability, the *upper*
