@@ -34,9 +34,26 @@ def candidates(rbd: Any) -> list[MarginalItem]:
     return _spare_items(rbd) + _resource_items(rbd)
 
 
+def _pool_rows(rbd: Any) -> dict[str, dict[str, Any]]:
+    """The spare pools by name: their own stock and cost, not the block's."""
+    from raptor.api.advisor.context import ModelContext
+    try:
+        return {str(pool.get("name") or ""): pool for pool in ModelContext(rbd).pools}
+    except Exception:  # noqa: BLE001 - a model without pools has none
+        return {}
+
+
+def _int(value: Any) -> int:
+    try:
+        return int(float(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _spare_items(rbd: Any) -> list[MarginalItem]:
     items: list[MarginalItem] = []
     seen: set[str] = set()
+    pools = _pool_rows(rbd)
     for row in rbd.section("BLOCK_DATA").rows:
         if str(row.get("ID", "0")) == "0":
             continue
@@ -44,16 +61,19 @@ def _spare_items(rbd: Any) -> list[MarginalItem]:
         kind = str(row.get("SpType") or "")
         if not pool or pool.lower() in ("none", "unnamed"):
             continue
-        try:
-            stock = int(float(row.get("Stock", 0) or 0))
-        except (TypeError, ValueError):
-            stock = 0
-        if kind == "Pooled" and pool not in seen and stock < 10_000:
+        stock = _int(row.get("Stock", 0))
+        if kind == "Pooled" and pool not in seen:
             seen.add(pool)
+            shelf = pools.get(pool)
+            if shelf is None:
+                continue
+            stock = _int(shelf.get("stock"))
+            if stock >= 10_000:            # an effectively infinite shelf
+                continue
             items.append(MarginalItem(
                 f"{pool} spare", "pool", f"pool:{pool}.stock={stock + 1}",
                 f"pool:{pool}.stock={stock - 1}" if stock > 0 else None,
-                stock, _cost(row)))
+                stock, _pool_cost(shelf)))
         elif kind == "Custom":
             name = str(row.get("blockName") or row.get("ID"))
             items.append(MarginalItem(
@@ -79,6 +99,14 @@ def _resource_items(rbd: Any) -> list[MarginalItem]:
             f"{name} crew", "resource",
             f"resource:{name}.units={units + 1}", None, units, None))
     return items
+
+
+def _pool_cost(pool: dict[str, Any]) -> float | None:
+    try:
+        value = float(pool.get("spare_cost") or 0)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 and value != 1.0 else None
 
 
 def _cost(row: dict[str, Any]) -> float | None:

@@ -58,3 +58,17 @@ def test_no_candidates_is_said_not_crashed(tmp_path):
     result = marginal_value(ws, mid, items=[MarginalItem(
         "Same", "pool", "system.length=50", None)], trials=2, seed=1)
     assert result["caption"]
+
+
+def test_a_pooled_item_takes_the_pools_stock_and_cost_not_the_blocks():
+    from raptor.api import build
+    spec = {
+        "blocks": [{"name": "Pump", "fail_params": [100, 0, 0], "repair_params": [1, 0, 0],
+                    "spare_pool": "Seals", "sp_type": "Pooled", "stock": 100}],
+        "spare_pools": [{"name": "Seals", "stock": 3, "spare_cost": 250.0}],
+        "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+        "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "End"}],
+    }
+    (item,) = [i for i in candidates(build.build_from_spec(spec)) if i.kind == "pool"]
+    assert item.stock == 3 and item.cost == 250.0
+    assert item.plus == "pool:Seals.stock=4" and item.minus == "pool:Seals.stock=2"

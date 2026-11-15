@@ -2021,6 +2021,12 @@
    "recommended": {
     "type": "object"
    },
+   "search_ceiling": {
+    "type": "object"
+   },
+   "stopped_by": {
+    "type": "string"
+   },
    "target": {
     "type": "number"
    },
@@ -2044,6 +2050,8 @@
    "points",
    "pools",
    "recommended",
+   "search_ceiling",
+   "stopped_by",
    "target",
    "target_met"
   ],

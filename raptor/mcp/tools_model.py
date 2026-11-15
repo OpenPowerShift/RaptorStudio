@@ -368,7 +368,7 @@ def build_model(name: str, spec: dict[str, Any] | None = None,
     with the same row constructors the `configure_*` tools use.  Friendly
     fields per entry:
     - spare_pools: name, stock, new_spares, arrive_every, eso, emer_time,
-      slo, level, quantity, slo_time, rso
+      slo, level, quantity, slo_time, rso, spare_cost, emer_ship_cost
     - resources: name, num_in, spare_cost, fixed_per_use, per_time_unit,
       phases
     - triggers: name, init_used, dist, params, repeats

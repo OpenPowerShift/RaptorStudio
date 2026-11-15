@@ -108,3 +108,61 @@ def test_an_unmet_target_is_not_captioned_as_a_recommendation(tmp_path):
                              max_evaluations=3, trials=4, seed=2)
     assert result["target_met"] is False
     assert result["caption"].startswith("No evaluated stock met the target")
+
+
+def _fake_measure(meets_from):
+    """A `_measure` whose availability passes 0.9 from `meets_from` spares on."""
+    seen = []
+
+    def measure(workspace, model_id, stocks, selected, **kw):
+        total = sum(stocks.values())
+        seen.append(total)
+        value = 0.95 if total >= meets_from else 0.5
+        return {"stocks": dict(stocks), "cost": float(total), "changes": [],
+                "mean": value, "sem": 0.0, "lower": value, "upper": value,
+                "metric": "availability"}
+    return measure, seen
+
+
+@pytest.mark.parametrize("meets_from", [1, 2, 4, 5, 6, 9])
+def test_meet_returns_the_least_stock_on_the_path_that_meets(meets_from):
+    from raptor.api.optimise import spares
+    pools = [PoolSpec("Seals", 0, 1.0, 0.5, 20.0, 30)]
+    candidates = [{"Seals": 0}] + [e["stocks"] for e in analytic_path(pools)]
+    measure, seen = _fake_measure(meets_from)
+    original = spares._measure
+    spares._measure = measure
+    try:
+        points, evaluations, recommended = spares._walk(
+            None, "m", pools, candidates, mode="meet", target=0.9,
+            metric="availability", max_evaluations=40, trials=2, seed=1,
+            workers=1, confidence=0.95, timeout_s=10, progress=None, abort=None)
+    finally:
+        spares._measure = original
+    assert recommended["stocks"]["Seals"] == meets_from
+    assert evaluations == 1 + len(seen)
+    totals = [sum(p["stocks"].values()) for p in points]
+    assert totals == sorted(totals)
+    assert all(p["meets"] == (sum(p["stocks"].values()) >= meets_from) for p in points)
+
+
+def test_the_path_goes_past_six_spares_when_demand_needs_it():
+    pools = [PoolSpec("Seals", 0, 1.0, 0.5, 20.0, 30)]      # 10 failures per lead time
+    path = analytic_path(pools)
+    assert path[-1]["stocks"]["Seals"] > 6
+
+
+def test_the_ceiling_scales_with_demand():
+    from raptor.api.optimise.spares import _stock_ceiling
+    assert _stock_ceiling(0.1, 0) == 20
+    assert _stock_ceiling(100.0, 0) >= 100 + 6 * 10
+    assert _stock_ceiling(0.1, 40) == 41
+
+
+def test_an_unreachable_target_says_the_search_hit_its_ceiling(tmp_path):
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(SPEC), name="m")["model_id"]
+    result = optimise_spares(ws, mid, mode="meet", target=1.5,
+                             max_evaluations=60, trials=2, seed=2)
+    assert result["stopped_by"] == "search ceiling"
+    assert "ceiling" in result["caption"]

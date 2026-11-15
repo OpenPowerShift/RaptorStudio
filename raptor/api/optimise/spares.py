@@ -111,23 +111,38 @@ def pools_from_model(rbd: Any, names: Sequence[str] | None = None
             continue
         lead, _rule = lead_time(pool, ctx.run_length)
         out.append(PoolSpec(name, stock, cost if cost > 0 else 1.0,
-                            demand, lead))
+                            demand, lead, _stock_ceiling(demand * lead, stock)))
     return out
+
+
+#: Expected units short below which one more spare cannot matter.
+NEGLIGIBLE_EBO = 1e-6
+
+
+def _stock_ceiling(demand_over_lead: float, stock: int) -> int:
+    """Most stock the search considers for a pool: well past where Poisson
+    demand over the lead time could reach, and past what it holds today."""
+    mean = max(demand_over_lead, 0.0)
+    return max(20, stock + 1, math.ceil(mean + 6 * math.sqrt(mean) + 3))
 
 
 def analytic_path(pools: Sequence[PoolSpec],
                   max_add: int | None = None) -> list[dict[str, Any]]:
-    """Greedy one-unit increments, largest EBO reduction per unit cost first."""
+    """Greedy one-unit increments, largest EBO reduction per unit cost first,
+    until every pool is at its ceiling or no unit can reduce the expected
+    shortfall measurably (`max_add` caps the total units added)."""
     stocks = {pool.name: 0 for pool in pools}
     path: list[dict[str, Any]] = []
-    budget = max_add or max(1, 6)
-    for _ in range(budget * max(1, len(pools))):
+    budget = max_add if max_add is not None else sum(pool.max_stock for pool in pools)
+    for _ in range(max(budget, 0)):
         best = None
         for pool in pools:
             current = stocks[pool.name]
             if current >= pool.max_stock:
                 continue
             ebo = poisson_ebo(pool.demand * pool.lead_time, current)
+            if ebo < NEGLIGIBLE_EBO:
+                continue
             nxt = poisson_ebo(pool.demand * pool.lead_time, current + 1)
             gain = (ebo - nxt) / max(pool.cost, 1e-12)
             if best is None or gain > best[0]:
@@ -223,6 +238,21 @@ def optimise_spares(  # noqa: C901, PLR0912
             points, key=lambda point: sign * (
                 (point["lower"] if sign > 0 else point["upper"]) or 0))
     costs_default = all(abs(pool.cost - 1.0) < 1e-12 for pool in selected)
+    stopped_by = _stopped_by(met, mode, abort, evaluations, max_evaluations,
+                             candidates[-1], points)
+    caption = _caption(recommended, target, metric, costs_default,
+                       met or mode == "curve")
+    if not met and mode == "meet":
+        caption += {
+            "search ceiling": (
+                f" The search reached its ceiling ({sum(candidates[-1].values())} "
+                "spares in all) without meeting the target: spares alone may "
+                "not get there."),
+            "evaluation limit": (
+                f" It stopped at the limit of {max_evaluations} evaluations; "
+                "raise max_evaluations to search further."),
+            "cancelled": " The search was stopped before it finished.",
+        }.get(stopped_by, "")
     return {
         "mode": mode, "metric": metric, "target": target,
         "confidence": confidence,
@@ -240,12 +270,28 @@ def optimise_spares(  # noqa: C901, PLR0912
         "costs_default": costs_default,
         "target_met": met if mode == "meet" else None,
         "lead_times": _lead_rules(workspace, model_id, selected),
-        "caption": _caption(recommended, target, metric, costs_default,
-                            met or mode == "curve"),
+        "stopped_by": stopped_by,
+        "search_ceiling": {pool.name: pool.max_stock for pool in selected},
+        "caption": caption,
         "note": ("A point meets the target only when its lower confidence "
                  "bound does; the analytic path is a seed, not a result."),
         "batches": evaluations,
     }
+
+
+def _stopped_by(met: bool, mode: str, abort: Any, evaluations: int,
+                max_evaluations: int, last: dict[str, int],
+                points: list[dict[str, Any]]) -> str:
+    """Why the walk ended, in words a caption can use."""
+    if met and mode == "meet":
+        return "target met"
+    if abort is not None and getattr(abort, "is_set", lambda: False)():
+        return "cancelled"
+    if any(point["stocks"] == last for point in points):
+        return "search ceiling"
+    if evaluations >= max_evaluations:
+        return "evaluation limit"
+    return "no further gain"
 
 
 def _measure(workspace: Any, model_id: str, stocks: dict[str, int],
@@ -303,25 +349,54 @@ def _walk(  # noqa: C901, PLR0912
             progress(evaluations, max_evaluations,
                      f"{sum(point['stocks'].values())} spares")
         if mode == "meet" and point["meets"]:
-            recommended = point
-            if index > 0:
-                previous = candidates[index - 1]
-                if not any(p["stocks"] == previous for p in points):
-                    before = _measure(
-                        workspace, model_id, previous, selected, trials=trials,
-                        seed=seed, workers=workers, confidence=confidence,
-                        timeout_s=timeout_s, abort=abort, metric=metric)
-                    if before is not None and evaluations < max_evaluations:
-                        evaluations += 1
-                        before["meets"] = False
-                        points.append(before)
+            # The path was sampled with growing steps: look back between the
+            # last point that missed and this one for the least stock that
+            # still meets (more stock never needs fewer spares on the path).
+            below = order[position - 1] if position > 0 else -1
+            recommended, evaluations = _bisect(
+                workspace, model_id, selected, candidates, below, index, point,
+                evaluations, points, target=target, metric=metric,
+                max_evaluations=max_evaluations, trials=trials, seed=seed,
+                workers=workers, confidence=confidence, timeout_s=timeout_s,
+                abort=abort)
             break
         if mode == "curve" and position >= 3:
             gains = _gains(points[-4:])
             if gains is not None and all(gain is None or gain <= 0
                                           for gain in gains):
                 break
+    points.sort(key=lambda p: (sum(p["stocks"].values()), p["cost"]))
     return points, evaluations, recommended
+
+
+def _bisect(workspace: Any, model_id: str, selected: Sequence[PoolSpec],
+            candidates: list[dict[str, int]], below: int, above: int,
+            found: dict[str, Any], evaluations: int, points: list[dict[str, Any]],
+            *, target: float | None, metric: str, max_evaluations: int,
+            trials: int | None, seed: int | None, workers: int,
+            confidence: float, timeout_s: float, abort: Any
+            ) -> tuple[dict[str, Any], int]:
+    """Least path point in (below, above] that meets the target; `above`
+    (measured as `found`) meets it and `below` (or the start) does not."""
+    best = found
+    while above - below > 1 and evaluations < max_evaluations:
+        if abort is not None and getattr(abort, "is_set", lambda: False)():
+            break
+        middle = (below + above) // 2
+        point = _measure(workspace, model_id, candidates[middle], selected,
+                         trials=trials, seed=seed, workers=workers,
+                         confidence=confidence, timeout_s=timeout_s,
+                         abort=abort, metric=metric)
+        evaluations += 1
+        if point is None:
+            break
+        point["meets"] = _meets(point, target, metric)
+        points.append(point)
+        if point["meets"]:
+            above, best = middle, point
+        else:
+            below = middle
+    return best, evaluations
 
 
 def _better(metric: str) -> int:
