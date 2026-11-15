@@ -84,7 +84,7 @@ def optimise_resources(  # noqa: C901, PLR0912
     metric: str = "availability",
     extra: int = 3,
     trials: int | None = None,
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     timeout_s: float = 1800.0,
     confidence: float = 0.95,

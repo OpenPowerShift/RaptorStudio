@@ -127,7 +127,7 @@ def marginal_value(
     items: Sequence[MarginalItem] | None = None,
     trials: int | None = None,
     metric: str = "availability",
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     timeout_s: float = 1800.0,
     skip: set[str] | None = None,

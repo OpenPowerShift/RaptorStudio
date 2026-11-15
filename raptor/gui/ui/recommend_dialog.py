@@ -61,7 +61,7 @@ class RecommendJob:
             ws = Workspace(self._tmp.name)
             mid = ws.register_model(self._rbd, name="recommend")["model_id"]
             self.result = recommend(
-                ws, mid, top=self.top, trials=self.trials, seed=1,
+                ws, mid, top=self.top, trials=self.trials, seed=None,
                 workers=self.workers, timeout_s=24 * 3600.0, min_gain=self.min_gain,
                 progress=self._progress, abort=self.abort)
         except Exception as exc:                          # noqa: BLE001

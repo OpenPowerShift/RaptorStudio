@@ -4008,7 +4008,7 @@ PATH=VALUE edits for the recommendations worth making (apply them with
 | `blocks` | array<string> \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `objective` | string | no | `availability` | `availability`, `cost` |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `trials` | integer \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |
@@ -4037,7 +4037,7 @@ Parameter notes:
 | `objective` | string | yes |
 | `recommendations` | array<any> | yes |
 | `rows` | array<any> | yes |
-| `seed` | integer | yes |
+| `seed` | null | yes |
 | `trials` | integer \| null | yes |
 
 **Example**
@@ -4078,7 +4078,7 @@ set`). The open model is never modified.
 | `extra` | integer | no | `3` | — |
 | `model_id` | string | yes | — | — |
 | `resources` | array<string> \| null | no | `null` | — |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `target` | number \| null | no | `0.995` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `trials` | integer \| null | no | `null` | — |
@@ -4109,7 +4109,7 @@ Parameter notes:
 | `recommendations` | array<any> | yes |
 | `resources` | array<any> | yes |
 | `rows` | array<any> | yes |
-| `seed` | integer | yes |
+| `seed` | null | yes |
 | `target` | number | yes |
 | `trials` | integer \| null | yes |
 
@@ -4157,7 +4157,7 @@ is never modified.
 | `mode` | string | no | `meet` | `meet`, `curve` |
 | `model_id` | string | yes | — | — |
 | `pools` | array<string> \| null | no | `null` | — |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `target` | number \| null | no | `0.995` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `trials` | integer \| null | no | `null` | — |
@@ -4244,7 +4244,7 @@ model is never modified. Long runs report progress and can be cancelled.
 | `min_gain` | number \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `run_id` | string \| null | no | `null` | — |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `top` | integer | no | `3` | — |
 | `trials` | integer \| null | no | `null` | — |
@@ -4369,7 +4369,7 @@ show interactions.
 | --- | --- | --- | --- | --- |
 | `metric` | string | no | `availability` | — |
 | `model_id` | string | yes | — | — |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `top` | integer | no | `10` | — |
 | `trials` | integer \| null | no | `null` | — |
@@ -4769,7 +4769,7 @@ cancelled by the client.
 | `name` | string | no | `Scenario` | — |
 | `precision` | object \| null | no | `null` | — |
 | `requirements` | array<object> \| null | no | `null` | — |
-| `seed` | integer | no | `1` | — |
+| `seed` | integer \| null | no | `null` | — |
 | `timeout_s` | number | no | `1800.0` | — |
 | `trials` | integer \| null | no | `null` | — |
 | `workers` | integer \| null | no | `null` | — |

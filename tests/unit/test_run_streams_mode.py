@@ -60,3 +60,16 @@ def test_the_gui_manifest_line_names_the_streams():
     assert "parallel streams" in dock._manifest_label.text()
     assert "-j 2" in dock._manifest_label.toolTip()
     assert manifest_with_streams({}) is None
+
+
+def test_a_studys_base_is_the_plain_run(tmp_path):
+    """The studies used seed 1 and a plain run the fixed seed, so What If's
+    Base never matched the Results page for the same model and trials."""
+    from raptor.api.scenarios.runner import compare
+
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(MODEL)["model_id"]
+    plain = api_run(ws, mid, num_runs=20, confirm_long_run=True)
+    availability = next(m for m in plain.metrics if m.name == "Availability")
+    comparison = compare(ws, mid, [], trials=20)
+    assert comparison.base["metrics"]["availability"]["mean"] == pytest.approx(availability.mean, rel=1e-12)

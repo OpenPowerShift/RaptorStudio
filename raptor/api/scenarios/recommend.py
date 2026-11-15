@@ -450,7 +450,7 @@ def recommend(
     top: int = DEFAULT_TOP,
     extra: Sequence[Proposal] = (),
     trials: int | None = None,
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     timeout_s: float = 1800.0,
     min_gain: float | None = None,
@@ -548,7 +548,7 @@ def downtime_words(avoided: float, units: str) -> str:
 def text_lines(result: Recommendations) -> list[str]:
     """The recommendations as plain text (the command line)."""
     lines = [f"Tested {len(result.rows)} change(s) against Base, "
-             f"{result.trials} paired runs each, seed {result.seed}."]
+             f"{result.trials} paired runs each, " + (f"seed {result.seed}." if result.seed else "the default seed.")]
     if result.base.get("availability") is not None:
         lines.append(f"Base availability {100 * result.base['availability']:.5g} %.")
     units = result.base.get("units") or "time units"

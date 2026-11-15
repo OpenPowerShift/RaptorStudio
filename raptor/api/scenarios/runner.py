@@ -179,7 +179,7 @@ def compare(
     trials: int | None = None,
     precision: Any = None,
     workers: int = 1,
-    seed: int | None = 1,
+    seed: int | None = None,
     timeout_s: float = 1800.0,
     requirements: list[dict[str, Any]] | None = None,
     progress: Callable[[int, int, str], None] | None = None,
@@ -320,7 +320,7 @@ def comparison_lines(comparison: Any) -> list[str]:
     change, its standard error and the chance it is better; the requirement
     verdicts; the caption. `raptor whatif` prints it; the GUI copies it."""
     lines: list[str] = []
-    lines.append(f"Base: {comparison.trials} paired runs, seed {comparison.seed}")
+    lines.append(f"Base: {comparison.trials} paired runs, " + (f"seed {comparison.seed}" if comparison.seed else "the default seed"))
     for row in comparison.rows:
         lines.append(f"\n{row['name']}  ({'; '.join(row['changes']) or 'no changes'})")
         if row.get("error"):

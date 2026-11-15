@@ -189,7 +189,7 @@ class WhatIfDialog(AnalysisDialog):
 
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios import compare
-            return compare(ws, mid, scenarios, trials=trials, workers=workers, seed=1,
+            return compare(ws, mid, scenarios, trials=trials, workers=workers, seed=None,
                            timeout_s=24 * 3600.0, progress=progress, abort=abort)
         return work
 

@@ -183,7 +183,7 @@ def optimise_pm(  # noqa: C901, PLR0912
     blocks: Sequence[str] | None = None,
     objective: str = "availability",
     trials: int | None = None,
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     timeout_s: float = 1800.0,
     progress: Any = None,

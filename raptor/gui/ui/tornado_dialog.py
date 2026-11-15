@@ -170,7 +170,7 @@ class TornadoDialog(AnalysisDialog):
 
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios.sensitivity import tornado
-            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=1,
+            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=None,
                            workers=workers, timeout_s=24 * 3600.0,
                            progress=progress, abort=abort)
         return work

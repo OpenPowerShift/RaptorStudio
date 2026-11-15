@@ -1891,7 +1891,7 @@
     "type": "array"
    },
    "seed": {
-    "type": "integer"
+    "type": "null"
    },
    "trials": {
     "type": [
@@ -1949,7 +1949,7 @@
     "type": "array"
    },
    "seed": {
-    "type": "integer"
+    "type": "null"
    },
    "target": {
     "type": "number"

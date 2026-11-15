@@ -237,7 +237,7 @@ def tornado(
     *,
     trials: int | None = None,
     metric: str = "availability",
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     timeout_s: float = 1800.0,
     progress: Callable[[int, int, str], None] | None = None,

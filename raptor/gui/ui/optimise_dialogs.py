@@ -200,7 +200,7 @@ class SparesDialog(AnalysisDialog):
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.spares import optimise_spares
             return optimise_spares(ws, mid, mode=mode, target=target,
-                                   max_evaluations=budget, trials=trials, seed=1,
+                                   max_evaluations=budget, trials=trials, seed=None,
                                    workers=workers, timeout_s=24 * 3600.0,
                                    progress=progress, abort=abort)
         return work
@@ -290,7 +290,7 @@ class PmDialog(AnalysisDialog):
 
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.pm import optimise_pm
-            return optimise_pm(ws, mid, objective=objective, trials=trials, seed=1,
+            return optimise_pm(ws, mid, objective=objective, trials=trials, seed=None,
                                workers=workers, timeout_s=24 * 3600.0,
                                progress=progress, abort=abort)
         return work
@@ -389,7 +389,7 @@ class CrewsDialog(AnalysisDialog):
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.resources import optimise_resources
             return optimise_resources(ws, mid, target=target, extra=extra, trials=trials,
-                                      seed=1, workers=workers, timeout_s=24 * 3600.0,
+                                      seed=None, workers=workers, timeout_s=24 * 3600.0,
                                       progress=progress, abort=abort)
         return work
 

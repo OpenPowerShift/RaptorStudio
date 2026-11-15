@@ -193,7 +193,7 @@ def optimise_spares(  # noqa: C901, PLR0912
     pools: Sequence[str] | None = None,
     max_evaluations: int = 40,
     trials: int | None = None,
-    seed: int | None = 1,
+    seed: int | None = None,
     workers: int = 1,
     confidence: float = 0.95,
     timeout_s: float = 1800.0,
