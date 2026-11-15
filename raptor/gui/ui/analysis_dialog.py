@@ -297,8 +297,10 @@ class AnalysisDialog(QDialog):
             else:
                 self._progress.setRange(0, 0)      # busy until the first trial ends
             if not job.abort.is_set():
-                self._progress.setFormat(f"{job.done_count:,} of {job.total:,} — {job.label}"
-                                         if job.done_count else f"{job.label}…")
+                # The step's name is in the caption just below; the bar
+                # says only how far, so the label is not read twice.
+                self._progress.setFormat(f"{job.done_count:,} of {job.total:,}"
+                                         if job.done_count else "")
                 self.caption.setText(f"{job.label[:1].upper()}{job.label[1:]}…")
             return
         self._timer.stop()

@@ -108,3 +108,17 @@ def test_an_unknown_metric_is_an_error_not_a_blank_table(tmp_path):
     inputs = default_inputs(ws.get(mid).rbd, limit=1)
     with pytest.raises(ValueError, match="bogus.*availability"):
         tornado(ws, mid, inputs, trials=2, metric="bogus")
+
+
+def test_the_sensitivity_caption_reads_in_the_charts_units():
+    """G12: the caption printed a bare fraction beside a chart in points,
+    and did not say when no swing cleared the noise."""
+    from raptor.api.scenarios.sensitivity import _caption
+    rows = [{"input": {"name": "Pump mean life"}, "swing": 0.0123, "distinguishable": True},
+            {"input": {"name": "Valve repair"}, "swing": 0.002, "distinguishable": False}]
+    text = _caption(rows, "availability", 0.95)
+    assert "1.23 pts" in text and "95 %" in text and "noise" not in text
+    rows[0]["distinguishable"] = False
+    assert "noise" in _caption(rows, "availability", 0.95)
+    assert "(4.5 from a base of 10)" in _caption(
+        [{"input": {"name": "x"}, "swing": 4.5, "distinguishable": True}], "mdt", 10.0)

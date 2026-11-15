@@ -331,10 +331,22 @@ def _caption(rows: list[dict[str, Any]], metric: str,
     if not usable:
         return "No input could be varied."
     top = usable[0]
-    return (f"{top['input']['name']} has the largest swing on {metric} "
-            f"({top['swing']:.4g}"
-            + (f" from a base of {base_mean:.4g}" if base_mean is not None
-               else "") + ").")
+    share = metric in _SHARE_METRICS
+    # In the chart's own units: a share metric is drawn in percentage
+    # points, and the caption printed the bare fraction beside it.
+    swing = f"{100 * top['swing']:.3g} pts" if share else f"{top['swing']:.4g}"
+    base = ("" if base_mean is None else
+            f" from a base of {100 * base_mean:.4g} %" if share else
+            f" from a base of {base_mean:.4g}")
+    text = f"{top['input']['name']} has the largest swing on {metric} ({swing}{base})."
+    if not any(row.get("distinguishable") for row in usable):
+        text += (" No swing is clear of the run-to-run noise at this many "
+                 "trials: run more before acting on the order.")
+    return text
+
+
+#: Metrics that are shares, shown in percent and their swings in points.
+_SHARE_METRICS = ("availability", "reliability", "capacity_weighted_availability")
 
 
 def sensitivity_lines(result: dict[str, Any]) -> list[str]:
@@ -343,8 +355,7 @@ def sensitivity_lines(result: dict[str, Any]) -> list[str]:
     copies it."""
     lines: list[str] = []
     base = result["base"]
-    shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in
-             ("availability", "reliability", "capacity_weighted_availability")
+    shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in _SHARE_METRICS
              else f"{base['mean']:.6g}")
     lines.append(f"Sensitivity of {result['metric']} (base {shown}), "
           f"{result['batches']} batches x {result['trials']} paired runs")
