@@ -343,8 +343,9 @@
 <li><a href="#_fix_the_redundancy_first">24.4. Fix the redundancy first</a></li>
 <li><a href="#_then_the_data">24.5. Then the data</a></li>
 <li><a href="#_then_the_spares">24.6. Then the spares</a></li>
-<li><a href="#_what_the_advisor_will_not_do">24.7. What the Advisor will not do</a></li>
-<li><a href="#_into_ci_and_an_assistant">24.8. Into CI and an assistant</a></li>
+<li><a href="#_when_a_finding_does_not_apply">24.7. When a finding does not apply</a></li>
+<li><a href="#_what_the_advisor_will_not_do">24.8. What the Advisor will not do</a></li>
+<li><a href="#_into_ci_and_an_assistant">24.9. Into CI and an assistant</a></li>
 </ul>
 </li>
 <li><a href="#ch-what-if">25. What Drives Downtime, and What Would Help</a>
@@ -9738,7 +9739,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>92 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>93 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10265,8 +10266,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 92 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 91 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 93 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 92 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10682,6 +10683,13 @@ you need the exact argument shape.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apply_fix</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Apply one finding&#8217;s suggested fix as a single undoable edit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ignore_finding</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dismiss a finding that does not apply to this model (one target, or every
+  finding of a rule), with the reason; or bring it back with
+  <code>restore=True</code>. The entry is saved in the model, so <code>advise</code> and the
+  application stop showing it for everyone and list it under <code>ignored</code>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>downtime_drivers</code></p></td>
@@ -12299,9 +12307,44 @@ against the current model with the same seed. Read the paired interval
 before accepting it; a one-unit change on a noisy run can look larger than
 it is.</p>
 </div>
+<div class="paragraph">
+<p>A fix to an after-run finding changes the model, not the results on
+screen, so the finding leaves the panel when you apply it and the status
+bar says to run again. The next run judges the change for itself.</p>
+</div>
 </div>
 <div class="sect2">
-<h3 id="_what_the_advisor_will_not_do">24.7. What the Advisor will not do</h3>
+<h3 id="_when_a_finding_does_not_apply">24.7. When a finding does not apply</h3>
+<div class="paragraph">
+<p>Sometimes you know better: the backup that depends on the unit it backs up
+is a deliberate cold standby, or the placeholder repair time is the
+contract figure. Dismiss the finding rather than living with the noise.
+In the window, open the card&#8217;s <strong>Ignore</strong> menu and choose to ignore it for
+that element or for every finding of the rule in this model; give the
+reason when asked. The dismissal is saved in the model (the <code>.rbds</code>
+<code>advisor</code> key) with the reason, so whoever opens the file next sees the
+same panel and can read why. <strong>Show N ignored</strong> at the foot of the panel
+lists them, each with <strong>Restore</strong>, and Edit › Undo takes a dismissal back.</p>
+</div>
+<div class="paragraph">
+<p>On the command line and over MCP:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor advise models/VanFlat.rbds --ignore M-STR-002@block:2 --reason "cold standby by design"
+raptor advise models/VanFlat.rbds --restore M-STR-002@block:2</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>RULE</code> alone ignores every finding of that rule; <code>RULE@block:3</code> one. The
+MCP tool is <code>ignore_finding</code> (<code>restore=true</code> to bring one back), and
+<code>advise</code> lists what was dismissed under <code>ignored</code>, so nothing is hidden
+without a trace. A legacy <code>.rbd</code> file has nowhere to keep dismissals: save
+it as <code>.rbds</code> first.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_the_advisor_will_not_do">24.8. What the Advisor will not do</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -12319,7 +12362,7 @@ finding says which rule it came from.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_into_ci_and_an_assistant">24.8. Into CI and an assistant</h3>
+<h3 id="_into_ci_and_an_assistant">24.9. Into CI and an assistant</h3>
 <div class="paragraph">
 <p><code>--strict</code> exits with status 3 on warnings, so a pipeline can fail a model
 that is merely misleading, not just one that cannot run. <code>--format json</code>
