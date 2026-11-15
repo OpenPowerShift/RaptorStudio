@@ -96,7 +96,8 @@ class WhatIfDialog(AnalysisDialog):
         self.scenarios = QTableWidget(0, 2)
         self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (separate with ;)"))
         for column, tip in enumerate(SCENARIO_TIPS):
-            self.scenarios.horizontalHeaderItem(column).setToolTip(tip)
+            if (heading := self.scenarios.horizontalHeaderItem(column)) is not None:
+                heading.setToolTip(tip)
         self.scenarios.verticalHeader().setVisible(False)
         self.scenarios.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.scenarios.setColumnWidth(0, 240)
@@ -188,7 +189,8 @@ class WhatIfDialog(AnalysisDialog):
         self.table = QTableWidget(0, len(RESULT_COLUMNS))
         self.table.setHorizontalHeaderLabels(RESULT_COLUMNS)
         for column, tip in enumerate(RESULT_TIPS):
-            self.table.horizontalHeaderItem(column).setToolTip(tip)
+            if (heading := self.table.horizontalHeaderItem(column)) is not None:
+                heading.setToolTip(tip)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)

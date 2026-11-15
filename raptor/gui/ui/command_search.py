@@ -47,11 +47,11 @@ class CommandSearch(QDialog):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if (watched is self.query and event.type() == QEvent.Type.KeyPress
                 and isinstance(event, QKeyEvent) and event.key() in self._MOVES):
-            self.move(event.key())
+            self.step(Qt.Key(event.key()))
             return True
         return super().eventFilter(watched, event)
 
-    def move(self, key: Qt.Key) -> None:
+    def step(self, key: Qt.Key) -> None:
         """Move the current row as the list itself would, skipping rows
         that cannot run."""
         count = self.results.count()
