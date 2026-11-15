@@ -1004,13 +1004,14 @@ step. That run measures its own interval. The same rule is `raptor run
 == What If: compare changes with the model
 
 *Analyse ▸ What If…* compares scenarios with the model. A scenario is a
-name and a list of changes, each a `PATH=VALUE` as `raptor set` takes it
-(`block:Pump.repair_params=2.5`, `pool:Seals.stock=2`,
-`resource:Crew.units=3`). Pick a block (the selected one is chosen for
-you) and a ready-made change (half the repair time, lasts twice as long,
-half the delays, one more spare, one more crew, maintenance half as often,
-no planned maintenance) and press *Add scenario*, or *Add blank* and type
-the changes, separated by `;`.
+name and a list of changes. Each change says what to change and its new
+value, the same text `raptor set` takes (`block:Pump.repair_params=2.5`,
+`pool:Seals.stock=2`, `resource:Crew.units=3`). Pick a block (the selected
+one is chosen for you) and a ready-made change (half the repair time, lasts
+twice as long, half the delays, one more spare, double the spares, one more
+crew, maintenance twice as often, maintenance half as often, no planned
+maintenance) and press *Add scenario*, or *Add blank* and type the changes,
+separated by `;`. Hover a column heading for examples.
 
 *Run* runs the model (Base) and every scenario with the same seed, so each
 difference is measured trial by trial. The pairing is exact only until the

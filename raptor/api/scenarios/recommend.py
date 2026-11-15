@@ -224,11 +224,18 @@ def presets(rbd: Any, block: str) -> list[tuple[str, tuple[str, ...]]]:
     spare = _spare(rbd, row)
     if spare:
         out.append(("one more spare", (spare[0],)))
+        target, _, more = spare[0].rpartition("=")
+        held = int(more) - 1
+        if held >= 1:       # U25: for a heavy user, one more is often too few
+            out.append((f"double the spares ({held} to {2 * held})", (f"{target}={2 * held}",)))
     crew = _crew(rbd, row)
     if crew:
         out.append((f"one more {crew[0]}", (crew[1],)))
     pm = _pm(row)
     if pm:
+        target, _, longer = pm.rpartition("=")
+        out.append(("maintenance twice as often",
+                    (f"{target}={float(longer) / 4.0:.10g}",)))
         out.append(("maintenance half as often", (pm,)))
         out.append(("no planned maintenance", (f"block:{_selector(row)}.uses_pm=false",)))
     return out

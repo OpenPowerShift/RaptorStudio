@@ -24,6 +24,25 @@ from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work, trials_box
 RESULT_COLUMNS = ("Scenario", "Availability", "Change vs Base", "Chance better",
                   "Mean downtime change")
 
+#: Header tooltips, each with examples (U24).
+SCENARIO_TIPS = (
+    "A name for the scenario, shown in the results table. Example: Pump_A: one more spare",
+    "What to change and its new value, as kind:name.setting=value. Several changes "
+    "are separated with ;. Examples:\n"
+    "  block:Pump_A.stock=3   (three spares for Pump_A)\n"
+    "  pool:Seals.stock=6   (six seals in the pool)\n"
+    "  resource:Fitters.units=2   (two fitters)\n"
+    "  block:Pump_A.pm_freq=500   (maintenance every 500 hours)\n"
+    "The command line's `raptor set` takes the same text.")
+RESULT_TIPS = (
+    "The scenario; Base is the model as it is",
+    "Mean availability over the trials, e.g. 0.9935 is up 99.35 % of the time",
+    "Availability minus Base's, in percentage points, with its standard error: "
+    "+0.40 pts ± 0.05 takes 99.35 % to 99.75 %",
+    "In what share of the paired trials the scenario did better than Base: "
+    "50 % is no real difference, 95 % is a clear gain",
+    "Mean downtime per trial minus Base's (negative is less downtime)")
+
 
 def _pts(value: float | None, sem: float | None = None) -> str:
     if value is None:
@@ -34,8 +53,9 @@ def _pts(value: float | None, sem: float | None = None) -> str:
 
 class WhatIfDialog(AnalysisDialog):
     TITLE = "What If"
-    INTRO = ("Compare changes with this model. Each scenario is a list of "
-             "changes (PATH=VALUE, as `raptor set` takes them); Base and every "
+    INTRO = ("Compare changes with this model. Pick a block and a ready-made "
+             "change, or type your own, such as <code>block:Pump_A.stock=3</code> "
+             "(what to change, then = and the new value). Base and every "
              "scenario run with the same seed, so the difference is measured "
              "pair by pair. Runs on a copy: the model changes only when you "
              "press Apply.")
@@ -74,7 +94,9 @@ class WhatIfDialog(AnalysisDialog):
         row.addStretch(1)
 
         self.scenarios = QTableWidget(0, 2)
-        self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (PATH=VALUE; separate with ;)"))
+        self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (separate with ;)"))
+        for column, tip in enumerate(SCENARIO_TIPS):
+            self.scenarios.horizontalHeaderItem(column).setToolTip(tip)
         self.scenarios.verticalHeader().setVisible(False)
         self.scenarios.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.scenarios.setColumnWidth(0, 240)
@@ -165,6 +187,8 @@ class WhatIfDialog(AnalysisDialog):
     def build_result_area(self) -> QWidget:
         self.table = QTableWidget(0, len(RESULT_COLUMNS))
         self.table.setHorizontalHeaderLabels(RESULT_COLUMNS)
+        for column, tip in enumerate(RESULT_TIPS):
+            self.table.horizontalHeaderItem(column).setToolTip(tip)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -184,7 +208,8 @@ class WhatIfDialog(AnalysisDialog):
             return "Add a scenario first: pick a block and a change, or Add blank and type one."
         if any(not s["changes"] for s in scenarios):
             empty = next(s["name"] for s in scenarios if not s["changes"])
-            return f"{empty} has no change: type PATH=VALUE, or remove it."
+            return (f"{empty} has no change: type one such as "
+                    "block:Pump_A.stock=3, or remove it.")
         trials, workers = self._trials.value(), cores.chosen()
 
         def work(ws, mid, progress, abort):

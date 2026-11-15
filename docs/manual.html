@@ -1535,13 +1535,14 @@ step. That run measures its own interval. The same rule is <code>raptor run
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>Analyse ▸ What If…</strong> compares scenarios with the model. A scenario is a
-name and a list of changes, each a <code>PATH=VALUE</code> as <code>raptor set</code> takes it
-(<code>block:Pump.repair_params=2.5</code>, <code>pool:Seals.stock=2</code>,
-<code>resource:Crew.units=3</code>). Pick a block (the selected one is chosen for
-you) and a ready-made change (half the repair time, lasts twice as long,
-half the delays, one more spare, one more crew, maintenance half as often,
-no planned maintenance) and press <strong>Add scenario</strong>, or <strong>Add blank</strong> and type
-the changes, separated by <code>;</code>.</p>
+name and a list of changes. Each change says what to change and its new
+value, the same text <code>raptor set</code> takes (<code>block:Pump.repair_params=2.5</code>,
+<code>pool:Seals.stock=2</code>, <code>resource:Crew.units=3</code>). Pick a block (the selected
+one is chosen for you) and a ready-made change (half the repair time, lasts
+twice as long, half the delays, one more spare, double the spares, one more
+crew, maintenance twice as often, maintenance half as often, no planned
+maintenance) and press <strong>Add scenario</strong>, or <strong>Add blank</strong> and type the changes,
+separated by <code>;</code>. Hover a column heading for examples.</p>
 </div>
 <div class="paragraph">
 <p><strong>Run</strong> runs the model (Base) and every scenario with the same seed, so each

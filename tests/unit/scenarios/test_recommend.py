@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -168,3 +169,19 @@ def test_a_real_but_small_gain_only_helps_a_little(tmp_path):
     assert best["verdict"] == "helps a little"
     assert result.caption.startswith("No change removes")
     assert "clearly helps" not in [row["verdict"] for row in result.rows]
+
+
+def test_presets_include_double_spares_and_more_maintenance():
+    """U25: a heavy user needs more than one more spare, and maintenance
+    could only be made less frequent."""
+    from raptor.api.scenarios.recommend import presets
+    from raptor.core.fileio.model_file import load_model_file
+
+    rbd = load_model_file(Path(__file__).resolve().parents[3] / "new_docs" / "models" / "DC1.rbds")
+    row = next(r for r in rbd.section("BLOCK_DATA").rows if r.get("blockName") == "CRAC_A")
+    row["usesPM"], row["PMFreq"] = "1", "400"
+    found = dict(presets(rbd, "CRAC_A"))
+    (double,) = found["double the spares (3 to 6)"]
+    assert double.endswith(".stock=6")
+    assert found["maintenance twice as often"] == ("block:CRAC_A.pm_freq=200",)
+    assert found["maintenance half as often"] == ("block:CRAC_A.pm_freq=800",)
