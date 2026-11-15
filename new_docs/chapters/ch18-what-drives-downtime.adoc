@@ -295,6 +295,47 @@ one that qualifies; `--apply` writes the stocks into the model, and leaving
 it out changes nothing. If every spare cost is the default 1, the result
 minimises the number held rather than money, and the caption says so.
 
+=== From a finding to a tested change
+
+The drivers say where the downtime comes from; a decision needs the change,
+what it buys and what it costs. `raptor recommend` does all three in one
+step. It runs the model with attribution, takes the blocks that cause the
+most downtime, picks one lever for each from the cause behind its outages,
+and tests every change against Base with paired runs:
+
+[source,bash]
+----
+raptor recommend VanFlat.rbds --top 3 -n 200
+----
+
+The levers are fixed, stated steps:
+
+[cols="1,2",options="header"]
+|===
+| Main cause of the block's outages | Change tested
+| Hands-on repair | the repair law's mean halved, its shape kept
+| Logistics delay | the delays before and after repair halved
+| Waiting for a spare, or never repaired | one more spare in its pool (or its own stock)
+| Waiting for people or equipment | one more unit of its crew
+| Planned maintenance | the PM interval doubled
+| (the largest driver only) | a part that lasts twice as long
+|===
+
+Each result prints the `PATH=VALUE` change, so `raptor set` or `raptor
+whatif` can take it as it stands, the paired availability gain with its
+standard error and `P(better)`, the downtime saved per run, and the cost.
+A spare or crew carries the unit cost stored in the model; with cost
+analysis on, the change in the run's grand total is shown too. A faster
+repair or a better part has no price in the model, so its cost is reported
+as unknown, never as zero. A change is called *worth doing* only when
+`P(better)` reaches 95 %; between 60 and 95 % it *likely helps* and needs
+more runs.
+
+The step size is not an optimum. Recommend finds the lever that matters;
+`raptor optimise` sizes it. In the application the same tool is Simulate ▸
+Batch ▸ Recommend, where Apply writes the chosen change into the model as
+one undo step. An AI assistant calls `recommend_changes`.
+
 === The rule that keeps this honest
 
 Attribution describes the design you simulated. Importance and what-if

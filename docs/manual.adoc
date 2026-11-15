@@ -855,8 +855,37 @@ trials already finished, Pause starts no new slice until you resume. **Jump**
 (skip one trial) is unavailable on a multi-core run, because trials are run
 in slices; its tooltip says so.
 
-**Sweep** and **Compare** (Simulate ▸ Batch) always run at full speed on the
+**Sweep**, **Compare** and **Recommend** (Simulate ▸ Batch) always run at full speed on the
 chosen cores, on a copy of the model: the open model is not changed.
+
+[[recommend]]
+== Recommend: a tested change for each driver
+
+*Simulate ▸ Batch ▸ Recommend…* turns the downtime drivers into decisions.
+It runs a copy of the model with attribution, takes the *Top drivers*
+blocks that cause the most system downtime, proposes one change for each
+from the cause behind its outages, and runs every change beside the model
+with the same seed (paired trials):
+
+* hands-on repair: the repair time halved (the law's mean halved, its shape kept);
+* logistics delay: the delays before and after repair halved;
+* waiting for a spare, or never repaired: one more spare;
+* waiting for people or equipment: one more unit of that crew;
+* planned maintenance: the PM interval doubled;
+* the largest driver also gets a part that lasts twice as long.
+
+Each row shows the change, a verdict, the paired availability gain
+(± its standard error, and the chance it is really better), the downtime
+saved per run and the cost. *Worth doing* needs at least a 95 % chance of
+higher availability. A spare or crew shows the unit cost stored in the
+model; a change the model has no price for says so instead of showing
+zero. Hover a row for the exact `PATH=VALUE` change and why it was tried.
+
+*Apply* writes the selected change into the model as one undo step
+(*Edit ▸ Undo* takes it back). The other rows were measured against the
+model before that change: run again to test them against the new one.
+*Copy* puts the whole result on the clipboard as text. The same tool is
+`raptor recommend` on the command line and `recommend_changes` over MCP.
 
 [[differences]]
 == Comparing two models

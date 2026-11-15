@@ -1161,6 +1161,55 @@ async def what_if(
     return ok(data, _what_if_markdown(comparison))
 
 
+@mcp.tool(annotations=ADDITIVE("Recommend changes"))
+@guarded
+async def recommend_changes(
+    model_id: str,
+    run_id: str | None = None,
+    top: int = 3,
+    trials: int | None = None,
+    seed: int = 1,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """Propose and test one change for each top downtime driver.
+
+    Finds the `top` blocks causing the most system downtime (from `run_id`,
+    a stored run made with `attribution=True`, or else from a Base run with
+    attribution made first), proposes a fixed-step lever from the cause that
+    dominates each one's outages (halve the repair time or the logistics
+    delays, one more spare, one more crew, maintenance half as often, a part
+    that lasts twice as long), and tests every change against Base with
+    paired trials. Each row gives the PATH=VALUE change (apply it with
+    `update_element`/`manage_spare_pools`/`manage_resources`, or `raptor
+    set`), the paired availability gain with its standard error and chance
+    of being better, the downtime avoided per run, the unit cost the model
+    holds (null when it holds none) and a verdict ("worth doing" = at least
+    95 % confidence of a gain). The open model is never modified. Long runs
+    report progress and can be cancelled.
+    """
+    ws = context.workspace()
+    cap = context.max_runs()
+    if trials is not None and trials > cap:
+        raise ValueError(
+            f"trials={trials} exceeds the server cap of {cap}; lower it or "
+            "raise the cap")
+    if not 1 <= top <= 20:
+        raise ValueError("top must be between 1 and 20")
+    from raptor.api.scenarios.recommend import recommend, text_lines
+
+    def work(abort, progress):
+        return recommend(
+            ws, model_id, run_id=run_id, top=top, trials=trials, seed=seed,
+            workers=max(1, workers or 1), timeout_s=timeout_s,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    result = await run_job(ctx, work, label="Testing changes")
+    return ok(result.to_dict(), "\n".join(text_lines(result)))
+
+
 def _what_if_markdown(comparison: Any) -> str:
     row = comparison.rows[0] if comparison.rows else {}
     if row.get("error"):

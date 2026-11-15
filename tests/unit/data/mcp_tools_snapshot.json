@@ -754,6 +754,20 @@
    "name"
   ]
  },
+ "recommend_changes": {
+  "params": [
+   "model_id",
+   "run_id",
+   "seed",
+   "timeout_s",
+   "top",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "redo_last_edit": {
   "params": [
    "model_id"

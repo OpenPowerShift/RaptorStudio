@@ -734,6 +734,13 @@ you need the exact argument shape.
   the scenario is better, the variance pairing cut, and requirement
   verdicts. The open model is never modified.
 
+| `recommend_changes`
+| One tested change for each of the `top` downtime drivers, chosen from the
+  cause behind its outages: the `PATH=VALUE` change, the paired availability
+  gain with its standard error and chance of being better, the downtime
+  saved per run, the unit cost the model holds (null when it holds none)
+  and a verdict. The open model is never modified.
+
 | `replace_in_table`
 | Find and replace in one model table column, with whole-cell and case
   options. Name columns use the manual-rename rules and a refused set

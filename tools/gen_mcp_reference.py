@@ -132,6 +132,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "sync_part_types": "library",
     "what_if": "what-if",
     "sensitivity": "what-if",
+    "recommend_changes": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -286,6 +287,7 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "run_story": {"run_id": "<run_id>"},
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
     "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
+    "recommend_changes": {"model_id": "<model_id>", "top": 3, "trials": 200},
     "duplicate_elements": {"model_id": "<model_id>",
                            "elements": ["Pump_A"], "copies": 2},
     "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
@@ -599,6 +601,11 @@ RETURN_NOTES: dict[str, str] = {
     "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
                    "note}`; each input has its low/high paired effect and SEM, "
                    "swing, elasticity, and whether it is distinguishable.",
+    "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, "
+                         "attribution_run_id}`; each row has `name`, `changes` "
+                         "(PATH=VALUE), `why`, `gain` (availability, sem, "
+                         "p_better, low, high, downtime_avoided), `cost` (unit, "
+                         "run_total_change, note) and `verdict`.",
     "what_if": "`{trials, seed, base, rows, variance_reduction, "
                "requirements, caption, note}`; each row's `metrics[key]` has "
                "the scenario value, paired delta and SEM, p_better and the "

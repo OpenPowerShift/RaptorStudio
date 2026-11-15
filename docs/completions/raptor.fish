@@ -153,6 +153,14 @@ complete -c raptor -n '__fish_seen_subcommand_from library' -l help
 complete -c raptor -n '__fish_use_subcommand' -a mcp
 complete -c raptor -n '__fish_use_subcommand' -a optimise
 complete -c raptor -n '__fish_seen_subcommand_from optimise' -l help
+complete -c raptor -n '__fish_use_subcommand' -a recommend
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l format
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l help
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l jobs
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l run
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l seed
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l top
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l trials
 complete -c raptor -n '__fish_use_subcommand' -a render
 complete -c raptor -n '__fish_seen_subcommand_from render' -l help
 complete -c raptor -n '__fish_seen_subcommand_from render' -l highlight

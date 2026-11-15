@@ -44,6 +44,7 @@
 </li>
 <li><a href="#run">The Run panel</a></li>
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
+<li><a href="#recommend">Recommend: a tested change for each driver</a></li>
 <li><a href="#differences">Comparing two models</a></li>
 <li><a href="#several-models">Several models at once</a></li>
 <li><a href="#ai-assistant">AI assistant (MCP)</a></li>
@@ -1328,8 +1329,57 @@ trials already finished, Pause starts no new slice until you resume. <strong>Jum
 in slices; its tooltip says so.</p>
 </div>
 <div class="paragraph">
-<p><strong>Sweep</strong> and <strong>Compare</strong> (Simulate ▸ Batch) always run at full speed on the
+<p><strong>Sweep</strong>, <strong>Compare</strong> and <strong>Recommend</strong> (Simulate ▸ Batch) always run at full speed on the
 chosen cores, on a copy of the model: the open model is not changed.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="recommend">Recommend: a tested change for each driver</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Simulate ▸ Batch ▸ Recommend…</strong> turns the downtime drivers into decisions.
+It runs a copy of the model with attribution, takes the <strong>Top drivers</strong>
+blocks that cause the most system downtime, proposes one change for each
+from the cause behind its outages, and runs every change beside the model
+with the same seed (paired trials):</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>hands-on repair: the repair time halved (the law&#8217;s mean halved, its shape kept);</p>
+</li>
+<li>
+<p>logistics delay: the delays before and after repair halved;</p>
+</li>
+<li>
+<p>waiting for a spare, or never repaired: one more spare;</p>
+</li>
+<li>
+<p>waiting for people or equipment: one more unit of that crew;</p>
+</li>
+<li>
+<p>planned maintenance: the PM interval doubled;</p>
+</li>
+<li>
+<p>the largest driver also gets a part that lasts twice as long.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Each row shows the change, a verdict, the paired availability gain
+(± its standard error, and the chance it is really better), the downtime
+saved per run and the cost. <strong>Worth doing</strong> needs at least a 95 % chance of
+higher availability. A spare or crew shows the unit cost stored in the
+model; a change the model has no price for says so instead of showing
+zero. Hover a row for the exact <code>PATH=VALUE</code> change and why it was tried.</p>
+</div>
+<div class="paragraph">
+<p><strong>Apply</strong> writes the selected change into the model as one undo step
+(<strong>Edit ▸ Undo</strong> takes it back). The other rows were measured against the
+model before that change: run again to test them against the new one.
+<strong>Copy</strong> puts the whole result on the clipboard as text. The same tool is
+<code>raptor recommend</code> on the command line and <code>recommend_changes</code> over MCP.</p>
 </div>
 </div>
 </div>
@@ -2675,6 +2725,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Compare…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run several models&#8201;&#8212;&#8201;this one and others from disk&#8201;&#8212;&#8201;with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Recommend…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, &#8230;&#8203;) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>

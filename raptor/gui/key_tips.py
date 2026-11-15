@@ -50,7 +50,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Simulate": {
         "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S",
         "sim.pause": "P", "sim.stop_run": "T", "sim.jump": "J",
-        "sim.sweep": "W", "sim.compare": "C",
+        "sim.sweep": "W", "sim.compare": "C", "sim.recommend": "M",
     },
     "Debug": {
         "sim.step": "S", "sim.step_next_time": "N", "sim.step_finish": "F",

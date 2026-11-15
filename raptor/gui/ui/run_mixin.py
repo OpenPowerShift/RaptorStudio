@@ -234,6 +234,11 @@ class RunMixin(_Base):
         """Simulate > Batch > Compare: this model beside other model files."""
         return self._open_batch_dialog("_compare_dialog", "CompareDialog")
 
+    def _open_recommend_dialog(self):
+        """Simulate > Batch > Recommend: a tested change for each top driver."""
+        from raptor.gui.ui.recommend_dialog import open_recommend
+        return open_recommend(self)
+
     def _open_batch_dialog(self, attr: str, cls_name: str):
         # One window of each kind. It is kept -- with its results and
         # inputs -- unless the model has changed since it was built (another

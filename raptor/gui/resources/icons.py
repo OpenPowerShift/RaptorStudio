@@ -1217,6 +1217,20 @@ def flow_icon(colour: str) -> QIcon:
     return _icon("flow", colour, draw)
 
 
+def recommend_icon(colour: str) -> QIcon:
+    """Recommend: a rising step with a tick, a change that was tested."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                      Qt.PenJoinStyle.RoundJoin))
+        p.drawPolyline([QPointF(6, 40), QPointF(18, 40), QPointF(18, 28),
+                        QPointF(30, 28), QPointF(30, 16), QPointF(42, 16)])
+        p.setPen(QPen(c, 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                      Qt.PenJoinStyle.RoundJoin))
+        p.drawPolyline([QPointF(8, 14), QPointF(14, 20), QPointF(24, 6)])
+    return _icon("recommend", colour, draw)
+
+
 def rank_icon(colour: str) -> QIcon:
     """Importance measures: three ranked bars, tallest first.
 

@@ -1095,6 +1095,16 @@
    "text": "Rates\u2026",
    "tooltip": "Rates library \u2014 named, reusable value expressions (e.g. a failure rate derived from km/yr usage) that Failure/Repair Param fields can link to instead of retyping the same derivation on every block\n\nUnavailable: open or create a model first"
   },
+  "_recommend_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Recommend\u2026",
+   "tooltip": "Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.\n\nUnavailable: open or create a model first"
+  },
   "_redo_action": {
    "checkable": false,
    "checked": false,
@@ -1723,6 +1733,7 @@
    "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": false,
+   "_recommend_action": false,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -1876,6 +1887,7 @@
    "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": true,
+   "_recommend_action": true,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -2029,6 +2041,7 @@
    "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": false,
+   "_recommend_action": false,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -2518,6 +2531,11 @@
        "kind": "action",
        "large": true,
        "text": "Compare\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Recommend\u2026"
       }
      ],
      "title": "Batch"

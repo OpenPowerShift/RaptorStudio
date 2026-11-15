@@ -1,4 +1,4 @@
-"""`raptor whatif`: one change to the open model, compared with Base."""
+"""`raptor whatif`, `sensitivity` and `recommend`: changes compared with Base."""
 from __future__ import annotations
 
 import json
@@ -64,6 +64,52 @@ def add_parser(sub: Any) -> None:
     s.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
     s.add_argument("-f", "--format", choices=("text", "json"), default="text")
     s.set_defaults(func=sensitivity_command)
+
+    r = sub.add_parser(
+        "recommend", help="test a change for each top downtime driver",
+        description="Find the blocks that cause the most system downtime, "
+                    "propose one change for each from the cause that "
+                    "dominates its outages (halve the repair time, one more "
+                    "spare, one more crew, ...), and test every change "
+                    "against the open model with paired runs. Each result "
+                    "states the change, the measured gain and the cost. The "
+                    "model file is never modified.")
+    r.add_argument("model", metavar="MODEL")
+    r.add_argument("--run", metavar="RUN_ID",
+                   help="a stored run made with attribution to take the "
+                        "drivers from (default: run Base with attribution "
+                        "first)")
+    r.add_argument("--top", type=int, default=3, metavar="N",
+                   help="how many top drivers get a change (default 3)")
+    r.add_argument("-n", "--trials", type=int, metavar="N",
+                   help="runs per change (default: the model's own)")
+    r.add_argument("--seed", type=int, default=1, metavar="N")
+    r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    r.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    r.set_defaults(func=recommend_command)
+
+
+def recommend_command(args: Any) -> int:
+    from raptor.api.insight.drivers import NoAttribution
+    from raptor.api.scenarios.recommend import recommend, text_lines
+
+    if args.top < 1:
+        raise CliError("--top must be at least 1", X.USAGE)
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        try:
+            result = recommend(
+                ws, mid, run_id=args.run, top=args.top, trials=args.trials,
+                seed=args.seed, workers=max(1, args.jobs),
+                progress=lambda done, total, label:
+                eprint(f"[{done}/{total}] {label}") if label else None)
+        except NoAttribution as exc:
+            raise CliError(str(exc), X.REFUSED) from exc
+    if args.format == "json":
+        emit_json(result.to_dict(), None)
+        return X.OK
+    print("\n".join(text_lines(result)))
+    return X.OK
 
 
 def sensitivity_command(args: Any) -> int:

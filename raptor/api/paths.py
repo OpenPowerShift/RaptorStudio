@@ -361,3 +361,40 @@ def help_text() -> str:
         "such as @MTBF*2",
     ]
     return "\n".join(lines)
+
+
+def cell_changes(rbd: Any, texts: list[str]) -> list[dict]:
+    """The file cells that `texts` would change, without changing `rbd`.
+
+    Each entry is ``{section, index, column, old, new}``: row `index` of
+    `section` in `rbd`.  The assignments are applied to a copy, so a caller
+    such as the application can turn them into one undo step on its own
+    rows.  Raises `PathError` for a change that cannot be applied, and
+    leaves `rbd` untouched either way."""
+    import copy
+    import tempfile
+
+    from raptor.api import build
+
+    with tempfile.TemporaryDirectory(prefix="raptor-cells-") as scratch:
+        workspace = Workspace(scratch)
+        model_id = workspace.register_model(copy.deepcopy(rbd), name="copy")["model_id"]
+        try:
+            apply_assignments(workspace, model_id, list(texts))
+        except PathError:
+            raise
+        except (build.BuildError, ValueError, LookupError) as exc:
+            raise PathError(str(exc)) from exc
+        changed = workspace.get(model_id).rbd
+    out: list[dict] = []
+    for name, section in rbd.sections.items():
+        other = changed.sections.get(name)
+        if other is None or len(other.rows) != len(section.rows):
+            raise PathError(f"the change adds or removes {name.lower()} rows; "
+                            "apply it with 'raptor set'")
+        for index, (row, new_row) in enumerate(zip(section.rows, other.rows, strict=True)):
+            for column in sorted(set(row) | set(new_row)):
+                if row.get(column) != new_row.get(column):
+                    out.append({"section": name, "index": index, "column": column,
+                                "old": row.get(column), "new": new_row.get(column)})
+    return out

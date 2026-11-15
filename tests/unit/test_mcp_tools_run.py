@@ -182,3 +182,24 @@ class TestWhatIf:
             timeout_s=60))
         assert result.is_error
         assert "did not run" in _text(result)
+
+
+class TestRecommendChanges:
+    def test_each_row_states_change_gain_cost_and_verdict(self, ws_with_motor):
+        from raptor.mcp.tools_run import recommend_changes
+        result = _resolve(recommend_changes(
+            ws_with_motor, top=1, trials=6, seed=2, timeout_s=120))
+        assert not result.is_error
+        data = _sc(result)
+        assert data["schema"] == "raptor-recommend/1"
+        assert data["attribution_run_id"]
+        for row in data["rows"]:
+            assert row["changes"] and all("=" in c for c in row["changes"])
+            assert {"availability", "sem", "p_better"} <= set(row["gain"])
+            assert "unit" in row["cost"] and row["verdict"]
+        assert data["caption"] in _text(result)
+
+    def test_top_out_of_range_is_refused(self, ws_with_motor):
+        from raptor.mcp.tools_run import recommend_changes
+        result = _resolve(recommend_changes(ws_with_motor, top=0, trials=2))
+        assert result.is_error

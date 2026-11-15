@@ -82,6 +82,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         absent={"gui": "the Analyse tab's Tornado view is designed but not "
                        "built; use 'raptor sensitivity' or MCP sensitivity"}),
     Capability(
+        "whatif.recommend", "A tested change for each top downtime driver: change, gain, cost",
+        api="raptor.api.scenarios.recommend.recommend", cli="recommend",
+        mcp="recommend_changes", gui="command:sim.recommend", long_running=True),
+    Capability(
         "optimise.spares", "The cheapest spare stock that meets a target",
         api="raptor.api.optimise.spares.optimise_spares",
         cli="optimise", long_running=True,

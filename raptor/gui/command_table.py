@@ -749,6 +749,19 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_open_compare_dialog",
         enabled_when="can_start_batch"),
     CommandSpec(
+        id="sim.recommend",
+        attr="_recommend_action",
+        text="Recommend…",
+        icon="recommend_icon:accent",
+        tooltip=(
+            "Find the blocks that cause the most downtime, propose one change "
+            "for each (faster repair, one more spare, one more crew, ...) and "
+            "test every change against this model with paired runs: the "
+            "change, the gain it measurably gives and its cost. Runs on "
+            "copies; Apply writes a change in as one undo step."),
+        handler="_open_recommend_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
         id="sim.extract_hierarchy",
         attr="_extract_hierarchy_action",
         text="Extract Hierarchy…",
@@ -1388,7 +1401,8 @@ LAYOUT: tuple[Page, ...] = (
        # box. No second set of toggles on the ribbon.
        Group("Animation", (Custom("_build_speed_controls"),), priority=1),
        # Many runs at once: one parameter across values, or several models.
-       Group("Batch", (Btn("sim.sweep", True), Btn("sim.compare", True)),
+       Group("Batch", (Btn("sim.sweep", True), Btn("sim.compare", True),
+                        Btn("sim.recommend", True)),
              priority=3)),
     # Stepping and what-if failures are one activity -- pause, fail a block,
     # step on, repair it -- so they share a tab instead of making the user
