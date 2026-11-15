@@ -319,7 +319,7 @@ class RecommendDialog(QDialog):
         usable = (result is not None and 0 <= index < len(result.rows)
                   and not result.rows[index].get("error")
                   and index not in self._applied
-                  and not (self._job is not None and self._job.is_running()))
+                  and not (self._job is not None and not self._job.done))
         self._apply_btn.setEnabled(bool(usable))
         self._copy_btn.setEnabled(result is not None and bool(result.rows))
 

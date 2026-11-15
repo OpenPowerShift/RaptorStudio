@@ -326,3 +326,18 @@ def test_the_repair_dialog_speaks_of_repairs_throughout(win):
     assert dlg.chart.use == "repair"
     win._open_experience_dialog(valve, "fail")
     assert win._experience_dialog.apply_btn.text() == "Use as Valve's failure law"
+
+
+def test_apply_is_ready_the_moment_the_job_is_done(win, monkeypatch):
+    """The worker thread outlives its `done` flag by a moment; a button
+    check in that moment kept Apply greyed out (seen on CI)."""
+    dlg = win._open_whatif_dialog()
+    dlg._block.setCurrentText("Pump")
+    dlg._preset.setCurrentText("half the repair time")
+    dlg._add_preset()
+    dlg._trials.setValue(4)
+    _run(dlg)
+    monkeypatch.setattr(dlg._job, "is_running", lambda: True)
+    dlg.table.selectRow(1)
+    dlg.sync_buttons()
+    assert dlg._apply_btn.isEnabled()

@@ -240,7 +240,10 @@ class AnalysisDialog(QDialog):
         return self._job.result if self._job is not None else None
 
     def running(self) -> bool:
-        return self._job is not None and self._job.is_running()
+        # The job's own flag, not its thread: the thread is still alive for
+        # a moment after it sets `done`, and a check in that moment left
+        # Apply greyed out after a finished run (seen on a slow CI runner).
+        return self._job is not None and not self._job.done
 
     def _set_inputs_enabled(self, on: bool) -> None:
         for index in range(self._inputs.count()):
