@@ -264,3 +264,19 @@ def test_a_failed_study_shows_the_message_not_the_exception_class(win):
     job.start()
     job.wait(10)
     assert job.error == "no input could be varied in this model"
+
+
+def test_a_hollow_tornado_bar_cannot_be_applied(win):
+    dlg = win._open_sensitivity_dialog()
+    row = {"input": {"name": "Pump repair", "low": {"path": "x"}, "high": {"path": "y"}},
+           "low": {"effect": -0.01}, "high": {"effect": 0.02}, "swing": 0.03,
+           "_lower_better": False}
+    dlg.chart.set_rows([{**row, "distinguishable": False}], True)
+    dlg.chart.selected = 0
+    assert dlg.selection() is None
+    assert "noise" in dlg._apply_btn.toolTip()
+    dlg.chart.set_rows([{**row, "distinguishable": True}], True)
+    dlg.chart.selected = 0
+    chosen = dlg.selection()
+    assert chosen is not None and chosen[0] == ("Pump repair", "high")
+    assert dlg._apply_btn.toolTip() == ""

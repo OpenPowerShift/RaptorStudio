@@ -251,8 +251,9 @@ def compare(
         requirements=_requirements(requirements or (), base_metrics, rows),
         caption=_caption(rows),
         note=("Each scenario is compared with Base using the same seed and "
-              "paired trials. A change that alters how many random draws a "
-              "block makes can weaken the pairing, never the comparison."))
+              "paired trials. The two stay in step only until the change first "
+              "moves an event, so pairing usually removes little noise; the "
+              "standard error is from the paired differences, so it is honest."))
     return comparison
 
 

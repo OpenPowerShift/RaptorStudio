@@ -78,6 +78,9 @@ APPENDIX_D_STATE_COLOURS = {
 LIGHT_COLOUR = {
     "nav": "#0B2340",
     "accent": "#1371BB",
+    # a selected row: white on the accent (5.1:1)
+    "selection_bg": "#1371BB",
+    "selection_text": "#FFFFFF",
     "surface": "#FFFFFF",
     "canvas": "#EDF2F7",
     "text": "#132238",
@@ -113,6 +116,10 @@ LIGHT_COLOUR = {
 DARK_COLOUR = {
     "nav": "#0A1628",
     "accent": "#3399E0",
+    # a selected row: the bright accent behind dark text read as low contrast;
+    # a deeper blue with white text is 7.2:1 and still stands off the surface
+    "selection_bg": "#1E5A8F",
+    "selection_text": "#FFFFFF",
     "surface": "#1A2332",
     "canvas": "#111927",
     "text": "#E1E8F0",
@@ -276,8 +283,8 @@ def _build_palette(c: dict) -> QPalette:
     p.setColor(QPalette.ColorRole.ToolTipBase, canvas)
     p.setColor(QPalette.ColorRole.ToolTipText, text)
     p.setColor(QPalette.ColorRole.BrightText, QColor(c["failed"]))
-    p.setColor(QPalette.ColorRole.Highlight, accent)
-    p.setColor(QPalette.ColorRole.HighlightedText, window)
+    p.setColor(QPalette.ColorRole.Highlight, QColor(c["selection_bg"]))
+    p.setColor(QPalette.ColorRole.HighlightedText, QColor(c["selection_text"]))
     p.setColor(QPalette.ColorRole.PlaceholderText, muted)
     p.setColor(QPalette.ColorRole.Link, accent)
     for group in (QPalette.ColorGroup.Disabled,):
@@ -454,8 +461,8 @@ def _build_stylesheet(c: dict) -> str:
         border: 1px solid {c['border']};
     }}
     QTreeView::item:selected, QListView::item:selected, QTableView::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     QFileDialog {{
         background: {c['surface']};
@@ -465,8 +472,8 @@ def _build_stylesheet(c: dict) -> str:
         padding: 2px 4px;
     }}
     QTreeWidget::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* No QTreeWidget::branch rules: styling any branch subcontrol makes Qt
        drop the native expand/collapse arrows, leaving no image for those
@@ -515,8 +522,8 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['surface']};
     }}
     QTableWidget::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* The header's own background shows wherever there is no section (past the last column, the empty part of a
        row-number strip, the corner): left unset it fell back to the dark platform palette in the light theme. */
@@ -559,8 +566,8 @@ def _build_stylesheet(c: dict) -> str:
         border: 1px solid {c['border']};
     }}
     QMenu::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* Groups are divided by a hairline, not boxed: a full frame round
        every group made the ribbon read as a form. */
@@ -658,8 +665,8 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['surface']};
         color: {c['text']};
         border: 1px solid {c['border']};
-        selection-background-color: {c['accent']};
-        selection-color: {c['surface']};
+        selection-background-color: {c['selection_bg']};
+        selection-color: {c['selection_text']};
         outline: none;
     }}
     QLineEdit {{

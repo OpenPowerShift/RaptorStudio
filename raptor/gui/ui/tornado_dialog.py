@@ -193,6 +193,14 @@ class TornadoDialog(AnalysisDialog):
         low, high = row["low"]["effect"], row["high"]["effect"]
         if low is None or high is None:
             return None
+        if not row.get("distinguishable"):
+            # a hollow bar: its swing cannot be told from noise at this run
+            # count, so there is no measured better end to write in
+            self._apply_btn.setToolTip(
+                "This input's swing cannot be told from noise at this run "
+                "count; run more trials before applying either end")
+            return None
+        self._apply_btn.setToolTip("")
         sign = -1 if row.get("_lower_better") else 1
         end = "high" if sign * high >= sign * low else "low"
         if sign * row[end]["effect"] <= 0:
