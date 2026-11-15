@@ -378,6 +378,34 @@ def test_a_run_carries_the_dependants_part_to_the_aggregate_and_text(tmp_path):
     assert any(line.startswith("A ") and line.rstrip().endswith("600") for line in lines)
 
 
+
+def test_an_event_that_holds_a_dependant_owns_its_part_too(tmp_path):
+    # an event that always fails (failVal 0) cuts A's 50 branch, and B (30)
+    # depends on the event so it sits Idle: over 40 time units the event
+    # owns (50 + 30) x 40 = 3200 a run, 30 x 40 = 1200 of it via B
+    spec = parallel_spec([fixed("A", 1, 1000, 1),
+                          fixed("B", 2, 1000, 1, dep_type="RBDEvent", dep_num=7),
+                          fixed("C", 3, 1000, 1)], [50, 30, 20], length=40.0)
+    spec["events"] = [{"name": "Ev", "id": 7, "failVal": 0.0}]
+    spec["links"] = [link for link in spec["links"]
+                     if not (link["from"] == "S" and link["to"] == "A")]
+    spec["links"] += [{"from": "S", "to": "Ev"}, {"from": "Ev", "to": "A"}]
+    path = tmp_path / "event.rbds"
+    save_rbds(build.build_from_spec(spec), str(path))
+    workspace = Workspace(tmp_path / "ws")
+    model_id = workspace.open_model(path)["model_id"]
+    from raptor.api.run import run
+    result = run(workspace, model_id, num_runs=2, attribution=True,
+                 confirm_long_run=True)
+    capacity = json.loads((tmp_path / "ws" / "runs" / result.run_id
+                           / "attribution.json").read_text())["capacity"]
+    (row,) = capacity["elements"]
+    assert (row["name"], row["kind"]) == ("Ev", "event")
+    assert row["lost_energy"]["mean"] == pytest.approx(3200.0)
+    assert row["through_dependents"]["mean"] == pytest.approx(1200.0)
+    assert any(line.startswith("Ev ") and line.rstrip().endswith("1,200")
+               for line in text_lines(capacity))
+
 def test_without_a_held_dependant_the_text_says_why_rather_than_zeros():
     from raptor.api.insight.capacity_attribution import NO_DEPENDANTS
     stat = {"mean": 0.0, "n": 1}
