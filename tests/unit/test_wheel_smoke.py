@@ -18,10 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 @pytest.fixture(scope="module")
 def unpacked(tmp_path_factory):
     import fcntl
-    import tempfile
     out = tmp_path_factory.mktemp("wheel")
-    # `pip wheel` builds inside the source tree (`build/`); parallel test workers must take turns.
-    with open(Path(tempfile.gettempdir()) / "raptor_wheel_build.lock", "w") as lock:
+    # `pip wheel` builds inside the source tree (`build/`); parallel test
+    # workers, and parallel sessions, must take turns.  The lock sits beside
+    # what it guards: each session now has its own temp folder.
+    (ROOT / "build").mkdir(exist_ok=True)
+    with open(ROOT / "build" / ".wheel.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         subprocess.run([sys.executable, "-m", "pip", "wheel", str(ROOT), "--no-deps", "-q", "-w", str(out)],
                        check=True, capture_output=True, timeout=120)
