@@ -194,6 +194,8 @@ def marginal_value(
             "error": plus_row.get("error") or minus_row.get("error"),
         })
     rows.sort(key=lambda row: -(row["downtime_avoided"] or 0.0))
+    from raptor.api.batch import discard_runs
+    discard_runs(workspace, results)
     return {
         "metric": metric,
         "trials": int(trials or len(_values(base, metric))),

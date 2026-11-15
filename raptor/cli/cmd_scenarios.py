@@ -6,6 +6,7 @@ from typing import Any
 
 from raptor.cli import exitcodes as X
 from raptor.cli.common import emit_json, eprint, open_model, workspace_for
+from raptor.cli.cmd_run import add_study_progress, study_progress
 from raptor.cli.exitcodes import CliError
 
 WHATIF_SCHEMA = "raptor-whatif/1"
@@ -35,6 +36,7 @@ def add_parser(sub: Any) -> None:
                    metavar="EXPR", help="e.g. system.ao>=0.995 (repeatable)")
     w.add_argument("--seed", type=int, default=1, metavar="N")
     w.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    add_study_progress(w)
     w.add_argument("--save", metavar="FILE",
                    help="write the scenario definition(s) as JSON")
     w.add_argument("-f", "--format", choices=("text", "json"), default="text")
@@ -55,6 +57,7 @@ def add_parser(sub: Any) -> None:
                    help="per-run field to watch (default availability)")
     s.add_argument("--seed", type=int, default=1, metavar="N")
     s.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    add_study_progress(s)
     s.add_argument("-f", "--format", choices=("text", "json"), default="text")
     s.set_defaults(func=sensitivity_command)
 
@@ -82,6 +85,7 @@ def add_parser(sub: Any) -> None:
                         "'clearly helps' (default: removing 5 %% of Base's downtime)")
     r.add_argument("--seed", type=int, default=1, metavar="N")
     r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    add_study_progress(r)
     r.add_argument("-f", "--format", choices=("text", "json"), default="text")
     r.set_defaults(func=recommend_command)
 
@@ -101,8 +105,7 @@ def recommend_command(args: Any) -> int:
                 ws, mid, run_id=args.run, top=args.top, trials=args.trials,
                 seed=args.seed, workers=max(1, args.jobs),
                 min_gain=None if args.min_gain is None else args.min_gain / 100,
-                progress=lambda done, total, label:
-                eprint(f"[{done}/{total}] {label}") if label else None)
+                progress=study_progress(args))
         except NoAttribution as exc:
             raise CliError(str(exc), X.REFUSED) from exc
     if args.format == "json":
@@ -123,8 +126,7 @@ def sensitivity_command(args: Any) -> int:
         result = tornado(
             ws, mid, inputs, trials=args.trials, metric=args.metric,
             seed=args.seed, workers=max(1, args.jobs),
-            progress=lambda done, total, label:
-            eprint(f"[{done}/{total}] {label}") if label else None)
+            progress=study_progress(args))
     if args.format == "json":
         emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
         return X.OK
@@ -203,13 +205,17 @@ def whatif_command(args: Any) -> int:
             ws, mid, scenarios, trials=args.trials, precision=precision,
             workers=max(1, args.jobs), seed=args.seed,
             requirements=requirements,
-            progress=(lambda done, total, label:
-                      eprint(f"[{done}/{total}] {label}") if label else None))
+            progress=study_progress(args))
+    failed = [row for row in comparison.rows if row.get("error")]
     if args.format == "json":
         emit_json({**comparison.to_dict(), "schema": WHATIF_SCHEMA}, None)
-        return X.OK
-    _print_comparison(comparison)
-    return X.OK
+    else:
+        _print_comparison(comparison)
+    for row in failed:
+        eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} did not "
+               f"run: {row['error']}")
+    # a pipeline checking the status took a bad change for a finished comparison
+    return X.RUNTIME if failed else X.OK
 
 
 def _print_comparison(comparison: Any) -> None:

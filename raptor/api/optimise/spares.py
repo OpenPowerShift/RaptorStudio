@@ -436,6 +436,7 @@ def _evaluate(workspace: Any, model_id: str,
         [{"label": "point", "assignments": assignments}],
         num_runs=trials, workers=workers, timeout_s=timeout_s, seed=seed,
         abort=abort)
+    from raptor.api.batch import discard_runs
     row = results[0] if results else {}
     if row.get("error") or not row.get("run_id"):
         return []
@@ -444,6 +445,8 @@ def _evaluate(workspace: Any, model_id: str,
                             row["run_id"]) or []
     except Exception:  # noqa: BLE001 - no rows is reported as no data
         return []
+    finally:
+        discard_runs(workspace, results)
 
 
 def _lead_rules(workspace: Any, model_id: str,

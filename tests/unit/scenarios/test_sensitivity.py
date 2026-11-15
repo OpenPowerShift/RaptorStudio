@@ -91,3 +91,20 @@ def test_a_pooled_stock_is_varied_on_the_pool_once():
               if item.kind == "stock"]
     assert [(s.name, s.low, s.high) for s in stocks] == [
         ("Seals stock", "pool:Seals.stock=0", "pool:Seals.stock=1")]
+
+
+def test_an_unknown_metric_is_an_error_not_a_blank_table(tmp_path):
+    import pytest
+
+    from raptor.api import build
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.workspace import Workspace
+    spec = {"blocks": [{"name": "A", "fail_params": [100, 0, 0], "repair_params": [5, 0, 0]}],
+            "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}],
+            "experiment": {"trials": 2, "termination_type": "TimeSim", "term_condition": 500}}
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(spec), name="m")["model_id"]
+    inputs = default_inputs(ws.get(mid).rbd, limit=1)
+    with pytest.raises(ValueError, match="bogus.*availability"):
+        tornado(ws, mid, inputs, trials=2, metric="bogus")

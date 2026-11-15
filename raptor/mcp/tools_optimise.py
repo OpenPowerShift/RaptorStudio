@@ -20,11 +20,17 @@ from raptor.mcp.server import mcp
 
 
 
-def _check_trials(trials: int | None) -> None:
-    cap = context.max_runs()
-    if trials is not None and trials > cap:
-        raise ValueError(f"trials={trials} exceeds the server cap of {cap}; "
-                         "lower it or raise the cap")
+#: Most points optimise_spares may simulate, and most crew sizes above the
+#: offered load optimise_resources may try.
+MAX_SPARE_EVALUATIONS = 200
+MAX_EXTRA_UNITS = 20
+#: Most named blocks, pools or resources one optimiser call may take.
+MAX_SUBJECTS = 50
+
+
+def _check_subjects(items: list[str] | None, name: str) -> None:
+    if items is not None and len(items) > MAX_SUBJECTS:
+        raise ValueError(f"{name} accepts at most {MAX_SUBJECTS} names")
 
 
 def _fmt(value: Any) -> str:
@@ -71,12 +77,16 @@ async def optimise_spares(
     is never modified.
     """
     from raptor.api.optimise.spares import optimise_spares as search
-    _check_trials(trials)
+    context.whole_number(max_evaluations, "max_evaluations", minimum=1,
+                         maximum=MAX_SPARE_EVALUATIONS)
+    _check_subjects(pools, "pools")
+    context.check_study(model_id, trials, timeout_s, workers=workers,
+                        variants=max_evaluations)
     ws = context.workspace()
 
     def work(abort, progress):
         return search(ws, model_id, mode=mode, target=target, metric=metric,
-                      pools=pools, max_evaluations=max(1, int(max_evaluations)),
+                      pools=pools, max_evaluations=max_evaluations,
                       trials=trials, seed=seed, workers=max(1, workers or 1),
                       timeout_s=timeout_s, abort=abort,
                       progress=lambda done, total, text: progress(done, total, text))
@@ -120,7 +130,8 @@ async def optimise_pm(
     `update_element` or `raptor set`). The open model is never modified.
     """
     from raptor.api.optimise.pm import optimise_pm as search
-    _check_trials(trials)
+    _check_subjects(blocks, "blocks")
+    context.check_study(model_id, trials, timeout_s, workers=workers)
     ws = context.workspace()
 
     def work(abort, progress):
@@ -169,12 +180,14 @@ async def optimise_resources(
     set`). The open model is never modified.
     """
     from raptor.api.optimise.resources import optimise_resources as search
-    _check_trials(trials)
+    context.whole_number(extra, "extra", minimum=0, maximum=MAX_EXTRA_UNITS)
+    _check_subjects(resources, "resources")
+    context.check_study(model_id, trials, timeout_s, workers=workers)
     ws = context.workspace()
 
     def work(abort, progress):
         return search(ws, model_id, resources=resources, target=target,
-                      extra=max(0, int(extra)), trials=trials, seed=seed,
+                      extra=extra, trials=trials, seed=seed,
                       workers=max(1, workers or 1), timeout_s=timeout_s, abort=abort,
                       progress=lambda done, total, text: progress(done, total, text))
 

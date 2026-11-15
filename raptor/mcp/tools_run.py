@@ -1138,10 +1138,11 @@ async def what_if(
     """
     ws = context.workspace()
     cap = context.max_runs()
-    if trials is not None and trials > cap:
-        raise ValueError(
-            f"trials={trials} exceeds the server cap of {cap}; lower it or "
-            "raise the cap")
+    context.check_batch(changes, "changes")
+    if precision is None:
+        context.check_study(model_id, trials, timeout_s, workers=workers)
+    else:
+        _validate_run_args(timeout_s, None, workers)
     wanted = None
     if precision is not None:
         from raptor.api.scenarios.stopping import Precision
@@ -1212,11 +1213,7 @@ async def recommend_changes(
     model is never modified. Long runs report progress and can be cancelled.
     """
     ws = context.workspace()
-    cap = context.max_runs()
-    if trials is not None and trials > cap:
-        raise ValueError(
-            f"trials={trials} exceeds the server cap of {cap}; lower it or "
-            "raise the cap")
+    context.check_study(model_id, trials, timeout_s, workers=workers)
     if not 1 <= top <= 20:
         raise ValueError("top must be between 1 and 20")
     if min_gain is not None and not 0 <= min_gain <= 1:
@@ -1296,11 +1293,10 @@ async def sensitivity(
     from raptor.api.scenarios.sensitivity import default_inputs, tornado
 
     ws = context.workspace()
-    cap = context.max_runs()
-    if trials is not None and trials > cap:
-        raise ValueError(
-            f"trials={trials} exceeds the server cap of {cap}")
-    inputs = default_inputs(ws.get(model_id).rbd, limit=max(1, min(top, 60)))
+    context.whole_number(top, "top", minimum=1, maximum=60)
+    context.check_study(model_id, trials, timeout_s, workers=workers,
+                        variants=2 * top + 1)
+    inputs = default_inputs(ws.get(model_id).rbd, limit=top)
     if not inputs:
         raise ValueError("no input could be varied in this model")
 

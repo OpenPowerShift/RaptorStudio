@@ -87,3 +87,61 @@ def test_too_many_trials_is_refused():
     mcp._raptor_args = type("A", (), {"workspace": ".", "max_runs": 5})()
     result, text = _run(optimise_pm("m", trials=10 ** 9))
     assert result.is_error and "exceeds the server cap" in text
+
+
+# ---- limits: a study is held to the same caps as one run ------------------------
+
+def _refused(call):
+    result, text = _run(call)
+    assert result.is_error, text
+    return text
+
+
+@pytest.mark.parametrize("kwargs, said", [
+    ({"trials": 0}, "trials"),
+    ({"trials": 10**6}, "server cap"),
+    ({"timeout_s": -1}, "timeout_s"),
+    ({"timeout_s": 1e300}, "timeout_s"),
+    ({"timeout_s": float("nan")}, "timeout_s"),
+    ({"workers": 0}, "workers"),
+])
+def test_every_study_refuses_bad_trials_and_deadlines(opt_model, kwargs, said):
+    from raptor.mcp import tools_optimise, tools_run
+    calls = [
+        lambda: tools_optimise.optimise_spares(opt_model, **kwargs),
+        lambda: tools_optimise.optimise_pm(opt_model, **kwargs),
+        lambda: tools_optimise.optimise_resources(opt_model, **kwargs),
+        lambda: tools_run.what_if(opt_model, ["block:1.stock=2"], **kwargs),
+        lambda: tools_run.sensitivity(opt_model, **kwargs),
+        lambda: tools_run.recommend_changes(opt_model, **kwargs),
+    ]
+    for call in calls:
+        assert said in _refused(call())
+
+
+def test_leaving_trials_out_cannot_pass_the_cap(opt_model):
+    from raptor.mcp import context, tools_optimise
+    context.workspace().get(opt_model).rbd  # loaded
+    from raptor.mcp.server import mcp
+    mcp._raptor_args.max_runs = 1
+    try:
+        assert "NumRuns" in _refused(tools_optimise.optimise_pm(opt_model))
+    finally:
+        del mcp._raptor_args.max_runs
+
+
+@pytest.mark.parametrize("tool, kwargs", [
+    ("optimise_spares", {"max_evaluations": 10**6}),
+    ("optimise_spares", {"max_evaluations": 0}),
+    ("optimise_resources", {"extra": 10**6}),
+    ("optimise_pm", {"blocks": ["b"] * 51}),
+])
+def test_study_sizes_are_bounded(opt_model, tool, kwargs):
+    from raptor.mcp import tools_optimise
+    _refused(getattr(tools_optimise, tool)(opt_model, trials=2, **kwargs))
+
+
+def test_sensitivity_refuses_an_unknown_metric(opt_model):
+    from raptor.mcp import tools_run
+    text = _refused(tools_run.sensitivity(opt_model, top=1, trials=2, metric="bogus"))
+    assert "bogus" in text and "availability" in text

@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-sensitivity \- One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
 .SH SYNOPSIS
-\fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N] [\-j N] [\-f {text,json}] MODEL
+\fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
 .SH DESCRIPTION
 One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
 .SH OPTIONS
@@ -22,6 +22,9 @@ per\-run field to watch (default availability)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 

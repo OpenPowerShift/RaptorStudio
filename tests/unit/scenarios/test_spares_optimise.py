@@ -166,3 +166,13 @@ def test_an_unreachable_target_says_the_search_hit_its_ceiling(tmp_path):
                              max_evaluations=60, trials=2, seed=2)
     assert result["stopped_by"] == "search ceiling"
     assert "ceiling" in result["caption"]
+
+
+def test_a_search_leaves_no_variant_models_or_runs_behind(tmp_path):
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(SPEC), name="m")["model_id"]
+    before = {m["model_id"] for m in ws.list_models()}
+    optimise_spares(ws, mid, mode="meet", target=0.85, max_evaluations=4, trials=2, seed=2)
+    assert {m["model_id"] for m in ws.list_models()} == before
+    runs = tmp_path / "runs"
+    assert not runs.is_dir() or not any(d.is_dir() for d in runs.iterdir())

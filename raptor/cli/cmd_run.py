@@ -313,6 +313,33 @@ def insight_callback(mode: str):
     return cb
 
 
+def add_study_progress(parser: Any) -> None:
+    """`--progress` for a study (what-if, sensitivity, an optimiser)."""
+    parser.add_argument(
+        "--progress", choices=("auto", "bar", "json", "none"), default="auto",
+        help="progress on stderr (auto: only on a terminal; json: one object per "
+             "line; none, or -q, for silence)")
+
+
+def study_progress(args: Any):
+    """A `(done, total, label)` hook printing a study's progress on stderr,
+    or None under -q, `--progress none`, or `auto` when stderr is not a
+    terminal (so a pipeline's log is not filled with counters)."""
+    mode = getattr(args, "progress", "auto") or "auto"
+    if (getattr(args, "quiet", False) or mode == "none"
+            or (mode == "auto" and not sys.stderr.isatty())):
+        return None
+    import json as _json
+
+    def cb(done: int, total: int | None, label: str | None = "") -> None:
+        if mode == "json":
+            eprint(_json.dumps({"event": "progress", "done": done, "total": total,
+                                "label": label or ""}))
+        elif label:
+            eprint(f"[{done}/{total or '?'}] {label}")
+    return cb
+
+
 def progress_options(mode: str) -> dict[str, Any]:
     """The three progress hooks `raptor.api.run.run` takes, for a CLI
     `--progress` mode."""

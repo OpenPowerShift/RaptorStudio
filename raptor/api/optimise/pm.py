@@ -251,6 +251,9 @@ def optimise_pm(  # noqa: C901, PLR0912
                        if (rec := _recommend(block, group, objective)) is not None]
     for row in rows:
         row.pop("_values", None)
+        row.pop("run_id", None)          # the study's own runs are discarded
+    from raptor.api.batch import discard_runs
+    discard_runs(workspace, results)
     return {
         "objective": objective, "metric": metric, "trials": trials,
         "seed": seed, "batches": len(results), "advice": [

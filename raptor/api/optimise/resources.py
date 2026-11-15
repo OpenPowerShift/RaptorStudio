@@ -165,6 +165,8 @@ def optimise_resources(  # noqa: C901, PLR0912
                                 "mean": best["mean"], "lower": best["lower"],
                                 "why": why, "curve": sorted(
                                     group, key=lambda row: row["units"])})
+    from raptor.api.batch import discard_runs
+    discard_runs(workspace, results)
     return {
         "metric": metric, "target": target, "confidence": confidence,
         "seed": seed, "trials": trials, "batches": len(results),

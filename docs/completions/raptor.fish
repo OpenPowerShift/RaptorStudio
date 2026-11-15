@@ -164,6 +164,7 @@ complete -c raptor -n '__fish_seen_subcommand_from recommend' -l format
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l help
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l min-gain
+complete -c raptor -n '__fish_seen_subcommand_from recommend' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l run
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l top
@@ -228,6 +229,7 @@ complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l format
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l help
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l metric
+complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l top
 complete -c raptor -n '__fish_seen_subcommand_from sensitivity' -l trials
@@ -356,6 +358,7 @@ complete -c raptor -n '__fish_seen_subcommand_from whatif' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l name
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l note
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l precision
+complete -c raptor -n '__fish_seen_subcommand_from whatif' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l requirement
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l save
 complete -c raptor -n '__fish_seen_subcommand_from whatif' -l seed

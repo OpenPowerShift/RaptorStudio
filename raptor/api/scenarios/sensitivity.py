@@ -242,6 +242,13 @@ def tornado(
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
     base = _rows(workspace, results[0]) if results else []
     base_values = _values(base, metric)
+    if base and not base_values:
+        from raptor.api.batch import discard_runs
+        discard_runs(workspace, results)
+        known = sorted(key for key, value in base[0].items()
+                       if isinstance(value, (int, float)) and not isinstance(value, bool))
+        raise ValueError(f"metric {metric!r} is not a per-run result; one of: "
+                         + ", ".join(known))
     base_mean, base_sem = _stat(base_values)
     rows: list[dict[str, Any]] = []
     index = 1
@@ -268,6 +275,8 @@ def tornado(
     largest = rows[0]["swing"] if rows and rows[0]["swing"] else 0.0
     for row in rows:
         row["small"] = bool(largest and (row["swing"] or 0.0) < 0.1 * largest)
+    from raptor.api.batch import discard_runs
+    discard_runs(workspace, results)
     return {
         "metric": metric,
         "trials": int(trials or len(base_values)),
