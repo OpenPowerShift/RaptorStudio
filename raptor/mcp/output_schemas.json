@@ -37,6 +37,21 @@
   ],
   "type": "object"
  },
+ "add_elements": {
+  "properties": {
+   "added": {
+    "type": "integer"
+   },
+   "elements": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "added",
+   "elements"
+  ],
+  "type": "object"
+ },
  "add_event": {
   "properties": {
    "event_id": {
@@ -334,6 +349,29 @@
   ],
   "type": "object"
  },
+ "apply_part_type": {
+  "properties": {
+   "count": {
+    "type": "integer"
+   },
+   "elements": {
+    "type": "array"
+   },
+   "part": {
+    "type": "string"
+   },
+   "version": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "count",
+   "elements",
+   "part",
+   "version"
+  ],
+  "type": "object"
+ },
  "auto_layout": {
   "properties": {
    "annotations_moved": {
@@ -392,6 +430,90 @@
    "model_id",
    "notes",
    "summary"
+  ],
+  "type": "object"
+ },
+ "cancel_run": {
+  "properties": {
+   "attributing": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "completed_runs": {
+    "type": "integer"
+   },
+   "elapsed_s": {
+    "type": "number"
+   },
+   "error": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "job_id": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "percent": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "phase": {
+    "type": "string"
+   },
+   "requested_runs": {
+    "type": "integer"
+   },
+   "run_id": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "setup": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "state": {
+    "type": "string"
+   },
+   "summary": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "wall_seconds": {
+    "type": [
+     "number",
+     "null"
+    ]
+   }
+  },
+  "required": [
+   "attributing",
+   "completed_runs",
+   "elapsed_s",
+   "error",
+   "job_id",
+   "model_id",
+   "percent",
+   "phase",
+   "requested_runs",
+   "run_id",
+   "setup",
+   "state",
+   "summary",
+   "wall_seconds"
   ],
   "type": "object"
  },
@@ -582,6 +704,40 @@
   ],
   "type": "object"
  },
+ "connect_many": {
+  "properties": {
+   "connected": {
+    "type": "integer"
+   },
+   "links": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "connected",
+   "links"
+  ],
+  "type": "object"
+ },
+ "copy_element_data": {
+  "properties": {
+   "blocks": {
+    "type": "integer"
+   },
+   "changes": {
+    "type": "array"
+   },
+   "count": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "blocks",
+   "changes",
+   "count"
+  ],
+  "type": "object"
+ },
  "create_model": {
   "properties": {
    "model_id": {
@@ -635,6 +791,21 @@
   ],
   "type": "object"
  },
+ "delete_elements": {
+  "properties": {
+   "deleted": {
+    "type": "array"
+   },
+   "links_removed": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "deleted",
+   "links_removed"
+  ],
+  "type": "object"
+ },
  "delete_file": {
   "properties": {
    "bytes": {
@@ -647,6 +818,25 @@
   "required": [
    "bytes",
    "deleted"
+  ],
+  "type": "object"
+ },
+ "delete_link": {
+  "properties": {
+   "deleted": {
+    "type": "string"
+   },
+   "id": {
+    "type": "string"
+   },
+   "kind": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "deleted",
+   "id",
+   "kind"
   ],
   "type": "object"
  },
@@ -872,6 +1062,25 @@
   ],
   "type": "object"
  },
+ "duplicate_elements": {
+  "properties": {
+   "copies": {
+    "type": "integer"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "elements": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "copies",
+   "count",
+   "elements"
+  ],
+  "type": "object"
+ },
  "estimate_runtime": {
   "properties": {
    "advice": {
@@ -944,6 +1153,75 @@
    "storage_bytes_estimate",
    "storage_note",
    "total_batches"
+  ],
+  "type": "object"
+ },
+ "export_analytical": {
+  "properties": {
+   "modes": {
+    "type": "array"
+   },
+   "path": {
+    "type": "string"
+   },
+   "resource_links": {
+    "type": "array"
+   },
+   "results": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "modes",
+   "path",
+   "resource_links",
+   "results"
+  ],
+  "type": "object"
+ },
+ "export_report": {
+  "properties": {
+   "bytes": {
+    "type": "integer"
+   },
+   "path": {
+    "type": "string"
+   },
+   "resource_links": {
+    "type": "array"
+   },
+   "sections": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "bytes",
+   "path",
+   "resource_links",
+   "sections"
+  ],
+  "type": "object"
+ },
+ "export_tables": {
+  "properties": {
+   "files": {
+    "type": "array"
+   },
+   "folder": {
+    "type": "string"
+   },
+   "resource_links": {
+    "type": "array"
+   },
+   "tables": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "files",
+   "folder",
+   "resource_links",
+   "tables"
   ],
   "type": "object"
  },
@@ -1120,6 +1398,65 @@
   ],
   "type": "object"
  },
+ "get_run_results": {
+  "properties": {
+   "capacity": {
+    "type": "object"
+   },
+   "files": {
+    "type": "array"
+   },
+   "metrics": {
+    "type": "object"
+   },
+   "model_id": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "model_name": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "per_run": {
+    "type": "array"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "runs": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "units": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "weak_link": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "capacity",
+   "files",
+   "metrics",
+   "model_id",
+   "model_name",
+   "per_run",
+   "run_id",
+   "runs",
+   "units",
+   "weak_link"
+  ],
+  "type": "object"
+ },
  "get_table": {
   "properties": {
    "display_unit": {
@@ -1207,6 +1544,37 @@
   ],
   "type": "object"
  },
+ "insert_assembly": {
+  "properties": {
+   "annotations": {
+    "type": "array"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "elements": {
+    "type": "object"
+   },
+   "name": {
+    "type": "string"
+   },
+   "notes": {
+    "type": "array"
+   },
+   "part": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "annotations",
+   "count",
+   "elements",
+   "name",
+   "notes",
+   "part"
+  ],
+  "type": "object"
+ },
  "list_advisor_rules": {
   "properties": {
    "rules": {
@@ -1270,6 +1638,25 @@
   ],
   "type": "object"
  },
+ "list_part_types": {
+  "properties": {
+   "count": {
+    "type": "integer"
+   },
+   "parts": {
+    "type": "array"
+   },
+   "source": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "count",
+   "parts",
+   "source"
+  ],
+  "type": "object"
+ },
  "list_tables": {
   "properties": {
    "model_id": {
@@ -1311,6 +1698,79 @@
    }
   },
   "required": [],
+  "type": "object"
+ },
+ "manage_resources": {
+  "properties": {
+   "added": {
+    "type": "boolean"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "resource": {
+    "type": "object"
+   },
+   "resources": {
+    "type": "array"
+   }
+  },
+  "required": [],
+  "type": "object"
+ },
+ "manage_spare_pools": {
+  "properties": {
+   "added": {
+    "type": "boolean"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "pool": {
+    "type": "object"
+   },
+   "pools": {
+    "type": "array"
+   }
+  },
+  "required": [],
+  "type": "object"
+ },
+ "manage_triggers": {
+  "properties": {
+   "added": {
+    "type": "boolean"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "trigger": {
+    "type": "object"
+   },
+   "triggers": {
+    "type": "array"
+   }
+  },
+  "required": [],
+  "type": "object"
+ },
+ "move_element": {
+  "properties": {
+   "element": {
+    "type": "object"
+   },
+   "moved": {
+    "type": "string"
+   },
+   "parent": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "element",
+   "moved",
+   "parent"
+  ],
   "type": "object"
  },
  "open_model": {
@@ -1373,6 +1833,56 @@
   ],
   "type": "object"
  },
+ "recommend_changes": {
+  "properties": {
+   "attribution_run_id": {
+    "type": "string"
+   },
+   "bars": {
+    "type": "object"
+   },
+   "base": {
+    "type": "object"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "schema": {
+    "type": "string"
+   },
+   "seed": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "trials": {
+    "type": "integer"
+   },
+   "untested": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "attribution_run_id",
+   "bars",
+   "base",
+   "caption",
+   "note",
+   "rows",
+   "schema",
+   "seed",
+   "trials",
+   "untested"
+  ],
+  "type": "object"
+ },
  "redo_last_edit": {
   "properties": {
    "restored_version": {
@@ -1385,6 +1895,60 @@
   "required": [
    "restored_version",
    "summary"
+  ],
+  "type": "object"
+ },
+ "render_diagram": {
+  "properties": {
+   "effective_label_px": {
+    "type": "number"
+   },
+   "elements_drawn": {
+    "type": "integer"
+   },
+   "elements_in_view": {
+    "type": "integer"
+   },
+   "height": {
+    "type": "integer"
+   },
+   "highlighted": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "legible": {
+    "type": "boolean"
+   },
+   "png_path": {
+    "type": "string"
+   },
+   "px_per_unit": {
+    "type": "number"
+   },
+   "resource_link": {
+    "type": "string"
+   },
+   "width": {
+    "type": "integer"
+   },
+   "zoom_to": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "effective_label_px",
+   "elements_drawn",
+   "elements_in_view",
+   "height",
+   "highlighted",
+   "legible",
+   "png_path",
+   "px_per_unit",
+   "resource_link",
+   "width",
+   "zoom_to"
   ],
   "type": "object"
  },
@@ -1455,6 +2019,269 @@
   ],
   "type": "object"
  },
+ "replace_in_table": {
+  "properties": {
+   "changes": {
+    "type": "array"
+   },
+   "column": {
+    "type": "string"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "table": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "changes",
+   "column",
+   "count",
+   "table"
+  ],
+  "type": "object"
+ },
+ "run_chart": {
+  "properties": {
+   "annotations": {
+    "type": "array"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "kind": {
+    "type": "string"
+   },
+   "marks": {
+    "type": "array"
+   },
+   "provenance": {
+    "type": "object"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "series": {
+    "type": "array"
+   },
+   "subtitle": {
+    "type": "string"
+   },
+   "svg": {
+    "type": "string"
+   },
+   "title": {
+    "type": "string"
+   },
+   "x_label": {
+    "type": "string"
+   },
+   "y_label": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "annotations",
+   "caption",
+   "kind",
+   "marks",
+   "provenance",
+   "run_id",
+   "series",
+   "subtitle",
+   "title",
+   "x_label",
+   "y_label"
+  ],
+  "type": "object"
+ },
+ "run_status": {
+  "properties": {
+   "attributing": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "completed_runs": {
+    "type": "integer"
+   },
+   "elapsed_s": {
+    "type": "number"
+   },
+   "error": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "job_id": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "percent": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "phase": {
+    "type": "string"
+   },
+   "requested_runs": {
+    "type": "integer"
+   },
+   "run_id": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "setup": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "state": {
+    "type": "string"
+   },
+   "summary": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "wall_seconds": {
+    "type": [
+     "number",
+     "null"
+    ]
+   }
+  },
+  "required": [
+   "attributing",
+   "completed_runs",
+   "elapsed_s",
+   "error",
+   "job_id",
+   "model_id",
+   "percent",
+   "phase",
+   "requested_runs",
+   "run_id",
+   "setup",
+   "state",
+   "summary",
+   "wall_seconds"
+  ],
+  "type": "object"
+ },
+ "run_story": {
+  "properties": {
+   "caption": {
+    "type": "string"
+   },
+   "dot_target": {
+    "type": "null"
+   },
+   "dots": {
+    "type": "array"
+   },
+   "drivers": {
+    "type": "array"
+   },
+   "drivers_available": {
+    "type": "boolean"
+   },
+   "drivers_measure": {
+    "type": "string"
+   },
+   "findings": {
+    "type": "array"
+   },
+   "headline": {
+    "type": "object"
+   },
+   "met": {
+    "type": "integer"
+   },
+   "numbers": {
+    "type": "array"
+   },
+   "other_drivers_share": {
+    "type": "number"
+   },
+   "others_time": {
+    "type": "number"
+   },
+   "proportion": {
+    "type": "string"
+   },
+   "provenance": {
+    "type": "object"
+   },
+   "run_id": {
+    "type": "string"
+   },
+   "sections": {
+    "type": "array"
+   },
+   "total": {
+    "type": "integer"
+   },
+   "units": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "caption",
+   "dot_target",
+   "dots",
+   "drivers",
+   "drivers_available",
+   "drivers_measure",
+   "findings",
+   "headline",
+   "met",
+   "numbers",
+   "other_drivers_share",
+   "others_time",
+   "proportion",
+   "provenance",
+   "run_id",
+   "sections",
+   "total",
+   "units"
+  ],
+  "type": "object"
+ },
+ "save_assembly": {
+  "properties": {
+   "contents": {
+    "type": "string"
+   },
+   "library_path": {
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "part": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "contents",
+   "library_path",
+   "name",
+   "part"
+  ],
+  "type": "object"
+ },
  "save_model_as": {
   "properties": {
    "bytes": {
@@ -1482,6 +2309,21 @@
   ],
   "type": "object"
  },
+ "save_part_type": {
+  "properties": {
+   "linked": {
+    "type": "boolean"
+   },
+   "part": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "linked",
+   "part"
+  ],
+  "type": "object"
+ },
  "search_docs": {
   "properties": {
    "results": {
@@ -1490,6 +2332,48 @@
   },
   "required": [
    "results"
+  ],
+  "type": "object"
+ },
+ "sensitivity": {
+  "properties": {
+   "base": {
+    "type": "object"
+   },
+   "batches": {
+    "type": "integer"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "inputs": {
+    "type": "array"
+   },
+   "metric": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "seed": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "trials": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "base",
+   "batches",
+   "caption",
+   "inputs",
+   "metric",
+   "note",
+   "seed",
+   "trials"
   ],
   "type": "object"
  },
@@ -1616,6 +2500,98 @@
   ],
   "type": "object"
  },
+ "start_run": {
+  "properties": {
+   "attributing": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "completed_runs": {
+    "type": "integer"
+   },
+   "elapsed_s": {
+    "type": "number"
+   },
+   "error": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "job_id": {
+    "type": "string"
+   },
+   "model_id": {
+    "type": "string"
+   },
+   "percent": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "phase": {
+    "type": "string"
+   },
+   "requested_runs": {
+    "type": "integer"
+   },
+   "run_id": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "setup": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "state": {
+    "type": "string"
+   },
+   "summary": {
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "wall_seconds": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "workers": {
+    "type": "integer"
+   },
+   "workers_auto": {
+    "type": "boolean"
+   }
+  },
+  "required": [
+   "attributing",
+   "completed_runs",
+   "elapsed_s",
+   "error",
+   "job_id",
+   "model_id",
+   "percent",
+   "phase",
+   "requested_runs",
+   "run_id",
+   "setup",
+   "state",
+   "summary",
+   "wall_seconds",
+   "workers",
+   "workers_auto"
+  ],
+  "type": "object"
+ },
  "sweep_parameter": {
   "properties": {
    "all_rows_identical": {
@@ -1648,6 +2624,29 @@
    "rows",
    "selector",
    "warnings"
+  ],
+  "type": "object"
+ },
+ "sync_part_types": {
+  "properties": {
+   "applied": {
+    "type": "array"
+   },
+   "count": {
+    "type": "integer"
+   },
+   "dry_run": {
+    "type": "boolean"
+   },
+   "pending": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "applied",
+   "count",
+   "dry_run",
+   "pending"
   ],
   "type": "object"
  },
@@ -1704,6 +2703,21 @@
   ],
   "type": "object"
  },
+ "update_elements": {
+  "properties": {
+   "results": {
+    "type": "array"
+   },
+   "updated": {
+    "type": "integer"
+   }
+  },
+  "required": [
+   "results",
+   "updated"
+  ],
+  "type": "object"
+ },
  "validate_model": {
   "properties": {
    "errors": {
@@ -1724,6 +2738,48 @@
    "groups",
    "runnable",
    "warnings"
+  ],
+  "type": "object"
+ },
+ "what_if": {
+  "properties": {
+   "base": {
+    "type": "object"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "requirements": {
+    "type": "array"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "seed": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   },
+   "trials": {
+    "type": "integer"
+   },
+   "variance_reduction": {
+    "type": "object"
+   }
+  },
+  "required": [
+   "base",
+   "caption",
+   "note",
+   "requirements",
+   "rows",
+   "seed",
+   "trials",
+   "variance_reduction"
   ],
   "type": "object"
  },

@@ -519,7 +519,10 @@ Parameter notes:
 
 **Returns**
 
-`{added, elements: [{kind, id, name}]}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `added` | integer | yes |
+| `elements` | array<any> | yes |
 
 **Example**
 
@@ -1294,7 +1297,10 @@ Parameter notes:
 
 **Returns**
 
-`{connected, links: [{link_id, from, to}]}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `connected` | integer | yes |
+| `links` | array<any> | yes |
 
 **Example**
 
@@ -1338,7 +1344,11 @@ changed.
 
 **Returns**
 
-`{changes: [{id, column, old, new}], count, blocks}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `blocks` | integer | yes |
+| `changes` | array<any> | yes |
+| `count` | integer | yes |
 
 **Example**
 
@@ -1420,7 +1430,10 @@ Parameter notes:
 
 **Returns**
 
-`{deleted: [{selector, kind}], links_removed}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `deleted` | array<any> | yes |
+| `links_removed` | integer | yes |
 
 **Example**
 
@@ -1456,7 +1469,11 @@ link ids in `describe_model(detail='full')` or `get_table('inputs.links')`.
 
 **Returns**
 
-`{deleted, kind, id}` for the removed link.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `deleted` | string | yes |
+| `id` | string | yes |
+| `kind` | string | yes |
 
 **Example**
 
@@ -1616,7 +1633,11 @@ and block names get the next free suffix. One save.
 
 **Returns**
 
-`{copies, elements: [{block: [...], node: [...], ...}], count}` with the fresh ids.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `copies` | integer | yes |
+| `count` | integer | yes |
+| `elements` | array<any> | yes |
 
 **Example**
 
@@ -1824,7 +1845,12 @@ refuses while a block still names the resource. Fields match the
 
 **Returns**
 
-`{resources, count}` for `action='list'`; the affected resource for add/update/delete.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `added` | boolean | no |
+| `count` | integer | no |
+| `resource` | object | no |
+| `resources` | array<any> | no |
 
 **Example**
 
@@ -1883,7 +1909,12 @@ The pool's own `stock` is what governs a Pooled block; the block's
 
 **Returns**
 
-`{pools, count}` for `action='list'`; the affected pool for add/update/delete.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `added` | boolean | no |
+| `count` | integer | no |
+| `pool` | object | no |
+| `pools` | array<any> | no |
 
 **Example**
 
@@ -1928,7 +1959,12 @@ Parameter notes:
 
 **Returns**
 
-`{triggers, count}` for `action='list'`; the affected trigger for add/update/delete.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `added` | boolean | no |
+| `count` | integer | no |
+| `trigger` | object | no |
+| `triggers` | array<any> | no |
 
 **Example**
 
@@ -1971,7 +2007,11 @@ moved into itself or one of its own descendants.
 
 **Returns**
 
-`{moved, parent, element}` — the selector, its new parent and the moved element row.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `element` | object | yes |
+| `moved` | string | yes |
+| `parent` | integer | yes |
 
 **Example**
 
@@ -2048,7 +2088,12 @@ changed cell.
 
 **Returns**
 
-`{changes: [{id, column, old, new}], count, table, column}`; name validation can refuse the whole set with a ValueError.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `changes` | array<any> | yes |
+| `column` | string | yes |
+| `count` | integer | yes |
+| `table` | string | yes |
 
 **Example**
 
@@ -2199,7 +2244,10 @@ Parameter notes:
 
 **Returns**
 
-`{updated, results: [{selector, id, name, kind, changed}]}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `results` | array<any> | yes |
+| `updated` | integer | yes |
 
 **Example**
 
@@ -2845,7 +2893,20 @@ their name are numbered and listed under the chart.
 
 **Returns**
 
-`{kind, title, subtitle, x_label, y_label, series, marks, annotations, caption, provenance, run_id}` and, unless `render_svg=False`, `svg` with the same figure as a document.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `annotations` | array<any> | yes |
+| `caption` | string | yes |
+| `kind` | string | yes |
+| `marks` | array<any> | yes |
+| `provenance` | object | yes |
+| `run_id` | string | yes |
+| `series` | array<any> | yes |
+| `subtitle` | string | yes |
+| `svg` | string | no |
+| `title` | string | yes |
+| `x_label` | string | yes |
+| `y_label` | string | yes |
 
 **Example**
 
@@ -2884,7 +2945,26 @@ still renders and says how to turn it on.
 
 **Returns**
 
-`{headline, dots, drivers, findings, numbers, sections, provenance, caption}` — the same object the application and `raptor explain --story` render.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `caption` | string | yes |
+| `dot_target` | null | yes |
+| `dots` | array<any> | yes |
+| `drivers` | array<any> | yes |
+| `drivers_available` | boolean | yes |
+| `drivers_measure` | string | yes |
+| `findings` | array<any> | yes |
+| `headline` | object | yes |
+| `met` | integer | yes |
+| `numbers` | array<any> | yes |
+| `other_drivers_share` | number | yes |
+| `others_time` | number | yes |
+| `proportion` | string | yes |
+| `provenance` | object | yes |
+| `run_id` | string | yes |
+| `sections` | array<any> | yes |
+| `total` | integer | yes |
+| `units` | string | yes |
 
 **Example**
 
@@ -3015,7 +3095,12 @@ bookkeeping, so the engine still sees an ordinary element.
 
 **Returns**
 
-`{part, version, elements: [{block, part, version, overrides, fields}], count}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `count` | integer | yes |
+| `elements` | array<any> | yes |
+| `part` | string | yes |
+| `version` | string | yes |
 
 **Example**
 
@@ -3058,7 +3143,14 @@ listed in `notes`.
 
 **Returns**
 
-`{part, name, elements: {block: [ids], ...}, count, annotations, notes}`; the copy is not connected.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `annotations` | array<any> | yes |
+| `count` | integer | yes |
+| `elements` | object | yes |
+| `name` | string | yes |
+| `notes` | array<any> | yes |
+| `part` | string | yes |
 
 **Example**
 
@@ -3093,7 +3185,11 @@ lists the parts of the current model made available by `save_part_type`.
 
 **Returns**
 
-`{source, parts: [{id, name, category, source, basis, version, fields}], count}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `count` | integer | yes |
+| `parts` | array<any> | yes |
+| `source` | string | yes |
 
 **Example**
 
@@ -3132,7 +3228,12 @@ itself is not changed.
 
 **Returns**
 
-`{part, name, contents, library_path}`; `contents` reads like `1 hierarchy, 4 blocks, 9 links`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `contents` | string | yes |
+| `library_path` | string | yes |
+| `name` | string | yes |
+| `part` | string | yes |
 
 **Example**
 
@@ -3177,7 +3278,10 @@ position or id.
 
 **Returns**
 
-`{part: {...}, linked}`; the part never includes the block's name, position or id.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `linked` | boolean | yes |
+| `part` | object | yes |
 
 **Example**
 
@@ -3212,7 +3316,12 @@ without it the copies stored inside the model are used.
 
 **Returns**
 
-`{dry_run, pending: [{block, name, part, name_part, version, recorded_version, changes}], applied, count}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `applied` | array<any> | yes |
+| `count` | integer | yes |
+| `dry_run` | boolean | yes |
+| `pending` | array<any> | yes |
 
 **Example**
 
@@ -3251,7 +3360,22 @@ the job snapshot; poll `run_status` until `state` is `cancelled`.
 
 **Returns**
 
-The job snapshot, with the same fields as `run_status`; poll until `state` is `cancelled`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `attributing` | object \| null | yes |
+| `completed_runs` | integer | yes |
+| `elapsed_s` | number | yes |
+| `error` | string \| null | yes |
+| `job_id` | string | yes |
+| `model_id` | string | yes |
+| `percent` | number \| null | yes |
+| `phase` | string | yes |
+| `requested_runs` | integer | yes |
+| `run_id` | string \| null | yes |
+| `setup` | object \| null | yes |
+| `state` | string | yes |
+| `summary` | object \| null | yes |
+| `wall_seconds` | number \| null | yes |
 
 **Example**
 
@@ -3423,7 +3547,18 @@ model is never modified. Long runs report progress and can be cancelled.
 
 **Returns**
 
-`{schema, trials, seed, base, rows, caption, note, bars, attribution_run_id}`; each row has `name`, `changes` (PATH=VALUE), `why`, `gain` (availability, sem, p_better, low, high, downtime_avoided), `cost` (unit, run_total_change, note), `weigh` and `verdict`; `bars` holds the confidence and minimum gain the verdicts used. Verdicts are measured, never priced.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `attribution_run_id` | string | yes |
+| `bars` | object | yes |
+| `base` | object | yes |
+| `caption` | string | yes |
+| `note` | string | yes |
+| `rows` | array<any> | yes |
+| `schema` | string | yes |
+| `seed` | integer \| null | yes |
+| `trials` | integer | yes |
+| `untested` | array<any> | yes |
 
 **Example**
 
@@ -3465,7 +3600,22 @@ still in the workspace, the job id is not.
 
 **Returns**
 
-`{job_id, model_id, state, phase, setup, completed_runs, requested_runs, percent, elapsed_s, wall_seconds, run_id, summary, error}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `attributing` | object \| null | yes |
+| `completed_runs` | integer | yes |
+| `elapsed_s` | number | yes |
+| `error` | string \| null | yes |
+| `job_id` | string | yes |
+| `model_id` | string | yes |
+| `percent` | number \| null | yes |
+| `phase` | string | yes |
+| `requested_runs` | integer | yes |
+| `run_id` | string \| null | yes |
+| `setup` | object \| null | yes |
+| `state` | string | yes |
+| `summary` | object \| null | yes |
+| `wall_seconds` | number \| null | yes |
 
 **Example**
 
@@ -3507,7 +3657,16 @@ show interactions.
 
 **Returns**
 
-`{metric, trials, seed, base, inputs, batches, caption, note}`; each input has its low/high paired effect and SEM, swing, elasticity, and whether it is distinguishable.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `base` | object | yes |
+| `batches` | integer | yes |
+| `caption` | string | yes |
+| `inputs` | array<any> | yes |
+| `metric` | string | yes |
+| `note` | string | yes |
+| `seed` | integer \| null | yes |
+| `trials` | integer | yes |
 
 **Example**
 
@@ -3716,7 +3875,24 @@ Parameter notes:
 
 **Returns**
 
-`{job_id, state, phase, setup, requested_runs, workers, workers_auto, ...}`.  Poll `run_status` for progress and the finished `run_id`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `attributing` | object \| null | yes |
+| `completed_runs` | integer | yes |
+| `elapsed_s` | number | yes |
+| `error` | string \| null | yes |
+| `job_id` | string | yes |
+| `model_id` | string | yes |
+| `percent` | number \| null | yes |
+| `phase` | string | yes |
+| `requested_runs` | integer | yes |
+| `run_id` | string \| null | yes |
+| `setup` | object \| null | yes |
+| `state` | string | yes |
+| `summary` | object \| null | yes |
+| `wall_seconds` | number \| null | yes |
+| `workers` | integer | yes |
+| `workers_auto` | boolean | yes |
 
 **Example**
 
@@ -3826,7 +4002,16 @@ cancelled by the client.
 
 **Returns**
 
-`{trials, seed, base, rows, variance_reduction, requirements, caption, note}`; each row's `metrics[key]` has the scenario value, paired delta and SEM, p_better and the Base value. The open model is never modified.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `base` | object | yes |
+| `caption` | string | yes |
+| `note` | string | yes |
+| `requirements` | array<any> | yes |
+| `rows` | array<any> | yes |
+| `seed` | integer \| null | yes |
+| `trials` | integer | yes |
+| `variance_reduction` | object | yes |
 
 **Example**
 
@@ -4151,7 +4336,19 @@ also written to renders/ in the workspace.
 
 **Returns**
 
-Image content plus `{width, height, elements_drawn, elements_in_view, px_per_unit, effective_label_px, legible, zoom_to, highlighted, png_path, resource_link}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `effective_label_px` | number | yes |
+| `elements_drawn` | integer | yes |
+| `elements_in_view` | integer | yes |
+| `height` | integer | yes |
+| `highlighted` | integer \| null | yes |
+| `legible` | boolean | yes |
+| `png_path` | string | yes |
+| `px_per_unit` | number | yes |
+| `resource_link` | string | yes |
+| `width` | integer | yes |
+| `zoom_to` | array<any> | yes |
 
 **Example**
 
@@ -4356,7 +4553,12 @@ Parameter notes:
 
 **Returns**
 
-`{path, modes, results: [{mode, phase, reliability | availability}], resource_links}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `modes` | array<any> | yes |
+| `path` | string | yes |
+| `resource_links` | array<any> | yes |
+| `results` | array<any> | yes |
 
 **Example**
 
@@ -4402,7 +4604,12 @@ model); 'data_tables' the model's input tables.  The run needs
 
 **Returns**
 
-`{path, sections, bytes, resource_links}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `bytes` | integer | yes |
+| `path` | string | yes |
+| `resource_links` | array<any> | yes |
+| `sections` | array<any> | yes |
 
 **Example**
 
@@ -4458,7 +4665,12 @@ Parameter notes:
 
 **Returns**
 
-`{folder, tables, files: [path], resource_links}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `files` | array<any> | yes |
+| `folder` | string | yes |
+| `resource_links` | array<any> | yes |
+| `tables` | integer | yes |
 
 **Example**
 
@@ -4548,7 +4760,18 @@ with `results.per_run` to page it instead).
 
 **Returns**
 
-`{run_id, model_id, model_name, runs, units, metrics, capacity, per_run, weak_link, files}`.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `capacity` | object | yes |
+| `files` | array<any> | yes |
+| `metrics` | object | yes |
+| `model_id` | string \| null | yes |
+| `model_name` | string \| null | yes |
+| `per_run` | array<any> | yes |
+| `run_id` | string | yes |
+| `runs` | integer \| null | yes |
+| `units` | string \| null | yes |
+| `weak_link` | array<any> | yes |
 
 **Example**
 
