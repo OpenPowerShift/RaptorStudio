@@ -55,3 +55,26 @@ def test_planned_maintenance_adds_to_the_offered_load():
         {**SPEC, "blocks": blocks}))
     # repairs as before, plus one 2 h PM every 100 h on the pump
     assert abs(spec.offered_load - (2 * (1 / 60) * 5 + 2 / 100)) < 1e-12
+
+
+def test_the_cli_applies_the_recommended_changes(tmp_path):
+    """`raptor optimise resources --apply` writes the size the result names
+    in `changes` (the edits MCP and the GUI apply too) into the model file."""
+    import contextlib
+    import io
+    import json
+
+    from raptor.cli.main import main
+    from raptor.core.fileio.rbds import save_rbds
+    path = tmp_path / "crew.rbds"
+    save_rbds(build.build_from_spec(SPEC), str(path))
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        assert main(["optimise", "resources", str(path), "--target", "system.ao>=0.9",
+                     "-n", "3", "--extra", "1", "--apply", "-f", "json"]) == 0
+    (change,) = json.loads(buffer.getvalue())["changes"]
+    units = int(change.split("=")[1])
+    ws = Workspace(tmp_path / "check")
+    mid = ws.open_model(path)["model_id"]
+    (spec,) = resources_from_model(ws.get(mid).rbd)
+    assert spec.units == units != 1          # the file holds the new size

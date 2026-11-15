@@ -9737,7 +9737,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>88 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>91 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10264,7 +10264,7 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 88 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+listed below: 91 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
 <code>ping</code>, or 87 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
@@ -10725,6 +10725,14 @@ you need the exact argument shape.</p>
   gain with its standard error and chance of being better, the downtime
   saved per run, the unit cost the model holds (null when it holds none)
   and a verdict. The open model is never modified.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>optimise_spares</code>, <code>optimise_pm</code>, <code>optimise_resources</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The optimisers of <code>raptor optimise</code>: the cheapest spare stock that meets a
+  target, whether PM is worthwhile and at what interval, and how many crews
+  are needed. Each searches with paired simulation and returns its
+  recommendation as <code>changes</code> (<code>PATH=VALUE</code>) to apply with the editing
+  tools. The open model is never modified.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>replace_in_table</code></p></td>

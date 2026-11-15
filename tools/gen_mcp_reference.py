@@ -133,6 +133,9 @@ TOOL_CATEGORY: dict[str, str] = {
     "what_if": "what-if",
     "sensitivity": "what-if",
     "recommend_changes": "what-if",
+    "optimise_spares": "what-if",
+    "optimise_pm": "what-if",
+    "optimise_resources": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -288,6 +291,9 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
     "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
     "recommend_changes": {"model_id": "<model_id>", "top": 3, "trials": 200},
+    "optimise_spares": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
+    "optimise_pm": {"model_id": "<model_id>", "objective": "cost", "trials": 200},
+    "optimise_resources": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
     "duplicate_elements": {"model_id": "<model_id>",
                            "elements": ["Pump_A"], "copies": 2},
     "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
@@ -601,6 +607,15 @@ RETURN_NOTES: dict[str, str] = {
     "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
                    "note}`; each input has its low/high paired effect and SEM, "
                    "swing, elasticity, and whether it is distinguishable.",
+    "optimise_spares": "`{mode, metric, target, pools, base, points, recommended, "
+                       "target_met, changes, caption, note, ...}`; each point has "
+                       "stocks, cost, mean, lower, upper and its PATH=VALUE `changes`.",
+    "optimise_pm": "`{objective, advice, rows, recommendations, changes, caption, "
+                   "note, ...}`; each recommendation has block, option, mean, "
+                   "worthwhile and `changes`.",
+    "optimise_resources": "`{metric, target, resources, rows, recommendations, "
+                          "changes, caption, note, ...}`; each recommendation has "
+                          "resource, units, mean, lower, why and `changes`.",
     "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, bars, "
                          "attribution_run_id}`; each row has `name`, `changes` "
                          "(PATH=VALUE), `why`, `gain` (availability, sem, "
@@ -656,11 +671,8 @@ def _kind(tool: Any) -> str:
 
 def _live() -> tuple[list[Any], list[Any], list[Any], list[Any]]:
     """Every live tool, resource, resource template and prompt."""
-    from raptor.mcp import (  # noqa: F401 -- importing registers every tool
-        prompts, resources, server, tools_analytic, tools_data, tools_model,
-        tools_run, tools_metrics, tools_tables, tools_view, tools_svg,
-        tools_advisor, tools_library,
-    )
+    from raptor.mcp import prompts, resources, server  # noqa: F401 -- registers prompts/resources
+    server.import_all_tool_modules()
 
     tools = sorted(asyncio.run(server.mcp.list_tools()), key=lambda t: t.name)
     fixed = sorted(asyncio.run(server.mcp.list_resources()), key=lambda r: r.uri)

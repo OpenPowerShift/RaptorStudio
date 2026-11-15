@@ -123,12 +123,9 @@ def optimise_command(args: Any) -> int:
                 eprint(f"[{done}/{total}] {text}") if text else None)
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
-        recommended = result.get("recommended")
-        if args.apply and recommended is not None:
-            from raptor.api import paths
-            for pool, stock in recommended["stocks"].items():
-                paths.apply_assignment(ws, mid, f"pool:{pool}.stock={stock}")
-            eprint("applied the recommended stocks to the model")
+        if args.apply and result["changes"]:
+            _apply(ws, mid, result["changes"], args.model)
+            eprint(f"wrote the recommended stocks to {args.model}")
     if args.format == "json":
         emit_json({**result, "schema": OPTIMISE_SCHEMA}, None)
         return X.OK
@@ -166,7 +163,8 @@ def pm_command(args: Any) -> int:
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         if args.apply:
-            _apply_pm(ws, mid, result)
+            _apply(ws, mid, result["changes"], args.model)
+            eprint(f"wrote {len(result['changes'])} change(s) to {args.model}")
     if args.format == "json":
         emit_json({**result, "schema": "raptor-optimise-pm/1"}, None)
         return X.OK
@@ -174,36 +172,25 @@ def pm_command(args: Any) -> int:
     return X.OK
 
 
-def _apply_pm(ws: Any, model_id: str, result: dict[str, Any]) -> None:
+def _apply(ws: Any, model_id: str, changes: list[str], model_path: str) -> None:
+    """Apply an optimiser's PATH=VALUE changes and write the model back to
+    `model_path` (through a temporary file, so a failed save never truncates
+    it). Before this saved, --apply edited a throwaway copy and the model
+    file never changed."""
+    from pathlib import Path
+
     from raptor.api import build, paths
-    applied = 0
     with build.no_layout_on_save():
-        for recommendation in result["recommendations"]:
-            if not recommendation["worthwhile"]:
-                continue
-            block = recommendation["block"]
-            option = recommendation["option"]
-            if option == "no PM":
-                paths.apply_assignment(ws, model_id,
-                                       f"block:{block}.uses_pm=false")
-            else:
-                advice = next((row for row in result["advice"]
-                               if row["block"] == block), None)
-                base_interval = (advice or {}).get("interval")
-                factor = 1.0
-                try:
-                    factor = float(option.split()[0])
-                except (ValueError, IndexError):
-                    factor = 1.0
-                interval = (base_interval * factor
-                            if base_interval is not None else None)
-                if interval:
-                    paths.apply_assignment(
-                        ws, model_id, f"block:{block}.uses_pm=true")
-                    paths.apply_assignment(
-                        ws, model_id, f"block:{block}.pm_freq={interval:.10g}")
-            applied += 1
-    eprint(f"applied {applied} recommendation(s)")
+        for change in changes:
+            paths.apply_assignment(ws, model_id, change)
+    dest = Path(model_path)
+    fmt = "rbd" if dest.suffix.lower() == ".rbd" else "rbds"
+    try:
+        res = ws.save_model_as(model_id, str(dest.with_name(
+            dest.stem + ".raptor-tmp" + dest.suffix)), fmt=fmt)
+        Path(res["path"]).replace(dest)
+    except OSError as exc:
+        raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
 
 
 def _print_pm(result: dict[str, Any]) -> None:
@@ -241,12 +228,8 @@ def resources_command(args: Any) -> int:
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         if args.apply:
-            from raptor.api import paths
-            for recommendation in result["recommendations"]:
-                paths.apply_assignment(
-                    ws, mid, f"resource:{recommendation['resource']}.units="
-                             f"{recommendation['units']}")
-            eprint("applied the recommended sizes to the model")
+            _apply(ws, mid, result["changes"], args.model)
+            eprint(f"wrote the recommended sizes to {args.model}")
     if args.format == "json":
         emit_json({**result, "schema": "raptor-optimise-resources/1"}, None)
         return X.OK

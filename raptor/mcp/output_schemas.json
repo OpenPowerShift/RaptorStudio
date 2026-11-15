@@ -1788,6 +1788,201 @@
   ],
   "type": "object"
  },
+ "optimise_pm": {
+  "properties": {
+   "advice": {
+    "type": "array"
+   },
+   "base": {
+    "type": "object"
+   },
+   "batches": {
+    "type": "integer"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "changes": {
+    "type": "array"
+   },
+   "metric": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "objective": {
+    "type": "string"
+   },
+   "recommendations": {
+    "type": "array"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "seed": {
+    "type": "integer"
+   },
+   "trials": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   }
+  },
+  "required": [
+   "advice",
+   "base",
+   "batches",
+   "caption",
+   "changes",
+   "metric",
+   "note",
+   "objective",
+   "recommendations",
+   "rows",
+   "seed",
+   "trials"
+  ],
+  "type": "object"
+ },
+ "optimise_resources": {
+  "properties": {
+   "base": {
+    "type": "object"
+   },
+   "batches": {
+    "type": "integer"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "changes": {
+    "type": "array"
+   },
+   "confidence": {
+    "type": "number"
+   },
+   "metric": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "recommendations": {
+    "type": "array"
+   },
+   "resources": {
+    "type": "array"
+   },
+   "rows": {
+    "type": "array"
+   },
+   "seed": {
+    "type": "integer"
+   },
+   "target": {
+    "type": "number"
+   },
+   "trials": {
+    "type": [
+     "integer",
+     "null"
+    ]
+   }
+  },
+  "required": [
+   "base",
+   "batches",
+   "caption",
+   "changes",
+   "confidence",
+   "metric",
+   "note",
+   "recommendations",
+   "resources",
+   "rows",
+   "seed",
+   "target",
+   "trials"
+  ],
+  "type": "object"
+ },
+ "optimise_spares": {
+  "properties": {
+   "base": {
+    "type": "object"
+   },
+   "batches": {
+    "type": "integer"
+   },
+   "caption": {
+    "type": "string"
+   },
+   "changes": {
+    "type": "array"
+   },
+   "confidence": {
+    "type": "number"
+   },
+   "costs_default": {
+    "type": "boolean"
+   },
+   "evaluations": {
+    "type": "integer"
+   },
+   "lead_times": {
+    "type": "object"
+   },
+   "max_evaluations": {
+    "type": "integer"
+   },
+   "metric": {
+    "type": "string"
+   },
+   "mode": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "points": {
+    "type": "array"
+   },
+   "pools": {
+    "type": "array"
+   },
+   "recommended": {
+    "type": "object"
+   },
+   "target": {
+    "type": "number"
+   },
+   "target_met": {
+    "type": "boolean"
+   }
+  },
+  "required": [
+   "base",
+   "batches",
+   "caption",
+   "changes",
+   "confidence",
+   "costs_default",
+   "evaluations",
+   "lead_times",
+   "max_evaluations",
+   "metric",
+   "mode",
+   "note",
+   "points",
+   "pools",
+   "recommended",
+   "target",
+   "target_met"
+  ],
+  "type": "object"
+ },
  "ping": {
   "properties": {
    "result": {

@@ -741,6 +741,52 @@
    "path"
   ]
  },
+ "optimise_pm": {
+  "params": [
+   "blocks",
+   "model_id",
+   "objective",
+   "seed",
+   "timeout_s",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "optimise_resources": {
+  "params": [
+   "extra",
+   "model_id",
+   "resources",
+   "seed",
+   "target",
+   "timeout_s",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "optimise_spares": {
+  "params": [
+   "max_evaluations",
+   "metric",
+   "mode",
+   "model_id",
+   "pools",
+   "seed",
+   "target",
+   "timeout_s",
+   "trials",
+   "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "ping": {
   "params": [],
   "required": []

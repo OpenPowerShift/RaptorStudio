@@ -161,6 +161,7 @@ def optimise_resources(  # noqa: C901, PLR0912
                    "shown")
         recommendations.append({"resource": spec.name,
                                 "units": best["units"],
+                                "changes": [f"resource:{spec.name}.units={best['units']}"],
                                 "mean": best["mean"], "lower": best["lower"],
                                 "why": why, "curve": sorted(
                                     group, key=lambda row: row["units"])})
@@ -171,6 +172,8 @@ def optimise_resources(  # noqa: C901, PLR0912
         "base": {"mean": (sum(base_values) / len(base_values)
                           if base_values else None)},
         "rows": rows, "recommendations": recommendations,
+        # PATH=VALUE edits that give the model the recommended sizes
+        "changes": [c for r in recommendations for c in r["changes"]],
         "caption": _caption(recommendations),
         "note": ("Paired against Base with the same seed; a size meets the "
                  "target only when its lower confidence bound does."),

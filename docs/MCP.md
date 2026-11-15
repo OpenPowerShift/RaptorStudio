@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **88 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **87**.
+- **91 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **90**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -562,6 +562,17 @@ a verdict of what was measured: "clearly helps" needs a real gain (95 %
 confidence shared across the changes tested) that removes at least 5 % of
 the downtime; "helps a little" is real but smaller. No verdict weighs cost,
 so do not present one as advice to spend money.
+
+`optimise_spares`, `optimise_pm` and `optimise_resources` search rather
+than test one change. `optimise_spares` walks a Poisson-backorder path of
+stock levels and returns the cheapest point whose lower confidence bound
+meets the target (or, with `mode="curve"`, the whole frontier);
+`optimise_pm` screens each block with the age-replacement formula and then
+simulates no PM and 0.5 to 2 times its interval; `optimise_resources`
+simulates crew sizes around the offered load. Each returns `changes`, the
+PATH=VALUE edits for its recommendation, and never edits the model: apply
+them with `manage_spare_pools`, `update_element` or `manage_resources`. A
+recommendation that misses its target is said to miss it.
 
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
 application paints. The text gives the caption and the numbers drawn; pass

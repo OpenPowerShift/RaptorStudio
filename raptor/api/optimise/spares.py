@@ -233,6 +233,8 @@ def optimise_spares(  # noqa: C901, PLR0912
                                selected)},
         "points": points,
         "recommended": recommended,
+        # PATH=VALUE edits that give the model the recommended stock
+        "changes": list((recommended or {}).get("changes") or []),
         "evaluations": evaluations,
         "max_evaluations": max_evaluations,
         "costs_default": costs_default,
@@ -259,6 +261,7 @@ def _measure(workspace: Any, model_id: str, stocks: dict[str, int],
     upper = (None if mean is None or lower is None
              else mean + (mean - lower))
     return {"stocks": dict(stocks), "cost": _cost(stocks, selected),
+            "changes": _assignments(stocks, selected),
             "mean": mean, "sem": sem, "lower": lower, "upper": upper,
             "metric": metric}
 

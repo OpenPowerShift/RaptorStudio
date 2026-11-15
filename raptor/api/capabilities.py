@@ -88,26 +88,20 @@ CAPABILITIES: tuple[Capability, ...] = (
     Capability(
         "optimise.spares", "The cheapest spare stock that meets a target",
         api="raptor.api.optimise.spares.optimise_spares",
-        cli="optimise", long_running=True,
-        absent={"mcp": "the MCP optimiser tools are designed but not built; "
-                       "use 'raptor optimise spares'",
-                "gui": "the Analyse tab's Optimise view is designed but not "
+        cli="optimise", mcp="optimise_spares", long_running=True,
+        absent={"gui": "the Analyse tab's Optimise view is designed but not "
                        "built"}),
     Capability(
         "optimise.pm", "Is planned maintenance worthwhile, and at what interval",
         api="raptor.api.optimise.pm.optimise_pm", cli="optimise",
-        long_running=True,
-        absent={"mcp": "the MCP PM optimiser tool is designed but not built; "
-                       "use 'raptor optimise pm'",
-                "gui": "the Analyse tab's Optimise view is designed but not "
+        mcp="optimise_pm", long_running=True,
+        absent={"gui": "the Analyse tab's Optimise view is designed but not "
                        "built"}),
     Capability(
         "optimise.resources", "How many crews or tools are needed",
         api="raptor.api.optimise.resources.optimise_resources",
-        cli="optimise", long_running=True,
-        absent={"mcp": "the MCP resource sizer is designed but not built; "
-                       "use 'raptor optimise resources'",
-                "gui": "the Analyse tab's Optimise view is designed but not "
+        cli="optimise", mcp="optimise_resources", long_running=True,
+        absent={"gui": "the Analyse tab's Optimise view is designed but not "
                        "built"}),
     Capability(
         "dist.judgement", "Fit a life law from judged quantiles",

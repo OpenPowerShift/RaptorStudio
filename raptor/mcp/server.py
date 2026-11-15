@@ -461,6 +461,21 @@ def _qt_available() -> bool:
     return qt_available()
 
 
+def import_all_tool_modules() -> None:
+    """Import every ``raptor.mcp.tools_*`` module, registering every tool.
+
+    For the generators and tests that need the whole catalogue (the server
+    itself uses `_import_tools`, which can leave out the PNG renderer). The
+    modules are found, not listed, so a new one cannot be missed."""
+    import importlib
+    import pkgutil
+
+    import raptor.mcp
+    for info in pkgutil.iter_modules(raptor.mcp.__path__):
+        if info.name.startswith("tools_"):
+            importlib.import_module(f"raptor.mcp.{info.name}")
+
+
 def _import_tools(args: argparse.Namespace) -> None:
     """Import tool registration modules after args are parsed.
 
@@ -479,6 +494,7 @@ def _import_tools(args: argparse.Namespace) -> None:
     from raptor.mcp import tools_analytic  # noqa: F401
     from raptor.mcp import tools_tables  # noqa: F401
     from raptor.mcp import tools_library  # noqa: F401
+    from raptor.mcp import tools_optimise  # noqa: F401
     from raptor.mcp import tools_svg  # noqa: F401  (SVG needs no Qt)
 
     if not getattr(args, "no_render", False) and _qt_available():

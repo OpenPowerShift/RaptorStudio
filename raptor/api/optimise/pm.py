@@ -227,12 +227,12 @@ def optimise_pm(  # noqa: C901, PLR0912
     base_rows = rows_for(results[0]) if results else []
     base_values = _values(base_rows, metric)
     rows: list[dict[str, Any]] = []
-    for index, (block, label, _assignments) in enumerate(plan, start=1):
+    for index, (block, label, assignments) in enumerate(plan, start=1):
         result = results[index] if index < len(results) else {}
         values = _values(rows_for(result), metric)
         mean, sem = _stat(values)
         delta = _paired(base_values, values)
-        row = {"block": block, "option": label,
+        row = {"block": block, "option": label, "changes": assignments,
                "mean": mean, "sem": sem, "delta": delta,
                "run_id": result.get("run_id"), "error": result.get("error")}
         rows.append(row)
@@ -257,6 +257,7 @@ def optimise_pm(  # noqa: C901, PLR0912
             "block": block, "option": best["option"],
             "mean": best["mean"], "delta_vs_base": best["delta"],
             "worthwhile": worthwhile,
+            "changes": list(best["changes"]) if worthwhile else [],
             "curve": sorted(group, key=lambda row: row["mean"]
                             if row["mean"] is not None else 0.0)})
     return {
@@ -265,6 +266,8 @@ def optimise_pm(  # noqa: C901, PLR0912
             item.to_dict() for item in advice],
         "base": {"mean": _stat(base_values)[0]},
         "rows": rows, "recommendations": recommendations,
+        # PATH=VALUE edits for the recommendations worth making
+        "changes": [c for r in recommendations for c in r["changes"]],
         "caption": _caption(recommendations, objective),
         "note": ("The analytic screen assumes age replacement on one block; "
                  "the recommendation comes from the paired simulation, not "

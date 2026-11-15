@@ -74,7 +74,8 @@ class Recorder:
 
 def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     """The scripted tool session. Deterministic, a few seconds."""
-    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic, tools_advisor, tools_data, tools_library  # noqa: F401 (registers the tools)
+    from raptor.mcp.server import import_all_tool_modules
+    import_all_tool_modules()
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(workspace), "read_only": False})()
     mcp._raptor_ws = None
@@ -187,6 +188,33 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     more(rec, m1, run, attributed.get("run_id"))
 
 
+#: One block with a spare pool, planned maintenance and a repair crew, so
+#: each optimiser has something to search.
+OPT_SPEC = {
+    "blocks": [{"name": "Pump", "fail_dist": "Weibull", "fail_params": [2.0, 100.0, 0.0],
+                "repair_dist": "Fixed", "repair_params": [5, 0, 0],
+                "uses_pm": 1, "pm_freq": 400.0, "pm_dist": "Fixed", "pm_params": [2, 0, 0],
+                "pm_cost": 1.0, "pm_fixed_cost": 10.0, "rep_fixed_cost": 100.0,
+                "spare_pool": "Seals", "sp_type": "Pooled",
+                "resource1_name": "Crew", "num_res": 1, "res1_rep": 1}],
+    "spare_pools": [{"name": "Seals", "stock": 0, "rso": 1, "new_spares": 1,
+                     "arrive_every": 200.0}],
+    "resources": [{"name": "Crew", "num_in": 1}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "End"}],
+    "experiment": {"trials": 2, "termination_type": "TimeSim", "term_condition": 1000.0},
+}
+
+
+def optimisers(rec: Recorder) -> None:
+    opt = (rec.call("build_model", name="opt", spec=OPT_SPEC) or {}).get("model_id")
+    if not opt:
+        return
+    rec.call("optimise_spares", model_id=opt, target=0.5, max_evaluations=2, trials=2)
+    rec.call("optimise_pm", model_id=opt, trials=2)
+    rec.call("optimise_resources", model_id=opt, target=0.5, extra=0, trials=2)
+
+
 def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) -> None:  # noqa: PLR0915
     """The tools the main session does not reach: batch edits, library,
     pools, jobs, scenarios and run outputs. On a model of its own, so the
@@ -242,6 +270,7 @@ def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) ->
     if attributed_run:
         rec.call("recommend_changes", model_id=m1, run_id=attributed_run, top=1, trials=2)
         rec.call("run_story", run_id=attributed_run)
+    optimisers(rec)
     if run:
         rec.call("get_run_results", run_id=run)
         rec.call("run_chart", run_id=run)
@@ -269,6 +298,8 @@ WIDEN: dict[tuple[str, str], list[str]] = {
     ("what_if", "seed"): ["integer", "null"],
     ("sensitivity", "seed"): ["integer", "null"],
     ("recommend_changes", "seed"): ["integer", "null"],
+    ("optimise_pm", "trials"): ["integer", "null"],
+    ("optimise_resources", "trials"): ["integer", "null"],
     ("render_diagram", "highlighted"): ["integer", "null"],
     # a run's summary.json may lack a field an older run did not write
     ("get_run_results", "model_id"): ["string", "null"],
@@ -336,7 +367,8 @@ def main() -> int:
         session(record, Path(d))
     schemas = infer(record.seen)
     asyncio.set_event_loop(asyncio.new_event_loop())
-    from raptor.mcp import server, tools_model, tools_run, tools_tables, tools_view, tools_svg, tools_data, tools_library  # noqa: F401
+    from raptor.mcp import server  # noqa: F401
+    server.import_all_tool_modules()
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     for n in sorted(names - set(schemas)):
         print(f"no schema: {n} ({record.failed.get(n, 'not driven')})", file=sys.stderr)

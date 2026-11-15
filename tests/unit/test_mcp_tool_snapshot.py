@@ -13,7 +13,8 @@ SNAPSHOT = Path(__file__).resolve().parent / "data" / "mcp_tools_snapshot.json"
 
 
 def _current() -> dict:
-    from raptor.mcp import server, tools_model, tools_data, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic, tools_advisor, tools_library  # noqa: F401
+    from raptor.mcp import server
+    server.import_all_tool_modules()
     out = {}
     for t in asyncio.run(server.mcp.list_tools()):
         schema = t.input_schema or {}
