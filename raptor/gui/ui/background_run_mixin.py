@@ -472,7 +472,7 @@ class BackgroundRunMixin(_Base):
                 if result:
                     # The baseline is now on screen; do not let the live
                     # Ao/Capacity catch-up re-show the dock or steal the
-                    # Graphs tab while importance runs.
+                    # Charts tab while importance runs.
                     self._bg_last_report_count = len(result[3] or [])
         # Importance owns the status line and the bar for this phase. The
         # ordinary-batch progress/stage below are stale now (the worst is

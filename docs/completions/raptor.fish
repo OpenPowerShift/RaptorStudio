@@ -90,6 +90,7 @@ complete -c raptor -n '__fish_use_subcommand' -a explain
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l below
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-run
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-svg
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l format
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l help
@@ -102,6 +103,7 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l story
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l top
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l y-floor
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l year-length
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l year-offset
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l yearly

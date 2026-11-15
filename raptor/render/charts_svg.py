@@ -38,6 +38,9 @@ ACCENT = "#1371BB"
 STOP = "#C62828"
 UP = "#1E7D57"
 DOWN = "#C93939"
+DEGRADED = "#BB7E16"
+_TONES = {"up": UP, "degraded": DEGRADED, "down": DOWN, "accent": ACCENT,
+          "muted": MUTED, "ink": INK}
 
 #: Cause fills, matching the GUI palette; every cause but repair also has a
 #: pattern so the chart reads without colour.
@@ -344,26 +347,29 @@ def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
+_FIXED_KEYS = {"capacity_pareto": [("lost capacity", ACCENT), ("downtime", MUTED)],
+               "ribbon": [("system up", UP), ("system down", DOWN)]}
+
+
 def _key(spec: ChartSpec) -> list[tuple[str, str]]:
-    """(label, fill) for every cause the chart shows."""
+    """(label, fill) for every cause, series or layer the chart shows."""
+    if spec.kind in _FIXED_KEYS:
+        return list(_FIXED_KEYS[spec.kind])
+    if spec.kind == "timeline":
+        return [(str(layer.get("name", "")), _TONES.get(str(layer.get("tone")), ACCENT))
+                for layer in spec.series]
     seen: list[str] = []
     if spec.kind == "pareto":
-        for row in spec.series:
-            for cause in row.get("causes") or {}:
-                if cause not in seen:
-                    seen.append(cause)
+        causes = [str(c) for row in spec.series for c in (row.get("causes") or {})]
     elif spec.kind in ("waterfall", "treemap", "icicle"):
-        for row in spec.series:
-            cause = row.get("cause")
-            if cause and str(cause) not in seen:
-                seen.append(str(cause))
+        causes = [str(row["cause"]) for row in spec.series if row.get("cause")]
+    else:
+        causes = []
+    for cause in causes:
+        if cause not in seen:
+            seen.append(cause)
     labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
-    entries = [(labels.get(c, c), _cause_fill(c)) for c in seen]
-    if spec.kind == "capacity_pareto":
-        entries = [("lost capacity", ACCENT), ("downtime", MUTED)]
-    if spec.kind == "ribbon":
-        entries = [("system up", UP), ("system down", DOWN)]
-    return entries
+    return [(labels.get(c, c), _cause_fill(c)) for c in seen]
 
 
 def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
@@ -780,6 +786,53 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
+def _timeline(spec: ChartSpec, area: _Box) -> list[str]:
+    """Areas and lines over simulated time (`raptor.api.insight.timecharts`)."""
+    layers = [layer for layer in spec.series if layer.get("t")]
+    if not layers:
+        return []
+    fmt = _fmt_of(spec)
+    t_start = min(float(layer["t"][0]) for layer in layers)
+    t_end = max(float(layer["t"][-1]) for layer in layers)
+    low, high = (float(v) for v in (spec.provenance.get("y_range") or [0.0, 1.0])[:2])
+    if high <= low:
+        high = low + 1.0
+    if fmt != "percent":
+        low, high = nice_range(low, high, 5)
+    out: list[str] = []
+    frame = _frame(out, spec, area, x_range=(t_start, max(t_end, t_start + 1e-9)),
+                   y_range=(low, high), y_fmt=fmt, y_ticks=nice_ticks(low, high, 5))
+
+    def pt(t: float, value: float) -> tuple[float, float]:
+        return frame.x(t), frame.y(min(high, max(low, value)))
+
+    for layer in layers:
+        ts = [float(x) for x in layer["t"]]
+        colour = _TONES.get(str(layer.get("tone")), ACCENT)
+        if layer.get("role") == "area":
+            alpha = layer.get("alpha")
+            out.append(_polygon(
+                [pt(t, float(v)) for t, v in zip(ts, layer["hi"], strict=True)]
+                + [pt(t, float(v)) for t, v in zip(reversed(ts), reversed(layer["lo"]),
+                                                    strict=True)],
+                colour, _fmt(float(alpha)) if isinstance(alpha, (int, float)) else "0.85"))
+            continue
+        ys = [float(v) for v in layer["y"]]
+        if layer.get("fill"):
+            out.append(_polygon([pt(t, v) for t, v in zip(ts, ys, strict=True)]
+                                + [pt(ts[-1], low), pt(ts[0], low)], colour, "0.16"))
+        line = _polyline([pt(t, v) for t, v in zip(ts, ys, strict=True)], colour,
+                         float(layer.get("width") or 1.5))
+        if layer.get("dash"):
+            line = line.replace("/>", " stroke-dasharray='5,3'/>")
+        out.append(line)
+    target = _target(spec)
+    if target is not None and low <= target <= high:
+        _target_line(out, frame, target, horizontal=True,
+                     label=f"target {format_value(target, fmt, 5)}")
+    return out
+
+
 def _cell_text(out: list[str], x: float, y: float, w: float, h: float,
                cause: str, lines: Sequence[str]) -> None:
     if w < 28 or h < LINE_H + 2:
@@ -898,6 +951,7 @@ _RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
     "treemap": _treemap,
     "icicle": _icicle,
     "ribbon": _ribbon,
+    "timeline": _timeline,
 }
 
 

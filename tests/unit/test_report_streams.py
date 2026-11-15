@@ -58,8 +58,8 @@ def test_gui_files_and_reports_wiring(qtbot=None):
         assert len(d._ao_lines) > 0
         assert not d._cap_lines
         assert not d._cost_lines
-        # graphs still render from the stream
-        assert d._ao_plot._runs or d._ao_plot.run_count >= 0
+        # the charts over time are drawn from the stream
+        assert not d._charts_page.missing_reason("availability-through-run")
         # the safety-bound note path did not fire for a TimeSim model
         assert d._notes == [] or all("safety bound" not in n
                                      for n in d._notes)

@@ -174,6 +174,10 @@ def _rd_to_dict(rd: RunReportData) -> dict[str, object]:
         row.update(costs)
     row["criticality"] = rd.criticality
     row["color_timeline"] = [[float(t), color] for t, color in rd.color_timeline]
+    # where the run stopped: the capacity plot records changes only, so a
+    # chart of it needs this to draw the last value to the end of the run
+    if rd.ending_sim_time is not None:
+        row["ending_sim_time"] = float(rd.ending_sim_time)
     return row
 
 

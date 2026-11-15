@@ -102,6 +102,13 @@ def add_parser(sub: Any) -> None:
                         "or availability-ladder (see --list-charts)")
     e.add_argument("--chart-svg", metavar="PATH",
                    help="write the chart as SVG (implies --chart when it is missing)")
+    e.add_argument("--chart-run", metavar="N", type=int, default=1,
+                   help="the run a one-run chart over time shows "
+                        "(availability-through-run, interval-availability, "
+                        "capacity-through-run; default 1)")
+    e.add_argument("--y-floor", metavar="F", type=float, default=None,
+                   help="lower limit of an availability chart over time, "
+                        "0 to 1 (default: fitted to the data)")
     e.add_argument("--list-charts", action="store_true",
                    help="list the chart names and exit")
     e.add_argument("--progress", choices=_PROGRESS, default="auto",
@@ -260,8 +267,14 @@ def explain_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
+            from raptor.api.insight.timecharts import TIME_CHARTS
+            # an availability chart over time needs the plot recorded (the
+            # capacity plot comes with capacity analysis)
+            plot = (True if chart_name in TIME_CHARTS
+                    and not chart_name.startswith("capacity") else None)
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
                                  seed=args.seed, attribution=True,
+                                 availability_plot=plot,
                                  capacity_rule=args.capacity_rule,
                                  confirm_long_run=True,
                                  **progress_options(args.progress))
@@ -272,7 +285,8 @@ def explain_command(args: Any) -> int:
         if args.story:
             from raptor.api.insight.story import from_run
             story = from_run(ws, result.run_id)
-        chart = _chart_for(ws, result.run_id, chart_name, attribution)
+        chart = _chart_for(ws, result.run_id, chart_name, attribution,
+                           run=args.chart_run, y_floor=args.y_floor)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -321,14 +335,20 @@ def _explain_output(attribution: dict, story: Any, yearly: Any,
 
 
 def _chart_for(ws: Any, run_id: str, name: str | None,
-               attribution: dict) -> Any:
+               attribution: dict, *, run: int = 1,
+               y_floor: float | None = None) -> Any:
     """Build the requested chart from a finished run, or None."""
     if not name:
         return None
     from raptor.api.insight import charts
+    from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     from raptor.api.run import run_dir
     from raptor.api.run_tables import read_per_run
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
+    over_time = (stored_inputs(run_dir(ws, run_id)) if name in TIME_CHARTS
+                 else {})
+    if y_floor is not None and not 0.0 <= y_floor < 1.0:
+        raise CliError("--y-floor must be at least 0 and below 1", X.USAGE)
     periods = None
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         from raptor.api.insight import drivers
@@ -337,7 +357,8 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
         costs = (charts.stored_element_costs(ws, run_id)
                  if name in charts.COST_CHARTS else None)
         return charts.chart_named(name, per_run=per_run, attribution=attribution,
-                                  periods=periods, costs=costs)
+                                  periods=periods, costs=costs, run=run,
+                                  y_floor=y_floor, **over_time)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 
@@ -345,7 +366,25 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
 def _print_chart(chart: Any, args: Any) -> None:
     print()
     print(f"{chart.title} — {chart.caption}")
-    for row in chart.series[:args.top]:
+    if chart.kind == "timeline":
+        # one line per layer: where it ends (the caption has the reading)
+        fmt = str(chart.provenance.get("format") or "")
+        from raptor.api.insight.axes import format_value
+
+        def shown(value: float) -> str:
+            return format_value(value, fmt, 5) if fmt else f"{value:,.4g}"
+
+        for layer in chart.series:
+            if layer.get("read") == "none" or not layer.get("t"):
+                continue
+            if layer.get("role") != "area":
+                text = shown(float(layer["y"][-1]))
+            elif layer.get("read") == "range":
+                text = f"{shown(float(layer['lo'][-1]))} to {shown(float(layer['hi'][-1]))}"
+            else:
+                text = shown(float(layer["hi"][-1]) - float(layer["lo"][-1]))
+            print(f"  {layer.get('name', '')}: {text} at the end")
+    for row in ([] if chart.kind == "timeline" else chart.series[:args.top]):
         name = row.get("name") or row.get("label") or ""
         value = row.get("value", row.get("count", row.get("mean")))
         if isinstance(value, (int, float)) and not isinstance(value, bool):

@@ -235,7 +235,8 @@ def run_story(run_id: str) -> CallToolResult:
 @mcp.tool(annotations=READ_ONLY("Run chart"))
 @guarded
 def run_chart(run_id: str, chart: str = "trial-outcome",
-              render_svg: bool = True) -> CallToolResult:
+              render_svg: bool = True, run: int = 1,
+              y_floor: float | None = None) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
 
     The same `ChartSpec` the application paints and `raptor explain --chart`
@@ -252,7 +253,11 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     year by year) needs both. `importance-quadrant` needs importance
     measures; `cost-pareto` and `cost-treemap` (spare pools included) need
     cost analysis; ask for them only when
-    the run has those.
+    the run has those. Over time: `availability-through-run`,
+    `interval-availability` and `availability-band` need the availability
+    plot recorded (`availability_plot=true`), `capacity-through-run` and
+    `capacity-band` capacity analysis; `run` picks the run of a one-run
+    chart and `y_floor` (0 to 1) the bottom of an availability axis.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
@@ -270,8 +275,14 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
         periods = drivers.periods(ws, run_id)
     costs = (charts.stored_element_costs(ws, run_id)
              if chart in charts.COST_CHARTS else None)
+    from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
+    over_time = (stored_inputs(run_dir(ws, run_id)) if chart in TIME_CHARTS
+                 else {})
+    if y_floor is not None and not 0.0 <= y_floor < 1.0:
+        raise ValueError("y_floor must be at least 0 and below 1")
     spec = charts.chart_named(chart, per_run=per_run, attribution=attribution,
-                              periods=periods, costs=costs)
+                              periods=periods, costs=costs, run=run,
+                              y_floor=y_floor, **over_time)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render

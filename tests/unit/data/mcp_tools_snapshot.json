@@ -815,7 +815,9 @@
   "params": [
    "chart",
    "render_svg",
-   "run_id"
+   "run",
+   "run_id",
+   "y_floor"
   ],
   "required": [
    "run_id"

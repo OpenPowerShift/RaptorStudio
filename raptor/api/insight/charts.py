@@ -760,8 +760,35 @@ def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
                     "shown": len(rows)})
 
 
+def _time_chart(name: str, doc: str) -> Any:
+    """A `CHARTS` entry for one of the charts over time (`timecharts`).
+
+    They live in their own module, which imports `ChartSpec` from here, so
+    the entry imports it only when called."""
+    def build(**kwargs: Any) -> ChartSpec:
+        from raptor.api.insight.timecharts import time_chart
+        return time_chart(name, **kwargs)
+    build.__doc__ = doc
+    build.__name__ = name.replace("-", "_")
+    return build
+
+
 #: Every chart the application can draw, keyed by the name the CLI and MCP use.
 CHARTS = {
+    "availability-through-run": _time_chart(
+        "availability-through-run",
+        "One run's time so far fully up, degraded and down (the availability plot)."),
+    "interval-availability": _time_chart(
+        "interval-availability",
+        "The availability in each recording interval of one run."),
+    "availability-band": _time_chart(
+        "availability-band",
+        "Every run's availability so far, as bands across the runs."),
+    "capacity-through-run": _time_chart(
+        "capacity-through-run",
+        "One run's flow against a fully working system (the capacity plot)."),
+    "capacity-band": _time_chart(
+        "capacity-band", "Every run's flow at each moment, as bands across the runs."),
     "trial-outcome": trial_outcome,
     "ecdf": ecdf,
     "downtime-pareto": downtime_pareto,
@@ -796,8 +823,17 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
                 field_name: str = "availability",
                 label: str = "Availability",
                 target: float | None = None,
-                units: str = "") -> ChartSpec:
+                units: str = "",
+                ao_runs: list[dict[str, Any]] | None = None,
+                cap_runs: list[dict[str, Any]] | None = None,
+                run: int = 1,
+                y_floor: float | None = None) -> ChartSpec:
     """Build one chart by name, from whichever inputs it needs.
+
+    The charts over time (`raptor.api.insight.timecharts.TIME_CHARTS`) take
+    the parsed availability plot (`ao_runs`) or capacity plot (`cap_runs`),
+    the `run` number for the one-run charts, and `y_floor`, a manual lower
+    limit for the availability axis.
 
     Raises ValueError naming the charts when the name is unknown, and
     ValueError naming the missing input when one is required.
@@ -805,6 +841,14 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
     if name not in CHARTS:
         raise ValueError(
             f"unknown chart {name!r}; known charts: {', '.join(sorted(CHARTS))}")
+    from raptor.api.insight.timecharts import TIME_CHARTS, time_chart
+    if name in TIME_CHARTS:
+        generated = (attribution or {}).get("capacity", {}) or {}
+        ends = [row.get("ending_sim_time") for row in per_run or []]
+        return time_chart(name, ao_runs=ao_runs, cap_runs=cap_runs, run=run,
+                          units=units, target=target, y_floor=y_floor,
+                          generated=generated.get("generated"),
+                          ends=ends if any(e is not None for e in ends) else None)
 
     def need_attribution() -> dict[str, Any]:
         if attribution is None:

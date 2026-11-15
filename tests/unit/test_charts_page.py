@@ -57,34 +57,129 @@ def _inputs():
     return per_run, attribution, importance
 
 
-def test_the_picker_offers_only_charts_the_data_supports(qapp):
+#: Two runs of each recorded plot, in the engine's sink layout.
+_MARK = ["", "*" * 30 + "End_of_Run_{n}" + "*" * 30, ""]
+AO = (["SimulationTime Ao Green Yellow Red Interval",
+       "10 0.9 0.8 0.1 0.1 0.9", "20 0.85 0.7 0.15 0.15 0.8", "20 0.85 0.7 0.15 0.15"]
+      + [m.format(n=1) for m in _MARK]
+      + ["10 0.95 0.9 0.05 0.05 0.95", "20 0.9 0.85 0.05 0.1 0.85", "20 0.9 0.85 0.05 0.1"]
+      + [m.format(n=2) for m in _MARK])
+CAP = (["SimulationTime Flow Capacity", "0 100 100", "5 40 40", "8 100 100"]
+       + [m.format(n=1) for m in _MARK]
+       + ["0 100 100", "12 0 0", "15 100 100"] + [m.format(n=2) for m in _MARK])
+
+
+def _series():
+    from raptor.api.series import parse_ao_runs, parse_capacity_runs
+    return parse_ao_runs("\n".join(AO)), parse_capacity_runs("\n".join(CAP))
+
+
+def _all_titles(page):
+    return page.titles(available=False)
+
+
+def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
     page = ChartsPage()
     per_run, attribution, importance = _inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, units="hours", run_id="r_1")
-    names = [page.selector.itemText(i) for i in range(page.selector.count())]
-    assert "Run-to-run outcome" in names
-    assert "Who causes the downtime" in names
-    assert "Importance quadrant" in names
-    assert "Where the money goes" not in names
+    drawable = page.titles()
+    assert "Run-to-run outcome" in drawable
+    assert "Who causes the downtime" in drawable
+    assert "Importance quadrant" in drawable
+    # listed, but greyed with what the run needs
+    assert "Where the money goes" in _all_titles(page)
+    assert "Where the money goes" not in drawable
+    assert "Cost analysis" in page.missing_reason("cost-pareto")
+    assert "Availability plot" in page.missing_reason("availability-band")
+    page.select("cost-pareto")
+    assert page.stack.currentIndex() == 1
+    assert "Cost analysis" in page.missing_text.text()
 
 
-def test_every_offered_chart_paints_and_exports(qapp, tmp_path):
+def test_the_list_is_grouped_by_question(qapp):
     page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0])
+    groups = [page.nav.topLevelItem(i).text(0)
+              for i in range(page.nav.topLevelItemCount())]
+    assert groups[:3] == ["THE ANSWER", "OVER TIME", "WHY IT GOES DOWN"]
+    # a heading cannot be chosen
+    assert not page.nav.topLevelItem(0).flags() & Qt.ItemFlag.ItemIsSelectable
+
+
+def test_every_drawable_chart_paints_and_exports(qapp, tmp_path):
+    page = ChartsPage()
+    page.resize(900, 500)
     per_run, attribution, importance = _inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, units="hours", run_id="r_1")
-    for index in range(page.selector.count()):
-        page.selector.setCurrentIndex(index)
+    page.set_series(*_series())
+    titles = page.titles()
+    assert "Availability across all runs" in titles
+    assert "Capacity through a run" in titles
+    for index, title in enumerate(titles):
+        assert page.select(title)
+        assert page.stack.currentIndex() == 0, title
         image = page.chart.grab().toImage()
         assert not image.isNull()
-        assert page.selected_spec() is not None
+        spec = page.selected_spec()
+        assert spec is not None, title
         svg = tmp_path / f"chart-{index}.svg"
         page.save_svg(str(svg))
         assert svg.read_text(encoding="utf-8").startswith("<svg")
         csv = tmp_path / f"chart-{index}.csv"
         page.save_csv(str(csv))
-        assert csv.read_text(encoding="utf-8").startswith("series,")
+        header = csv.read_text(encoding="utf-8").splitlines()[0]
+        assert header.startswith("layer," if spec.kind == "timeline" else "series,")
+
+
+def test_only_the_controls_a_chart_uses_are_shown(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0])
+    page.set_series(*_series())
+    page.select("availability-through-run")
+    assert page.run_box.isVisibleTo(page) and page.floor_button.isVisibleTo(page)
+    assert page.run_of.text() == "of 2"
+    assert page.raw_action.isVisible()
+    page.select("capacity-band")
+    assert not page.run_box.isVisibleTo(page)
+    assert not page.floor_button.isVisibleTo(page)
+    page.select("trial-outcome")
+    assert not page.run_box.isVisibleTo(page)
+    assert not page.raw_action.isVisible()
+
+
+def test_the_run_picker_redraws_the_one_run_chart(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.set_series(*_series())
+    page.select("availability-through-run")
+    assert page.selected_spec().provenance["run"] == 1
+    page.run_box.setValue(2)
+    assert page.selected_spec().provenance["run"] == 2
+    assert page.selected_spec().title == "Availability through run 2"
+
+
+def test_the_downtime_charts_offer_to_work_out_the_drivers(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], drivers="pending")
+    spy = QSignalSpy(page.drivers_requested)
+    page.select("downtime-pareto")
+    assert page.stack.currentIndex() == 1
+    assert page.missing_action.isVisibleTo(page)
+    page.missing_action.click()
+    assert spy.count() == 1
+    page.set_inputs(per_run=_inputs()[0], drivers="unavailable")
+    assert "Event log" in page.missing_reason("downtime-pareto")
+
+
+def test_the_selection_survives_new_results(qapp):
+    page = ChartsPage()
+    per_run, attribution, _importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution)
+    page.select("Who causes the downtime")
+    page.set_inputs(per_run=per_run, attribution=attribution)
+    assert page.selected_key() == "downtime-pareto"
 
 
 def test_a_named_mark_locates_the_element(qapp):
@@ -94,7 +189,7 @@ def test_a_named_mark_locates_the_element(qapp):
     per_run, attribution, importance = _inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance)
-    page.selector.setCurrentText("Who causes the downtime")
+    page.select("Who causes the downtime")
     widget.set_spec(page.selected_spec())
     widget.grab()
     spy = QSignalSpy(widget.locate_requested)
@@ -104,6 +199,22 @@ def test_a_named_mark_locates_the_element(qapp):
                      pos=QPoint(int(hit.center().x()), int(hit.center().y())))
     assert spy.count() == 1
     assert spy.at(0) == ["element", "Pump"]
+
+
+def test_the_time_cursor_reads_every_layer(qapp):
+    widget = ChartWidget()
+    widget.resize(800, 420)
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.set_series(*_series())
+    page.select("capacity-through-run")
+    widget.set_spec(page.selected_spec())
+    widget.grab()
+    frame, read = widget._probe
+    marks = read(frame.x(6.0))
+    text = marks[0][1]
+    assert text.splitlines()[0] == "at 6 hours"
+    assert "flow: 40" in text and "capacity lost: 60" in text
 
 
 def test_capacity_and_annual_charts_appear_when_their_data_does(qapp):
@@ -125,12 +236,9 @@ def test_capacity_and_annual_charts_appear_when_their_data_does(qapp):
                     "p75": 0.98, "p95": 1.0}]}
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, periods=periods)
-    names = [page.selector.itemText(i) for i in range(page.selector.count())]
-    assert "Who loses the capacity" in names
-    assert "Downtime against lost capacity" in names
-    assert "Availability year by year" in names
-    assert "A bad year, as a frequency" in names
+    names = page.titles()
     for name in ("Who loses the capacity", "Downtime against lost capacity",
                  "Availability year by year", "A bad year, as a frequency"):
-        page.selector.setCurrentText(name)
+        assert name in names
+        page.select(name)
         assert not page.chart.grab().toImage().isNull()
