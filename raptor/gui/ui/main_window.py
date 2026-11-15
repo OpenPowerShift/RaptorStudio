@@ -2259,6 +2259,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Inspector via the normal selection path).
         self._results.element_clicked.connect(self._on_result_element_clicked)
         self._results.contents_changed.connect(self._sync_results_notice)
+        self._results.enable_requested.connect(self._turn_on_and_run)
         # A run finishing, or its results being cleared, changes what the
         # Advisor can say (precision, what drives the downtime).
         self._results.contents_changed.connect(self._refresh_advisor)

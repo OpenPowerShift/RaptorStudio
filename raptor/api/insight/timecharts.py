@@ -27,6 +27,7 @@ from typing import Any
 
 from raptor.api.insight.axes import format_value
 from raptor.api.insight.charts import ChartSpec
+from raptor.api.run_needs import message
 
 #: Corners per layer a chart hands to a painter (a screen cannot show more).
 MAX_POINTS = 1500
@@ -465,9 +466,7 @@ def time_chart(name: str, *, ao_runs: list[dict[str, Any]] | None = None,
     """One of `TIME_CHARTS` by name (ValueError naming what is missing)."""
     if name.startswith("availability") or name == "interval-availability":
         if not ao_runs:
-            raise ValueError("this chart needs the availability plot: record it "
-                             "(-r ao-plot, availability_plot=true, or Availability "
-                             "plot under Recording) and run again")
+            raise ValueError(message("availability_plot"))
         if name == "availability-through-run":
             return availability_through_run(ao_runs, run, units=units, target=target,
                                             y_floor=y_floor)
@@ -476,8 +475,7 @@ def time_chart(name: str, *, ao_runs: list[dict[str, Any]] | None = None,
                                          y_floor=y_floor)
         return availability_band(ao_runs, units=units, target=target, y_floor=y_floor)
     if not cap_runs:
-        raise ValueError("this chart needs the capacity plot: turn on Capacity "
-                         "analysis, record the capacity plot and run again")
+        raise ValueError(message("capacity_plot"))
     if name == "capacity-through-run":
         return capacity_through_run(cap_runs, run, units=units, generated=generated,
                                     ends=ends)

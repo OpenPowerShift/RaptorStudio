@@ -117,6 +117,7 @@ class RunExperimentMixin:
         def _sync_analysis_checkboxes(self) -> None: ...
         def _push_weak_settings(self) -> None: ...
         def _model_is_valid(self) -> bool: ...
+        def _run_simulation(self) -> None: ...
         def _validate_model(self, quiet: bool = False) -> Any: ...
         _live_sim_action: QAction
 
@@ -404,6 +405,29 @@ class RunExperimentMixin:
         panel = getattr(self, "_run_panel", None)
         if panel is not None:
             panel.setFocus()
+
+    def _turn_on_and_run(self, keys: list[str]) -> None:
+        """A result's "Turn on … and run": switch the run options it needs
+        on, as one undo step, and run again."""
+        from raptor.api import run_needs
+        if self._rbd is None:
+            return
+        current = self._current_experiment()
+        wanted = run_needs.turn_on(current, keys)
+        changed = [k for k in ("analyses", "recording", "importance")
+                   if wanted.get(k) != current.get(k)]
+        if changed:
+            stack = self._diagram_dock.view._stack
+            label = run_needs.button_text(*keys).removesuffix(" and run")
+            stack.beginMacro(label)
+            try:
+                for key in changed:
+                    self._set_exp_field(key, wanted[key])
+            finally:
+                stack.endMacro()
+            self._statusbar.showMessage(f"{label}: running again (Edit ▸ Undo "
+                                        "takes the setting back)", 8000)
+        self._run_simulation()
 
     def _on_panel_experiment(self, experiment: dict) -> None:
         """The panel edited something -> the model, through the one

@@ -323,8 +323,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     `capacity-vs-downtime`, `capacity-waterfall` and `lost-capacity-treemap`
     need capacity attribution; `annual-fan` and `annual-dots` need a run long
     enough for whole periods, and `annual-capacity-fan` (capacity delivered
-    year by year) needs both. `importance-quadrant` needs importance
-    measures; `cost-pareto` and `cost-treemap` (spare pools included) need
+    year by year) needs both. `importance-quadrant` needs
+    `importance="both"` (RAW and RRW); `cost-pareto` and `cost-treemap` (spare pools included) need
     cost analysis; ask for them only when
     the run has those. Over time: `availability-through-run`,
     `interval-availability` and `availability-band` need the availability
@@ -356,6 +356,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
         periods = drivers.periods(ws, run_id)
     costs = (charts.stored_element_costs(ws, run_id)
              if chart in charts.COST_CHARTS else None)
+    importance = (charts.stored_importance(ws, run_id)
+                  if chart == "importance-quadrant" else None)
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     over_time = (stored_inputs(run_dir(ws, run_id)) if chart in TIME_CHARTS
                  else {})
@@ -369,7 +371,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     spec = charts.fold_small(
         charts.chart_named(chart, per_run=per_run, attribution=attribution,
                            periods=periods, costs=costs, run=run,
-                           y_floor=y_floor, **over_time), min_share)
+                           importance=importance, y_floor=y_floor, **over_time),
+        min_share)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render

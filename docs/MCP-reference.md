@@ -3183,8 +3183,8 @@ a phased model, `phase-downtime`. `lost-capacity-pareto`,
 `capacity-vs-downtime`, `capacity-waterfall` and `lost-capacity-treemap`
 need capacity attribution; `annual-fan` and `annual-dots` need a run long
 enough for whole periods, and `annual-capacity-fan` (capacity delivered
-year by year) needs both. `importance-quadrant` needs importance
-measures; `cost-pareto` and `cost-treemap` (spare pools included) need
+year by year) needs both. `importance-quadrant` needs
+`importance="both"` (RAW and RRW); `cost-pareto` and `cost-treemap` (spare pools included) need
 cost analysis; ask for them only when
 the run has those. Over time: `availability-through-run`,
 `interval-availability` and `availability-band` need the availability

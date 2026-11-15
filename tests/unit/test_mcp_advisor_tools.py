@@ -239,3 +239,14 @@ def test_ignore_finding_is_refused_read_only(server, model):
         assert call(server, "ignore_finding", model_id=model, rule="M-STR-002").is_error
     finally:
         server.mcp._raptor_args.read_only = False
+
+
+def test_a_missing_option_names_the_switch_and_importance_draws(server, model):
+    plain = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1))
+    refused = call(server, "downtime_drivers", run_id=plain["run_id"])
+    assert refused.is_error and "simulate(attribution=true)" in refused.content[0].text
+    quadrant = call(server, "run_chart", run_id=plain["run_id"], chart="importance-quadrant")
+    assert quadrant.is_error and 'simulate(importance="both")' in quadrant.content[0].text
+    run = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1, importance="both"))
+    data = ok(call(server, "run_chart", run_id=run["run_id"], chart="importance-quadrant"))
+    assert data["kind"] == "quadrant" and data["title"] == "Importance on availability"

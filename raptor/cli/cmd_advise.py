@@ -8,6 +8,7 @@ from typing import Any
 from raptor.cli import exitcodes as X
 from raptor.cli.common import emit_json, eprint, open_model, workspace_for
 from raptor.cli.exitcodes import CliError
+from raptor.core.run_experiment import IMPORTANCE_MODES
 
 ADVISE_SCHEMA = "raptor-advise/1"
 RULES_SCHEMA = "raptor-advise-rules/1"
@@ -76,6 +77,14 @@ def add_parser(sub: Any) -> None:
                    help="worker processes (default 1; more is reproducible but "
                         "gives different numbers from -j 1)")
     e.add_argument("--seed", type=int, metavar="N")
+    e.add_argument("--analysis", metavar="LIST",
+                   help="weak,cost,capacity for this run (replaces the model's "
+                        "setting; the file is untouched): the cost and lost-capacity "
+                        "charts need them")
+    e.add_argument("--importance", metavar="MODE", choices=IMPORTANCE_MODES,
+                   help="also estimate importance measures: improvement, risk or "
+                        "both (importance-quadrant needs both); one extra batch per "
+                        "block, two for both")
     e.add_argument("--top", type=int, default=10, metavar="N",
                    help="how many elements to list (default 10)")
     e.add_argument("--yearly", action="store_true",
@@ -312,6 +321,8 @@ def explain_command(args: Any) -> int:
     from raptor.cli.cmd_run import progress_options
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
+        from raptor.cli.runopts import apply_run_options
+        apply_run_options(ws, mid, args)
         try:
             from raptor.api.insight.timecharts import TIME_CHARTS
             # an availability chart over time needs the plot recorded (the
@@ -406,10 +417,13 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     try:
         costs = (charts.stored_element_costs(ws, run_id)
                  if name in charts.COST_CHARTS else None)
+        importance = (charts.stored_importance(ws, run_id)
+                      if name == "importance-quadrant" else None)
         return charts.fold_small(
             charts.chart_named(name, per_run=per_run, attribution=attribution,
                                periods=periods, costs=costs, run=run,
-                               y_floor=y_floor, **over_time), min_share)
+                               importance=importance, y_floor=y_floor,
+                               **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 

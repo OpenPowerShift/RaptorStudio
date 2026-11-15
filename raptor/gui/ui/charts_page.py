@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from raptor.api import run_needs
 from raptor.api.insight import charts, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_export
@@ -48,16 +49,17 @@ class _Entry:
     build: Callable[[], charts.ChartSpec | None] | None
     missing: str = ""          # why it cannot be drawn ("" when it can)
     action: str = ""           # a button that fixes it, when there is one
+    needs: tuple[str, ...] = ()  # run options the button turns on (run_needs keys)
 
 
 #: Groups in the order the list shows them.
 GROUPS = ("The answer", "Over time", "Why it goes down", "Lost capacity",
           "Year by year", "Cost", "What matters most")
 
-_RECORD_AO = ("Tick Availability plot under Run panel ▸ Recording and run "
-              "again: these charts are drawn from that recording.")
-_RECORD_CAP = ("Turn on Capacity analysis (System settings) and record the "
-               "capacity plot under Run panel ▸ Recording, then run again.")
+_RECORD_AO = ("These charts are drawn from the availability plot. "
+              + run_needs.gui_hint("availability_plot"))
+_RECORD_CAP = ("These charts are drawn from the capacity plot. "
+               + run_needs.gui_hint("capacity_plot"))
 
 
 class ChartsPage(QWidget):
@@ -66,6 +68,8 @@ class ChartsPage(QWidget):
     locate_requested = Signal(str, str)
     #: the reader asked for the downtime charts before the drivers were worked out
     drivers_requested = Signal()
+    #: the reader asked to switch these run options on (run_needs keys) and run
+    enable_requested = Signal(list)
     #: the reader changed the bottom of the availability axis (saved with the model)
     y_floor_changed = Signal(float)
     #: "availability" or "capacity": save the recorded plot rows (Raptor's rpt_* file)
@@ -200,9 +204,10 @@ class ChartsPage(QWidget):
         self.missing_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.missing_text = QLabel("")
         self.missing_text.setWordWrap(True)
+        self.missing_text.setTextFormat(Qt.TextFormat.RichText)
         self.missing_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.missing_action = QPushButton("")
-        self.missing_action.clicked.connect(self.drivers_requested)
+        self.missing_action.clicked.connect(self._on_missing_action)
         elay.addWidget(self.missing_title)
         elay.addWidget(self.missing_text)
         row = QHBoxLayout()
@@ -345,8 +350,12 @@ class ChartsPage(QWidget):
 
         def add(key: str, title: str, group: str,
                 build: Callable[[], charts.ChartSpec | None] | None,
-                missing: str = "", action: str = "") -> None:
-            entries.append(_Entry(key, title, group, build, missing, action))
+                missing: str = "", action: str = "",
+                needs: tuple[str, ...] = ()) -> None:
+            if missing and needs and not action:
+                action = run_needs.button_text(*needs)
+            entries.append(_Entry(key, title, group, build, missing, action,
+                                  needs if missing else ()))
 
         no_runs = "" if per_run else "No runs yet: run the model (F5)."
         add("trial-outcome", "Run-to-run outcome", "The answer",
@@ -379,7 +388,10 @@ class ChartsPage(QWidget):
                  "" if len(cap) >= 2 else (
                      "Needs the capacity plot of at least 2 runs." if cap
                      else _RECORD_CAP))):
-            add(key, title, "Over time", None, missing)
+            add(key, title, "Over time", None, missing,
+                needs=(("capacity_plot",) if key.startswith("capacity") and not cap
+                       else ("availability_plot",) if not key.startswith("capacity")
+                       and not ao else ()))
 
         if attribution:
             def drivers_missing(_need: str = "") -> str:
@@ -390,8 +402,8 @@ class ChartsPage(QWidget):
             action = "Work out the downtime drivers" if state == "pending" else ""
             reason = ("Work out which elements caused each outage first (it "
                       "replays this run's event log)." if state == "pending" else
-                      "These charts replay the event log: tick Event log under "
-                      "Run panel ▸ Recording and run again.")
+                      "These charts replay the event log. "
+                      + run_needs.gui_hint("attribution"))
 
             def drivers_missing(_need: str = "") -> str:
                 return reason
@@ -419,11 +431,15 @@ class ChartsPage(QWidget):
                 ("frequency-duration", "Frequency against duration",
                  lambda: charts.frequency_duration(a), "")):
             add(key, title, "Why it goes down", build, drivers_missing() or extra,
-                action if not attribution else "")
+                action if not attribution else "",
+                needs=() if attribution or action else ("attribution",))
 
         no_capacity = ("" if a.get("capacity") else
-                       drivers_missing() or "Needs Capacity analysis: turn it on in "
-                       "the System settings and run again.")
+                       drivers_missing() or "Lost capacity needs the capacity "
+                       "analysis. " + run_needs.gui_hint("capacity"))
+        capacity_needs: tuple[str, ...] = (
+            () if a.get("capacity") or action else
+            ("capacity",) if attribution else ("attribution", "capacity"))
         for key, title, build in (
                 ("lost-capacity-pareto", "Who loses the capacity",
                  lambda: charts.lost_capacity_pareto(a)),
@@ -434,32 +450,47 @@ class ChartsPage(QWidget):
                 ("lost-capacity-treemap", "Lost capacity treemap",
                  lambda: charts.lost_capacity_treemap(a))):
             add(key, title, "Lost capacity", build, no_capacity,
-                action if not attribution else "")
+                action if not attribution else "", needs=capacity_needs)
 
         no_years = ("" if periods else drivers_missing() or
                     "Needs a run at least one whole year long, in hours.")
+        years_needs: tuple[str, ...] = (
+            ("attribution",) if not attribution and not action else ())
         p = periods or {}
         add("annual-fan", "Availability year by year", "Year by year",
-            lambda: charts.annual_fan(p), no_years, action if not attribution else "")
+            lambda: charts.annual_fan(p), no_years, action if not attribution else "",
+            needs=years_needs)
         add("annual-dots", "A bad year, as a frequency", "Year by year",
-            lambda: charts.annual_dots(p), no_years, action if not attribution else "")
+            lambda: charts.annual_dots(p), no_years, action if not attribution else "",
+            needs=years_needs)
         add("annual-capacity-fan", "Capacity delivered year by year", "Year by year",
             lambda: charts.annual_capacity_fan(p),
             no_years or ("" if (p.get("capacity") or {}).get("by_index")
-                         else "Needs Capacity analysis as well."),
-            action if not attribution else "")
+                         else "Needs the capacity analysis as well. "
+                         + run_needs.gui_hint("capacity")),
+            action if not attribution else "",
+            needs=years_needs or (() if (p.get("capacity") or {}).get("by_index")
+                                  or not periods else ("capacity",)))
 
         has_cost = any(getattr(rd, "cost", None) is not None for rd in report_data)
-        no_cost = "" if has_cost else ("Needs Cost analysis: turn it on in the "
-                                       "System settings and run again.")
+        no_cost = "" if has_cost else ("Needs the cost analysis. "
+                                       + run_needs.gui_hint("cost"))
+        cost_needs = () if has_cost else ("cost",)
         add("cost-pareto", "Where the money goes", "Cost",
-            lambda: charts.cost_pareto(charts.element_costs(report_data)), no_cost)
+            lambda: charts.cost_pareto(charts.element_costs(report_data)), no_cost,
+            needs=cost_needs)
         add("cost-treemap", "Cost treemap", "Cost",
-            lambda: charts.cost_treemap(charts.element_costs(report_data)), no_cost)
+            lambda: charts.cost_treemap(charts.element_costs(report_data)), no_cost,
+            needs=cost_needs)
+        # the quadrant plots RAW against RRW: only mode "both" has the two
+        quadrant = bool(importance) and (importance or {}).get("mode") in (None, "both")
+        no_quadrant = "" if quadrant else (
+            ("The quadrant needs RAW and RRW, so importance mode Both. "
+             if importance else "Needs importance measures (mode Both). ")
+            + run_needs.gui_hint("importance"))
         add("importance-quadrant", "Importance quadrant", "What matters most",
-            lambda: charts.importance_quadrant(importance or {}),
-            "" if importance else "Needs importance measures: tick Importance "
-            "under Run panel ▸ Analyses and run again.")
+            lambda: charts.importance_quadrant(importance or {}), no_quadrant,
+            needs=() if quadrant else ("importance",))
         return entries
 
     # -- showing a chart ------------------------------------------------
@@ -519,6 +550,13 @@ class ChartsPage(QWidget):
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart)
+
+    def _on_missing_action(self) -> None:
+        entry = self._entries.get(self.selected_key() or "")
+        if entry is not None and entry.needs:
+            self.enable_requested.emit(list(entry.needs))
+        else:
+            self.drivers_requested.emit()
 
     def _show_missing(self, title: str, text: str, action: str) -> None:
         self.chart.set_spec(None)

@@ -8,6 +8,7 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.workspace import RunArtefactsError
+from raptor.api.run_needs import how
 
 
 class NoAttribution(RunArtefactsError):
@@ -20,7 +21,7 @@ def read(workspace: Any, run_id: str) -> dict[str, Any]:
     path = run_dir(workspace, run_id) / "attribution.json"
     if not path.is_file():
         raise NoAttribution(
-            f"run {run_id!r} has no downtime attribution; run it again with attribution on")
+            f"run {run_id!r} has no downtime attribution: {how('attribution')}")
     return json.loads(path.read_text())
 
 

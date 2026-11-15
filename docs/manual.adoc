@@ -545,10 +545,15 @@ After a run (or a stepped Finish) the Results dock offers:
   interval and across all runs; capacity through a run and across all
   runs), *Why it goes down*, *Lost capacity*, *Year by year*, *Cost* and
   *What matters most*. Click a group heading to fold it. A chart the run
-  cannot draw stays in the list, greyed; choosing it says what to tick
-  or turn on (for the charts over time, Availability Plot or Capacity
-  Plot under Run panel ▸ Recording) and, for the downtime charts, offers
-  to work out the drivers there and then. Above the chart are only the
+  cannot draw stays in the list, greyed; choosing it names the check box
+  to tick and where it is (for example *Detailed event log* under Run
+  panel ▸ Recording for the downtime charts, *Cost* under Run panel ▸
+  Analysis for the cost charts) and offers a button, *Turn on … and run*,
+  that ticks it as one undoable step and runs again. When the event log
+  is there but the drivers have not been worked out yet, the button works
+  them out instead. The Drivers tab has the same button. Over MCP and on
+  the command line the same message names `simulate(attribution=true)`,
+  `--analysis cost` and so on, so the switch is never a guess. Above the chart are only the
   controls it uses: **Run** for a one-run chart over time, **Axis from**
   for an availability chart over time, **Fold items below** for a
   ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
@@ -1203,21 +1208,23 @@ The four kinds are:
 |===
 |Toggle |Collects
 
-|Event Log
-|Each run's event log for the Results ▸ Event Log tab (on by
+|Detailed event log
+|Each run's event log for the Results ▸ Event Log tab, and everything
+worked out from it: the Drivers tab, the downtime and year-by-year
+charts, the Story's drivers and the canvas's downtime layer (on by
 default).
 
-|Availability Plot
+|Availability plot
 |The availability charts over time on the Charts tab (the
 availability plot file).
 
-|Capacity Plot
+|Capacity plot
 |The capacity charts over time on the Charts tab and the live
-per-node capacity readouts (capacity plot file). Requires Capacity
-Analysis.
+per-node capacity readouts (capacity plot file). Requires the
+*Capacity* analysis.
 
-|Cost Plot
-|Interim cost rows (interim cost file). Requires Cost Analysis.
+|Interim cost
+|Interim cost rows (interim cost file). Requires the *Cost* analysis.
 |===
 
 Use **Charts ▸ Export ▸ Save the recorded plot rows** to save a plot's rows to a file. If a FailSim/CycleSim run reaches the

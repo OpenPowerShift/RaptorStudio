@@ -280,3 +280,20 @@ def test_a_hollow_tornado_bar_cannot_be_applied(win):
     chosen = dlg.selection()
     assert chosen is not None and chosen[0] == ("Pump repair", "high")
     assert dlg._apply_btn.toolTip() == ""
+
+
+def test_turn_on_and_run_is_one_undo_step_and_runs(win, monkeypatch):
+    runs = []
+    monkeypatch.setattr(win, "_run_simulation", lambda: runs.append(1))
+    stack = win._diagram_dock.view._stack
+    before = stack.index()
+    win._results.enable_requested.emit(["capacity_plot", "importance"])
+    experiment = win._current_experiment()
+    assert "capacity" in experiment["analyses"] and experiment["recording"]["capacity_plot"]
+    assert experiment["importance"] == "both"
+    assert stack.index() == before + 1 and runs == [1]
+    assert win._run_panel._recording_checks["capacity_plot"].isChecked()
+    stack.undo()
+    experiment = win._current_experiment()
+    assert "capacity" not in experiment["analyses"]
+    assert not experiment["recording"]["capacity_plot"] and experiment["importance"] != "both"

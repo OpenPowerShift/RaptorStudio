@@ -17,18 +17,20 @@ from typing import Any
 
 from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
-from PySide6.QtWidgets import QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout,
+                               QWidget)
 
+from raptor.api import run_needs
 from raptor.api.insight.anatomy import Cell, icicle
 from raptor.api.insight.attribution import CAUSE_LABELS, CAUSES
 from raptor.api.insight.drivers import caption, top
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.chart_theme import cause_brush, cause_colour, has_pattern
 
-EMPTY_TEXT = ("Run the model with the Event Log switched on (Run panel ▸ Recording) to see "
-              "what causes its downtime: which elements start the outages, and whether "
-              "the time goes on repair, waiting for spares, waiting for a crew or "
-              "planned maintenance.")
+EMPTY_TEXT = ("See what causes the downtime: which elements start the outages, and "
+              "whether the time goes on repair, waiting for spares, waiting for a crew "
+              "or planned maintenance. These are worked out from the event log. "
+              + run_needs.gui_hint("attribution"))
 NO_OUTAGE_TEXT = "No system outage occurred in {runs:,} runs, so there is no downtime to explain."
 NO_OUTAGE_CAPACITY_TEXT = ("The system never went Red in {runs:,} runs, but some demand was "
                           "still not delivered: the capacity loss is below.")
@@ -488,6 +490,8 @@ class DriversPage(QWidget):
     """The Results dock's Drivers tab."""
 
     element_clicked = Signal(str, int, str)
+    #: "Turn on Detailed event log and run": the run_needs keys to switch on
+    enable_requested = Signal(list)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -497,6 +501,9 @@ class DriversPage(QWidget):
         self.caption.setWordWrap(True)
         self.caption.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.caption)
+        self.turn_on = QPushButton(run_needs.button_text("attribution"))
+        self.turn_on.clicked.connect(lambda: self.enable_requested.emit(["attribution"]))
+        lay.addWidget(self.turn_on, 0, Qt.AlignmentFlag.AlignLeft)
         self.years = QLabel("")
         self.years.setWordWrap(True)
         self.years.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -518,6 +525,7 @@ class DriversPage(QWidget):
         self._attribution = attribution
         has_outages = bool(attribution and top(attribution, 1))
         has_capacity = bool(attribution and (attribution.get("capacity") or {}).get("elements"))
+        self.turn_on.setVisible(attribution is None)
         if attribution is None:
             self.caption.setText(EMPTY_TEXT)
         elif not has_outages and not has_capacity:

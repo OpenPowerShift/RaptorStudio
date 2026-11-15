@@ -102,3 +102,32 @@ def test_explain_yearly(capsys, tmp_path):
     assert "90 periods of 1,000 hours from 30 runs" in out and "Pooled:  P1" in out
     assert main(["explain", str(path), "--seed", "5", "--yearly", "-f", "json"]) == X.OK
     assert json.loads(capsys.readouterr().out)["periods"]["pooled"]["n"] == 0   # runs under a year
+
+
+def test_explain_runs_the_analyses_a_chart_needs(capsys, tmp_path):
+    path = tmp_path / "m.rbds"
+    save_rbds(build.build_from_spec(SPEC), str(path))
+    assert main(["explain", str(path), "--seed", "5", "--runs", "4",
+                 "--importance", "both", "--chart", "importance-quadrant"]) == X.OK
+    assert "Importance on availability" in capsys.readouterr().out
+    assert main(["explain", str(path), "--seed", "5", "--runs", "4",
+                 "--analysis", "cost", "--chart", "cost-pareto"]) == X.OK
+    assert "Where the money goes" in capsys.readouterr().out
+
+
+def test_a_missing_option_names_the_switch():
+    from raptor.api.insight import charts
+    with pytest.raises(ValueError) as info:
+        charts.chart_named("importance-quadrant", attribution={})
+    assert "--importance both" in str(info.value)
+    assert 'simulate(importance="both")' in str(info.value)
+    assert "Importance measures under Run panel ▸ Analysis" in str(info.value)
+    with pytest.raises(ValueError) as info:
+        charts.chart_named("importance-quadrant", importance={"mode": "risk", "metrics": {}})
+    assert "mode both" in str(info.value)
+    with pytest.raises(ValueError) as info:
+        charts.chart_named("lost-capacity-pareto")
+    assert "downtime attribution and capacity analysis" in str(info.value)
+    assert charts.cost_pareto([]).caption.startswith("This chart needs cost analysis")
+    assert charts.cost_pareto([{"name": "Pump", "total": 0.0}]).caption == (
+        "No element has a cost in this run.")

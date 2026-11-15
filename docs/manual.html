@@ -932,10 +932,15 @@ settled), <strong>Over time</strong> (availability through a run, interval by
 interval and across all runs; capacity through a run and across all
 runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by year</strong>, <strong>Cost</strong> and
 <strong>What matters most</strong>. Click a group heading to fold it. A chart the run
-cannot draw stays in the list, greyed; choosing it says what to tick
-or turn on (for the charts over time, Availability Plot or Capacity
-Plot under Run panel ▸ Recording) and, for the downtime charts, offers
-to work out the drivers there and then. Above the chart are only the
+cannot draw stays in the list, greyed; choosing it names the check box
+to tick and where it is (for example <strong>Detailed event log</strong> under Run
+panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
+Analysis for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
+that ticks it as one undoable step and runs again. When the event log
+is there but the drivers have not been worked out yet, the button works
+them out instead. The Drivers tab has the same button. Over MCP and on
+the command line the same message names <code>simulate(attribution=true)</code>,
+<code>--analysis cost</code> and so on, so the switch is never a guess. Above the chart are only the
 controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
 for an availability chart over time, <strong>Fold items below</strong> for a
 ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
@@ -1813,24 +1818,26 @@ never held in RAM.</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Event Log</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Each run&#8217;s event log for the Results ▸ Event Log tab (on by
+<td class="tableblock halign-left valign-top"><p class="tableblock">Detailed event log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Each run&#8217;s event log for the Results ▸ Event Log tab, and everything
+worked out from it: the Drivers tab, the downtime and year-by-year
+charts, the Story&#8217;s drivers and the canvas&#8217;s downtime layer (on by
 default).</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Availability Plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability plot</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The availability charts over time on the Charts tab (the
 availability plot file).</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity Plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity plot</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The capacity charts over time on the Charts tab and the live
-per-node capacity readouts (capacity plot file). Requires Capacity
-Analysis.</p></td>
+per-node capacity readouts (capacity plot file). Requires the
+<strong>Capacity</strong> analysis.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost rows (interim cost file). Requires Cost Analysis.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost rows (interim cost file). Requires the <strong>Cost</strong> analysis.</p></td>
 </tr>
 </tbody>
 </table>

@@ -27,6 +27,7 @@ import itertools
 import re
 import weakref
 
+from raptor.api import run_needs
 from raptor.api.presentation import probability_text
 from raptor.gui.ui.qtcompat import req
 
@@ -104,6 +105,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
     contents_changed = Signal()
+    #: a chart or the Drivers tab asked to switch run options on (run_needs
+    #: keys) and run again
+    enable_requested = Signal(list)
     #: User switched Raptor 7 Analysis Type in the Weak Link tab.
     weak_analysis_type_changed = Signal(str)
     #: The metric the Importance tab is measured on changed. The canvas
@@ -151,6 +155,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
         self._period_summary: dict | None = None
+        self._drivers_page.enable_requested.connect(self.enable_requested)
         self._tabs.addTab(self._drivers_page, "Drivers")
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
@@ -1118,9 +1123,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._log_disabled_label = QLabel(
             "No event log is available for this result set — either "
             "Detailed event log was off, or the run stopped before any "
-            "event was recorded.\n\nEnable it in the Run panel ▸ "
-            "Recording (Detailed event log). For long simulations the "
-            "event log may use significant disk space.")
+            "event was recorded.<br><br>"
+            + run_needs.gui_hint("attribution")
+            + " For long simulations the event log may use significant "
+            "disk space.")
         self._log_disabled_label.setWordWrap(True)
         self._log_disabled_label.setVisible(False)
         # Filter-specific empty state: a carried-over filter that matches

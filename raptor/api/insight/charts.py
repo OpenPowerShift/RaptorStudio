@@ -18,6 +18,13 @@ from raptor.api.insight.attribution import CAUSES, CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots
 from raptor.api.insight import measures
 from raptor.api.insight.axes import pct
+from raptor.api.run_needs import message
+
+
+def _needs(key: str) -> str:
+    """A caption that says which option to turn on, as a sentence."""
+    text = message(key)
+    return f"{text[0].upper()}{text[1:]}."
 
 
 @dataclass
@@ -323,7 +330,7 @@ def importance_quadrant(importance: dict[str, Any],
         "RAW", "RRW", series=points,
         marks=[{"kind": "cross", "x": 1.0, "y": 1.0}],
         caption=("Points far above and right of 1 are both critical and worth "
-                 "fixing." if points else "No importance measures."),
+                 "fixing." if points else "No block has both a RAW and an RRW."),
         provenance={"metric": metric})
 
 
@@ -431,6 +438,19 @@ def stored_element_costs(workspace: Any, run_id: str) -> list[dict[str, Any]]:
 COST_CHARTS = ("cost-pareto", "cost-treemap")
 
 
+def stored_importance(workspace: Any, run_id: str) -> dict[str, Any] | None:
+    """The importance measures a stored run made, or None (its summary
+    keeps them; `importance-quadrant` reads them)."""
+    import json
+    from raptor.api.run import run_dir
+    path = run_dir(workspace, run_id) / "summary.json"
+    try:
+        found = json.loads(path.read_text()).get("importance")
+    except (OSError, ValueError):
+        return None
+    return found if isinstance(found, dict) else None
+
+
 def _float(value: Any) -> float:
     try:
         return float(str(value).replace(",", ""))
@@ -453,7 +473,8 @@ def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
                 for name, value in rows],
         caption=(f"{rows[0][0]} carries the largest cost "
                  f"({pct(rows[0][1] / grand)})."
-                 if rows and grand else "No cost analysis in this run."),
+                 if rows and grand else
+                 "No element has a cost in this run." if costs else _needs("cost")),
         provenance={"grand_total": grand, "format": "money"})
 
 
@@ -480,7 +501,7 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
         "element", "share", series=series,
         caption=(f"{rows[0]['name']} loses the largest share of capacity "
                  f"({pct(rows[0]['share']['mean'] or 0)})."
-                 if rows else "No capacity attribution in this run."),
+                 if rows else _needs("capacity")),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
@@ -507,7 +528,7 @@ def capacity_vs_downtime(attribution: dict[str, Any],
         "share of lost capacity", series=points,
         marks=[{"kind": "diagonal"}],
         caption=("Points above the diagonal are understated by availability "
-                 "alone." if points else "No capacity attribution in this run."),
+                 "alone." if points else _needs("capacity")),
         provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
 
@@ -533,7 +554,7 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
         "share of lost energy", series=steps,
         caption=(f"The largest loss is {steps[0]['name'].lower()} "
                  f"({pct(steps[0]['value'])} of lost energy)."
-                 if steps else "No capacity attribution in this run."),
+                 if steps else _needs("capacity")),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
@@ -552,7 +573,7 @@ def annual_capacity_fan(periods: dict[str, Any]) -> ChartSpec:
                     f"delivered moves from {100 * rows[0]['p50']:.4g} % to "
                     f"{100 * rows[-1]['p50']:.4g} %."
                     if len(rows) > 1 else
-                    "No capacity analysis in this run, or not enough periods.")
+                    _needs("capacity") + " (or the run is shorter than one period)")
     return spec
 
 
@@ -969,9 +990,13 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
                           generated=generated.get("generated"),
                           ends=ends if any(e is not None for e in ends) else None)
 
+    capacity_chart = name in ("lost-capacity-treemap", "lost-capacity-pareto",
+                              "capacity-vs-downtime", "capacity-waterfall")
+
     def need_attribution() -> dict[str, Any]:
         if attribution is None:
-            raise ValueError("this chart needs downtime attribution")
+            raise ValueError(message("attribution", *(("capacity",) if capacity_chart
+                                                      else ())))
         return attribution
 
     def _need(value: Any, what: str) -> dict[str, Any]:
@@ -983,8 +1008,10 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         return costs if costs is not None else element_costs(report_data or [])
 
     def need_importance() -> dict[str, Any]:
-        if importance is None:
-            raise ValueError("this chart needs importance measures")
+        if importance is None or importance.get("mode") not in (None, "both"):
+            # the quadrant plots RAW against RRW: "improvement" has no RAW
+            # and "risk" no RRW, so only "both" can draw it
+            raise ValueError(message("importance"))
         return importance
 
     builders = {

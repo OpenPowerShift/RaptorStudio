@@ -62,7 +62,8 @@ still untouched.
 
 === Then the spares
 
-Run the model with attribution on (the Run panel's Analysis box in the
+Run the model with attribution on (*Detailed event log* under Run panel ▸
+Recording in the
 window, `attribution=True` in MCP; on the command line `raptor advise
 --simulate` runs it for you) and ask for the after-run findings:
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
+from raptor.api.run_needs import message
 
 LAYERS = ("downtime-share", "lost-capacity")
 
@@ -97,8 +98,7 @@ def canvas_layer(attribution: dict[str, Any], layer: str) -> dict[str, Any]:
     else:
         capacity = (attribution.get("capacity") or {}).get("elements")
         if not capacity:
-            raise ValueError("this layer needs the lost-capacity split: run with "
-                             "capacity analysis")
+            raise ValueError(message("attribution", "capacity", subject="this layer"))
         source = [(r["kind"], r["id"], r["name"], r.get("share") or {}) for r in capacity]
         # colour by what caused the lost capacity, not the element's downtime
         downtime = {**downtime, **{(r["kind"], r["id"]): r for r in capacity

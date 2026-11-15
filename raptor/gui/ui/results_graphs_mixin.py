@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from raptor.api import run_needs
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import msgbox
 from raptor.gui.ui.qtcompat import req
@@ -33,6 +34,7 @@ class ResultsGraphsMixin(_Base):
         _source_file_name: str
         _status_hint_f: Any  # really Any | None
         y_axis_min_changed: PySide6.QtCore.SignalInstance
+        enable_requested: PySide6.QtCore.SignalInstance
 
         def _refresh_drivers(self) -> None: ...
 
@@ -43,6 +45,7 @@ class ResultsGraphsMixin(_Base):
         page.y_floor_changed.connect(self.y_axis_min_changed.emit)
         page.raw_export_requested.connect(self._export_graph_data)
         page.drivers_requested.connect(self._refresh_drivers)
+        page.enable_requested.connect(self.enable_requested)
         self._charts_page = page
 
     def set_y_axis_min(self, value: float) -> None:
@@ -74,8 +77,9 @@ class ResultsGraphsMixin(_Base):
         lines = self._stream_lines(src)
         if not lines:
             self._status_hint_f and self._status_hint_f(
-                "No plot data collected — tick the plot under Run panel ▸ "
-                "Recording and run again")
+                "No plot data collected: " + run_needs.gui_hint(
+                    "capacity_plot" if kind == "capacity" else "availability_plot")
+                .replace("<b>", "").replace("</b>", ""))
             return
         base = (self._source_file_name or "model").rsplit(".", 1)[0]
         safe = "".join(c if c.isalnum() or c in "_-" else "_"

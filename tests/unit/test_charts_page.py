@@ -90,11 +90,13 @@ def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
     # listed, but greyed with what the run needs
     assert "Where the money goes" in _all_titles(page)
     assert "Where the money goes" not in drawable
-    assert "Cost analysis" in page.missing_reason("cost-pareto")
-    assert "Availability plot" in page.missing_reason("availability-band")
+    # the control's own label and where it is
+    assert "<b>Cost</b> under Run panel ▸ Analysis" in page.missing_reason("cost-pareto")
+    assert "<b>Availability plot</b> under Run panel ▸ Recording" in page.missing_reason(
+        "availability-band")
     page.select("cost-pareto")
     assert page.stack.currentIndex() == 1
-    assert "Cost analysis" in page.missing_text.text()
+    assert "Cost</b> under Run panel" in page.missing_text.text()
 
 
 def test_the_list_is_grouped_by_question(qapp):
@@ -170,7 +172,36 @@ def test_the_downtime_charts_offer_to_work_out_the_drivers(qapp):
     page.missing_action.click()
     assert spy.count() == 1
     page.set_inputs(per_run=_inputs()[0], drivers="unavailable")
-    assert "Event log" in page.missing_reason("downtime-pareto")
+    assert "<b>Detailed event log</b> under Run panel ▸ Recording" in page.missing_reason(
+        "downtime-pareto")
+
+
+@pytest.mark.parametrize("chart, needs, label", [
+    ("downtime-pareto", ["attribution"], "Turn on Detailed event log and run"),
+    ("lost-capacity-pareto", ["attribution", "capacity"],
+     "Turn on Detailed event log and Capacity and run"),
+    ("capacity-band", ["capacity_plot"], "Turn on Capacity and Capacity plot and run"),
+    ("availability-band", ["availability_plot"], "Turn on Availability plot and run"),
+    ("cost-pareto", ["cost"], "Turn on Cost and run"),
+    ("importance-quadrant", ["importance"], "Turn on Importance measures and run"),
+])
+def test_a_greyed_chart_offers_to_turn_its_option_on_and_run(qapp, chart, needs, label):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], drivers="unavailable")
+    spy = QSignalSpy(page.enable_requested)
+    page.select(chart)
+    assert page.stack.currentIndex() == 1
+    assert page.missing_action.isVisibleTo(page)
+    assert page.missing_action.text() == label
+    page.missing_action.click()
+    assert spy.count() == 1 and spy.at(0)[0] == needs
+
+
+def test_an_importance_run_without_raw_says_to_choose_both(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], importance={
+        "mode": "improvement", "metrics": {"Availability": {"rows": []}}})
+    assert "mode Both" in page.missing_reason("importance-quadrant")
 
 
 def test_the_selection_survives_new_results(qapp):
