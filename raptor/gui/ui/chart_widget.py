@@ -28,7 +28,8 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QToolTip, QWidge
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    format_value, nice_range, nice_ticks, stack_dots, tick_text,
+    format_value, nice_range, nice_ticks, pct, place_labels, stack_dots,
+    tick_text,
 )
 from raptor.api.insight.charts import ChartSpec
 from raptor.gui.resources.design_tokens import active_colour
@@ -236,8 +237,11 @@ class ChartWidget(QWidget):
                 for cause in (row.get("causes") or {}):
                     add(cause)
         elif spec.kind in ("waterfall", "treemap", "icicle"):
+            # a cell with no cause ("(no single element)", "N others") is
+            # painted as Other, so the key must list Other for it
             for row in spec.series:
-                add(row.get("cause"))
+                cause = row.get("cause")
+                add(cause if cause and str(cause) != "None" else "other")
         return seen
 
     def _key_entries(self, painter: QPainter, spec: ChartSpec,
@@ -496,7 +500,7 @@ class ChartWidget(QWidget):
                            else float(p["value"]) <= target)), default=0.0)
             self._target_line(painter, palette, frame, target, horizontal=True,
                               label=f"target {self._value(target, 5)}: "
-                                    f"{100 * met:.3g} % of runs reach it")
+                                    f"{pct(met)} of runs reach it")
 
         def read(px: float) -> list[tuple[QPointF, str]]:
             share = min(1.0, max(1.0 / len(values) if values else 0.0,
@@ -505,7 +509,7 @@ class ChartWidget(QWidget):
                           if float(p["share"]) >= share - 1e-12),
                          float(points[-1]["value"]))
             return [(QPointF(frame.x(share), frame.y(value)),
-                     f"{100 * share:.3g} % of runs reached {word} "
+                     f"{pct(share)} of runs reached {word} "
                      f"{format_value(value, fmt, 5)}")]
 
         self._probe = (frame, read)
@@ -573,7 +577,7 @@ class ChartWidget(QWidget):
             tip = f"{row['name']}: {label}"
             if causes:
                 tip += "\n" + "\n".join(
-                    f"  {CAUSE_LABELS.get(c, c)}: {100 * float(v):.3g} %"
+                    f"  {CAUSE_LABELS.get(c, c)}: {pct(float(v))}"
                     for c, v in causes.items())
             self._hit(QRectF(area.left(), top, gutter + max(8.0, width), bar_h),
                       "element", str(row["name"]), tip)
@@ -582,7 +586,7 @@ class ChartWidget(QWidget):
         if money:
             text = format_value(float(row["value"]), "money")
             if _number(row.get("share")):
-                text += f" ({100 * float(row['share']):.3g} %)"
+                text += f" ({pct(float(row['share']))})"
             return text
         text = self._value(float(row["value"]), 3)
         if _number(row.get("availability")):
@@ -626,12 +630,18 @@ class ChartWidget(QWidget):
                 painter.drawLine(QPointF(cell.right(), y1),
                                  QPointF(cell.right() + width * 0.3, y1))
             drop = (f"−{_points(float(step['value']))} pts" if _number(operational)
-                    else f"{100 * float(step['value']):.3g} %")
+                    else f"{pct(float(step['value']))}")
             painter.setPen(QColor(palette["text"]))
             # Under the step, where the fall ends, unless that is the axis:
             # then just inside the top of the bar, in the bar's own ink.
             if max(y0, y1) + fm.height() + 2 < r.bottom():
                 painter.drawText(QRectF(x, max(y0, y1) + 2, width, fm.height()),
+                                 Qt.AlignmentFlag.AlignHCenter, drop)
+            elif abs(y0 - y1) < fm.height() + 6:
+                # a sliver on the axis: the label sits above it, clear of
+                # the column name under the axis
+                painter.drawText(QRectF(x, min(y0, y1) - fm.height() - 2, width,
+                                        fm.height()),
                                  Qt.AlignmentFlag.AlignHCenter, drop)
             else:
                 painter.setPen(cause_ink(cause))
@@ -767,18 +777,25 @@ class ChartWidget(QWidget):
                            x_fmt=fmt if x_fmt is None else x_fmt,
                            y_fmt=fmt if y_fmt is None else y_fmt)
 
-    def _label_point(self, painter, palette, frame: _Frame, x: float, y: float,
-                     radius: float, text: str) -> None:
+    def _label_points(self, painter, palette, frame: _Frame,
+                      items: list[tuple[float, float, float, str]]) -> None:
+        """Label every point without two labels on top of each other: a
+        crowded label moves out and a thin leader joins it to its dot."""
         fm = QFontMetrics(self.font())
-        w = fm.horizontalAdvance(text) + 4
         r = frame.rect
-        left = min(max(r.left(), x - w / 2), r.right() - w)
-        top = y - radius - fm.height() - 1
-        if top < r.top():
-            top = y + radius + 1
-        painter.setPen(QColor(palette["text"]))
-        painter.drawText(QRectF(left, top, w, fm.height()),
-                         Qt.AlignmentFlag.AlignHCenter, text)
+        placed = place_labels([(x, y, radius) for x, y, radius, _t in items],
+                              [(fm.horizontalAdvance(t) + 4, fm.height())
+                               for *_xy, t in items],
+                              (r.left(), r.top(), r.width(), r.height()))
+        for (x, y, radius, text), (rect, end) in zip(items, placed, strict=True):
+            if end is not None:
+                painter.setPen(QPen(QColor(palette["muted"]), 0.8))
+                dx, dy = end[0] - x, end[1] - y
+                dist = max(1e-6, (dx * dx + dy * dy) ** 0.5)
+                painter.drawLine(QPointF(x + dx / dist * radius, y + dy / dist * radius),
+                                 QPointF(*end))
+            painter.setPen(QColor(palette["text"]))
+            painter.drawText(QRectF(*rect), Qt.AlignmentFlag.AlignCenter, text)
 
     def _paint_bubble(self, painter, spec, palette, area) -> None:
         points = [p for p in spec.series if _number(p.get("x")) and _number(p.get("y"))]
@@ -789,17 +806,19 @@ class ChartWidget(QWidget):
         area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
         fill = QColor(palette["accent"])
         fill.setAlpha(110)
+        labels = []
         for point in sorted(points, key=lambda p: -float(p.get("area") or 0)):
             x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
             radius = 4 + 20 * (float(point.get("area") or 0) / area_peak) ** 0.5
             painter.setPen(QPen(QColor(palette["accent"]), 1.2))
             painter.setBrush(fill)
             painter.drawEllipse(QPointF(x, y), radius, radius)
-            self._label_point(painter, palette, frame, x, y, radius, str(point["name"]))
+            labels.append((x, y, radius, str(point["name"])))
             self._hit(QRectF(x - radius, y - radius, radius * 2, radius * 2),
                       "element", str(point["name"]),
-                      f"{point['name']}: {100 * float(point['x']):.3g} % of outages, "
-                      f"{100 * float(point.get('area') or 0):.3g} % of downtime")
+                      f"{point['name']}: {pct(float(point['x']))} of outages, "
+                      f"{pct(float(point.get('area') or 0))} of downtime")
+        self._label_points(painter, palette, frame, labels)
 
     def _paint_quadrant(self, painter, spec, palette, area) -> None:
         points = [p for p in spec.series if _number(p.get("x")) and _number(p.get("y"))]
@@ -815,14 +834,16 @@ class ChartWidget(QWidget):
                      f"{p['name']}: RAW {float(p['x']):.3g}, RRW {float(p['y']):.3g}")
 
     def _points(self, painter, palette, frame, points, tip) -> None:
+        labels = []
         for point in points:
             x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(palette["accent"]))
             painter.drawEllipse(QPointF(x, y), 4.5, 4.5)
-            self._label_point(painter, palette, frame, x, y, 5, str(point["name"]))
+            labels.append((x, y, 5.0, str(point["name"])))
             self._hit(QRectF(x - 6, y - 6, 12, 12), "element", str(point["name"]),
                       tip(point))
+        self._label_points(painter, palette, frame, labels)
 
     def _paint_scatter(self, painter, spec, palette, area) -> None:
         points = [p for p in spec.series if _number(p.get("x")) and _number(p.get("y"))]
@@ -834,8 +855,8 @@ class ChartWidget(QWidget):
             painter.setPen(QPen(QColor(palette["muted"]), 1, Qt.PenStyle.DashLine))
             painter.drawLine(QPointF(r.left(), r.bottom()), QPointF(r.right(), r.top()))
         self._points(painter, palette, frame, points, lambda p:
-                     f"{p['name']}: {100 * float(p['x']):.3g} % of downtime, "
-                     f"{100 * float(p['y']):.3g} % of lost capacity")
+                     f"{p['name']}: {pct(float(p['x']))} of downtime, "
+                     f"{pct(float(p['y']))} of lost capacity")
 
     def _paint_convergence(self, painter, spec, palette, area) -> None:
         points = [p for p in spec.series if _number(p.get("mean"))]
@@ -953,8 +974,8 @@ class ChartWidget(QWidget):
                                            int(gutter - 8)))
             self._hit(QRectF(area.left(), top, gutter + r.width(), 2 * bar_h + 2),
                       "element", str(row["name"]),
-                      f"{row['name']}: {100 * float(row.get('value') or 0):.3g} % of "
-                      f"lost capacity, {100 * float(row.get('downtime') or 0):.3g} % "
+                      f"{row['name']}: {pct(float(row.get('value') or 0))} of "
+                      f"lost capacity, {pct(float(row.get('downtime') or 0))} "
                       "of downtime")
         painter.setPen(QColor(palette["text"]))
         for rect, text in labels:
@@ -1121,7 +1142,7 @@ class ChartWidget(QWidget):
             fmt = str(spec.provenance.get("format") or "percent")
             amount = format_value(float(row["value"]), fmt, 3)
             if fmt != "percent" and _number(row.get("share")):
-                amount += f" ({100 * float(row['share']):.3g} %)"
+                amount += f" ({pct(float(row['share']))})"
             self._cell_text(painter, cell, cause, [str(row["name"]), amount])
             what = str(spec.provenance.get("measure") or "system downtime")
             labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}

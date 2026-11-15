@@ -23,6 +23,7 @@ number of findings under it, the findings in its `<title>`, and each
 hierarchy oval with the count of what is flagged inside it.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from dataclasses import dataclass
@@ -450,12 +451,12 @@ def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, An
         elif s.kind == "hier" and s.id in rolled:
             total, count, inside = rolled[s.id]
             own = (pooled or {}).get(s.id)
-            spread = (f"; ±2 SE {100 * own['low']:.3g} to {100 * own['high']:.3g} %, pooled over the runs"
+            spread = (f"; ±2 SE {100 * own['low']:.3g} to {pct(own['high'])}, pooled over the runs"
                       if own is not None and own.get("low") is not None else "")
             out.append(f'<text x="{s.cx:.1f}" y="{s.cy + HIER_H / 2 + 12:.1f}" font-size="10" '
                        f'font-weight="bold" fill="{c["text"]}" text-anchor="middle">'
                        f'<title>{escape(f"{count} element(s) inside{spread}")}</title>'
-                       f'Σ {100 * total:.3g} %</text>')
+                       f'Σ {pct(total)}</text>')
             out.extend(_scent_svg(s, inside, total, c))
     x, bottom = legend_at
     for i, line in enumerate(legend):
@@ -479,7 +480,7 @@ def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
         return []
     top3 = sorted(inside, key=lambda r: -float(r.get("value") or 0.0))[:3]
     x0, y = s.cx - SCENT_W / 2, s.cy + HIER_H / 2 + 16
-    words = ", ".join(f"{r.get('name')} {100 * float(r.get('value') or 0.0) / total:.3g} %"
+    words = ", ".join(f"{r.get('name')} {pct(float(r.get('value') or 0.0) / total)}"
                       for r in top3)
     out = [f'<g class="scent"><title>{escape(f"Inside: {words} of the total; colour = main cause")}</title>',
            f'<rect x="{x0:.1f}" y="{y:.1f}" width="{SCENT_W:.1f}" height="5" fill="{c["link"]}" '
@@ -637,7 +638,7 @@ def _mark_svg(s: _Shape, row: dict[str, Any], c: dict[str, str]) -> str:
     hw, hh = s.half
     value = 100 * float(row.get("value") or 0.0)
     label = f"{value:.3g} %" + (" ±" if row.get("uncertain") else "")
-    spread = (f" (±2 SE {100 * row['low']:.3g} to {100 * row['high']:.3g} %)"
+    spread = (f" (±2 SE {100 * row['low']:.3g} to {pct(row['high'])})"
               if row.get("low") is not None and row.get("high") is not None else "")
     title = escape(f"{row.get('name')}: {value:.4g} %{spread}; main cause "
                    f"{row.get('cause_label') or 'none recorded'}")

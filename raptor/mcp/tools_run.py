@@ -7,6 +7,7 @@ itself.  Output discipline (row caps, ``resource_link``s, image caps) is
 enforced here.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 import os
@@ -1254,14 +1255,14 @@ def _what_if_markdown(comparison: Any) -> str:
         if sem:
             change += (f" ± {100 * sem:.3g}" if fraction else f" ± {sem:.3g}")
         chance = metric.get("p_better")
-        tail = ("—" if chance is None else f"{100 * chance:.3g} %")
+        tail = ("—" if chance is None else f"{pct(chance)}")
         lines.append(f"| {metric['label']} | {fmt(base)} | {fmt(value)} | "
                      f"{change} | {tail} |")
     lines.append("")
     lines.append(comparison.caption)
     cut = (comparison.variance_reduction or {}).get("availability")
     if cut is not None:
-        lines.append(f"Pairing cut the variance by {100 * cut:.3g} %.")
+        lines.append(f"Pairing cut the variance by {pct(cut)}.")
     return "\n".join(lines)
 
 

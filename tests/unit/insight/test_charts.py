@@ -376,3 +376,25 @@ def test_fold_small_leaves_other_charts_and_single_items_alone():
     assert charts.fold_small(one_small, 0.05) is one_small
     assert charts.fold_small(charts.downtime_pareto(_many()), 0.0).series[-1][
         "name"] == "E7"
+
+
+def test_the_capacity_scatter_keeps_an_element_with_no_system_downtime():
+    # in a 2-of-3 a pump loses flow without ever taking the system down:
+    # exactly the point the chart is for, at x = 0
+    attribution = {"runs": 2,
+                   "elements": [{"name": "Valve", "dtci": {"mean": 1.0}}],
+                   "capacity": {"elements": [
+                       {"name": "Pump", "share": {"mean": 0.7}},
+                       {"name": "Valve", "share": {"mean": 0.3}},
+                       {"name": "(no single element)", "share": {"mean": 0.0}}]}}
+    spec = charts.capacity_vs_downtime(attribution)
+    assert {p["name"]: (p["x"], p["y"]) for p in spec.series} == {
+        "Pump": (0.0, 0.7), "Valve": (1.0, 0.3)}
+
+
+def test_lost_capacity_treemap_prefers_the_capacity_cause():
+    from raptor.api.insight.charts import lost_capacity_treemap
+    attribution = {"runs": 1, "elements": [],
+                   "capacity": {"elements": [
+                       {"name": "Pump", "share": {"mean": 1.0}, "main_cause": "pm"}]}}
+    assert lost_capacity_treemap(attribution).series[0]["cause"] == "pm"

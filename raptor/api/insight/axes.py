@@ -90,6 +90,22 @@ def _money(value: float, step: float | None = None) -> str:
     return f"{value:,.0f}" if size >= 10 or value == 0 else f"{value:.3g}"
 
 
+#: below this many percent a share is printed as "< 0.01 %", never as
+#: 4.73e-09 %: a number that small only says "almost none"
+SMALLEST_PERCENT = 0.01
+
+
+def pct(fraction: float, digits: int = 3) -> str:
+    """A fraction as a percentage for people: ``0.4381`` -> ``43.8 %``, a
+    tiny non-zero share -> ``< 0.01 %``, never scientific notation."""
+    value = 100.0 * float(fraction)
+    if value != value:  # NaN
+        return "— %"
+    if 0 < abs(value) < SMALLEST_PERCENT:
+        return f"{'−' if value < 0 else ''}< {SMALLEST_PERCENT:g} %"
+    return f"{value:.{digits}g} %"
+
+
 def format_value(value: float, fmt: str = "", digits: int = 4) -> str:
     """One value as a chart prints it beside a mark.
 
@@ -97,7 +113,7 @@ def format_value(value: float, fmt: str = "", digits: int = 4) -> str:
     (``1.8M``), ``count`` for whole numbers, anything else six significant
     digits."""
     if fmt == "percent":
-        return f"{100 * value:.{digits}g} %"
+        return pct(value, digits)
     if fmt == "money":
         return _money(value)
     if fmt == "count":
@@ -123,4 +139,65 @@ def stack_dots(xs: Sequence[float], diameter: float) -> list[tuple[float, int]]:
         else:
             level += 1
         out[i] = (column_x, level)
+    return out
+
+
+#: (left, top, width, height) of a placed label, in drawing units
+Rect = tuple[float, float, float, float]
+
+
+def _overlaps(a: Rect, b: Rect) -> bool:
+    return not (a[0] + a[2] <= b[0] or b[0] + b[2] <= a[0]
+                or a[1] + a[3] <= b[1] or b[1] + b[3] <= a[1])
+
+
+def place_labels(points: Sequence[tuple[float, float, float]],
+                 sizes: Sequence[tuple[float, float]],
+                 bounds: Rect) -> list[tuple[Rect, tuple[float, float] | None]]:
+    """Put a label beside each point so that no two labels, and no label and
+    another point's dot, overlap.
+
+    ``points`` are (x, y, radius) and ``sizes`` each label's (width, height),
+    in drawing units with y growing downward. Each point first tries the eight
+    places around its dot; when all are taken it moves further out, and the
+    result then carries a leader: the (x, y) on the label's edge to draw a line
+    to the dot from. ``None`` means the label sits next to its dot. Points are
+    placed in the order given, so pass the most important first. A label that
+    fits nowhere is put above its dot regardless (its tooltip still names it).
+    """
+    left, top, width, height = bounds
+    dots = [(x - r, y - r, 2 * r, 2 * r) for x, y, r in points]
+    placed: list[Rect] = []
+    out: list[tuple[Rect, tuple[float, float] | None]] = []
+    for index, ((x, y, r), (w, h)) in enumerate(zip(points, sizes, strict=True)):
+        chosen: Rect | None = None
+        leader = False
+        for ring in range(7):
+            gap = r + 2 + ring * h
+            # above, below, right, left, then the four corners
+            for dx, dy in ((0, -1), (0, 1), (1, 0), (-1, 0),
+                           (1, -1), (-1, -1), (1, 1), (-1, 1)):
+                cx = x + dx * (gap + w / 2)
+                cy = y + dy * (gap + h / 2)
+                rect = (cx - w / 2, cy - h / 2, w, h)
+                if (rect[0] < left or rect[1] < top or rect[0] + w > left + width
+                        or rect[1] + h > top + height):
+                    continue
+                if any(_overlaps(rect, other) for other in placed):
+                    continue
+                if any(_overlaps(rect, dot) for j, dot in enumerate(dots) if j != index):
+                    continue
+                chosen, leader = rect, ring > 0
+                break
+            if chosen is not None:
+                break
+        if chosen is None:
+            cx = min(max(left + w / 2, x), left + width - w / 2)
+            chosen, leader = (cx - w / 2, max(top, y - r - 2 - h), w, h), False
+        placed.append(chosen)
+        end = None
+        if leader:
+            end = (min(max(x, chosen[0]), chosen[0] + chosen[2]),
+                   min(max(y, chosen[1]), chosen[1] + chosen[3]))
+        out.append((chosen, end))
     return out

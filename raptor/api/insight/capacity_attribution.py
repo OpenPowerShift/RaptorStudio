@@ -40,6 +40,7 @@ Definitions (also in docs/formulas.adoc):
   lost energy.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from collections import OrderedDict
@@ -104,6 +105,8 @@ class TrialCapacity:
     delivered_energy: float = 0.0
     by_element: dict[Key, float] = field(default_factory=dict)
     by_cause: dict[str, float] = field(default_factory=dict)
+    #: each element's lost energy split by what caused it
+    element_causes: dict[Key, dict[str, float]] = field(default_factory=dict)
     through_dependents: dict[Key, float] = field(default_factory=dict)
     standalone: dict[Key, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
@@ -370,6 +373,8 @@ class CapacityTracker:
     def _add(self, key: Key, amount: float, cause: str) -> None:
         self.out.by_element[key] = self.out.by_element.get(key, 0.0) + amount
         self.out.by_cause[cause] = self.out.by_cause.get(cause, 0.0) + amount
+        own = self.out.element_causes.setdefault(key, {})
+        own[cause] = own.get(cause, 0.0) + amount
 
     def _add_group(self, key: Key, amount: float, cause: str,
                    group: list[Key]) -> None:
@@ -379,8 +384,7 @@ class CapacityTracker:
         master's loss is really theirs; the part is capped at the master's
         whole, because a master's contribution already includes them.
         """
-        self.out.by_element[key] = self.out.by_element.get(key, 0.0) + amount
-        self.out.by_cause[cause] = self.out.by_cause.get(cause, 0.0) + amount
+        self._add(key, amount, cause)
         dependants = [k for k in group if k != key]
         if not dependants:
             return
@@ -915,6 +919,17 @@ def _stat(values: list[float]) -> dict[str, Any]:
             "n": n}
 
 
+def _own_causes(entries: list[Any], key: Key) -> dict[str, float]:
+    """What caused one element's lost capacity, as fractions of it, over all
+    runs (results saved before causes were kept per element have none)."""
+    own: dict[str, float] = {}
+    for cap in entries:
+        for cause, amount in (getattr(cap, "element_causes", None) or {}).get(key, {}).items():
+            own[cause] = own.get(cause, 0.0) + amount
+    total = sum(own.values())
+    return {c: v / total for c, v in own.items()} if total > 0 else {}
+
+
 def aggregate_capacity(
     trials: Iterable[Any],
     names: Mapping[Key, str] | None = None,
@@ -947,6 +962,7 @@ def aggregate_capacity(
             energies.append(value)
             shares.append(value / cap.lost_energy if cap.lost_energy > 0 else 0.0)
             dependents.append(cap.through_dependents.get(key, 0.0))
+        own = _own_causes(entries, key)
         rows.append({
             "kind": key[0], "id": key[1],
             "name": names.get(key, "(no single element)"),
@@ -955,6 +971,9 @@ def aggregate_capacity(
             "through_dependents": _stat(dependents),
             "standalone": next((c.standalone.get(key) for c in entries
                                 if key in c.standalone), None),
+            # what caused this element's own lost capacity (not its downtime)
+            "causes": own,
+            "main_cause": max(own, key=lambda c: own[c]) if own else None,
         })
     rows.sort(key=lambda r: (-(r["lost_energy"]["mean"] or 0.0), r["name"]))
     cause_names = sorted({c for cap in entries for c in cap.by_cause})
@@ -999,7 +1018,7 @@ def text_lines(capacity: Mapping[str, Any], n: int = 10) -> list[str]:
     shown = [(c, v["mean"]) for c, v in by_cause if v.get("mean")]
     if shown and lost:
         lines.append("By cause: " + ", ".join(
-            f"{c.replace('_', ' ')} {100 * v / lost:.3g} %" for c, v in shown))
+            f"{c.replace('_', ' ')} {pct(v / lost)}" for c, v in shown))
     rows = capacity["elements"][:n]
     # the column only means something when a master held a dependant Idle
     held = any((row["through_dependents"]["mean"] or 0.0) > 0

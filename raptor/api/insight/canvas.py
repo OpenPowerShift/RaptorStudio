@@ -100,6 +100,9 @@ def canvas_layer(attribution: dict[str, Any], layer: str) -> dict[str, Any]:
             raise ValueError("this layer needs the lost-capacity split: run with "
                              "capacity analysis")
         source = [(r["kind"], r["id"], r["name"], r.get("share") or {}) for r in capacity]
+        # colour by what caused the lost capacity, not the element's downtime
+        downtime = {**downtime, **{(r["kind"], r["id"]): r for r in capacity
+                                   if r.get("main_cause")}}
     shares = [float(stat.get("mean") or 0.0) for *_rest, stat in source]
     largest = max(shares, default=0.0)
     rows = []

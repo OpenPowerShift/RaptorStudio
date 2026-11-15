@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.story import Story
 from raptor.gui.resources.design_tokens import active_colour
-from raptor.api.insight.axes import nice_range, nice_ticks, stack_dots, tick_text
+from raptor.api.insight.axes import pct, nice_range, nice_ticks, stack_dots, tick_text
 
 DOT_AREA_H = 72          # the stacked dots
 AXIS_H = 20              # tick labels under them
@@ -32,7 +32,7 @@ CAPTION_H = 18
 
 
 def _pct(value: float | None) -> str:
-    return "" if value is None else f"{100 * value:.3g} %"
+    return "" if value is None else f"{pct(value)}"
 
 
 class DotPlot(QWidget):

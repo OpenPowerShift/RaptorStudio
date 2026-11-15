@@ -211,3 +211,19 @@ def test_write_takes_a_page(tmp_path):
     path = tmp_path / "chart.svg"
     charts_svg.write(_specs()["ladder"], path, page="slide")
     assert "338.67mm" in path.read_text(encoding="utf-8")
+
+
+def test_a_cell_with_no_cause_puts_other_in_the_key():
+    # "(no single element)" and "N others" cells have no cause and are drawn
+    # as Other (grey, dotted); the key used to leave Other out
+    spec = charts.ChartSpec(
+        "treemap", "Lost capacity treemap", "", "", "",
+        series=[{"name": "Pump", "value": 0.7, "cause": "repair",
+                 "x": 0, "y": 0, "w": 70, "h": 100},
+                {"name": "(no single element)", "value": 0.3, "cause": None,
+                 "x": 70, "y": 0, "w": 30, "h": 100}],
+        provenance={"format": "percent"})
+    labels = [label for label, _fill in charts_svg._key(spec)]
+    assert "Other" in labels
+    from raptor.gui.ui.chart_widget import ChartWidget
+    assert ChartWidget._causes(spec) == ["repair", "other"]

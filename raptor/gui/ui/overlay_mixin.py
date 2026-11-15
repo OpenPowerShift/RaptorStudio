@@ -3,6 +3,7 @@ share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from typing import TYPE_CHECKING, Any
 
@@ -725,7 +726,7 @@ class OverlayMixin(_Base):
         rough = sum(1 for row in data["elements"] if row["uncertain"])
         self._statusbar.showMessage(
             f"{title} on — {top['name']} has the largest {data['measure']} "
-            f"({100 * top['value']:.3g} %{', mostly ' + cause.lower() if cause else ''})."
+            f"({pct(top['value'])}{', mostly ' + cause.lower() if cause else ''})."
             f" The letter is the main cause; a dashed ring marks "
             f"{rough} share(s) the runs disagree on."
             + (" Link width = flow through the node it feeds." if flow else ""),

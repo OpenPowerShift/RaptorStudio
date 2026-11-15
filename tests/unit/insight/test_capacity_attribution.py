@@ -416,3 +416,19 @@ def test_without_a_held_dependant_the_text_says_why_rather_than_zeros():
     lines = text_lines(capacity)
     assert not any("via dependants" in line and "Of which" in line for line in lines)
     assert NO_DEPENDANTS in lines
+
+
+def test_each_element_keeps_what_caused_its_lost_capacity():
+    spec = parallel_spec([fixed("A", 1, 10, 20), fixed("B", 2, 12, 10),
+                          fixed("C", 3, 1000, 1)], [50, 50, 50],
+                         generated=100, length=50.0)
+    rbd = build.build_from_spec(spec)
+    logs, sinks = run_with_sink(rbd)
+    trial = attribute_trial(logs[0], 0.0,
+                            capacity_run(rbd, sinks[0], rule="first_failed"))
+    own = trial.capacity.element_causes
+    assert sum(own[("block", 1)].values()) == pytest.approx(500.0)
+    rows = aggregate_capacity([trial], names={("block", 1): "A", ("block", 2): "B"})
+    row = next(r for r in rows["elements"] if r["name"] == "A")
+    assert row["main_cause"] in row["causes"]
+    assert sum(row["causes"].values()) == pytest.approx(1.0)

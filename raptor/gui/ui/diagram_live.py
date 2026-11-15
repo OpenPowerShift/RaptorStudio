@@ -2,6 +2,7 @@
 colours during a run, weak-link / capacity / cost / spares bands, and the
 live-state cache re-applied on level changes. A mixin of `DiagramView`."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.qtcompat import req
 from collections.abc import Callable
@@ -1107,7 +1108,7 @@ class LiveOverlayMixin:
             value = float(row["value"])
             top = float(layer.get("largest") or 0.0)
             self._layer_fractions[item] = value / top if top > 0 else 0.0
-            spread = (f" (±2 SE {100 * row['low']:.3g} to {100 * row['high']:.3g} %)"
+            spread = (f" (±2 SE {100 * row['low']:.3g} to {pct(row['high'])})"
                       if row.get("low") is not None else "")
             mix = ", ".join(f"{k.replace('_', ' ')} {100 * v:.0f} %"
                             for k, v in sorted((row.get("causes") or {}).items(),
@@ -1117,14 +1118,14 @@ class LiveOverlayMixin:
                     if row.get("uncertain") else "")
             item.set_live_fill(
                 colour,
-                f"{row['name']}: {measure} {100 * value:.3g} %{spread} → {band}\n"
+                f"{row['name']}: {measure} {pct(value)}{spread} → {band}\n"
                 f"Main cause: {row.get('cause_label') or 'none recorded'}"
                 + (f" ({mix})" if mix else "")
                 + f"\nBands: Red from ⅔ of the largest share "
-                  f"({100 * float(layer.get('largest') or 0):.3g} %), Yellow from ⅓."
+                  f"({pct(float(layer.get('largest') or 0))}), Yellow from ⅓."
                 + note)
             item.set_anal_label(
-                f"{100 * value:.3g} %" + (" ±" if row.get("uncertain") else ""),
+                f"{pct(value)}" + (" ±" if row.get("uncertain") else ""),
                 f"{measure}: {100 * value:.4g} %{spread}")
             if hasattr(item, "set_result_badge"):
                 item.set_result_badge(row.get("glyph") or None,
@@ -1140,18 +1141,18 @@ class LiveOverlayMixin:
                                  "mid" if fraction >= 1 / 3 else "low"]
             inside = rolled_names[hid]
             own = pooled.get(hid)
-            spread = (f" (±2 SE {100 * own['low']:.3g} to {100 * own['high']:.3g} %, "
+            spread = (f" (±2 SE {100 * own['low']:.3g} to {pct(own['high'])}, "
                       "pooled over the runs)"
                       if own is not None and own.get("low") is not None else "")
             item.set_live_fill(
                 colour,
                 f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
-                f"{measure} {100 * total:.3g} %{spread} from the {len(inside)} "
+                f"{measure} {pct(total)}{spread} from the {len(inside)} "
                 f"element(s) inside it → {band}\n"
                 + ", ".join(inside[:8]) + (" …" if len(inside) > 8 else "")
                 + "\nShares add up: each outage counts once, against the "
                   "element that started it.")
-            item.set_anal_label(f"Σ {100 * total:.3g} %",
+            item.set_anal_label(f"Σ {pct(total)}",
                                 f"{measure}, summed over the hierarchy's contents")
             if hasattr(item, "set_scent") and total > 0:
                 # its top three contributors, so the problem can be
@@ -1162,8 +1163,8 @@ class LiveOverlayMixin:
                          for r in top3]
                 rest = 1.0 - sum(f for _n, f, _c in parts)
                 item.set_scent(parts, "Inside: " + ", ".join(
-                    f"{n} {100 * f:.3g} %" for n, f, _c in parts)
-                    + (f", others {100 * rest:.3g} %" if rest > 0.005 else "")
+                    f"{n} {pct(f)}" for n, f, _c in parts)
+                    + (f", others {pct(rest)}" if rest > 0.005 else "")
                     + " of the hierarchy's total; colour = main cause.")
         if flow and generated:
             # widths relative to the busiest node, so the paths read apart
@@ -1180,7 +1181,7 @@ class LiveOverlayMixin:
                 link.set_flow_width(
                     1.5 + 8.5 * max(0.0, value) / busiest,
                     f"The node this link feeds carries {value:.4g} on average: "
-                    f"{100 * value / float(generated):.3g} % of the {generated:.4g} "
+                    f"{pct(value / float(generated))} of the {generated:.4g} "
                     f"a fully working system delivers. Width is relative to "
                     f"the busiest node ({busiest:.4g}). Flow is recorded per "
                     f"node, not per link, so every link into a node is drawn "

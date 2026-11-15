@@ -12,6 +12,7 @@ loses some of the pairing benefit.  `variance_reduction` reports how much
 pairing actually bought.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from collections.abc import Callable, Sequence
@@ -322,12 +323,12 @@ def comparison_lines(comparison: Any) -> list[str]:
             error = (f" ± {100 * sem:.3g}" if fraction and sem
                      else f" ± {sem:.3g}" if sem else "")
             chance = metric.get("p_better")
-            chance_text = f"  P(better) {100 * chance:.3g} %" if chance is not None else ""
+            chance_text = f"  P(better) {pct(chance)}" if chance is not None else ""
             lines.append(f"  {label:<22} {shown:>14}   {change}{error}{chance_text}")
     if comparison.variance_reduction:
         cut = comparison.variance_reduction.get("availability")
         if cut is not None:
-            lines.append(f"\nPairing cut the variance by {100 * cut:.3g} %.")
+            lines.append(f"\nPairing cut the variance by {pct(cut)}.")
     for requirement in comparison.requirements:
         lines.append(f"\nRequirement {requirement.get('label')}: "
               f"Base {requirement['base']}")

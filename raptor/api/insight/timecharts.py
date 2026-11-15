@@ -314,6 +314,10 @@ def _delivered(t: list[float], flow: list[float], full: float) -> tuple[float, f
     return flow_time, full * (t[-1] - t[0]), short
 
 
+#: Raptor's capacity plot value for "no limit" (999,999,999), with a margin
+UNLIMITED = 999_999_999.0 * 0.999
+
+
 def _full(runs: list[dict[str, Any]], generated: float | None) -> tuple[float, str]:
     """The flow a fully working system delivers, and what to call it.
 
@@ -321,7 +325,11 @@ def _full(runs: list[dict[str, Any]], generated: float | None) -> tuple[float, s
     without the model, the highest capacity any run recorded."""
     if generated is not None and generated > 0:
         return float(generated), "flow generated"
-    seen = max((float(c) for r in runs for c in r["capacity"]), default=0.0)
+    seen = max((float(c) for r in runs for c in r["capacity"]
+                if float(c) < UNLIMITED), default=0.0)
+    if seen <= 0:
+        # no limit was ever recorded: the most the system ever delivered
+        seen = max((float(f) for r in runs for f in r["flow"]), default=0.0)
     return seen, "full capacity (highest recorded)"
 
 
@@ -386,15 +394,27 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
          "t": xs, "lo": [0.0] * len(xs), "hi": fs},
         {"name": "flow", "role": "line", "tone": "accent", "t": xs, "y": fs, "width": 1.8},
     ]
-    if any(c > f + 1e-9 for c, f in zip(cap, flow, strict=True)):
+    # Raptor writes 999,999,999 for "no limit": with no link or block
+    # capacities set the system can carry anything while it is up, which is
+    # not a number to draw (it squashed the flow to a line along the floor)
+    unlimited = [c >= UNLIMITED for c in cap]
+    finite = [c for c, u in zip(cs, (c >= UNLIMITED for c in cs), strict=True) if not u]
+    top = max(finite + fs + [full]) or 1.0
+    if any(unlimited):
+        caption += (" No capacity limit applies while the system is up"
+                    if all(u or c <= f + 1e-9 for u, c, f in
+                           zip(unlimited, cap, flow, strict=True))
+                    else " Where no capacity limit applies the capacity line runs "
+                         "along the top edge") + " (Raptor records it as unlimited)."
+    if any(not u and c > f + 1e-9 for u, c, f in zip(unlimited, cap, flow, strict=True)):
         layers.append({"name": "capacity available", "role": "line", "tone": "muted",
-                       "t": xs, "y": cs, "width": 1.2})
+                       "t": xs, "y": [min(c, top) for c in cs], "width": 1.2})
     layers.append({"name": full_name, "role": "line", "tone": "ink",
                    "t": [xs[0], xs[-1]], "y": [full, full], "width": 1.2, "dash": True})
     return _spec(f"Capacity through run {number}",
                  "flow delivered against a fully working system", units, layers,
                  caption=caption, fmt="", y_label="flow",
-                 y_range=[0.0, max(cs + fs + [full]) or 1.0],
+                 y_range=[0.0, top],
                  provenance={"run": number, "runs": len(cap_runs),
                              "changes": len(t), "full": full,
                              "delivered": flow_time / full_time if full_time else None})

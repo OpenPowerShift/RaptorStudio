@@ -19,7 +19,8 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    format_value, nice_range, nice_ticks, stack_dots, tick_text,
+    format_value, nice_range, nice_ticks, pct, place_labels, stack_dots,
+    tick_text,
 )
 from raptor.api.insight.charts import ChartSpec
 
@@ -408,7 +409,7 @@ def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
                        else float(p["value"]) <= target)), default=0.0)
         _target_line(out, frame, target, horizontal=True,
                      label=f"target {format_value(target, fmt, 5)}: "
-                           f"{100 * met:.3g} % of runs reach it")
+                           f"{pct(met)} of runs reach it")
     return out
 
 
@@ -427,7 +428,8 @@ def _key(spec: ChartSpec) -> list[tuple[str, str]]:
     if spec.kind == "pareto":
         causes = [str(c) for row in spec.series for c in (row.get("causes") or {})]
     elif spec.kind in ("waterfall", "treemap", "icicle"):
-        causes = [str(row["cause"]) for row in spec.series if row.get("cause")]
+        # a cell with no cause is drawn as Other, so Other is in the key
+        causes = [str(row.get("cause") or "other") for row in spec.series]
     else:
         causes = []
     for cause in causes:
@@ -473,7 +475,7 @@ def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
         if money:
             text = format_value(float(row["value"]), "money")
             if _number(row.get("share")):
-                text += f" ({100 * float(row['share']):.3g} %)"
+                text += f" ({pct(float(row['share']))})"
             return text
         text = format_value(float(row["value"]), fmt, 3)
         if _number(row.get("availability")):
@@ -549,9 +551,13 @@ def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
         out.append(_rect(x + width * 0.15, min(y0, y1), width * 0.7,
                          max(1.5, abs(y0 - y1)), _cause_fill(str(step.get("cause")))))
         drop = (f"−{_points(float(step['value']))} pts" if _number(operational)
-                else f"{100 * float(step['value']):.3g} %")
+                else f"{pct(float(step['value']))}")
         if max(y0, y1) + 16 < box.bottom:
             out.append(_text(x + width / 2, max(y0, y1) + 14, drop, size=10,
+                             anchor="middle"))
+        elif abs(y0 - y1) < LINE_H + 6:
+            # a sliver on the axis: above it, clear of the column name
+            out.append(_text(x + width / 2, min(y0, y1) - 4, drop, size=10,
                              anchor="middle"))
         else:
             # inside the bar: on a plate of the bar's colour, so the hatch
@@ -669,15 +675,22 @@ def _scatter_frame(out: list[str], spec: ChartSpec, area: _Box, points: list[dic
                   y_fmt=fmt if y_fmt is None else y_fmt)
 
 
-def _label_point(out: list[str], frame: _Frame, x: float, y: float, radius: float,
-                 text: str) -> None:
-    w = _width(text)
+def _label_points(out: list[str], frame: _Frame,
+                  items: list[tuple[float, float, float, str]]) -> None:
+    """Every point's label, none on top of another; a crowded one moves out
+    on a thin leader to its dot."""
     box = frame.box
-    cx = min(max(box.left + w / 2, x), box.right - w / 2)
-    ty = y - radius - 3
-    if ty - 10 < box.top:
-        ty = y + radius + 12
-    out.append(_text(cx, ty, text, size=10, anchor="middle"))
+    placed = place_labels([(x, y, r) for x, y, r, _t in items],
+                          [(_width(t) + 4, 12.0) for *_xy, t in items],
+                          (box.left, box.top, box.width, box.bottom - box.top))
+    for (x, y, radius, text), (rect, end) in zip(items, placed, strict=True):
+        if end is not None:
+            dx, dy = end[0] - x, end[1] - y
+            dist = max(1e-6, (dx * dx + dy * dy) ** 0.5)
+            out.append(_line(x + dx / dist * radius, y + dy / dist * radius,
+                             end[0], end[1], MUTED))
+        out.append(_text(rect[0] + rect[2] / 2, rect[1] + 10, text, size=10,
+                         anchor="middle"))
 
 
 def _xy(spec: ChartSpec) -> list[dict]:
@@ -691,20 +704,24 @@ def _bubble(spec: ChartSpec, area: _Box) -> list[str]:
     out: list[str] = []
     frame = _scatter_frame(out, spec, area, points, x_fmt="percent", y_fmt="")
     area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
+    labels = []
     for point in sorted(points, key=lambda p: -float(p.get("area") or 0)):
         x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
         radius = 4 + 20 * (float(point.get("area") or 0) / area_peak) ** 0.5
         out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='{_fmt(radius)}' "
                    f"fill='{ACCENT}' fill-opacity='0.43' stroke='{ACCENT}'/>")
-        _label_point(out, frame, x, y, radius, str(point["name"]))
+        labels.append((x, y, radius, str(point["name"])))
+    _label_points(out, frame, labels)
     return out
 
 
 def _dots(out: list[str], frame: _Frame, points: list[dict]) -> None:
+    labels = []
     for point in points:
         x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
         out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='4.5' fill='{ACCENT}'/>")
-        _label_point(out, frame, x, y, 5, str(point["name"]))
+        labels.append((x, y, 5.0, str(point["name"])))
+    _label_points(out, frame, labels)
 
 
 def _quadrant(spec: ChartSpec, area: _Box) -> list[str]:
@@ -1016,7 +1033,7 @@ def _treemap_amount(spec: ChartSpec, row: dict) -> str:
     fmt = _fmt_of(spec)
     text = format_value(float(row["value"]), fmt, 3)
     if fmt != "percent" and _number(row.get("share")):
-        text += f" ({100 * float(row['share']):.3g} %)"
+        text += f" ({pct(float(row['share']))})"
     return text
 
 

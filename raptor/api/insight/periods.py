@@ -12,6 +12,7 @@ Percentiles use the nearest-rank method. The chance of falling below a
 threshold is a proportion, so it carries a Wilson interval.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from collections.abc import Sequence
@@ -265,7 +266,7 @@ def sentence(summary: dict[str, Any], units: str = "") -> str:
             f"{100 * pooled['min']:.4g} %")
     threshold = summary.get("threshold")
     if threshold is not None:
-        lead += (f". {100 * pooled['p_below']:.3g} % of them fall below "
+        lead += (f". {pct(pooled['p_below'])} of them fall below "
                  f"{100 * threshold:.4g} % ({pooled['below']:,} of {pooled['n']:,})")
     capacity = (summary.get("capacity") or {}).get("pooled") or {}
     if capacity.get("n"):

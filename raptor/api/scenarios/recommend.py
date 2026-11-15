@@ -35,6 +35,7 @@ less than the spare).  A change to repair times, delays or part life has no
 price in the model, so its cost is reported as unknown rather than zero.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from collections.abc import Callable, Sequence
@@ -564,7 +565,7 @@ def text_lines(result: Recommendations) -> list[str]:
             lines.append(
                 f"  gain:   availability {100 * gain['availability']:+.3g} points"
                 f" (± {100 * (gain['sem'] or 0):.2g}, P(better) "
-                f"{100 * (chance if chance is not None else 0.5):.3g} %)")
+                f"{pct(chance if chance is not None else 0.5)})")
         if gain["downtime_avoided"] is not None:
             lines.append(f"          downtime {downtime_words(gain['downtime_avoided'], units)}")
         cost = row["cost"]

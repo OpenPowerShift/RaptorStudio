@@ -10,6 +10,7 @@ then the key numbers and provenance.  A section appears only when the model
 uses that feature (complexity rule C1).
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from dataclasses import asdict, dataclass
@@ -317,7 +318,7 @@ def _sections(per_run: list[dict], attribution: dict | None, has_capacity: bool,
                 out.append(StorySection(
                     key, title,
                     f"{CAUSE_LABELS[cause]} causes "
-                    f"{100 * causes[cause]:.3g} % of system downtime.",
+                    f"{pct(causes[cause])} of system downtime.",
                     action))
     if has_capacity:
         capacity = (attribution or {}).get("capacity") or {}
@@ -326,7 +327,7 @@ def _sections(per_run: list[dict], attribution: dict | None, has_capacity: bool,
         out.append(StorySection(
             "capacity", "Capacity",
             "The runs delivered "
-            f"{100 * (_mean(_values(per_run, 'capacity_weighted_availability')) or 0):.3g} %"
+            f"{pct(_mean(_values(per_run, 'capacity_weighted_availability')) or 0)}"
             " of demand"
             + (f"; {top['name']} loses the most capacity." if top else "."),
             "Show the lost-capacity drivers"))
@@ -353,7 +354,7 @@ def _caption(headline: StoryHeadline | None, drivers: list[DriverLine],
         parts.append(line + ".")
     if drivers:
         parts.append(
-            f"{drivers[0].name} causes {100 * drivers[0].share:.3g} % of "
+            f"{drivers[0].name} causes {pct(drivers[0].share)} of "
             + ("lost capacity." if (attribution or {}).get("capacity")
                else "the loss."))
     return " ".join(parts) or "No result to summarise."

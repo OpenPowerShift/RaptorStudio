@@ -17,6 +17,7 @@ from typing import Any
 from raptor.api.insight.attribution import CAUSES, CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots
 from raptor.api.insight import measures
+from raptor.api.insight.axes import pct
 
 
 @dataclass
@@ -94,7 +95,7 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
         caption += f", mean {format_value(mean, value_format(field_name, units), 6)}"
     if target is not None:
         caption += (f"; {met} of {len(values)} "
-                    f"({100 * met / len(values):.3g} %) met the target.")
+                    f"({pct(met / len(values))}) met the target.")
     else:
         caption += "."
     return ChartSpec(
@@ -177,7 +178,7 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
         if target is not None:
             met = sum(1 for v in values
                       if (v >= target if higher_is_better else v <= target))
-            caption += (f" {100 * met / len(values):.3g} % of runs reached the "
+            caption += (f" {pct(met / len(values))} of runs reached the "
                         f"target {shown(target)}.")
     else:
         caption = "No runs."
@@ -209,7 +210,7 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
                  "red_time": r.get("red_time", {}).get("mean") or 0.0}
                 for r in rows],
         caption=(f"{rows[0]['name']} causes the largest share "
-                 f"({100 * (rows[0]['dtci']['mean'] or 0):.3g} %)."
+                 f"({pct(rows[0]['dtci']['mean'] or 0)})."
                  if rows else "No system outage."),
         provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
@@ -451,7 +452,7 @@ def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
                  "share": value / grand if grand else 0.0}
                 for name, value in rows],
         caption=(f"{rows[0][0]} carries the largest cost "
-                 f"({100 * rows[0][1] / grand:.3g} %)."
+                 f"({pct(rows[0][1] / grand)})."
                  if rows and grand else "No cost analysis in this run."),
         provenance={"grand_total": grand, "format": "money"})
 
@@ -478,7 +479,7 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
         "capacity share against downtime share, same element order",
         "element", "share", series=series,
         caption=(f"{rows[0]['name']} loses the largest share of capacity "
-                 f"({100 * (rows[0]['share']['mean'] or 0):.3g} %)."
+                 f"({pct(rows[0]['share']['mean'] or 0)})."
                  if rows else "No capacity attribution in this run."),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
@@ -490,13 +491,13 @@ def capacity_vs_downtime(attribution: dict[str, Any],
     capacity = attribution.get("capacity") or {}
     lost = {row["name"]: (row.get("share", {}).get("mean") or 0.0)
             for row in capacity.get("elements") or []}
-    points = []
-    for row in attribution.get("elements") or []:
-        downtime = row.get("dtci", {}).get("mean")
-        if downtime is None or row["name"] not in lost:
-            continue
-        points.append({"name": row["name"], "x": downtime,
-                       "y": lost[row["name"]]})
+    # an element that loses flow without ever taking the system down has no
+    # downtime row: it sits on the left edge, the case this chart is for
+    downtime = {row["name"]: (row.get("dtci", {}).get("mean") or 0.0)
+                for row in attribution.get("elements") or []}
+    points = [{"name": name, "x": downtime.get(name, 0.0), "y": share}
+              for name, share in lost.items()
+              if name != "(no single element)" and (share or downtime.get(name))]
     points.sort(key=lambda p: -(p["y"]))
     points = points[:top]
     return ChartSpec(
@@ -531,7 +532,7 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
         "each step is a cause's share of the lost energy", "cause",
         "share of lost energy", series=steps,
         caption=(f"The largest loss is {steps[0]['name'].lower()} "
-                 f"({100 * steps[0]['value']:.3g} % of lost energy)."
+                 f"({pct(steps[0]['value'])} of lost energy)."
                  if steps else "No capacity attribution in this run."),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
@@ -566,8 +567,8 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
               for row in rows]
     threshold = periods.get("threshold")
     caption = (f"{len(series)} periods; the median moves from "
-               f"{100 * series[0]['p50']:.3g} % to "
-               f"{100 * series[-1]['p50']:.3g} %."
+               f"{pct(series[0]['p50'])} to "
+               f"{pct(series[-1]['p50'])}."
                if len(series) > 1 else "Not enough periods for a trend.")
     return ChartSpec(
         "fan", "Availability year by year",
@@ -589,7 +590,7 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
               if isinstance(pooled.get(key), (int, float))]
     dots = [{"value": v} for v in values]
     below = pooled.get("p_below")
-    caption = (f"{100 * below:.3g} % of run-years fall below the threshold."
+    caption = (f"{pct(below)} of run-years fall below the threshold."
                if isinstance(below, (int, float)) else
                f"{pooled.get('n', 0)} run-years; no threshold was set.")
     return ChartSpec(
@@ -640,7 +641,7 @@ def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
         first = series[0]
         amount = format_value(float(first["value"]), fmt, 3)
         caption = (f"{first['name']} occupies the largest area ({amount}"
-                   + (f", {100 * first['share']:.3g} % of {what}" if fmt != "percent" else
+                   + (f", {pct(first['share'])} of {what}" if fmt != "percent" else
                       f" of {what}")
                    + ").")
     provenance: dict[str, Any] = {"runs": runs, "format": fmt, "measure": what,
@@ -665,7 +666,7 @@ def phase_downtime(attribution: dict[str, Any]) -> ChartSpec:
     if worst is not None:
         caption = (f"{worst['name']} is the weakest phase: availability "
                    f"{100 * worst['availability']:.4g} %, "
-                   f"{100 * worst['share_of_downtime']:.3g} % of all downtime")
+                   f"{pct(worst['share_of_downtime'])} of all downtime")
         if worst.get("drivers"):
             caption += f", mostly started by {worst['drivers'][0]['name']}"
         caption += "."
@@ -692,12 +693,13 @@ def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
 
 def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                           height: float = 600.0, top: int = 200) -> ChartSpec:
-    """Area = share of the lost flow; colour = the element's main downtime cause."""
+    """Area = share of the lost flow; colour = what caused the element's lost
+    flow (its downtime cause when an older result has no capacity causes)."""
     causes = {row["name"]: row.get("main_cause")
               for row in attribution.get("elements") or []}
     capacity = attribution.get("capacity") or {}
     items = [{"name": row["name"], "value": (row.get("share") or {}).get("mean") or 0.0,
-              "cause": causes.get(row["name"])}
+              "cause": row.get("main_cause") or causes.get(row["name"])}
              for row in capacity.get("elements") or []]
     return _treemap(items, title="Lost capacity treemap",
                     subtitle="area = share of the lost flow; colour = main "
@@ -752,7 +754,7 @@ def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
         "each column is the next step; width = share of downtime",
         "step", "share of downtime", series=series,
         caption=(f"The commonest start is {series[0]['label']} "
-                 f"({100 * left:.3g} % of downtime)."
+                 f"({pct(left)} of downtime)."
                  if series else "No outage sequences recorded."),
         provenance={"runs": attribution.get("runs", 0),
                     "sequences": len(attribution.get("sequences") or [])})
@@ -788,8 +790,8 @@ def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
         "ribbon", "Run-to-run system state",
         "one row per trial, sorted by downtime; red = system down",
         "time", "runs", series=rows,
-        caption=(f"{len(runs)} runs; best {100 * (1 - best):.3g} % up, "
-                 f"worst {100 * (1 - worst):.3g} % up."),
+        caption=(f"{len(runs)} runs; best {pct(1 - best)} up, "
+                 f"worst {pct(1 - worst)} up."),
         provenance={"runs": attribution.get("runs", len(runs)),
                     "shown": len(rows)})
 
@@ -837,7 +839,7 @@ def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:
         (small if share is not None and share < min_share else keep).append(row)
     if len(small) < 2:
         return spec
-    label = f"{len(small)} others below {100 * min_share:.3g} %"
+    label = f"{len(small)} others below {pct(min_share)}"
     total = sum(float(r.get("value") or 0.0) for r in small)
     names = [str(r.get("name")) for r in small]
     folded: dict[str, Any] = {"name": label, "value": total, "folded": names}

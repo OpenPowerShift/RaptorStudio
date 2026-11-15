@@ -170,3 +170,13 @@ def test_the_stored_run_feeds_the_charts(tmp_path):
     assert len(inputs["ao_runs"]) == 5 and inputs["units"] == "hours"
     assert inputs["cap_runs"] == []
     assert all(row["ending_sim_time"] == pytest.approx(2000.0) for row in result.per_run)
+
+
+def test_raptors_unlimited_capacity_is_not_drawn_as_a_billion():
+    # no link or block capacities: up -> 999,999,999 ("no limit"), down -> 0
+    text = "\n".join(["SimulationTime Flow Capacity", "0 1 999999999", "5 0 0",
+                      "8 1 999999999"] + [m.format(n=1) for m in _MARK])
+    spec = timecharts.capacity_through_run(parse_capacity_runs(text), 1)
+    assert spec.provenance["y_range"][1] < 10
+    assert "capacity available" not in [layer["name"] for layer in spec.series]
+    assert "unlimited" in spec.caption

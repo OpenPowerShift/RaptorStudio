@@ -1,5 +1,6 @@
 """Event and hierarchy items of the diagram canvas."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.diagram_item_core import _phased_hatch, _snap_of, _snapped_x, _snapped_y
 from collections.abc import Callable, Mapping
@@ -443,7 +444,7 @@ class _HierItem(QGraphicsEllipseItem):
             seg = QGraphicsRectItem(x, 0, width, 5, bar)
             seg.setPen(QPen(QColor(COLOUR["canvas"]), 0.5))
             seg.setBrush(QBrush(QColor(colour)))
-            seg.setToolTip(f"{name}: {100 * fraction:.3g} % of this hierarchy's total")
+            seg.setToolTip(f"{name}: {pct(fraction)} of this hierarchy's total")
             x += width
         self._scent = bar
         self._layout_anal_label()

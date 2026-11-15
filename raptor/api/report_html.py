@@ -21,6 +21,7 @@ much was left out and where the whole of it is.
 `weasyprint` renders the PDF. Nothing here imports Qt.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import html
 from collections.abc import Sequence
@@ -375,7 +376,7 @@ def _story_html(insight: Any) -> str:
         out.append(f"<h3>Where the {_e(measure)} comes from</h3><ul>")
         for driver in drivers:
             out.append(f'<li>{_e(driver.get("name", ""))}: '
-                       f'{100 * float(driver.get("share") or 0):.3g} %</li>')
+                       f'{pct(float(driver.get("share") or 0))}</li>')
         out.append("</ul>")
     findings = story.get("findings") or []
     if findings:

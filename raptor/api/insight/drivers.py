@@ -1,5 +1,6 @@
 """Reading a stored attribution: the downtime drivers, in words and numbers."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import json
 import math
@@ -62,7 +63,7 @@ def periods(workspace: Any, run_id: str, length: float | None = None, *,
 
 
 def _pct(x: float | None) -> str:
-    return "n/a" if x is None else f"{100 * x:.3g} %"
+    return "n/a" if x is None else f"{pct(x)}"
 
 
 def top(attribution: dict[str, Any], n: int = 10) -> list[dict[str, Any]]:
