@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import secrets
 import json
 import os
 import re
@@ -151,9 +152,22 @@ def run_dir(workspace: Workspace, run_id: str) -> Path:
 
 def _new_run_id() -> str:
     h = hashlib.sha256(
-        f"{time.time_ns()}-run-{os.getpid()}".encode()
+        f"{time.time_ns()}-run-{os.getpid()}-{secrets.token_hex(8)}".encode()
     ).hexdigest()[:8]
     return f"r_{h}"
+
+
+def _new_run_dir(root: Path) -> tuple[str, Path]:
+    """A fresh run id and its folder, made exclusively: eight hex digits
+    can clash, and a clash used to merge two runs' files in one folder."""
+    while True:
+        run_id = _new_run_id()
+        runs_dir = root / "runs" / run_id
+        try:
+            runs_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            continue
+        return run_id, runs_dir
 
 
 def model_hash(rbd: RbdFile) -> str:
@@ -550,9 +564,7 @@ def run(
                 f"Simulation did not complete within {timeout_s}s")
 
         # --- persist artefacts ---
-        run_id = _new_run_id()
-        runs_dir = workspace.root / "runs" / run_id
-        runs_dir.mkdir(parents=True, exist_ok=True)
+        run_id, runs_dir = _new_run_dir(workspace.root)
         if sd_tmp is not None and sd_tmp.exists():
             os.replace(sd_tmp, runs_dir / SECTION_FILES["sim_details"])
         if mission_tmp is not None and mission_tmp.exists():

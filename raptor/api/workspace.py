@@ -8,6 +8,7 @@ inside it.  Models are held as ``RbdFile`` objects and autosaved to
 from __future__ import annotations
 
 import hashlib
+import secrets
 import itertools
 import json
 import logging
@@ -380,9 +381,25 @@ class Workspace:
     def _new_id(self, prefix: str = "m") -> str:
         """Generate a short, collision-resistant ID like ``m_7f3a9c21``."""
         h = hashlib.sha256(
-            f"{time.time_ns()}-{prefix}-{os.getpid()}".encode()
+            f"{time.time_ns()}-{prefix}-{os.getpid()}-{secrets.token_hex(8)}".encode()
         ).hexdigest()[:8]
         return f"{prefix}_{h}"
+
+    def _new_model_dir(self) -> tuple[str, Path]:
+        """A fresh model id and its folder, made here and nowhere else.
+
+        Eight hex digits clash about once in 65,000 ids, and the folder was
+        made with ``exist_ok``, so a clash quietly wrote one model into
+        another's folder.  The folder is now made exclusively, and a clash
+        draws again."""
+        while True:
+            model_id = self._new_id("m")
+            model_dir = self.root / "models" / model_id
+            try:
+                model_dir.mkdir(parents=True, exist_ok=False)
+            except FileExistsError:
+                continue
+            return model_id, model_dir
 
     def _lock_for(self, model_id: str) -> threading.RLock:
         """Return the per-model mutation lock, creating it on first use.
@@ -407,9 +424,7 @@ class Workspace:
         """Create a new empty model and return its handle info."""
         check_model_name(name)
         self._check_model_slot()
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         model_path = model_dir / "model.rbds"
         meta_path = model_dir / "meta.json"
 
@@ -492,9 +507,7 @@ class Workspace:
         rbd = self._load_any(str(src))
         summary = self._summarise(rbd)
 
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         # Own a byte-for-byte snapshot. A live reference meant the same
         # model_id silently meant different content after the source was
         # edited (or vanished), and results stopped being reproducible.
@@ -545,9 +558,7 @@ class Workspace:
         size = self._model_bytes(rbd)
         self._check_model_size(size)
         self._check_quota(size)
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         model_path = model_dir / "model.rbds"
         meta_path = model_dir / "meta.json"
 

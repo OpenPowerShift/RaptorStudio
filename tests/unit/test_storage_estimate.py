@@ -305,3 +305,20 @@ def test_stale_run_scratch_is_swept_and_fresh_scratch_kept(tmp_path):
     os.utime(log, (stale, stale))
     assert ws.sweep_retention()["removed_scratch"] == 2
     assert fresh.exists() and not old.exists() and not log.exists()
+
+
+def test_an_id_that_clashes_draws_again(tmp_path, monkeypatch):
+    """S9: a clash of the eight-digit ids merged two runs (or models) in
+    one folder, as the folders were made with exist_ok."""
+    import raptor.api.run as run_module
+    ids = iter(["r_aaaaaaaa", "r_aaaaaaaa", "r_bbbbbbbb"])
+    monkeypatch.setattr(run_module, "_new_run_id", lambda: next(ids))
+    first, _ = run_module._new_run_dir(tmp_path)
+    second, folder = run_module._new_run_dir(tmp_path)
+    assert (first, second) == ("r_aaaaaaaa", "r_bbbbbbbb") and folder.is_dir()
+
+    ws = Workspace(tmp_path / "ws")
+    model_ids = iter(["m_11111111", "m_11111111", "m_22222222"])
+    monkeypatch.setattr(ws, "_new_id", lambda prefix="m": next(model_ids))
+    assert ws._new_model_dir()[0] == "m_11111111"
+    assert ws._new_model_dir()[0] == "m_22222222"
