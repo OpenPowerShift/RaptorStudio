@@ -22,6 +22,7 @@ corners per layer.  The caption's numbers always come from the full data.
 from __future__ import annotations
 
 import math
+from bisect import bisect_right
 from typing import Any
 
 from raptor.api.insight.axes import format_value
@@ -214,23 +215,24 @@ def _quantile(ordered: list[float], share: float) -> float:
 
 
 def _sample(ts: list[float], vs: list[float], grid: list[float], *, step: bool) -> list[float]:
-    """Values of one run at each grid time, in one forward walk.
+    """Values of one run at each grid time.
 
     `step` holds the last value (capacity change points); otherwise the
     value is interpolated (cumulative availability).  Before the first row
-    the first value holds; after the last, the last."""
+    the first value holds; after the last, the last.  One binary search per
+    grid time (in C), so a run with many rows costs no more than one with few."""
     out: list[float] = []
-    j = 0
     n = len(ts)
     for x in grid:
-        while j + 1 < n and ts[j + 1] <= x:
-            j += 1
-        if x <= ts[0] or j + 1 >= n or step:
-            out.append(vs[0] if x < ts[0] else vs[j])
-            continue
-        span = ts[j + 1] - ts[j]
-        frac = 0.0 if span <= 0 else (x - ts[j]) / span
-        out.append(vs[j] + frac * (vs[j + 1] - vs[j]))
+        j = bisect_right(ts, x) - 1          # last row at or before x
+        if j < 0:
+            out.append(vs[0])
+        elif step or j + 1 >= n:
+            out.append(vs[j])
+        else:
+            span = ts[j + 1] - ts[j]
+            frac = 0.0 if span <= 0 else (x - ts[j]) / span
+            out.append(vs[j] + frac * (vs[j + 1] - vs[j]))
     return out
 
 

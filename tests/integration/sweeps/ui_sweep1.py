@@ -189,8 +189,10 @@ def t_batch_sim():
     w._run_simulation(); app.processEvents()
     res = w._results
     assert getattr(res, "_ao_lines", None), "_ao_lines empty"
-    assert res._ao_plot.run_count == 2, \
-        f"ao_plot.run_count={res._ao_plot.run_count}, want 2"
+    page = res._charts_page
+    assert page.select("availability-through-run"), "no availability chart"
+    assert page.run_box.maximum() == 2, \
+        f"charts over time list {page.run_box.maximum()} runs, want 2"
     tabs = [res._details_tabs.tabText(i) for i in range(res._details_tabs.count())]
     assert any(t.lower().startswith("cost") for t in tabs), f"no Cost tab: {tabs}"
     summ = res.section_table("SUMMARY")
@@ -206,15 +208,22 @@ def t_batch_sim():
 run_check("5.batch_sim.results", t_batch_sim)
 
 # ------------------------------------------------- 7a. plot modes (Capacity1 data still loaded)
+TIME_CHARTS = ("availability-through-run", "interval-availability",
+               "availability-band", "capacity-through-run", "capacity-band")
+
+
 def t_plot_modes():
-    plot = w._results._ao_plot
+    page = w._results._charts_page
     pixmaps = []
-    for mode in range(4):
-        plot.set_mode(mode)
-        pm = plot.grab()
-        assert not pm.isNull(), f"mode {mode} grab null"
+    for key in TIME_CHARTS:
+        if page.missing_reason(key):
+            continue
+        assert page.select(key), key
+        pm = page.chart.grab()
+        assert not pm.isNull(), f"{key} grab null"
         pixmaps.append(pm.size())
-    print(f"    grabbed 4 modes sizes={pixmaps}")
+    assert pixmaps, "no chart over time could be drawn"
+    print(f"    grabbed {len(pixmaps)} charts over time sizes={pixmaps}")
 run_check("7.plot.set_mode.paint", t_plot_modes)
 
 # ------------------------------------------------- 8. keyed rows (Capacity1)
@@ -438,10 +447,13 @@ def t_theme_plots_all_modes():
     tm = ThemeManager.instance()
     for dark in (True, False):
         tm.set_dark(dark); app.processEvents()
-        for mode in range(4):
-            w._results._ao_plot.set_mode(mode)
-            pm = w._results._ao_plot.grab()
-            assert not pm.isNull(), f"dark={dark} mode={mode} null grab"
+        page = w._results._charts_page
+        for key in TIME_CHARTS:
+            if page.missing_reason(key):
+                continue
+            page.select(key)
+            pm = page.chart.grab()
+            assert not pm.isNull(), f"dark={dark} {key} null grab"
     tm.set_dark(False); app.processEvents()
 run_check("12.theme.plots.modes0_3", t_theme_plots_all_modes)
 
