@@ -134,3 +134,20 @@ def test_life_and_repair_inputs_have_an_elasticity():
     assert (life.low_value, life.high_value) == (life.base_value * 0.5, life.base_value * 2)
     assert _elasticity(life, -0.01, 0.005, 0.95) is not None
     assert inputs["repair"].base_value is not None
+
+
+def test_asking_for_more_inputs_than_the_model_has_is_said(tmp_path):
+    """U13: 11 asked, 10 shown, nothing said."""
+    from pathlib import Path
+
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.workspace import Workspace
+
+    model = Path(__file__).resolve().parents[3] / "new_docs" / "models" / "Water1.rbds"
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(model)["model_id"]
+    inputs = default_inputs(ws.get(mid).rbd, limit=11)
+    assert len(inputs) < 11
+    result = tornado(ws, mid, inputs[:2], trials=4, asked=11)
+    assert "only 2 inputs that can be varied, not 11" in result["note"]
+    assert "only" not in tornado(ws, mid, inputs[:2], trials=4, asked=2)["note"]

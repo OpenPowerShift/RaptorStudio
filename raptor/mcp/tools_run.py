@@ -1316,7 +1316,7 @@ async def sensitivity(
             ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
             workers=max(1, workers or 1), timeout_s=timeout_s,
             progress=lambda done, total, label: progress(done, total, label),
-            abort=abort)
+            abort=abort, asked=top)
 
     data = await run_job(ctx, work, label="Screening inputs")
     lines = ["| Input | Swing | Low | High | Distinguishable |",

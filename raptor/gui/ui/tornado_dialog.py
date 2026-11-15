@@ -31,7 +31,7 @@ LOWER_IS_BETTER = {"mdt", "lost_flow", "grand_total"}
 class TornadoChart(QWidget):
     """Horizontal bars of each input's low and high effect around zero."""
 
-    ROW_H, LEFT, RIGHT, TOP, BOTTOM = 30, 210, 150, 28, 30
+    ROW_H, LEFT, RIGHT, TOP, BOTTOM = 30, 210, 150, 28, 48
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -79,7 +79,8 @@ class TornadoChart(QWidget):
             return
         plot_w = max(40.0, self.width() - self.LEFT - self.RIGHT)
         mid = self.LEFT + plot_w / 2
-        scale = (plot_w / 2) / self._scale()
+        # room beyond the widest bar for its low/high tag
+        scale = max(10.0, plot_w / 2 - 36) / self._scale()
         p.setPen(QColor(c["muted"]))
         p.drawText(QRectF(self.LEFT, 4, plot_w / 2 - 6, 18),
                    Qt.AlignmentFlag.AlignRight, "◄ worse")
@@ -95,20 +96,30 @@ class TornadoChart(QWidget):
                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                        str(row["input"]["name"]))
             solid = bool(row.get("distinguishable"))
-            for end, tone in (("low", c["result_red"]), ("high", c["accent"])):
+            # Two shades of one colour: red and blue read as bad and good,
+            # and the low end of an input (a halved repair time) is often
+            # the better one. Each bar also says which end it is.
+            for end, alpha in (("low", 110), ("high", 255)):
                 effect = row[end]["effect"]
                 if effect is None:
                     continue
                 better = -effect if row.get("_lower_better") else effect
                 width = better * scale
                 rect = QRectF(min(mid, mid + width), y + 6, abs(width), self.ROW_H - 12)
-                colour = QColor(tone)
-                p.setPen(QPen(colour, 1.2))
+                colour = QColor(c["accent"])
+                colour.setAlpha(alpha)
+                p.setPen(QPen(QColor(c["accent"]), 1.2))
                 if solid:
                     p.setBrush(colour)
                 else:
                     p.setBrush(Qt.BrushStyle.NoBrush)
                 p.drawRect(rect)
+                p.setPen(QColor(c["muted"]))
+                tag = QRectF(rect.right() + 3 if width >= 0 else rect.left() - 33,
+                             y, 30, self.ROW_H)
+                p.drawText(tag, (Qt.AlignmentFlag.AlignLeft if width >= 0
+                                 else Qt.AlignmentFlag.AlignRight)
+                           | Qt.AlignmentFlag.AlignVCenter, end)
             p.setPen(QColor(c["muted"]))
             swing = self._fmt(row["swing"]).lstrip("+")
             p.drawText(QRectF(self.width() - self.RIGHT + 8, y, self.RIGHT - 14, self.ROW_H),
@@ -118,9 +129,10 @@ class TornadoChart(QWidget):
         bottom = self.TOP + len(self.rows) * self.ROW_H
         p.drawLine(QPointF(mid, self.TOP - 2), QPointF(mid, bottom))
         p.setPen(QColor(c["muted"]))
-        p.drawText(QRectF(self.LEFT, bottom + 6, plot_w, 18), Qt.AlignmentFlag.AlignLeft,
-                   "Red: input at its low value · blue: at its high value · hollow: "
-                   "not distinguishable from no effect at this many runs")
+        p.drawText(QRectF(8, bottom + 6, self.width() - 16, self.BOTTOM - 8),
+                   Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap,
+                   "Light: the input at its low value · dark: at its high value · "
+                   "hollow: not distinguishable from no effect at this many runs")
         p.end()
 
 
@@ -166,13 +178,14 @@ class TornadoDialog(AnalysisDialog):
         inputs = default_inputs(self._win._rbd, limit=self._top.value())
         if not inputs:
             return "This model has no input that can be varied."
+        asked = self._top.value()
         metric, trials, workers = self._metric.currentData(), self._trials.value(), cores.chosen()
 
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios.sensitivity import tornado
             return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=None,
                            workers=workers, timeout_s=24 * 3600.0,
-                           progress=progress, abort=abort)
+                           progress=progress, abort=abort, asked=asked)
         return work
 
     def show_result(self, result: Any) -> None:

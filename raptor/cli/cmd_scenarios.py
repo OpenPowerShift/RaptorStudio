@@ -128,7 +128,7 @@ def sensitivity_command(args: Any) -> int:
         result = tornado(
             ws, mid, inputs, trials=args.trials, metric=args.metric,
             seed=args.seed, workers=max(1, args.jobs),
-            progress=study_progress(args))
+            progress=study_progress(args), asked=args.top)
     if args.format == "json":
         emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
         return X.OK

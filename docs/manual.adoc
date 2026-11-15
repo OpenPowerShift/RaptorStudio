@@ -1031,9 +1031,12 @@ a time, and runs it against the model with paired trials: each block's life
 and repair (mean halved and doubled, shape kept), PM intervals, spare stock
 (one unit less and more, on the pool for pooled spares) and crew sizes,
 the largest downtime causes first. The tornado draws each input's effect
-either side of the base value, widest swing first: red is the input at its
-low value, blue at its high value, better to the right. A hollow bar cannot
-be told from no effect at this many trials. Click an input and press *Apply
+either side of the base value, widest swing first, better to the right. The
+light bar is the input at its low value and the dark bar at its high value,
+and each is labelled *low* or *high*: the colour says which end, not whether
+it is good. A hollow bar cannot be told from no effect at this many trials.
+If you ask for more inputs than the model has, the caption says how many
+there are. Click an input and press *Apply
 the better end* to write that value into the model.
 
 One at a time shows each input alone: it cannot show two inputs that only

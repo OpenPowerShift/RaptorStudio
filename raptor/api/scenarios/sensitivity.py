@@ -242,8 +242,13 @@ def tornado(
     timeout_s: float = 1800.0,
     progress: Callable[[int, int, str], None] | None = None,
     abort: Any = None,
+    asked: int | None = None,
 ) -> dict[str, Any]:
     """Run Base and the low/high of each input; return the ranked swings.
+
+    `asked` is how many inputs the caller asked `default_inputs` for: when
+    the model has fewer, the note says so (asking for 11 and seeing 10 read
+    as the setting being ignored).
 
     `metric` is a per-run field (`availability`, `mtbde`, `mdt`,
     `capacity_weighted_availability`, `lost_flow`, ...).  Effects are means
@@ -307,7 +312,9 @@ def tornado(
         "batches": len(results),
         "caption": _caption(rows, metric, base_mean),
         "note": ("One-at-a-time: each input is shown alone. It cannot show "
-                 "interactions between inputs."),
+                 "interactions between inputs."
+                 + (f" This model has only {len(inputs)} inputs that can be "
+                    f"varied, not {asked}." if asked and len(inputs) < asked else "")),
     }
 
 
