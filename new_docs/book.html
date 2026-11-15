@@ -12386,6 +12386,17 @@ phase</strong> chart (<code>phase-downtime</code> from the command line and MCP)
 exported tables include <code>results.phase_downtime</code>.</p>
 </div>
 <div class="paragraph">
+<p>A model with hierarchies also gets each hierarchy&#8217;s share of the downtime:
+the outages started by anything inside it, at any depth. <code>raptor explain</code>
+prints it as a <strong>By hierarchy</strong> table, indented by depth, and
+<code>downtime_drivers</code> returns it as <code>hierarchies</code>. The share is worked out from
+the hierarchy&#8217;s own downtime in each run, so its ± is its own. Adding up the
+± of the elements inside would overstate it, because those elements fail
+together often enough that their errors are not independent. On the canvas,
+the Σ badge on a collapsed hierarchy&#8217;s oval shows the same figure, and its
+tooltip gives that range.</p>
+</div>
+<div class="paragraph">
 <p>A driver whose DTCI is small is not necessarily harmless: it may be holding
 capacity without taking the system down. That is what the lost-capacity
 columns measure.</p>

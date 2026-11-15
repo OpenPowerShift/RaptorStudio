@@ -1090,7 +1090,10 @@ and a ± after the share, mean the runs disagree: the ±2 standard-error
 range is wider than the share itself, so read the colour as rough and
 run more trials. A hierarchy shows Σ, the total of everything inside
 it (shares add up, since each outage counts once against the element
-that started it). Hover for the range and the full cause mix.</p>
+that started it). Hover for the full cause mix and the hierarchy&#8217;s
+own ±2 standard-error range, worked out from its downtime in each run
+(adding up the ranges of the elements inside would overstate it).
+<code>raptor explain</code> lists the same roll-up under <strong>By hierarchy</strong>.</p>
 </li>
 <li>
 <p><strong>Lost capacity</strong> — the same, for each element&#8217;s share of the lost

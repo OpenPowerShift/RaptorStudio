@@ -85,7 +85,13 @@ Final Results "Availability" row reports.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time Between Downing Events (MTBDE)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$"MTBDE" = "Uptime" / ("number of downing events")\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Average stretch of working time between one stoppage and the next.
-Uptime here is Green + Yellow.</p></td>
+Uptime here is Green + Yellow. Raptor works this out <strong>in each run</strong> and
+then averages the runs, and a run with no outage gives its whole length
+(shown with <code>&gt;</code>). So when outages are rare, MTBDE is a floor and reads
+higher than the rate the runs found. The pooled figure, total uptime over
+total outages across every run, is that rate. <code>raptor run</code> prints it under
+the table as <strong>Time between outages, pooled</strong>, <code>simulate</code> returns it as
+<code>outages.between</code> and the report&#8217;s cover uses it.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Down Time (MDT)</p></td>
