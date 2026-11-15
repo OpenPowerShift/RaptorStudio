@@ -64,6 +64,24 @@ def _at_factor(row: dict[str, Any], prefix: str, field_name: str,
     return f"block:{_selector(row)}.{field_name}={_fmt(scaled)}"
 
 
+def _mean_of(row: dict[str, Any], prefix: str) -> float | None:
+    """The mean of a block's failure (F) or repair (R) law, or None."""
+    from raptor.api.distributions import describe_dist
+    try:
+        mean = describe_dist(int(float(row.get(f"{prefix}Dist", 18) or 18)),
+                             _params(row, prefix)).get("mean")
+    except (TypeError, ValueError):
+        return None
+    return float(mean) if isinstance(mean, (int, float)) and mean > 0 else None
+
+
+def _scaled(mean: float | None) -> tuple[float | None, float | None, float | None]:
+    """(base, low, high) of a mean scaled by 0.5 and 2: what an elasticity
+    needs. Without them a life or repair input, the commonest kind, had no
+    elasticity at all."""
+    return (None, None, None) if mean is None else (mean, mean * 0.5, mean * 2.0)
+
+
 def default_inputs(rbd: Any, attribution: dict[str, Any] | None = None,
                    limit: int = DEFAULT_LIMIT) -> list[Input]:
     """The inputs worth screening, ranked by this run's downtime share."""
@@ -92,16 +110,18 @@ def _block_inputs(row: dict[str, Any], budget: int) -> list[Input]:
     out: list[Input] = []
     life = _at_factor(row, "F", "fail_params", 0.5)
     if life is not None:
+        mean = _mean_of(row, "F")
         out.append(Input(
             f"{name} life", "failure", life,
             _at_factor(row, "F", "fail_params", 2.0) or life,
-            note="mean x0.5 and x2, shape unchanged"))
+            *_scaled(mean), note="mean x0.5 and x2, shape unchanged"))
     repair = _at_factor(row, "R", "repair_params", 0.5)
     if repair is not None:
+        mean = _mean_of(row, "R")
         out.append(Input(
             f"{name} repair", "repair", repair,
             _at_factor(row, "R", "repair_params", 2.0) or repair,
-            note="mean x0.5 and x2, shape unchanged"))
+            *_scaled(mean), note="mean x0.5 and x2, shape unchanged"))
     out.extend(_pm_inputs(row))
     out.extend(_stock_inputs(row))
     return out[:max(0, budget)]

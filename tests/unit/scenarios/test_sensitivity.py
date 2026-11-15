@@ -122,3 +122,15 @@ def test_the_sensitivity_caption_reads_in_the_charts_units():
     assert "noise" in _caption(rows, "availability", 0.95)
     assert "(4.5 from a base of 10)" in _caption(
         [{"input": {"name": "x"}, "swing": 4.5, "distinguishable": True}], "mdt", 10.0)
+
+
+def test_life_and_repair_inputs_have_an_elasticity():
+    """C14: the commonest inputs, a block's life and repair, had no base or
+    end values, so their elasticity was always None."""
+    from raptor.api import build
+    from raptor.api.scenarios.sensitivity import _elasticity, default_inputs
+    inputs = {i.kind: i for i in default_inputs(build.build_from_spec(build.series(1)))}
+    life = inputs["failure"]
+    assert (life.low_value, life.high_value) == (life.base_value * 0.5, life.base_value * 2)
+    assert _elasticity(life, -0.01, 0.005, 0.95) is not None
+    assert inputs["repair"].base_value is not None
