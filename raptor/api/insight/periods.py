@@ -19,7 +19,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
-PERCENTILES = (1, 5, 10, 50, 90, 95, 99)
+#: P25 and P75 are the year-by-year chart's inner band; before they were
+#: here the band was drawn only from hand-made data, never from a run.
+PERCENTILES = (1, 5, 10, 25, 50, 75, 90, 95, 99)
+#: How many equal-share dots stand for the pooled run-years.
+DOTS = 20
 #: Hours in a year, used when the model's time unit is hours.
 HOURS_PER_YEAR = 8760.0
 
@@ -142,6 +146,20 @@ def _describe(values: list[float], threshold: float | None) -> dict[str, Any]:
     return out
 
 
+def quantile_dots(values: Sequence[float], count: int = DOTS) -> dict[str, Any]:
+    """Equal-share dots for a dot plot: every value when there are no more
+    than `count`, otherwise the `count` mid-slice quantiles, so that each dot
+    stands for the same share of the run-years."""
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        return {}
+    if n <= count:
+        return {"dots": ordered, "dot_share": 1 / n}
+    dots = [ordered[min(n - 1, int((k + 0.5) / count * n))] for k in range(count)]
+    return {"dots": dots, "dot_share": 1 / count}
+
+
 def summarise(per_run: list[list[float]], *, threshold: float | None = None,
               dropped: int = 0, spec: PeriodSpec | None = None) -> dict[str, Any]:
     """Pooled and by-index statistics of per-run period availabilities."""
@@ -162,7 +180,7 @@ def summarise(per_run: list[list[float]], *, threshold: float | None = None,
         "runs": len(per_run),
         "periods_per_run": longest,
         "dropped_partial_periods": dropped,
-        "pooled": _describe(pooled, threshold),
+        "pooled": {**_describe(pooled, threshold), **quantile_dots(pooled)},
         "by_index": by_index,
         "worst": [{"run": r, "index": i, "value": v} for v, r, i in worst],
     }

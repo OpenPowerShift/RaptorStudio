@@ -28,8 +28,8 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QToolTip, QWidge
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    format_value, nice_range, nice_ticks, pct, place_labels, stack_dots,
-    tick_text,
+    FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, pct, period_axis,
+    place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec
 from raptor.gui.resources.design_tokens import active_colour
@@ -437,15 +437,11 @@ class ChartWidget(QWidget):
                             y_range=(0, 1), x_fmt=fmt, y_ticks=[], y_label="",
                             y_axis=False)
         r = frame.rect
-        diameter = min(14.0, max(4.0, r.width() / max(12, len(values)) * 1.6))
-        levels = stack_dots([frame.x(v) for v in values], diameter)
-        tallest = max(level for _x, level in levels) + 1
-        step = min(diameter, (r.height() - diameter) / max(1, tallest - 1)) \
-            if tallest > 1 else diameter
+        diameter, levels = fit_dots([frame.x(v) for v in values], r.height() * 0.85)
         accent, stop = QColor(palette["accent"]), QColor(palette["stop"])
         radius = diameter / 2 - 0.6
         for value, (x, level) in zip(values, levels, strict=True):
-            y = r.bottom() - diameter / 2 - level * step
+            y = r.bottom() - diameter / 2 - level * diameter
             met = target is None or value >= target
             if met:
                 painter.setPen(Qt.PenStyle.NoPen)
@@ -996,10 +992,53 @@ class ChartWidget(QWidget):
         if fmt == "percent":
             low, high = max(0.0, low), min(1.0, high)
         n = len(rows)
+        x_range, x_ticks = period_axis(n)
         frame = self._frame(painter, spec, palette, area,
-                            x_range=(1.0, max(2.0, float(n))), y_range=(low, high),
-                            x_ticks=nice_ticks(1, max(2, n), min(n, 8)),
-                            x_fmt="count", y_fmt=fmt)
+                            x_range=x_range, y_range=(low, high),
+                            x_ticks=x_ticks, x_fmt="count", y_fmt=fmt)
+        if n < FAN_LINE_MIN:
+            self._paint_period_boxes(painter, palette, frame, rows)
+        else:
+            self._paint_fan_bands(painter, palette, frame, rows)
+        if target is not None:
+            self._target_line(painter, palette, frame, target, horizontal=True,
+                              label=f"threshold {format_value(target, fmt, 5)}")
+
+        def read(px: float) -> list[tuple[QPointF, str]]:
+            i = min(n - 1, max(0, round(frame.value_at_x(px)) - 1))
+            row = rows[i]
+            text = f"{row.get('name', i + 1)}: median {format_value(mids[i], fmt, 5)}"
+            if _number(row.get("p5")) and _number(row.get("p95")):
+                text += (f", 90 % between {format_value(float(row['p5']), fmt, 4)}"
+                         f" and {format_value(float(row['p95']), fmt, 4)}")
+            return [(QPointF(frame.x(i + 1), frame.y(mids[i])), text)]
+
+        self._probe = (frame, read)
+
+    def _paint_period_boxes(self, painter, palette, frame, rows) -> None:
+        """One box per period: no line to suggest a trend between them."""
+        accent = QColor(palette["accent"])
+        half = min(40.0, (frame.x(2) - frame.x(1)) * 0.3)
+        fill = QColor(accent)
+        fill.setAlpha(90)
+        for i, r in enumerate(rows):
+            x = frame.x(i + 1)
+            if _number(r.get("p5")) and _number(r.get("p95")):
+                painter.setPen(QPen(accent, 1.5))
+                painter.drawLine(QPointF(x, frame.y(float(r["p95"]))),
+                                 QPointF(x, frame.y(float(r["p5"]))))
+            if _number(r.get("p25")) and _number(r.get("p75")):
+                top, bottom = frame.y(float(r["p75"])), frame.y(float(r["p25"]))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(fill)
+                painter.drawRect(QRectF(x - half, top, 2 * half, bottom - top))
+            y = frame.y(float(r["p50"]))
+            painter.setPen(QPen(accent, 2.5))
+            painter.drawLine(QPointF(x - half, y), QPointF(x + half, y))
+
+    def _paint_fan_bands(self, painter, palette, frame, rows) -> None:
+        n = len(rows)
+        mids = [float(r["p50"]) for r in rows]
 
         def pt(i: int, value: float) -> QPointF:
             return QPointF(frame.x(i + 1), frame.y(value))
@@ -1024,20 +1063,6 @@ class ChartWidget(QWidget):
         painter.setPen(QPen(QColor(palette["accent"]), 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
-        if target is not None:
-            self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"threshold {format_value(target, fmt, 5)}")
-
-        def read(px: float) -> list[tuple[QPointF, str]]:
-            i = min(n - 1, max(0, round(frame.value_at_x(px)) - 1))
-            row = rows[i]
-            text = f"{row.get('name', i + 1)}: median {format_value(mids[i], fmt, 5)}"
-            if _number(row.get("p5")) and _number(row.get("p95")):
-                text += (f", 90 % between {format_value(float(row['p5']), fmt, 4)}"
-                         f" and {format_value(float(row['p95']), fmt, 4)}")
-            return [(pt(i, mids[i]), text)]
-
-        self._probe = (frame, read)
 
     def _paint_timeline(self, painter, spec, palette, area) -> None:
         layers = [layer for layer in spec.series if layer.get("t")]

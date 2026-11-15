@@ -199,10 +199,21 @@ def _periods():
 
 
 def test_the_annual_fan_keeps_the_bands_and_the_threshold():
-    spec = charts.annual_fan(_periods())
-    assert spec.kind == "fan" and len(spec.series) == 2
+    periods = _periods()
+    periods["by_index"] = periods["by_index"] * 2
+    spec = charts.annual_fan(periods)
+    assert spec.kind == "fan" and len(spec.series) == 4
     assert spec.marks == [{"kind": "target", "value": 0.95}]
-    assert "median moves" in spec.caption
+    assert "median moves" in spec.caption and "bands" in spec.subtitle
+
+
+def test_two_periods_are_boxes_not_a_trend():
+    """G9: a line through two medians read as a trend; two or three periods
+    are drawn and worded as separate boxes."""
+    spec = charts.annual_fan(_periods())
+    assert "too few to show a trend" in spec.caption
+    assert "median 97 %, 96 %" in spec.caption
+    assert "box" in spec.subtitle and "moves" not in spec.caption
 
 
 def test_the_annual_dots_count_below_the_threshold():
@@ -210,6 +221,15 @@ def test_the_annual_dots_count_below_the_threshold():
     assert spec.kind == "dot_plot"
     assert len(spec.series[0]["dots"]) == 5
     assert "50 %" in spec.caption
+    assert "quantiles" in spec.subtitle
+
+
+def test_the_annual_dots_are_equal_shares_when_the_run_has_them():
+    periods = _periods()
+    periods["pooled"]["dots"] = [0.9, 0.93, 0.95, 0.97, 0.99, 1.0]
+    spec = charts.annual_dots(periods)
+    assert [d["value"] for d in spec.series[0]["dots"]] == periods["pooled"]["dots"]
+    assert spec.subtitle == "each dot is one run-year"
 
 
 def test_an_annual_chart_without_periods_says_what_is_missing():

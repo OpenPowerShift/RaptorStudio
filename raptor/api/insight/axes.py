@@ -142,6 +142,36 @@ def stack_dots(xs: Sequence[float], diameter: float) -> list[tuple[float, int]]:
     return out
 
 
+def fit_dots(xs: Sequence[float], height: float, *, largest: float = 36.0,
+             smallest: float = 4.0) -> tuple[float, list[tuple[float, int]]]:
+    """The largest dot diameter (at most `largest`) whose stacks fit
+    `height`, and the stacking at that size.
+
+    A fixed small dot left a few values as one row along the axis with the
+    rest of the plot empty; sizing to the height lets a handful of dots read
+    as a shape, and still shrinks when there are many."""
+    diameter = max(smallest, min(largest, height))
+    while True:
+        levels = stack_dots(xs, diameter)
+        tallest = max((level for _x, level in levels), default=0) + 1
+        if tallest * diameter <= height or diameter <= smallest:
+            return diameter, levels
+        diameter = max(smallest, diameter * 0.9)
+
+
+#: Below this many periods a year-by-year chart draws one box per period:
+#: a line through two or three medians reads as a trend that is not there.
+FAN_LINE_MIN = 4
+
+
+def period_axis(n: int) -> tuple[tuple[float, float], list[float]]:
+    """The x range and whole-number ticks of a period-by-period chart."""
+    if n < FAN_LINE_MIN:
+        return (0.5, n + 0.5), [float(i) for i in range(1, n + 1)]
+    ticks = [t for t in nice_ticks(1, n, min(n, 8)) if float(t).is_integer()]
+    return (1.0, float(n)), ticks or [1.0, float(n)]
+
+
 #: (left, top, width, height) of a placed label, in drawing units
 Rect = tuple[float, float, float, float]
 

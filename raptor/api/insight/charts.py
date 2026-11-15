@@ -17,7 +17,7 @@ from typing import Any
 from raptor.api.insight.attribution import CAUSES, CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots
 from raptor.api.insight import measures
-from raptor.api.insight.axes import pct
+from raptor.api.insight.axes import FAN_LINE_MIN, pct
 from raptor.api.run_needs import message
 
 
@@ -592,11 +592,12 @@ def annual_capacity_fan(periods: dict[str, Any]) -> ChartSpec:
     spec.title = "Capacity delivered year by year"
     spec.y_label = "capacity-weighted availability"
     rows = spec.series
-    spec.caption = (f"{len(rows)} periods; the median share of capacity "
-                    f"delivered moves from {100 * rows[0]['p50']:.4g} % to "
-                    f"{100 * rows[-1]['p50']:.4g} %."
-                    if len(rows) > 1 else
-                    _needs("capacity") + " (or the run is shorter than one period)")
+    if not rows:
+        spec.caption = _needs("capacity") + " (or the run is shorter than one period)"
+    elif len(rows) >= FAN_LINE_MIN:
+        spec.caption = (f"{len(rows)} periods; the median share of capacity "
+                        f"delivered moves from {pct(rows[0]['p50'])} to "
+                        f"{pct(rows[-1]['p50'])}.")
     return spec
 
 
@@ -610,13 +611,20 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
                "p95": row.get("p95"), "n": row.get("n")}
               for row in rows]
     threshold = periods.get("threshold")
-    caption = (f"{len(series)} periods; the median moves from "
-               f"{pct(series[0]['p50'])} to "
-               f"{pct(series[-1]['p50'])}."
-               if len(series) > 1 else "Not enough periods for a trend.")
+    few = len(series) < FAN_LINE_MIN
+    medians = ", ".join(pct(row["p50"]) for row in series)
+    if not series:
+        caption = "No complete period in this run."
+    elif few:
+        caption = (f"Only {len(series)} period{'s' if len(series) != 1 else ''}, "
+                   f"too few to show a trend; median {medians}.")
+    else:
+        caption = (f"{len(series)} periods; the median moves from "
+                   f"{pct(series[0]['p50'])} to {pct(series[-1]['p50'])}.")
     return ChartSpec(
         "fan", "Availability year by year",
-        "bands: P5-P95, P25-P75; line: median", "period", "availability",
+        ("whiskers: P5-P95, box: P25-P75, bar: median" if few else
+         "bands: P5-P95, P25-P75; line: median"), "period", "availability",
         series=series,
         marks=[{"kind": "target", "value": threshold}]
         if threshold is not None else [],
@@ -629,9 +637,18 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
     """K7: all run-years as a dot plot against the guarantee."""
     pooled = periods.get("pooled") or {}
     threshold = periods.get("threshold")
-    quantiles = ("p1", "p5", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
-    values = [pooled[key] for key in quantiles
-              if isinstance(pooled.get(key), (int, float))]
+    n = int(pooled.get("n") or 0)
+    if pooled.get("dots"):
+        values = [float(v) for v in pooled["dots"]]
+        subtitle = ("each dot is one run-year" if len(values) == n else
+                    f"each dot is {pct(1 / len(values))} of the {n} run-years")
+    else:
+        # A run summarised before the equal-share dots: its quantiles are
+        # not equal shares, so say what they are.
+        quantiles = ("p1", "p5", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
+        values = [pooled[key] for key in quantiles
+                  if isinstance(pooled.get(key), (int, float))]
+        subtitle = "each dot is one of the quantiles P1 to P99 of the run-years"
     dots = [{"value": v} for v in values]
     below = pooled.get("p_below")
     caption = (f"{pct(below)} of run-years fall below the threshold."
@@ -639,7 +656,7 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
                f"{pooled.get('n', 0)} run-years; no threshold was set.")
     return ChartSpec(
         "dot_plot", "A bad year, as a frequency",
-        "each dot is one quantile slice of the run-years", "availability",
+        subtitle, "availability",
         "years", series=[{"name": "run-years", "dots": dots}],
         marks=[{"kind": "target", "value": threshold}]
         if threshold is not None else [],

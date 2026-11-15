@@ -19,8 +19,8 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    format_value, nice_range, nice_ticks, pct, place_labels, stack_dots,
-    tick_text,
+    FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, pct, period_axis,
+    place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec
 
@@ -358,14 +358,10 @@ def _dot_plot(spec: ChartSpec, area: _Box) -> list[str]:
     frame = _frame(out, spec, area, x_range=(low, high), y_range=(0, 1),
                    x_fmt=fmt, y_ticks=[], y_label="", y_axis=False)
     box = frame.box
-    diameter = min(14.0, max(4.0, box.width / max(12, len(values)) * 1.6))
-    levels = stack_dots([frame.x(v) for v in values], diameter)
-    tallest = max(level for _x, level in levels) + 1
-    step = min(diameter, (box.height - diameter) / max(1, tallest - 1)) \
-        if tallest > 1 else diameter
+    diameter, levels = fit_dots([frame.x(v) for v in values], box.height * 0.85)
     radius = diameter / 2 - 0.6
     for value, (x, level) in zip(values, levels, strict=True):
-        y = box.bottom - diameter / 2 - level * step
+        y = box.bottom - diameter / 2 - level * diameter
         if target is None or value >= target:
             out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' r='{_fmt(radius)}' "
                        f"fill='{ACCENT}'/>")
@@ -857,9 +853,41 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
         low, high = max(0.0, low), min(1.0, high)
     n = len(rows)
     out: list[str] = []
-    frame = _frame(out, spec, area, x_range=(1.0, max(2.0, float(n))),
-                   y_range=(low, high), x_ticks=nice_ticks(1, max(2, n), min(n, 8)),
+    x_range, x_ticks = period_axis(n)
+    frame = _frame(out, spec, area, x_range=x_range,
+                   y_range=(low, high), x_ticks=x_ticks,
                    x_fmt="count", y_fmt=fmt)
+    if n < FAN_LINE_MIN:
+        out.extend(_period_boxes(rows, frame))
+    else:
+        _fan_bands(out, rows, frame)
+    if target is not None:
+        _target_line(out, frame, target, horizontal=True,
+                     label=f"threshold {format_value(target, fmt, 5)}")
+    return out
+
+
+def _period_boxes(rows: list[dict[str, Any]], frame: Any) -> list[str]:
+    """One box per period: no line to suggest a trend between them."""
+    out: list[str] = []
+    half = min(40.0, (frame.x(2) - frame.x(1)) * 0.3)
+    for i, r in enumerate(rows):
+        x = frame.x(i + 1)
+        if _number(r.get("p5")) and _number(r.get("p95")):
+            out.append(_line(x, frame.y(float(r["p95"])), x, frame.y(float(r["p5"])),
+                             ACCENT, width=1.5))
+        if _number(r.get("p25")) and _number(r.get("p75")):
+            top, bottom = frame.y(float(r["p75"])), frame.y(float(r["p25"]))
+            out.append(_rect(x - half, top, 2 * half, bottom - top, ACCENT,
+                             " fill-opacity='0.35'"))
+        y = frame.y(float(r["p50"]))
+        out.append(_line(x - half, y, x + half, y, ACCENT, width=2.5))
+    return out
+
+
+def _fan_bands(out: list[str], rows: list[dict[str, Any]], frame: Any) -> None:
+    n = len(rows)
+    mids = [float(r["p50"]) for r in rows]
 
     def pt(i: int, value: float) -> tuple[float, float]:
         return frame.x(i + 1), frame.y(value)
@@ -870,10 +898,6 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
                                 + [pt(i, float(rows[i][lower]))
                                    for i in reversed(range(n))], ACCENT, opacity))
     out.append(_polyline([pt(i, mids[i]) for i in range(n)], ACCENT))
-    if target is not None:
-        _target_line(out, frame, target, horizontal=True,
-                     label=f"threshold {format_value(target, fmt, 5)}")
-    return out
 
 
 def _timeline(spec: ChartSpec, area: _Box) -> list[str]:

@@ -8,7 +8,8 @@ from raptor.api import run as run_api
 from raptor.api.insight import drivers
 from raptor.api.insight.attribution import attribute_trial
 from raptor.api.insight.periods import (
-    PeriodSpec, from_outages, percentile, period_availability, sentence, summarise, wilson,
+    PeriodSpec, from_outages, percentile, period_availability, quantile_dots, sentence,
+    summarise, wilson,
 )
 from raptor.api.workspace import Workspace
 from raptor.core.engine.runner import run_simulation
@@ -154,3 +155,19 @@ def test_the_sentence_names_capacity_when_it_was_measured():
             "one in twenty less than 70 %") in s["sentence"]
     plain = period_summary(outages, PeriodSpec(8760.0), units="hours")
     assert "capacity" not in plain["sentence"]
+
+
+def test_the_summary_carries_the_quartiles_the_fan_draws():
+    out = summarise([[0.9, 0.95, 0.99], [0.8, 0.85, 0.97]])
+    for row in out["by_index"]:
+        assert row["p25"] is not None and row["p75"] is not None
+    assert out["pooled"]["p25"] <= out["pooled"]["p50"] <= out["pooled"]["p75"]
+
+
+def test_quantile_dots_are_equal_shares():
+    few = quantile_dots([0.3, 0.1, 0.2])
+    assert few == {"dots": [0.1, 0.2, 0.3], "dot_share": pytest.approx(1 / 3)}
+    many = quantile_dots([i / 100 for i in range(100)], count=20)
+    assert len(many["dots"]) == 20 and many["dot_share"] == pytest.approx(0.05)
+    assert many["dots"][0] == pytest.approx(0.02) and many["dots"][-1] == pytest.approx(0.97)
+    assert quantile_dots([]) == {}

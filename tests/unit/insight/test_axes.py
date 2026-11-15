@@ -1,5 +1,7 @@
 """Axis ticks and value labels shared by the Qt and SVG chart renderers."""
-from raptor.api.insight.axes import format_value, nice_range, nice_ticks, tick_text
+from raptor.api.insight.axes import (
+    FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, period_axis, tick_text,
+)
 
 
 def test_ticks_are_round_and_cover_the_range():
@@ -43,3 +45,20 @@ def test_placed_labels_never_overlap_and_crowded_ones_get_a_leader():
             assert not _overlaps(a, b)
     assert any(end is not None for _rect, end in placed)
     assert placed[0][1] is None          # the first keeps its place by the dot
+
+
+def test_a_period_axis_has_whole_periods_only():
+    assert period_axis(2) == ((0.5, 2.5), [1.0, 2.0])
+    _range, ticks = period_axis(15)
+    assert ticks and all(t.is_integer() for t in ticks)
+    assert period_axis(FAN_LINE_MIN)[0] == (1.0, float(FAN_LINE_MIN))
+
+
+def test_dots_grow_to_fill_the_height_and_shrink_to_fit_it():
+    xs = [0.0, 50.0, 100.0, 150.0]
+    diameter, levels = fit_dots(xs, 300.0)
+    assert diameter == 36.0 and all(level == 0 for _x, level in levels)
+    crowd = [float(i) for i in range(200)]
+    diameter, levels = fit_dots(crowd, 100.0)
+    tallest = max(level for _x, level in levels) + 1
+    assert tallest * diameter <= 100.0 or diameter == 4.0
