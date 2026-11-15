@@ -9,7 +9,7 @@ _raptor() {
   case "$cmd" in
     advise) opts="--format --help --jobs --list-rules --min-severity --only --progress --simulate --skip --strict --target --why" ;;
     analytic) opts="--at --bx --dependencies --equation --format --help --hierarchy --ignore --ignore-repairs --importance --max-bdd-nodes --max-variables --mode --no-importance --ods --phase --progress --standby --tau --times --xlsx" ;;
-    compare) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
+    compare) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
     completion) opts="--help" ;;
     config) opts="--help" ;;
     convert) opts="--allow-lossy --help --to" ;;
@@ -32,15 +32,15 @@ _raptor() {
     recommend) opts="--format --help --jobs --min-gain --run --seed --top --trials" ;;
     render) opts="--help --highlight --jobs --layer --level --max-px --no-annotations --output --theme --trials --zoom-to" ;;
     report) opts="--format --help --report --workspace" ;;
-    run) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
+    run) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-confidence --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
     schema) opts="--help --output" ;;
     sensitivity) opts="--format --help --jobs --metric --seed --top --trials" ;;
     set) opts="--backup --help --in-place --output --set-file" ;;
-    simulate) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
+    simulate) opts="--analysis --deps --format --help --hierarchy --importance --jobs --json --legacy-names --length --max-trials --metrics --min-trials --output --pools --precision --precision-batch --precision-confidence --precision-metric --progress --report --runs --save-model --seed --set --set-file --stats-start --stop --streams --strict --timeout --treat --weak-type --workspace" ;;
     spf) opts="--criticality --format --help --output" ;;
     step) opts="--break --events --fine --format --help --run --until" ;;
-    sweep) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --vary --weak-type" ;;
-    tables) opts="--analysis --capacity-rule --case-sensitive --column --drivers --find --format --help --importance --in-place --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-metric --replace --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type --whole" ;;
+    sweep) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --vary --weak-type" ;;
+    tables) opts="--analysis --capacity-rule --case-sensitive --column --drivers --find --format --help --importance --in-place --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-confidence --precision-metric --replace --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type --whole" ;;
     validate) opts="--format --help --strict" ;;
     whatif) opts="--change --change-file --format --help --jobs --name --note --precision --requirement --save --seed --trials" ;;
   esac

@@ -4408,10 +4408,14 @@ cut short by `timeout_s`, `runs` is below the requested count and
 
 `precision` runs in growing batches until the watched metric is
 precise enough, instead of a fixed count: `{relative: 0.1, metric:
-"system.ao", on: "unavailability" | "value", confidence: 0.95,
-min_trials: 50, max_trials: 20000, batch: 50}`. The result carries a
-`precision` object with the reached interval, the target, the trial
-count and the pass history; `relative` is a fraction (0.1 = 10 %).
+"system.ao", on: "auto" | "unavailability" | "value", confidence:
+0.95, min_trials: 50, max_trials: 20000, batch: 50}`. `on` "auto" (the
+default) watches 1 - value for a probability (system.ao, system.r,
+system.capacity) and the value for a time (system.mtbde, system.mdt).
+The result carries a `precision` object with the reached interval
+(`watched` names what `mean` is; `value` is the metric itself), the
+target, the trial count and the pass history; `relative` is a fraction
+(0.1 = 10 %).
 
 Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
 caps, and those caps only bind on links entering a node whose
@@ -4452,7 +4456,7 @@ Parameter notes:
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `num_runs` — Replications (trials). Leave out to use the model's own setting.
 - `num_runs` — Defaults to the model's configured `NumRuns`.
-- `precision` — `precision` runs in growing batches until the watched metric is precise enough, instead of a fixed count: `{relative: 0.1, metric: "system.ao", on: "unavailability" | "value", confidence: 0.95, min_trials: 50, max_trials: 20000, batch: 50}`.
+- `precision` — `precision` runs in growing batches until the watched metric is precise enough, instead of a fixed count: `{relative: 0.1, metric: "system.ao", on: "auto" | "unavailability" | "value", confidence: 0.95, min_trials: 50, max_trials: 20000, batch: 50}`.
 - `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
 - `run_length` — Defaults to the model's configured run length.
 - `seed` — `seed` (optional, non-negative) re-rolls the batch reproducibly; leaving it unset keeps the engine's fixed seeds, under which the same model and run count always return byte-identical numbers.

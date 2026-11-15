@@ -118,3 +118,33 @@ def test_progress_reports_each_trial_of_each_pass(tmp_path):
     later = [text for _d, _t, text in calls if text.startswith("pass 2")]
     assert later and "target" in later[0]
     assert all(done <= total for done, total, _x in calls)
+
+
+def test_a_time_is_watched_as_itself_and_a_probability_as_its_complement():
+    assert Precision(metric="system.mdt").on == "value"
+    assert Precision(metric="system.mtbde").on == "value"
+    assert Precision(metric="system.r").on == "unavailability"
+    assert Precision().on == "unavailability"
+    with pytest.raises(ValueError, match="time, not a probability"):
+        Precision(metric="system.mdt", on="unavailability").field()
+
+
+def test_unavailability_is_the_watched_mean_not_its_complement(tmp_path):
+    ws, mid = _workspace(tmp_path)
+    outcome = run_to_precision(ws, mid, Precision(min_trials=20, max_trials=40,
+                                                  batch=20), seed=3)
+    ao = sum(r["availability"] for r in outcome.result.per_run) / outcome.trials
+    assert outcome.unavailability == pytest.approx(1 - ao)
+    assert outcome.to_dict()["value"] == pytest.approx(ao)
+    assert outcome.to_dict()["watched"] == "unavailability"
+
+
+def test_a_metric_some_runs_lack_still_stops_at_the_trial_limit(tmp_path):
+    # mean downtime is missing from a run with no outage: counting values
+    # instead of runs re-ran max_trials for ever
+    ws, mid = _workspace(tmp_path)
+    outcome = run_to_precision(ws, mid, Precision(metric="system.mdt", relative=1e-6,
+                                                  min_trials=5, max_trials=20, batch=5),
+                               seed=3)
+    assert outcome.stopped == "max trials"
+    assert outcome.history[-1]["trials"] == 20

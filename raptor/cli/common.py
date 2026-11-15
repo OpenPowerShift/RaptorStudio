@@ -161,13 +161,16 @@ def add_run_options(p: Any) -> None:
                         "is P, e.g. 10%% or 0.1 (implies growing batches; "
                         "ignores --runs)")
     g.add_argument("--precision-metric", default="system.ao", metavar="NAME",
-                   help="metric watched by --precision (default system.ao)")
+                   help="metric watched by --precision (default system.ao; a "
+                        "probability is watched as 1 - value, a time as itself)")
     g.add_argument("--min-trials", type=int, default=50, metavar="N",
                    help="first --precision batch (default 50)")
     g.add_argument("--max-trials", type=int, default=20000, metavar="N",
                    help="most --precision may run (default 20000)")
     g.add_argument("--precision-batch", type=int, default=50, metavar="N",
                    help="smallest --precision step (default 50)")
+    g.add_argument("--precision-confidence", type=float, default=0.95, metavar="C",
+                   help="confidence of the --precision interval (default 0.95)")
     g.add_argument("--importance", metavar="MODE",
                    choices=IMPORTANCE_MODES,
                    help="IEC 61078 Annex D importance measures estimated by "

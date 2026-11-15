@@ -211,7 +211,8 @@ def _run_precision(ws: Any, model_id: str, args: Any, text: str,
             relative=relative,
             min_trials=getattr(args, "min_trials", 50),
             max_trials=getattr(args, "max_trials", 20_000),
-            batch=getattr(args, "precision_batch", 50))
+            batch=getattr(args, "precision_batch", 50),
+            confidence=getattr(args, "precision_confidence", 0.95))
         precision.field()
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
@@ -236,18 +237,12 @@ def _run_precision(ws: Any, model_id: str, args: Any, text: str,
     result = outcome.result
     result.precision = outcome.to_dict()
     half = outcome.half_width
-    # the stopping rule watches the complement of a probability metric; it
-    # is only "unavailability" for availability (it printed 1 - R so)
-    if precision.on != "unavailability":
-        watched = precision.metric
-    elif precision.metric == "system.ao":
-        watched = "unavailability"
-    else:
-        watched = f"1 - {precision.metric}"
-    eprint(f"precision: {outcome.trials} trials, {watched} "
+    eprint(f"precision: {outcome.trials:,} trials, {outcome.watched()} "
            f"{outcome.mean:.6g}"
            + (f" ± {half:.3g}" if half is not None else "")
-           + f" (target {precision.relative:.3g}; {outcome.stopped})")
+           + f" at {100 * precision.confidence:.0f} % confidence "
+           f"(target ±{100 * precision.relative:.3g} %; "
+           f"{outcome.STOPPED.get(outcome.stopped, outcome.stopped)})")
     return result
 
 
@@ -363,6 +358,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
         "versions": {"raptor": raptor.__version__,
                      "python": platform.python_version()},
         **({"isolation": result.isolation} if getattr(result, "isolation", None) else {}),
+        **({"precision": result.precision} if getattr(result, "precision", None) else {}),
         # --importance: the ranking `summary_text` prints and JSON carries.
         **({"importance": result.importance} if getattr(result, "importance", None) else {}),
     }

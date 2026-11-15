@@ -295,10 +295,14 @@ async def simulate(  # noqa: PLR0912, PLR0915
 
     `precision` runs in growing batches until the watched metric is
     precise enough, instead of a fixed count: `{relative: 0.1, metric:
-    "system.ao", on: "unavailability" | "value", confidence: 0.95,
-    min_trials: 50, max_trials: 20000, batch: 50}`. The result carries a
-    `precision` object with the reached interval, the target, the trial
-    count and the pass history; `relative` is a fraction (0.1 = 10 %).
+    "system.ao", on: "auto" | "unavailability" | "value", confidence:
+    0.95, min_trials: 50, max_trials: 20000, batch: 50}`. `on` "auto" (the
+    default) watches 1 - value for a probability (system.ao, system.r,
+    system.capacity) and the value for a time (system.mtbde, system.mdt).
+    The result carries a `precision` object with the reached interval
+    (`watched` names what `mean` is; `value` is the metric itself), the
+    target, the trial count and the pass history; `relative` is a fraction
+    (0.1 = 10 %).
 
     Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
     caps, and those caps only bind on links entering a node whose

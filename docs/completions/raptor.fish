@@ -46,6 +46,7 @@ complete -c raptor -n '__fish_seen_subcommand_from compare' -l metric
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l min-trials
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l precision-batch
+complete -c raptor -n '__fish_seen_subcommand_from compare' -l precision-confidence
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l precision-metric
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l save-model
@@ -199,6 +200,7 @@ complete -c raptor -n '__fish_seen_subcommand_from run' -l output
 complete -c raptor -n '__fish_seen_subcommand_from run' -l pools
 complete -c raptor -n '__fish_seen_subcommand_from run' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from run' -l precision-batch
+complete -c raptor -n '__fish_seen_subcommand_from run' -l precision-confidence
 complete -c raptor -n '__fish_seen_subcommand_from run' -l precision-metric
 complete -c raptor -n '__fish_seen_subcommand_from run' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from run' -l report
@@ -250,6 +252,7 @@ complete -c raptor -n '__fish_seen_subcommand_from simulate' -l output
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l pools
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l precision-batch
+complete -c raptor -n '__fish_seen_subcommand_from simulate' -l precision-confidence
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l precision-metric
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l report
@@ -291,6 +294,7 @@ complete -c raptor -n '__fish_seen_subcommand_from sweep' -l metric
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l min-trials
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l precision-batch
+complete -c raptor -n '__fish_seen_subcommand_from sweep' -l precision-confidence
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l precision-metric
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l runs
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l save-model
@@ -321,6 +325,7 @@ complete -c raptor -n '__fish_seen_subcommand_from tables' -l min-trials
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l output
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision-batch
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision-confidence
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l precision-metric
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l replace
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l run

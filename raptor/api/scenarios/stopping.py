@@ -14,6 +14,7 @@ the batch so the loop takes about ten passes at most.
 """
 from __future__ import annotations
 
+import functools
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -69,15 +70,36 @@ def t_critical(df: int, confidence: float = 0.95) -> float:
             + (3 * z ** 7 + 19 * z ** 5 + 17 * z ** 3 - 15 * z) / (384 * df ** 3))
 
 
+#: Fields that are probabilities: by default precision watches the part
+#: that is lost (1 - value), since a 10 % precision on 99.9 % availability
+#: should be a tenth of the 0.1 % lost, not of the 99.9 %
+PROBABILITY_FIELDS = frozenset({"availability", "reliability",
+                                "capacity_weighted_availability"})
+
+
 @dataclass(frozen=True)
 class Precision:
+    """What run-to-precision watches and how closely.
+
+    `on` is ``"unavailability"`` (watch 1 - value) or ``"value"``; left as
+    ``"auto"`` it is the first for a probability (availability, reliability,
+    delivered fraction) and the second for a time (MTBDE, MDT), where
+    1 - value means nothing."""
+
     metric: str = "system.ao"
-    on: Literal["unavailability", "value"] = "unavailability"
+    on: Literal["unavailability", "value", "auto"] = "auto"
     relative: float = 0.10
     confidence: float = 0.95
     min_trials: int = 50
     max_trials: int = 20_000
     batch: int = 50
+
+    def __post_init__(self) -> None:
+        if self.on == "auto":
+            field_name = METRIC_FIELDS.get(self.metric)
+            object.__setattr__(self, "on", "unavailability"
+                               if field_name in PROBABILITY_FIELDS or field_name is None
+                               else "value")
 
     def field(self) -> str:
         field_name = METRIC_FIELDS.get(self.metric)
@@ -85,6 +107,14 @@ class Precision:
             raise ValueError(
                 f"unknown precision metric {self.metric!r}; use one of "
                 f"{', '.join(sorted(METRIC_FIELDS))}")
+        if self.on not in ("unavailability", "value"):
+            raise ValueError(f"precision on must be 'unavailability' or 'value', "
+                             f"not {self.on!r}")
+        if self.on == "unavailability" and field_name not in PROBABILITY_FIELDS:
+            raise ValueError(f"{self.metric} is a time, not a probability: watch "
+                             "its value (on='value'), 1 - it means nothing")
+        if not 0 < self.confidence < 1:
+            raise ValueError("confidence must be between 0 and 1, e.g. 0.95")
         if not 0 < self.relative < 1:
             raise ValueError("relative precision must be between 0 and 1")
         if self.min_trials < 2 or self.max_trials < self.min_trials:
@@ -111,6 +141,24 @@ class PrecisionRun:
     stopped: str
     history: list[dict[str, Any]] = field(default_factory=list)
 
+    def watched(self) -> str:
+        """What the interval is on, in words: 'unavailability',
+        '1 - reliability' or the metric itself."""
+        if self.precision.on != "unavailability":
+            return self.field_name
+        return ("unavailability" if self.field_name == "availability"
+                else f"1 - {self.field_name.replace('_', ' ')}")
+
+    def value(self) -> float | None:
+        """The mean of the metric itself (availability, not unavailability)."""
+        if self.mean is None:
+            return None
+        return 1.0 - self.mean if self.precision.on == "unavailability" else self.mean
+
+    #: the reason a run stopped, for a person
+    STOPPED = {"precision": "target reached", "max trials": "trial limit reached",
+               "cancelled": "stopped", "no data": "no values to measure"}
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.result.run_id,
@@ -118,7 +166,9 @@ class PrecisionRun:
             "on": self.precision.on,
             "relative": self.precision.relative,
             "confidence": self.precision.confidence,
+            "watched": self.watched(),
             "mean": self.mean,
+            "value": self.value(),
             "unavailability": self.unavailability,
             "sem": self.sem,
             "half_width": self.half_width,
@@ -221,9 +271,9 @@ def run_to_precision(
                 # each trial of this pass, so a long pass is not a frozen bar
                 options["progress"] = (
                     lambda done, _total, n=trials, text=label: progress(done, n, text))
-        latest = _one_pass(lambda n=trials, o=options: run_api(
-                               workspace, model_id, num_runs=n, workers=workers,
-                               seed=seed, abort=abort, **o),
+        latest = _one_pass(functools.partial(
+                               run_api, workspace, model_id, num_runs=trials,
+                               workers=workers, seed=seed, abort=abort, **options),
                            trials, abort, first=result is None)
         if latest is None:
             # stopped part-way through a pass: the last whole pass stands
@@ -234,32 +284,42 @@ def run_to_precision(
                   if (value := _watch(row, field_name, precision.on))
                   is not None]
         mean, sem, half, relative = _stats(values, precision.confidence)
-        history.append({"trials": len(values), "mean": mean, "sem": sem,
-                        "half_width": half, "relative": relative})
+        # `trials` were run; `values` of them had the metric (a run with no
+        # outage has no mean downtime)
+        history.append({"trials": len(result.per_run), "values": len(values),
+                        "mean": mean, "sem": sem, "half_width": half,
+                        "relative": relative})
         if len(values) < 2:
             stopped = "no data"
             break
         if relative is not None and relative <= target:
             stopped = "precision"
             break
-        if len(values) >= precision.max_trials or (
+        # Count the trials RUN, not the values: a run with no outage has no
+        # mean downtime, and counting values re-ran max_trials for ever.
+        ran = len(result.per_run)
+        if ran >= precision.max_trials or (
                 abort is not None and getattr(abort, "is_set", lambda: False)()):
-            stopped = "max trials" if len(values) >= precision.max_trials else "cancelled"
+            stopped = "max trials" if ran >= precision.max_trials else "cancelled"
             break
         # Each pass re-runs from trial 1 with the same seed, so the count
         # must grow geometrically: with no estimate yet (no failure seen,
-        # mean 0) double it rather than add one trial per pass.
-        needed = max(len(values) + precision.batch, 2 * len(values))
+        # mean 0) double it rather than add one trial per pass. Values come
+        # from len(values) of `ran` trials, so scale by that ratio.
+        per_trial = len(values) / ran
+        needed = max(ran + precision.batch, 2 * ran)
         if relative and half and mean:
-            needed = max(len(values) + precision.batch,
-                         math.ceil(len(values) * (relative / target) ** 2))
-        trials = min(precision.max_trials, max(needed, len(values) + 1))
+            needed = max(ran + precision.batch,
+                         math.ceil(len(values) * (relative / target) ** 2 / per_trial))
+        trials = min(precision.max_trials, max(needed, ran + 1))
 
     assert result is not None
     return PrecisionRun(
         result=result, precision=precision, field_name=field_name, mean=mean,
-        unavailability=(1.0 - mean if mean is not None
-                        and precision.on == "unavailability" else None),
+        # the watched mean is already 1 - availability: it is the
+        # unavailability (it used to say 1 - mean, the availability)
+        unavailability=(mean if mean is not None and precision.on == "unavailability"
+                        and field_name == "availability" else None),
         sem=sem, half_width=half, relative_half_width=relative,
         target=target, trials=len(result.per_run), stopped=stopped,
         history=history)

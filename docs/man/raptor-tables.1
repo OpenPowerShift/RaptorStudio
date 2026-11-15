@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-tables \- Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH SYNOPSIS
-\fBraptor tables\fR [\-h] [\-\-run] [\-\-drivers] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-\-find TEXT] [\-\-replace TEXT] [\-\-column COLUMN] [\-\-whole] [\-\-case\-sensitive] [\-\-in\-place] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+\fBraptor tables\fR [\-h] [\-\-run] [\-\-drivers] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-\-find TEXT] [\-\-replace TEXT] [\-\-column COLUMN] [\-\-whole] [\-\-case\-sensitive] [\-\-in\-place] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
 .SH DESCRIPTION
 Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH OPTIONS
@@ -76,7 +76,7 @@ weak,cost,capacity (replaces the model's setting); 'none' clears all
 run until the watched metric's relative half\-width is P, e.g. 10%% or 0.1 (implies growing batches; ignores \-\-runs)
 .TP
 \fB\-\-precision\-metric\fR \fINAME\fR
-metric watched by \-\-precision (default system.ao)
+metric watched by \-\-precision (default system.ao; a probability is watched as 1 \- value, a time as itself)
 .TP
 \fB\-\-min\-trials\fR \fIN\fR
 first \-\-precision batch (default 50)
@@ -86,6 +86,9 @@ most \-\-precision may run (default 20000)
 .TP
 \fB\-\-precision\-batch\fR \fIN\fR
 smallest \-\-precision step (default 50)
+.TP
+\fB\-\-precision\-confidence\fR \fIC\fR
+confidence of the \-\-precision interval (default 0.95)
 .TP
 \fB\-\-importance\fR \fIMODE\fR
 IEC 61078 Annex D importance measures estimated by re\-simulation: improvement (RRW, Vesely\-Fussell), risk (RAW), both (adds Birnbaum). Costs one extra batch per block, two for 'both'
