@@ -557,7 +557,13 @@ After a run (or a stepped Finish) the Results dock offers:
   is there but the drivers have not been worked out yet, the button works
   them out instead. The Drivers tab has the same button. Over MCP and on
   the command line the same message names `simulate(attribution=true)`,
-  `--analysis cost` and so on, so the switch is never a guess. Above the chart are only the
+  `--analysis cost` and so on, so the switch is never a guess. The
+  run-to-run and chance-of-reaching charts mark the quartiles (dotted
+  lines). On *Run-to-run system state*, hovering reads off the run, the
+  time, the outage under the pointer (when it started, ended and how long
+  it lasted) and how many runs were down at that moment; drag across a
+  stretch of time to zoom in, and double-click (or right-click ▸ *Show
+  the whole run*) to zoom out. Above the chart are only the
   controls it uses: **Run** for a one-run chart over time, **Axis from**
   for an availability chart over time, **Fold items below** for a
   ranking or treemap (gathers the items under 1, 2 or 5 % of the whole

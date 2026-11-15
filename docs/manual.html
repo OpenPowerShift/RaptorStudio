@@ -946,7 +946,13 @@ that ticks it as one undoable step and runs again. When the event log
 is there but the drivers have not been worked out yet, the button works
 them out instead. The Drivers tab has the same button. Over MCP and on
 the command line the same message names <code>simulate(attribution=true)</code>,
-<code>--analysis cost</code> and so on, so the switch is never a guess. Above the chart are only the
+<code>--analysis cost</code> and so on, so the switch is never a guess. The
+run-to-run and chance-of-reaching charts mark the quartiles (dotted
+lines). On <strong>Run-to-run system state</strong>, hovering reads off the run, the
+time, the outage under the pointer (when it started, ended and how long
+it lasted) and how many runs were down at that moment; drag across a
+stretch of time to zoom in, and double-click (or right-click ▸ <strong>Show
+the whole run</strong>) to zoom out. Above the chart are only the
 controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
 for an availability chart over time, <strong>Fold items below</strong> for a
 ranking or treemap (gathers the items under 1, 2 or 5 % of the whole

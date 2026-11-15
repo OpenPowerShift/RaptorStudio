@@ -95,6 +95,11 @@ class ChartWidget(QWidget):
         self._cursor: QPointF | None = None
         #: the reading cursor for curve charts: frame and x -> marks
         self._probe: tuple[_Frame, Callable[[float], list[tuple[QPointF, str]]]] | None = None
+        #: U17: the run-to-run chart's zoomed time window, the drag that
+        #: chooses one, and the frame it was drawn in
+        self._zoom: tuple[float, float] | None = None
+        self._drag_from: QPointF | None = None
+        self._zoom_frame: _Frame | None = None
         # Small on purpose: the results dock is as tall as its tallest
         # page's minimum, and a tall floor here stops the user dragging the
         # bottom splitter (the chart repaints at whatever height it gets).
@@ -112,6 +117,14 @@ class ChartWidget(QWidget):
         self._spec = spec
         self._hits, self._tips = [], []
         self._probe = None
+        self._zoom = self._drag_from = self._zoom_frame = None
+        self.update()
+
+    def zoom_to(self, start: float | None, end: float | None = None) -> None:
+        """Show only `start`..`end` of the run-to-run chart's time axis
+        (None: the whole run)."""
+        self._zoom = None if start is None or end is None or end <= start \
+            else (float(start), float(end))
         self.update()
 
     #: The page a saved or copied chart is drawn for (`charts_svg.PAGES`).
@@ -1243,9 +1256,19 @@ class ChartWidget(QWidget):
             return self._paint_none(painter, spec, palette, area)
         start = min(float(row["start"]) for row in rows)
         end = max(float(row["end"]) for row in rows)
+        whole = (start, end)
+        if self._zoom is not None:
+            start, end = max(start, self._zoom[0]), min(end, self._zoom[1])
+            if end <= start:
+                start, end = whole
+        zoomed = (start, end) != whole
+        x_label = (f"{spec.x_label} · drag across to zoom in"
+                   + (", double-click for the whole run" if zoomed else ""))
         frame = self._frame(painter, spec, palette, area,
                             x_range=(start, end), y_range=(0.0, float(len(rows))),
-                            y_ticks=[], y_label=f"{len(rows)} runs, best at the top")
+                            y_ticks=[], y_label=f"{len(rows)} runs, best at the top",
+                            x_label=x_label)
+        self._zoom_frame = frame
         r = frame.rect
         height = r.height() / len(rows)
         up, down = QColor(palette["result_green"]), QColor(palette["result_red"])
@@ -1253,13 +1276,31 @@ class ChartWidget(QWidget):
             y = r.top() + i * height
             painter.fillRect(QRectF(r.left(), y, r.width(), max(1.0, height - 0.4)), up)
             for a, b in row.get("red") or []:
-                x0, x1 = frame.x(float(a)), frame.x(float(b))
+                a, b = max(float(a), start), min(float(b), end)
+                if b < a:
+                    continue                      # outside the zoomed window
+                x0, x1 = frame.x(a), frame.x(b)
                 painter.fillRect(QRectF(x0, y, max(1.0, x1 - x0),
                                         max(1.0, height - 0.4)), down)
-            share = float(row.get("downtime") or 0) / float(row["span"])
+            # the reading cursor says this and more; no second tooltip
             self._hit(QRectF(r.left(), y, r.width(), max(1.0, height)), "run",
-                      f"run {row.get('run', '')}",
-                      f"run {row.get('run', '')}: {100 * (1 - share):.4g} % up")
+                      f"run {row.get('run', '')}", "")
+        if self._drag_from is not None and self._cursor is not None:
+            band = QColor(palette["accent"])
+            band.setAlpha(60)
+            x0 = min(max(self._drag_from.x(), r.left()), r.right())
+            x1 = min(max(self._cursor.x(), r.left()), r.right())
+            painter.fillRect(QRectF(min(x0, x1), r.top(), abs(x1 - x0), r.height()), band)
+
+        def read(px: float) -> list[tuple[QPointF, str]]:
+            cursor = self._cursor
+            if cursor is None:
+                return []
+            index = min(len(rows) - 1, max(0, int((cursor.y() - r.top()) / height)))
+            return [(QPointF(px, r.top() + (index + 0.5) * height),
+                     ribbon_reading(rows, index, frame.value_at_x(px)))]
+
+        self._probe = (frame, read)
 
     # The reading cursor.
 
@@ -1316,6 +1357,10 @@ class ChartWidget(QWidget):
         super().leaveEvent(event)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt name
+        if (event.button() == Qt.MouseButton.LeftButton and self._spec is not None
+                and self._spec.kind == "ribbon" and self._zoom_frame is not None
+                and self._zoom_frame.rect.contains(event.position())):
+            self._drag_from = event.position()
         if event.button() == Qt.MouseButton.LeftButton:
             for rect, kind, name in self._hits:
                 if rect.contains(event.position()) and name and kind in (
@@ -1324,10 +1369,29 @@ class ChartWidget(QWidget):
                     break
         super().mousePressEvent(event)
 
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt name
+        start, frame = self._drag_from, self._zoom_frame
+        self._drag_from = None
+        if start is not None and frame is not None \
+                and abs(event.position().x() - start.x()) >= 6:
+            a = frame.value_at_x(start.x())
+            b = frame.value_at_x(event.position().x())
+            self.zoom_to(min(a, b), max(a, b))
+        else:
+            self.update()
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802 - Qt name
+        if self._spec is not None and self._spec.kind == "ribbon" and self._zoom:
+            self.zoom_to(None)
+        super().mouseDoubleClickEvent(event)
+
     def _menu(self, position) -> None:
         if self._spec is None:
             return
         menu = QMenu(self)
+        if self._spec.kind == "ribbon" and self._zoom is not None:
+            menu.addAction("Show the whole run", lambda: self.zoom_to(None))
         menu.addAction("Copy image", self.copy_image)
         menu.addAction("Save PNG…", self._ask_png)
         menu.addAction("Save SVG…", self._ask_svg)
@@ -1358,6 +1422,24 @@ class ChartWidget(QWidget):
                                               "CSV (*.csv)")
         if path:
             self.save_csv(path)
+
+
+def ribbon_reading(rows: Sequence[dict], index: int, t: float) -> str:
+    """U17: what the run-to-run chart says at time `t` on row `index`:
+    the run, whether it is up or in an outage (with its start, end and
+    length), and how many of all the runs are down at that time."""
+    row = rows[index]
+    outage = next(((float(a), float(b)) for a, b in row.get("red") or []
+                   if float(a) <= t <= float(b)), None)
+    down = sum(1 for other in rows
+               if any(float(a) <= t <= float(b) for a, b in other.get("red") or []))
+    span = float(row.get("span") or 0)
+    up = (f" ({100 * (1 - float(row.get('downtime') or 0) / span):.4g} % up)"
+          if span > 0 else "")
+    head = f"run {row.get('run', '')}{up} at {_short(t)}"
+    state = (f"down from {_short(outage[0])} to {_short(outage[1])}, "
+             f"for {_short(outage[1] - outage[0])}" if outage else "up")
+    return f"{head}: {state}\n{down} of {len(rows)} runs down at this time"
 
 
 _TONES = {"up": "result_green", "degraded": "result_yellow", "down": "result_red",
