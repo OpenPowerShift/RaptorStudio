@@ -24,7 +24,7 @@
 </li>
 <li><a href="#block-defaults">Block Defaults</a></li>
 <li><a href="#mass-edit">Mass Edit</a></li>
-<li><a href="#judgement">Estimate from judgement: a law with no data</a></li>
+<li><a href="#experience">Estimate from experience: a law with no data</a></li>
 <li><a href="#canvas-editing">Building on the canvas</a>
 <ul class="sectlevel2">
 <li><a href="#_copy_cut_and_paste">Copy, cut and paste</a></li>
@@ -509,11 +509,11 @@ use it on a single kind of thing you genuinely want identically named.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="judgement">Estimate from judgement: a law with no data</h2>
+<h2 id="experience">Estimate from experience: a law with no data</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>With no failure data, an engineer can still say "one in ten have failed by
-100 hours, half by 300". <strong>Estimate from judgement…</strong>, under a block&#8217;s failure
+100 hours, half by 300". <strong>Estimate from experience…</strong>, under a block&#8217;s failure
 and repair distributions in the Inspector, turns those answers into a law:
 Weibull for lives that wear out, lognormal for repair times, exponential
 for random failures. Type a share and an age on two or more rows; the fit
@@ -529,7 +529,7 @@ above 1 wears out, so planned maintenance can help). <strong>Use for &lt;block&g
 writes the law and its parameters into the block as one undo step. The
 same fit is <code>raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
 --block NAME</code>, which also prints the <code>raptor set</code> line, and the MCP tool
-<code>fit_from_judgement</code>. The fit is only as good as the answers.</p>
+<code>fit_from_experience</code>. The fit is only as good as the answers.</p>
 </div>
 </div>
 </div>

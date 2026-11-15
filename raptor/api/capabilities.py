@@ -96,10 +96,10 @@ CAPABILITIES: tuple[Capability, ...] = (
         cli="optimise", mcp="optimise_resources", gui="command:analyse.optimise_crews",
         long_running=True),
     Capability(
-        "dist.judgement", "Fit a life law from judged quantiles",
+        "dist.experience", "Fit a life law from experience (shares failed by given ages)",
         api="raptor.api.distributions.from_quantiles", cli="fit",
-        mcp="fit_from_judgement",
-        gui="widget:raptor.gui.ui.judgement_dialog.JudgementDialog"),
+        mcp="fit_from_experience",
+        gui="widget:raptor.gui.ui.experience_dialog.ExperienceDialog"),
     Capability(
         "edit.duplicate", "Duplicate elements with fresh ids and names",
         api="raptor.api.edit.duplicate_elements", cli="edit",

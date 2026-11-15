@@ -151,7 +151,7 @@ def scale_mean(code: int, params: list[float], factor: float) -> list[float]:
 
 def from_quantiles(  # noqa: C901, PLR0912, PLR0915
         law: str, quantiles: dict[float, float]) -> dict[str, Any]:
-    """Fit a two-parameter life law from judged quantiles (WP-4.4).
+    """Fit a two-parameter life law from experience: shares failed by given ages (WP-4.4).
 
     `quantiles` maps probability to age, e.g. `{0.1: 100, 0.5: 300}` for
     "one in ten fail by 100, half by 300".  Two points solve the law in
@@ -262,7 +262,7 @@ def from_quantiles(  # noqa: C901, PLR0912, PLR0915
     }
 
 
-def judgement_changes(fit: dict[str, Any], block: str,
+def experience_changes(fit: dict[str, Any], block: str,
                       use: str = "fail") -> list[str]:
     """PATH=VALUE edits that give `block` the law `fit` (from
     `from_quantiles`) as its failure (`use="fail"`) or repair

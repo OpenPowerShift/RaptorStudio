@@ -20,8 +20,8 @@ def add_parser(sub: Any) -> None:
     o.set_defaults(func=_missing)
 
     f = sub.add_parser(
-        "fit", help="fit a life law from judged quantiles",
-        description="Turn plain judgements ('one in ten fail by 100, half "
+        "fit", help="fit a life law from experience (no data)",
+        description="Turn experience ('one in ten fail by 100, half "
                     "by 300') into Weibull, lognormal or exponential "
                     "parameters. No data needed; the fit is only as good as "
                     "the answers.")
@@ -256,7 +256,7 @@ def _print_resources(result: dict[str, Any]) -> None:
 def fit_command(args: Any) -> int:
     import shlex
 
-    from raptor.api.distributions import from_quantiles, judgement_changes
+    from raptor.api.distributions import from_quantiles, experience_changes
 
     quantiles: dict[float, float] = {}
     for text in args.quantile:
@@ -273,7 +273,7 @@ def fit_command(args: Any) -> int:
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
     if args.block:
-        fit["changes"] = judgement_changes(fit, args.block,
+        fit["changes"] = experience_changes(fit, args.block,
                                            "repair" if args.repair else "fail")
     if args.format == "json":
         emit_json(fit, None)

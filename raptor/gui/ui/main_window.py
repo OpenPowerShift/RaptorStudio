@@ -2066,7 +2066,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda bid, vals: self._diagram_dock.view.set_block_ldt_params(
                 bid, "post", vals))
         self._inspector.block_fail_params_changed.connect(self._on_block_fail_params_changed)
-        self._inspector.judgement_requested.connect(self._open_judgement_dialog)
+        self._inspector.experience_requested.connect(self._open_experience_dialog)
         self._inspector.block_repair_params_changed.connect(self._on_block_repair_params_changed)
         # Re-populate after a Type change: _distribution_params_row builds the param
         # rows from the distribution current when the tab was populated,

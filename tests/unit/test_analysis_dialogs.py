@@ -214,17 +214,17 @@ def test_undoing_a_run_setting_puts_the_experiment_back_too(win):
     assert win._run_panel._trials.value() == 77
 
 
-def test_estimate_from_judgement_writes_the_law_as_one_undo_step(win):
+def test_estimate_from_experience_writes_the_law_as_one_undo_step(win):
     from PySide6.QtWidgets import QPushButton
     view = win._diagram_dock.view
     valve = next(bid for bid, b in view.blocks.items() if b.name == "Valve")
     win._inspector.show_block(valve, view.blocks)
     win._inspector.ensure_all_tabs_built()
     buttons = [b for b in win._inspector.findChildren(QPushButton)
-               if b.text() == "Estimate from judgement…"]
+               if b.text() == "Estimate from experience…"]
     assert len(buttons) == 2                        # failure and repair
     next(b for b in buttons if "share fails" in b.toolTip()).click()
-    dlg = win._judgement_dialog
+    dlg = win._experience_dialog
     assert dlg.block_id == valve and dlg.use == "fail"
     assert not dlg.apply_btn.isEnabled()            # no ages yet
     dlg.set_answers([(10, 300), (50, 100)])

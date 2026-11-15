@@ -1,4 +1,4 @@
-"""Fitting a life law from judged quantiles (WP-4.4)."""
+"""Fitting a life law from experience (WP-4.4)."""
 from __future__ import annotations
 
 import math
@@ -45,7 +45,7 @@ def test_three_quantiles_fit_least_squares():
     assert fit["params"]["scale"] == pytest.approx(scale, rel=1e-6)
 
 
-def test_inconsistent_judgement_is_refused_by_name():
+def test_inconsistent_answers_are_refused_by_name():
     with pytest.raises(ValueError, match="higher probability"):
         from_quantiles("weibull", {0.5: 100, 0.1: 300})
     with pytest.raises(ValueError, match="at least two"):
@@ -71,10 +71,10 @@ def _model():
 def test_a_fit_applies_to_a_block_as_one_edit(law, use, code):
     # the law and its parameters go in together: one at a time, a Weibull
     # was checked against the exponential's parameters (scale 0) and refused
-    from raptor.api.distributions import judgement_changes
+    from raptor.api.distributions import experience_changes
     from raptor.api.paths import cell_changes
     fit = from_quantiles(law, {0.1: 100, 0.5: 300})
-    changes = judgement_changes(fit, "Valve", use)
+    changes = experience_changes(fit, "Valve", use)
     cells = {c["column"]: c["new"] for c in cell_changes(_model(), changes)}
     prefix = "F" if use == "fail" else "R"
     if code != 4:

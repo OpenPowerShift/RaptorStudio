@@ -574,7 +574,7 @@ PATH=VALUE edits for its recommendation, and never edits the model: apply
 them with `manage_spare_pools`, `update_element` or `manage_resources`. A
 recommendation that misses its target is said to miss it.
 
-`fit_from_judgement` turns judged shares and ages ("one in ten fail by 100
+`fit_from_experience` turns shares and ages from experience ("one in ten fail by 100
 hours, half by 300") into a Weibull, lognormal or exponential law, as
 `raptor fit` does. Given a `block`, it also returns the `changes` and the
 `update` fields (law and parameters together) for `update_element`.

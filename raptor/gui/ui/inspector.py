@@ -86,8 +86,8 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
     #: when only one field was actually edited, so the receiver never has
     #: to merge partial updates itself.
     block_fail_params_changed = Signal(int, list)
-    #: (block id, 'fail' or 'repair'): Estimate from judgement was pressed
-    judgement_requested = Signal(int, str)
+    #: (block id, 'fail' or 'repair'): Estimate from experience was pressed
+    experience_requested = Signal(int, str)
     block_repair_params_changed = Signal(int, list)
     #: (block_id, distro_code) -- Failure/Repair Type combo
     block_fail_type_changed = Signal(int, int)

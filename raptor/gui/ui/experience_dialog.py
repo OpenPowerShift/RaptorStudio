@@ -1,4 +1,4 @@
-"""Inspector ▸ Estimate from judgement: a life law with no data (plan 10.4).
+"""Inspector ▸ Estimate from experience: a life law with no data (plan 10.4).
 
 Asks the questions an engineer can answer ("one in ten have failed by 100
 hours, half by 300") and fits a Weibull, lognormal or exponential law
@@ -7,7 +7,7 @@ typed. The chart draws the fitted law's chance of having failed by each age,
 with the stated answers as points, so a law that cannot honour the answers
 shows it. *Use for <block>* writes the law and its parameters into the
 block's failure or repair distribution as one undo step
-(`judgement_changes`, the same edits `raptor fit --block` prints).
+(`experience_changes`, the same edits `raptor fit --block` prints).
 """
 from __future__ import annotations
 
@@ -108,8 +108,8 @@ class FitChart(QWidget):
         p.end()
 
 
-class JudgementDialog(QDialog):
-    """Fit a block's failure (`use="fail"`) or repair law from judgement."""
+class ExperienceDialog(QDialog):
+    """Fit a block's failure (`use="fail"`) or repair law from experience."""
 
     def __init__(self, win: Any, block_id: int, use: str = "fail") -> None:
         super().__init__(win)
@@ -120,7 +120,7 @@ class JudgementDialog(QDialog):
         self.block_name = self._name()
         self.units = (win._current_units() or "") if hasattr(win, "_current_units") else ""
         what = "failure" if use == "fail" else "repair"
-        self.setWindowTitle(f"Estimate {what} law from judgement")
+        self.setWindowTitle(f"Estimate {what} law from experience")
         self.resize(640, 600)
 
         intro = QLabel(
@@ -273,17 +273,17 @@ class JudgementDialog(QDialog):
                 + "." + note)
 
     def changes(self) -> list[str]:
-        from raptor.api.distributions import judgement_changes
+        from raptor.api.distributions import experience_changes
         if self.fit is None:
             return []
-        return judgement_changes(self.fit, str(self.block_id), self.use)
+        return experience_changes(self.fit, str(self.block_id), self.use)
 
     def apply(self) -> bool:
         from raptor.gui.ui.analysis_dialog import apply_changes
         if self.fit is None:
             return False
         what = "failure" if self.use == "fail" else "repair"
-        label = f"{self.block_name} {what} law from judgement"
+        label = f"{self.block_name} {what} law from experience"
         why = apply_changes(self._win, self.changes(), label)
         if why is not None:
             self.summary.setText(f"Cannot apply: {why}.")
@@ -293,13 +293,13 @@ class JudgementDialog(QDialog):
         return True
 
 
-def open_judgement(win: Any, block_id: int, use: str = "fail") -> JudgementDialog:
-    dlg = getattr(win, "_judgement_dialog", None)
+def open_experience(win: Any, block_id: int, use: str = "fail") -> ExperienceDialog:
+    dlg = getattr(win, "_experience_dialog", None)
     if dlg is not None:
         dlg.close()
         dlg.deleteLater()
-    dlg = JudgementDialog(win, block_id, use)
-    win._judgement_dialog = dlg
+    dlg = ExperienceDialog(win, block_id, use)
+    win._experience_dialog = dlg
     dlg.show()
     dlg.raise_()
     return dlg

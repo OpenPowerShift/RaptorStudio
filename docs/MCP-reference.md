@@ -75,7 +75,7 @@ Every tool section is generated from the server's `tools/list` payload.  It repe
   - [`cancel_run`](#tool-cancel_run)
   - [`compare_models`](#tool-compare_models)
   - [`estimate_runtime`](#tool-estimate_runtime)
-  - [`fit_from_judgement`](#tool-fit_from_judgement)
+  - [`fit_from_experience`](#tool-fit_from_experience)
   - [`optimise_pm`](#tool-optimise_pm)
   - [`optimise_resources`](#tool-optimise_resources)
   - [`optimise_spares`](#tool-optimise_spares)
@@ -3842,18 +3842,18 @@ Parameter notes:
 }
 ```
 
-<a id="tool-fit_from_judgement"></a>
+<a id="tool-fit_from_experience"></a>
 
-#### `fit_from_judgement`
+#### `fit_from_experience`
 
 - **Kind:** read-only
 - **Group:** [Simulation and what-if](#tools-what-if)
 
-Turn plain judgements into a life law, with no data.
+Turn experience into a life law, with no failure data.
 
-Each judgement is a share and an age: "one in ten fail by 100 hours,
+Each answer is a share and an age: "one in ten fail by 100 hours,
 half by 300" is `[{probability: 0.1, age: 100}, {probability: 0.5,
-age: 300}]`. Two judgements solve the law exactly; three or more are a
+age: 300}]`. Two answers solve the law exactly; three or more are a
 least-squares fit. Weibull suits wear-out lives, lognormal repair
 times, exponential random failures. Inconsistent answers (a higher share
 at an earlier age) are refused by name. The fit is only as good as the

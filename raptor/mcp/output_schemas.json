@@ -1306,7 +1306,7 @@
   ],
   "type": "object"
  },
- "fit_from_judgement": {
+ "fit_from_experience": {
   "properties": {
    "changes": {
     "type": "array"

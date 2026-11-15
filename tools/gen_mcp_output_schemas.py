@@ -213,7 +213,7 @@ def optimisers(rec: Recorder) -> None:
     rec.call("optimise_spares", model_id=opt, target=0.5, max_evaluations=2, trials=2)
     rec.call("optimise_pm", model_id=opt, trials=2)
     rec.call("optimise_resources", model_id=opt, target=0.5, extra=0, trials=2)
-    rec.call("fit_from_judgement", law="weibull", block="P1",
+    rec.call("fit_from_experience", law="weibull", block="P1",
              quantiles=[{"probability": 0.1, "age": 100}, {"probability": 0.5, "age": 300}])
 
 

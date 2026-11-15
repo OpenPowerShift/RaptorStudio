@@ -1,7 +1,7 @@
 """MCP tools: the optimisers (plan WP-4.1, 4.2 and 4.5).
 
 Registers ``optimise_spares``, ``optimise_pm`` and ``optimise_resources``,
-and ``fit_from_judgement`` (a life law from judged quantiles). Each search with paired simulation, never edits the open model, and returns
+and ``fit_from_experience`` (a life law from experience). Each search with paired simulation, never edits the open model, and returns
 the recommendation as ``changes``: PATH=VALUE edits to apply with
 ``update_element``, ``manage_spare_pools`` or ``manage_resources`` (or
 ``raptor set``). Long searches report progress and can be cancelled.
@@ -187,19 +187,19 @@ async def optimise_resources(
     return ok(result, md + _changes_md(result["changes"]))
 
 
-@mcp.tool(annotations=READ_ONLY("Fit a law from judgement"))
+@mcp.tool(annotations=READ_ONLY("Fit a law from experience"))
 @guarded
-def fit_from_judgement(
+def fit_from_experience(
     law: Literal["weibull", "lognormal", "exponential"],
     quantiles: list[dict[str, float]],
     block: str | None = None,
     use: Literal["fail", "repair"] = "fail",
 ) -> CallToolResult:
-    """Turn plain judgements into a life law, with no data.
+    """Turn experience into a life law, with no failure data.
 
-    Each judgement is a share and an age: "one in ten fail by 100 hours,
+    Each answer is a share and an age: "one in ten fail by 100 hours,
     half by 300" is `[{probability: 0.1, age: 100}, {probability: 0.5,
-    age: 300}]`. Two judgements solve the law exactly; three or more are a
+    age: 300}]`. Two answers solve the law exactly; three or more are a
     least-squares fit. Weibull suits wear-out lives, lognormal repair
     times, exponential random failures. Inconsistent answers (a higher share
     at an earlier age) are refused by name. The fit is only as good as the
@@ -212,20 +212,20 @@ def fit_from_judgement(
     parameters together) for its failure (`use="fail"`) or repair law.
     Nothing is changed here.
     """
-    from raptor.api.distributions import from_quantiles, judgement_changes
+    from raptor.api.distributions import from_quantiles, experience_changes
     try:
-        judged = {float(q["probability"]): float(q["age"]) for q in quantiles}
+        answers = {float(q["probability"]): float(q["age"]) for q in quantiles}
     except (KeyError, TypeError, ValueError):
-        raise ValueError("each judgement needs a numeric 'probability' and "
+        raise ValueError("each answer needs a numeric 'probability' and "
                          "'age', e.g. {\"probability\": 0.1, \"age\": 100}") from None
-    fit = from_quantiles(law, judged)
+    fit = from_quantiles(law, answers)
     out: dict[str, Any] = {
         **fit,
         "fitted": [{"probability": p, "age": t} for p, t in fit["fitted"].items()],
         "stated": [{"probability": p, "age": t} for p, t in fit["stated"].items()],
     }
     if block:
-        out["changes"] = judgement_changes(fit, block, use)
+        out["changes"] = experience_changes(fit, block, use)
         out["update"] = {f"{use}_dist": law, f"{use}_params": list(fit["slots"])}
     params = ", ".join(f"{name} {value:.6g}" for name, value in fit["params"].items())
     rows = "\n".join(f"| {100 * p:g} % | {t:.6g} |" for p, t in fit["fitted"].items())

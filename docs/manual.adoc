@@ -256,11 +256,11 @@ apply. Each tab has a *Rename* row with three modes:
 
 Leave the text blank to keep all names. The whole edit is one undo step.
 
-[[judgement]]
-== Estimate from judgement: a law with no data
+[[experience]]
+== Estimate from experience: a law with no data
 
 With no failure data, an engineer can still say "one in ten have failed by
-100 hours, half by 300". *Estimate from judgement…*, under a block's failure
+100 hours, half by 300". *Estimate from experience…*, under a block's failure
 and repair distributions in the Inspector, turns those answers into a law:
 Weibull for lives that wear out, lognormal for repair times, exponential
 for random failures. Type a share and an age on two or more rows; the fit
@@ -275,7 +275,7 @@ above 1 wears out, so planned maintenance can help). *Use for <block>*
 writes the law and its parameters into the block as one undo step. The
 same fit is `raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
 --block NAME`, which also prints the `raptor set` line, and the MCP tool
-`fit_from_judgement`. The fit is only as good as the answers.
+`fit_from_experience`. The fit is only as good as the answers.
 
 [[canvas-editing]]
 == Building on the canvas
