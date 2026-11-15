@@ -441,6 +441,7 @@ class _BlockItem(QGraphicsRectItem):
         """A hollow dashed ring round the result badge: the share's ±2 SE
         range is wider than the share itself (`canvas.UNCERTAIN`)."""
         if self._result_ring != bool(on):
+            self.prepareGeometryChange()
             self._result_ring = bool(on)
             self.update()
 
@@ -465,9 +466,10 @@ class _BlockItem(QGraphicsRectItem):
 
     def boundingRect(self) -> QRectF:
         # Room for the corner badges, which overhang the block by half
-        # their size, and the uncertainty ring round one (painting outside
-        # the bounding rect leaves trails).
-        m = 13.0
+        # their size (painting outside the bounding rect leaves trails),
+        # and for the uncertainty ring round one only while it shows: the
+        # layout and drag code read this rect.
+        m = 13.0 if self._result_ring else 9.0
         return super().boundingRect().adjusted(-m, -m, m, m)
 
     def hoverEnterEvent(self, event):
