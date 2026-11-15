@@ -232,8 +232,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # i.e. "after running, I can't reduce the size of the results
         # pane". The page scrolls instead.
         scroll.setMinimumHeight(0)
+        # The page itself keeps its layout's minimum, so a short pane
+        # scrolls it; zeroing that too squeezed the cards to the pane and
+        # cut their text off ("missions completed without a failure /
+        # missions" with "attempted" lost below the card).
         body = QWidget()
-        body.setMinimumHeight(0)
         scroll.setWidget(body)
         outer.addWidget(scroll)
 
@@ -281,6 +284,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # designed height when there is room; the page scrolls when
             # there is not.
             card.setMinimumWidth(172)
+            # never shorter than its text: the page scrolls instead
+            card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
             card.clicked.connect(self._explain_measure)
             self._cards[acronym] = card
             cards.addWidget(card, i // 3, i % 3)

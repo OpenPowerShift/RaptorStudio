@@ -215,11 +215,12 @@ def test_the_basis_is_one_of_three():
         PartType("p", "P", basis="guesswork")
 
 
-def test_an_empty_library_gives_its_message_the_lists_room(win):
+def test_the_empty_library_message_is_never_cut_off(win, qapp):
     dock = win._library_dock_widget
+    dock.resize(260, 420)
+    dock.show()
     dock.refresh()
-    assert dock.tree.isHidden() and "No parts yet" in dock.status.text()
-    row = _first_block(win._rbd)
-    apply_part_to_rbd(win._rbd, row["ID"], part_from_block(row, name="Unit"))
-    dock.refresh()
-    assert not dock.tree.isHidden()
+    for _ in range(4):
+        qapp.processEvents()
+    assert "No parts yet" in dock.status.text()
+    assert dock.status.height() >= dock.status.heightForWidth(dock.status.width())

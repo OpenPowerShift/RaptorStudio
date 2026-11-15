@@ -455,6 +455,9 @@ class _MetricCard(QFrame):
         lay.addWidget(self._value)
         self._range = QLabel("")
         self._range.setObjectName("MetricRange")
+        # "min … · max … · > rough estimate: not every run gave a value"
+        # is wider than a narrow card
+        self._range.setWordWrap(True)
         self._range.setToolTip(
             "Lowest and highest value observed across the individual runs.")
         lay.addWidget(self._range)
