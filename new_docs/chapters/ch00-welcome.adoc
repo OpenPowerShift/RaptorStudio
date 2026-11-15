@@ -47,8 +47,10 @@ TIP: Every word the book uses in a special sense (trial, DTCI, MTBDE,
 SEM and the rest) is in the <<appendix-glossary>>.
 
 The chapters show the desktop application, but nothing in them needs it.
-Each early chapter ends its run with a *From the command line* box: the
-same model and measures through `raptor`, run from the `new_docs` folder.
+Chapters <<ch-first-model,1>>, <<ch-redundancy,2>>, <<ch-trials,6>> and
+<<ch-weaklink,13>> add a *From the command line* box: the same model and
+measures through `raptor`, run from the `new_docs` folder. The later
+chapters on the Advisor, MCP and downtime drivers give both.
 `raptor help` lists the commands and `raptor help run` explains one.
 
 [NOTE]
