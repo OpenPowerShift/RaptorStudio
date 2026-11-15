@@ -124,3 +124,19 @@ def test_the_advisor_layer_marks_what_the_findings_are_about(win):
     win._overlay_combo.setCurrentText("No canvas overlay")
     QApplication.processEvents()
     assert view._last_result_visuals is None and not action.isChecked()
+
+
+def test_a_rolled_up_hierarchy_shows_its_top_contributors(win):
+    view = win._diagram_dock.view
+    win._downtime_overlay_action.setChecked(True)
+    QApplication.processEvents()
+    scented = [h for h in view._hier_items.values() if getattr(h, "_scent", None)]
+    assert scented
+    bar = scented[0]._scent
+    segments = bar.childItems()
+    assert 1 <= len(segments) <= 3
+    assert sum(s.rect().width() for s in segments) <= bar.rect().width() + 1e-6
+    assert "of the hierarchy's total" in bar.toolTip()
+    win._downtime_overlay_action.setChecked(False)
+    QApplication.processEvents()
+    assert not any(getattr(h, "_scent", None) for h in view._hier_items.values())

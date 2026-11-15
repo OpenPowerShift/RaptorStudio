@@ -685,6 +685,9 @@ Results-tab ribbon extras beyond the dock itself:
    that started it). Hover for the full cause mix and the hierarchy's
    own ±2 standard-error range, worked out from its downtime in each run
    (adding up the ranges of the elements inside would overstate it).
+   Under the Σ, a thin bar splits the total among the three elements
+   inside that contribute most, each coloured by its main cause; hover
+   the bar for their names and shares. The SVG drawing shows the same bar.
    `raptor explain` lists the same roll-up under *By hierarchy*.
 ** **Lost capacity** — the same, for each element's share of the lost
    flow, and each link into a capacity node drawn as wide as the

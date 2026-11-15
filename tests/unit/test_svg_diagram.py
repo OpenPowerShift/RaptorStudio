@@ -171,6 +171,15 @@ def test_the_downtime_layer_marks_rolls_up_and_explains(tmp_path):
     assert meta["layer"]["elements_marked"] == len(marks) > 0
     texts = ["".join(t.itertext()) for t in root.iter(f"{{{NS["svg"]}}}text")]
     assert any("Σ " in t for t in texts) == (meta["layer"]["hierarchies_rolled_up"] > 0)
+    # each rolled-up hierarchy has a bar of its top contributors, at most
+    # three segments filling no more than the bar
+    scents = root.findall(".//svg:g[@class='scent']", NS)
+    assert len(scents) == meta["layer"]["hierarchies_rolled_up"]
+    for scent in scents:
+        base, *segments = scent.findall("svg:rect", NS)
+        assert 1 <= len(segments) <= 3
+        assert sum(float(r.get("width")) for r in segments) <= float(base.get("width")) + 0.2
+        assert "of the total" in scent.find("svg:title", NS).text
     assert any(t.startswith("Colour: share of system downtime") for t in texts)
     # the largest share is filled with the "high" band
     top = layer["elements"][0]

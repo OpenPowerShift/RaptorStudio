@@ -322,7 +322,7 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
     x0, y0, w, h = _frame([s.bounds() for s in (zoomed or shapes)]
                           + ([] if zoomed else [_anno_bounds(a) for a in annos]), margin)
     painted: dict[tuple[str, int], dict[str, Any]] = {}
-    rolled: dict[int, tuple[float, int]] = {}
+    rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
     legend: list[str] = []
     if layer is not None:
         painted, rolled = _layer_marks(rbd, layer, by_key)
@@ -393,7 +393,7 @@ def _check(rbd: Any, *, level: int, margin: float, theme: str, routing: str) -> 
 
 
 def _elements_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
-                  rolled: dict[int, tuple[float, int]], layer: dict[str, Any] | None,
+                  rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], layer: dict[str, Any] | None,
                   c: dict[str, str], bands: dict[str, str]) -> list[str]:
     """Every element, filled by its band where a result layer marks it."""
     out = []
@@ -409,7 +409,7 @@ def _elements_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str,
 
 
 def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
-               rolled: dict[int, tuple[float, int]], legend: list[str],
+               rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], legend: list[str],
                c: dict[str, str], legend_at: tuple[float, float],
                pooled: dict[int, dict[str, Any]] | None = None) -> list[str]:
     """The marks, the hierarchy totals and the legend (its last line at `legend_at`)."""
@@ -419,7 +419,7 @@ def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, An
         if mark is not None:
             out.append(_mark_svg(s, mark, c))
         elif s.kind == "hier" and s.id in rolled:
-            total, count = rolled[s.id]
+            total, count, inside = rolled[s.id]
             own = (pooled or {}).get(s.id)
             spread = (f"; ±2 SE {100 * own['low']:.3g} to {100 * own['high']:.3g} %, pooled over the runs"
                       if own is not None and own.get("low") is not None else "")
@@ -427,10 +427,40 @@ def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, An
                        f'font-weight="bold" fill="{c["text"]}" text-anchor="middle">'
                        f'<title>{escape(f"{count} element(s) inside{spread}")}</title>'
                        f'Σ {100 * total:.3g} %</text>')
+            out.extend(_scent_svg(s, inside, total, c))
     x, bottom = legend_at
     for i, line in enumerate(legend):
         out.append(f'<text x="{x:.1f}" y="{bottom - 16 * (len(legend) - 1 - i):.1f}" '
                    f'font-size="11" fill="{c["text"]}">{escape(line)}</text>')
+    out.append("</g>")
+    return out
+
+
+#: Width of the bar of a hierarchy's top contributors, as on the canvas.
+SCENT_W = 72.0
+
+
+def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
+               c: dict[str, str]) -> list[str]:
+    """Under a hierarchy's Σ, a small bar of its top three contributors,
+    each as wide as its part of the total and coloured by its main cause,
+    so a problem can be followed down a level (plan 7.6.1)."""
+    from raptor.render.charts_svg import CAUSE_COLOURS
+    if total <= 0 or not inside:
+        return []
+    top3 = sorted(inside, key=lambda r: -float(r.get("value") or 0.0))[:3]
+    x0, y = s.cx - SCENT_W / 2, s.cy + HIER_H / 2 + 16
+    words = ", ".join(f"{r.get('name')} {100 * float(r.get('value') or 0.0) / total:.3g} %"
+                      for r in top3)
+    out = [f'<g class="scent"><title>{escape(f"Inside: {words} of the total; colour = main cause")}</title>',
+           f'<rect x="{x0:.1f}" y="{y:.1f}" width="{SCENT_W:.1f}" height="5" fill="{c["link"]}" '
+           'fill-opacity="0.25"/>']
+    x = x0
+    for r in top3:
+        width = SCENT_W * min(1.0, max(0.0, float(r.get("value") or 0.0) / total))
+        colour = CAUSE_COLOURS.get(str(r.get("main_cause") or "other"), CAUSE_COLOURS["other"])
+        out.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="5" fill="{colour}"/>')
+        x += width
     out.append("</g>")
     return out
 
@@ -442,7 +472,8 @@ def _band_of(value: float, layer: dict[str, Any] | None) -> str:
 
 
 def _layer_marks(rbd: Any, layer: dict[str, Any], by_key: dict[tuple[str, int], _Shape]
-                 ) -> tuple[dict[tuple[str, int], dict[str, Any]], dict[int, tuple[float, int]]]:
+                 ) -> tuple[dict[tuple[str, int], dict[str, Any]],
+                            dict[int, tuple[float, int, list[dict[str, Any]]]]]:
     """The layer's rows on this level, and each hierarchy oval on this level
     with the sum of the rows inside it (at any depth)."""
     parents: dict[tuple[str, int], int] = {}
@@ -454,7 +485,7 @@ def _layer_marks(rbd: Any, layer: dict[str, Any], by_key: dict[tuple[str, int], 
         parents[("event", e.id)] = e.parent_id
     hier_parent = {h.id: h.parent_id for h in (hier_from_row(r) for r in _rows(rbd, "HIERARCHY_DATA"))}
     painted: dict[tuple[str, int], dict[str, Any]] = {}
-    rolled: dict[int, tuple[float, int]] = {}
+    rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
     for row in layer.get("elements") or []:
         key = (str(row.get("kind")).lower(), int(row["id"]))
         if key in by_key:
@@ -466,8 +497,8 @@ def _layer_marks(rbd: Any, layer: dict[str, Any], by_key: dict[tuple[str, int], 
                 break
             parent = hier_parent.get(parent, 0)
         if parent and ("hier", parent) in by_key:
-            total, count = rolled.get(parent, (0.0, 0))
-            rolled[parent] = (total + float(row.get("value") or 0.0), count + 1)
+            total, count, rows = rolled.get(parent, (0.0, 0, []))
+            rolled[parent] = (total + float(row.get("value") or 0.0), count + 1, [*rows, row])
     return painted, rolled
 
 

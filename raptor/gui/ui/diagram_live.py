@@ -637,6 +637,7 @@ class LiveOverlayMixin:
                 event_item._live_colour = None
         for hier_item in self._hier_items.values():
             hier_item.set_anal_label(None)
+            hier_item.set_scent(None)
             if hasattr(hier_item, "_live_colour"):
                 hier_item._live_colour = None
         self.retheme()
@@ -1080,6 +1081,7 @@ class LiveOverlayMixin:
 
         rolled: dict[int, float] = {}
         rolled_names: dict[int, list[str]] = {}
+        rolled_rows: dict[int, list[dict[str, Any]]] = {}
 
         def hier_on_level(parent: int) -> int | None:
             # the hierarchy oval on this level that holds `parent`, if any
@@ -1099,6 +1101,7 @@ class LiveOverlayMixin:
                 if hid is not None:
                     rolled[hid] = rolled.get(hid, 0.0) + float(row["value"])
                     rolled_names.setdefault(hid, []).append(row["name"])
+                    rolled_rows.setdefault(hid, []).append(row)
                 continue
             band, colour = bands[row["band"]]
             value = float(row["value"])
@@ -1150,6 +1153,18 @@ class LiveOverlayMixin:
                   "element that started it.")
             item.set_anal_label(f"Σ {100 * total:.3g} %",
                                 f"{measure}, summed over the hierarchy's contents")
+            if hasattr(item, "set_scent") and total > 0:
+                # its top three contributors, so the problem can be
+                # followed down a level ("scent", plan 7.6.1)
+                top3 = sorted(rolled_rows[hid], key=lambda r: -float(r["value"]))[:3]
+                parts = [(r["name"], float(r["value"]) / total,
+                          cause_colour(str(r.get("main_cause") or "other")).name())
+                         for r in top3]
+                rest = 1.0 - sum(f for _n, f, _c in parts)
+                item.set_scent(parts, "Inside: " + ", ".join(
+                    f"{n} {100 * f:.3g} %" for n, f, _c in parts)
+                    + (f", others {100 * rest:.3g} %" if rest > 0.005 else "")
+                    + " of the hierarchy's total; colour = main cause.")
         if flow and generated:
             # widths relative to the busiest node, so the paths read apart
             # even when the system delivers a small part of its full flow
