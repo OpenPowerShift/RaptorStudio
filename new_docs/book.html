@@ -3392,11 +3392,16 @@ stream, so trial 2 differs from trial 1 — like re-dealing a deck.</p>
 <p>There is a third superpower worth knowing about even before you need
 it: <strong>fair comparisons.</strong> If you want to know whether a design change
 actually helped, run the old and the new model on the <strong>same</strong> seeds.
-Sharing seeds is called <strong>common random numbers</strong> — both models see the
-same run of "luck", so the difference between their results is the
-change you made, not noise. Comparing two designs on independent seeds
-buries a real effect under sampling noise that a shared seed removes
-for free.</p>
+Sharing seeds is called <strong>common random numbers</strong> — both models start
+from the same run of "luck", so the difference between their results is
+more the change you made and less noise. Be honest with yourself about
+how much: RAPTOR&#8217;s random streams run on from one trial into the next
+(as Raptor 7&#8217;s do), so once the change moves one failure or repair the
+two models are drawing different numbers. The pairing is exact at the
+start and fades after it; in practice it removes a few per cent of the
+noise, sometimes none. The comparison is still fair, and its standard
+error is computed from the paired differences, so it does not flatter
+the result; What If reports how much the pairing actually cut.</p>
 </div>
 </div>
 <div class="sect2">
@@ -3522,15 +3527,23 @@ straight into this problem.</p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-bash" data-lang="bash">raptor run models/Lantern1.rbds -n 200 --seed 7 --metrics Reliability
-raptor run models/Lantern1.rbds --precision 10% --metrics Reliability</code></pre>
+raptor run models/Lantern1.rbds --precision 10% --precision-metric system.reliability</code></pre>
 </div>
 </div>
 <div class="paragraph">
 <p><code>-n</code> sets the trial count and <code>--seed</code> re-rolls the dice reproducibly:
 the same seed gives the same numbers every time. <code>--precision 10%</code>
-keeps adding batches of trials until the ±2 SEM half-width is a tenth
-of the mean, then stops (<strong>Precision…</strong> beside Trials in the Run panel
-does the same and sets the trial count). <code>-j 4</code> runs on four cores, and <code>raptor sweep</code>
+keeps adding batches of trials until the watched result is known to
+within about a tenth, then stops (<strong>Precision…</strong> beside Trials in the Run
+panel does the same and sets the trial count). Two details matter. For a
+probability such as reliability or availability it watches the part that
+is <strong>lost</strong>, 1 minus the value, because a tenth of 99.9 % says nothing
+useful while a tenth of the 0.1 % lost does; a time such as mean downtime
+is watched as itself. And the interval is Student&#8217;s <strong>t</strong> at 95 %
+confidence (<code>--precision-confidence</code> changes it), with the stopping rule
+half-width ≤ r/(1+r) × mean for a target r, which keeps the true relative
+error within r. The default watched result is availability
+(<code>--precision-metric</code>). <code>-j 4</code> runs on four cores, and <code>raptor sweep</code>
 and <code>raptor compare</code> are the command-line Sweep and Compare.</p>
 </div>
 </div>
@@ -12382,7 +12395,7 @@ the same findings, and <code>apply_fix</code> applies one by id.</p>
 <div class="paragraph">
 <p><strong>Time: about 45 minutes.</strong>
 <strong>New ideas: the Story, downtime attribution, the three criticality indices,
-what-if comparison with common random numbers, precision, sensitivity and
+what-if comparison on shared seeds, precision, sensitivity and
 the cheapest spare holding.</strong></p>
 </div>
 <div class="sect2">
@@ -12717,7 +12730,11 @@ raptor run VanFlat.rbds --precision 5% --precision-metric system.mdt --max-trial
 </div>
 <div class="paragraph">
 <p>The runner grows the batch, reads the per-run values, and stops when the
-relative half-width of the watched metric meets the target. Batches are
+relative half-width of the watched metric meets the target: half-width ≤
+r/(1+r) × mean for a target r, using Student&#8217;s <strong>t</strong> at the chosen confidence
+(95 % unless <code>--precision-confidence</code> says otherwise). Availability and
+reliability are watched as the part lost (1 − value), so 5 % means 5 % of
+the downtime, not of the uptime; a time such as MDT is watched as itself. Batches are
 re-run with the same seed, so the final batch is exactly the first <strong>n</strong>
 trials of a fixed <strong>n</strong>-trial run; the seed table is untouched. The result
 carries the reached interval, the target, the trial count and the pass
@@ -12749,10 +12766,13 @@ the table reports the scenario value, the paired difference with its
 standard error and <code>P(better)</code>, the chance that the scenario really is
 better and the difference is not noise. Halving the fuel pump&#8217;s repair time
 gains about 0.4 points of availability, with a standard error under 0.05.
-Pairing narrows the difference&#8217;s uncertainty; by how much depends on the
-change (a change that alters how many random draws a block makes weakens
-it). It never biases the comparison, and the <code>Pairing cut the variance by</code>
-line says what was gained.</p>
+Pairing can narrow the difference&#8217;s uncertainty, but expect little: the
+random streams run on from one trial into the next, as in Raptor 7, so once
+the change moves one event the two runs draw different numbers. On the
+book&#8217;s models it cuts a few per cent of the variance, sometimes none. It
+never biases the comparison, the standard error comes from the paired
+differences either way, and the <code>Pairing cut the variance by</code> line says
+what was gained.</p>
 </div>
 <div class="paragraph">
 <p>Use the same seed and the same trial count when you compare two runs by
@@ -12781,13 +12801,29 @@ shows each input alone, so it cannot show interactions.</p>
 <h3 id="_how_many_spares">25.9. How many spares</h3>
 <div class="paragraph">
 <p>The spare optimiser starts from a Poisson backorder model, orders one-unit
-increments by backorder reduction per unit cost, and simulates that path
-with common random numbers:</p>
+increments by backorder reduction per unit cost, and simulates that path,
+every point with the same seed:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-bash" data-lang="bash">raptor optimise spares VanFlat.rbds --target 'system.ao&gt;=0.995' --budget 30
-raptor optimise spares VanFlat.rbds --target 'system.ao&gt;=0.995' --apply</code></pre>
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor optimise spares DC1.rbds --target 'system.ao&gt;=0.999' --budget 30
+raptor optimise spares DC1.rbds --target 'system.ao&gt;=0.999' --apply</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The model needs a finite spare pool that its blocks draw on; VanFlat keeps
+no pool, so the data-centre model is used here. It holds three cooling-unit
+spares today, and one is enough:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>Base: 0.99966 (lower 0.99943), holding cost 3
+   CRAC_Spares 0                    0.99919 (lower 0.99859)  cost 0
+ * CRAC_Spares 1                    0.9996 (lower 0.99934)  cost 1
+
+Recommended: CRAC_Spares 1 — availability 99.96 % (lower bound 99.93 %)
+against a target of 99.9 %; ... That is fewer than the 3 held today: the
+extra stock buys no measurable availability at this run count.</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -13731,7 +13767,10 @@ difference you can see at this run count".</p></td>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Paired comparison</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Running the base model and a scenario with the same seed, so run <strong>i</strong> of
-each sees the same luck. Differences then show the change, not the noise.</p></td>
+each starts from the same luck, and judging the change from the run-by-run
+differences. In RAPTOR the two stay in step only until the change first
+moves an event, so the noise it removes is usually small; the result says
+how much.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Phase</p></td>

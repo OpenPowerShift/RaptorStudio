@@ -242,6 +242,10 @@ def optimise_spares(  # noqa: C901, PLR0912
                              candidates[-1], points)
     caption = _caption(recommended, target, metric, costs_default,
                        met or mode == "curve")
+    held = sum(pool.stock for pool in selected)
+    if recommended is not None and sum(recommended["stocks"].values()) < held:
+        caption += (f" That is fewer than the {held} held today: the extra "
+                    "stock buys no measurable availability at this run count.")
     if not met and mode == "meet":
         caption += {
             "search ceiling": (

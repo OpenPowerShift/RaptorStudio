@@ -469,6 +469,22 @@ whose estimate exceeds `timeout_s` unless `confirm_long_run` is true. It
 returns `run_id`, `runs`, `requested_runs`, `truncated`, `warnings`,
 `caveats` and a `summary` with min/mean/max/stdev/sem per metric.
 
+Instead of guessing `num_runs`, pass `precision`, e.g.
+`{"relative": 0.05, "metric": "system.ao"}`: `simulate` grows the batch
+until the watched result is known to that relative precision and returns a
+`precision` block (`watched`, `value`, the interval, `trials`, `stopped`
+and the pass history). Availability and reliability are watched as the part
+lost (1 − value) unless `on` says otherwise; a time such as `system.mdt` is
+watched as itself. The stop rule is half-width ≤ r/(1+r) × mean with
+Student's t at `confidence` (0.95). `max_trials` is held to the server's
+`--max-runs`.
+
+`what_if`, `sensitivity`, `recommend_changes` and the optimisers are held
+to the same limits as a run: `trials` (or the model's own NumRuns when it
+is left out) within `--max-runs`, a finite `timeout_s` up to a day, and a
+bounded number of variants. Their scratch copies and intermediate runs are
+removed when they finish.
+
 Use `simulate` for a batch that fits in one tool call, and `start_run` when
 it does not:
 

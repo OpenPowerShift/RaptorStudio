@@ -157,6 +157,11 @@ raptor run model.rbd -n 500 --importance both   # also rank the blocks by import
 raptor run model.rbd -r events -r end-of-run -o results/   # also write Raptor 7-format report files
 raptor sweep model.rbd --vary "block:Pump A.repair_params[0]=12,24,48" --metric Availability
 raptor diff before.rbds after.rbds   # what changed between two versions
+raptor advise model.rbds             # what looks wrong or unwise, with fixes
+raptor explain model.rbds --story    # what drives the downtime, in words
+raptor whatif model.rbds --change "block:Pump A.repair_params=6,1,0" -n 200   # one change against Base, paired
+raptor sensitivity model.rbds --top 8 -n 100   # which inputs the answer is most sensitive to
+raptor optimise spares model.rbds --target "system.ao>=0.995"   # the least spare stock that meets a target
 ```
 
 `raptor help` lists every command and topic.
@@ -242,8 +247,9 @@ Directions under consideration — ideas, not commitments, in no fixed order:
   bounded analytical solver for static RBDs is available now.
 - **Richer maintenance and logistics.** Crews, shifts and supply chains that
   the model can express directly.
-- **Uncertainty and sensitivity analysis.** Ask which input matters most, and
-  how sure the answer is.
+- **Uncertainty in the inputs.** One-at-a-time sensitivity, paired what-ifs
+  and run-to-precision are available now; carrying the uncertainty of the
+  failure data itself through to the answer is not yet.
 
 ## Licence & credits
 

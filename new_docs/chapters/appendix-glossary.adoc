@@ -193,7 +193,10 @@ difference you can see at this run count".
 
 |Paired comparison
 |Running the base model and a scenario with the same seed, so run *i* of
-each sees the same luck. Differences then show the change, not the noise.
+each starts from the same luck, and judging the change from the run-by-run
+differences. In RAPTOR the two stay in step only until the change first
+moves an event, so the noise it removes is usually small; the result says
+how much.
 
 |Phase
 |A repeating mission stage with its own duration. A block can be Cut

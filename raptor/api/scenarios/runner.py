@@ -1,15 +1,17 @@
-"""What-if scenarios compared with common random numbers (WP-3.1).
+"""What-if scenarios compared on shared seeds (WP-3.1).
 
 A scenario is the open model plus a short list of `PATH=VALUE` changes
 (`raptor.api.paths`), never a second file.  Base and every scenario run with
-the same seed, so trial *i* of each draws the same streams where the change
-leaves a block's number of draws alone; the comparison is on paired
-differences, which is much tighter than two independent intervals.
+the same seed, and the comparison is on paired differences.
 
-A change that alters how many draws a block makes can desynchronise later
-draws on shared system streams: the comparison stays unbiased, it only
-loses some of the pairing benefit.  `variance_reduction` reports how much
-pairing actually bought.
+The streams run on from one trial into the next (as in Raptor 7), so the
+two runs stay in step only until the change first moves an event; after
+that they draw different numbers. Measured on the book's models the pairing
+removes a few per cent of the variance, often none. The comparison stays
+unbiased and its standard error is from the paired differences, so it is
+honest; `variance_reduction` reports what pairing actually bought. True
+per-trial common random numbers would need the engine to re-seed each
+trial, which Raptor 7 does not do.
 """
 from __future__ import annotations
 from raptor.api.insight.axes import pct

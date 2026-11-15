@@ -3,7 +3,7 @@
 
 *Time: about 45 minutes.*
 *New ideas: the Story, downtime attribution, the three criticality indices,
-what-if comparison with common random numbers, precision, sensitivity and
+what-if comparison on shared seeds, precision, sensitivity and
 the cheapest spare holding.*
 
 === You will learn
@@ -235,7 +235,11 @@ raptor run VanFlat.rbds --precision 5% --precision-metric system.mdt --max-trial
 ----
 
 The runner grows the batch, reads the per-run values, and stops when the
-relative half-width of the watched metric meets the target. Batches are
+relative half-width of the watched metric meets the target: half-width ≤
+r/(1+r) × mean for a target r, using Student's *t* at the chosen confidence
+(95 % unless `--precision-confidence` says otherwise). Availability and
+reliability are watched as the part lost (1 − value), so 5 % means 5 % of
+the downtime, not of the uptime; a time such as MDT is watched as itself. Batches are
 re-run with the same seed, so the final batch is exactly the first *n*
 trials of a fixed *n*-trial run; the seed table is untouched. The result
 carries the reached interval, the target, the trial count and the pass
@@ -263,10 +267,13 @@ the table reports the scenario value, the paired difference with its
 standard error and `P(better)`, the chance that the scenario really is
 better and the difference is not noise. Halving the fuel pump's repair time
 gains about 0.4 points of availability, with a standard error under 0.05.
-Pairing narrows the difference's uncertainty; by how much depends on the
-change (a change that alters how many random draws a block makes weakens
-it). It never biases the comparison, and the `Pairing cut the variance by`
-line says what was gained.
+Pairing can narrow the difference's uncertainty, but expect little: the
+random streams run on from one trial into the next, as in Raptor 7, so once
+the change moves one event the two runs draw different numbers. On the
+book's models it cuts a few per cent of the variance, sometimes none. It
+never biases the comparison, the standard error comes from the paired
+differences either way, and the `Pairing cut the variance by` line says
+what was gained.
 
 Use the same seed and the same trial count when you compare two runs by
 hand; otherwise you are reading noise.
@@ -289,13 +296,27 @@ shows each input alone, so it cannot show interactions.
 === How many spares
 
 The spare optimiser starts from a Poisson backorder model, orders one-unit
-increments by backorder reduction per unit cost, and simulates that path
-with common random numbers:
+increments by backorder reduction per unit cost, and simulates that path,
+every point with the same seed:
 
 [source,bash]
 ----
-raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --budget 30
-raptor optimise spares VanFlat.rbds --target 'system.ao>=0.995' --apply
+raptor optimise spares DC1.rbds --target 'system.ao>=0.999' --budget 30
+raptor optimise spares DC1.rbds --target 'system.ao>=0.999' --apply
+----
+
+The model needs a finite spare pool that its blocks draw on; VanFlat keeps
+no pool, so the data-centre model is used here. It holds three cooling-unit
+spares today, and one is enough:
+
+----
+Base: 0.99966 (lower 0.99943), holding cost 3
+   CRAC_Spares 0                    0.99919 (lower 0.99859)  cost 0
+ * CRAC_Spares 1                    0.9996 (lower 0.99934)  cost 1
+
+Recommended: CRAC_Spares 1 — availability 99.96 % (lower bound 99.93 %)
+against a target of 99.9 %; ... That is fewer than the 3 held today: the
+extra stock buys no measurable availability at this run count.
 ----
 
 A point counts as meeting the target only when the cautious end of its

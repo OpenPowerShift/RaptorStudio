@@ -45,11 +45,16 @@ always. That gives you two superpowers:
 There is a third superpower worth knowing about even before you need
 it: **fair comparisons.** If you want to know whether a design change
 actually helped, run the old and the new model on the *same* seeds.
-Sharing seeds is called *common random numbers* — both models see the
-same run of "luck", so the difference between their results is the
-change you made, not noise. Comparing two designs on independent seeds
-buries a real effect under sampling noise that a shared seed removes
-for free.
+Sharing seeds is called *common random numbers* — both models start
+from the same run of "luck", so the difference between their results is
+more the change you made and less noise. Be honest with yourself about
+how much: RAPTOR's random streams run on from one trial into the next
+(as Raptor 7's do), so once the change moves one failure or repair the
+two models are drawing different numbers. The pairing is exact at the
+start and fades after it; in practice it removes a few per cent of the
+noise, sometimes none. The comparison is still fair, and its standard
+error is computed from the paired differences, so it does not flatter
+the result; What If reports how much the pairing actually cut.
 
 === Watching the wobble shrink
 
@@ -121,14 +126,22 @@ straight into this problem.
 [source,bash]
 ----
 raptor run models/Lantern1.rbds -n 200 --seed 7 --metrics Reliability
-raptor run models/Lantern1.rbds --precision 10% --metrics Reliability
+raptor run models/Lantern1.rbds --precision 10% --precision-metric system.reliability
 ----
 
 `-n` sets the trial count and `--seed` re-rolls the dice reproducibly:
 the same seed gives the same numbers every time. `--precision 10%`
-keeps adding batches of trials until the ±2 SEM half-width is a tenth
-of the mean, then stops (*Precision…* beside Trials in the Run panel
-does the same and sets the trial count). `-j 4` runs on four cores, and `raptor sweep`
+keeps adding batches of trials until the watched result is known to
+within about a tenth, then stops (*Precision…* beside Trials in the Run
+panel does the same and sets the trial count). Two details matter. For a
+probability such as reliability or availability it watches the part that
+is *lost*, 1 minus the value, because a tenth of 99.9 % says nothing
+useful while a tenth of the 0.1 % lost does; a time such as mean downtime
+is watched as itself. And the interval is Student's *t* at 95 %
+confidence (`--precision-confidence` changes it), with the stopping rule
+half-width ≤ r/(1+r) × mean for a target r, which keeps the true relative
+error within r. The default watched result is availability
+(`--precision-metric`). `-j 4` runs on four cores, and `raptor sweep`
 and `raptor compare` are the command-line Sweep and Compare.
 
 === Check yourself

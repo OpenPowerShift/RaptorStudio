@@ -1129,7 +1129,10 @@ async def what_if(
     `["block:Pump.repair_params=8,0,0"]`. Base and the scenario run with the
     same seed, so trial *i* is paired; the result reports each metric's
     scenario value, the paired difference with its standard error, the
-    chance the scenario is better, and how much variance pairing cut. The
+    chance the scenario is better, and how much variance pairing cut (often
+    little: the random streams run on between trials, so trials stay in step
+    only until the change first moves an event; the standard error is from
+    the paired differences, so it is honest either way). The
     open model is never modified.
 
     `trials` sets the fixed count; `precision` (`{relative: 0.1,
