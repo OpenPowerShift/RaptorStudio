@@ -5729,7 +5729,9 @@ series: 'availability', 'capacity' or 'cost'.  runs: 'mean' (default),
 (default 100).
 
 Returns {t, values, runs_included, decimated_from, envelope?} plus a
-short Markdown preview.  No image is ever returned.
+short Markdown preview.  No image is ever returned.  For 'capacity',
+`values` is the flow and `capacity` the system capacity, null where
+nothing limits the flow (Raptor's 999,999,999), with `capacity_note`.
 
 **Parameters**
 

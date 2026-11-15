@@ -1357,8 +1357,41 @@ def get_timeseries(
         "markdown": markdown,
     }
     if capacity_values is not None:
-        result["capacity"] = capacity_values
+        result["capacity"], unlimited = _without_no_limit(
+            capacity_values, n_runs if runs in ("mean", "") else 1)
+        if unlimited:
+            result["capacity_note"] = (
+                "null capacity: nothing limits the flow then (Raptor records "
+                "999,999,999 for 'no limit'"
+                + (", and a mean over runs that includes it means nothing"
+                   if runs in ("mean", "") and n_runs > 1 else "") + ").")
     return result
+
+
+#: Raptor's capacity for "no limit".
+_NO_LIMIT = 999_999_999.0
+
+
+def _without_no_limit(values: Any, runs_averaged: int) -> tuple[Any, bool]:
+    """`values` (a list, or {run: list}) with every point that holds
+    Raptor's "no limit" capacity -- or, in a mean over `runs_averaged` runs,
+    any share of it -- set to None; and whether there was one."""
+    floor = _NO_LIMIT * 0.999 / max(1, runs_averaged)
+    found = False
+
+    def clean(series: list) -> list:
+        nonlocal found
+        out: list[Any] = []
+        for value in series:
+            if isinstance(value, (int, float)) and value >= floor:
+                found = True
+                out.append(None)
+            else:
+                out.append(value)
+        return out
+    if isinstance(values, dict):
+        return {key: clean(list(series)) for key, series in values.items()}, found
+    return clean(list(values)), found
 
 
 def _series_view(runs: list[dict], key: str) -> list[dict]:
