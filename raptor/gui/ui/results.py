@@ -1235,10 +1235,12 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            from raptor.api.insight.attribution import model_phases
+            from raptor.api.insight.attribution import model_hierarchies, model_phases
+            rbd = getattr(self, "_rbd", None)
             attribution = attribute_logs(logs, start, progress=show,
                                          with_outages=True, capacity=cap_runs,
-                                         phases=model_phases(getattr(self, "_rbd", None)))
+                                         phases=model_phases(rbd),
+                                         hierarchies=model_hierarchies(rbd))
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")

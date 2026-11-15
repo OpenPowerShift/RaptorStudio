@@ -110,6 +110,12 @@ def canvas_layer(attribution: dict[str, Any], layer: str) -> dict[str, Any]:
         rows.append(_row(kind, oid, name, stat, own.get("main_cause"),
                          own.get("causes") or {}, largest))
     rows.sort(key=lambda r: (-r["value"], r["name"]))
+    # each hierarchy's own pooled share and interval (downtime only: the
+    # lost-capacity split has no hierarchy roll-up yet, so it sums)
+    hierarchies = ([_row("hier", int(h["id"]), h["name"], h.get("dtci") or {},
+                         h.get("main_cause"), h.get("causes") or {}, largest)
+                    for h in attribution.get("hierarchies") or []]
+                   if layer == "downtime-share" else [])
     return {"layer": layer, "measure": _TITLES[layer], "largest": largest,
             "runs": attribution.get("runs", 0), "elements": rows,
-            "uncertain_above": UNCERTAIN}
+            "hierarchies": hierarchies, "uncertain_above": UNCERTAIN}

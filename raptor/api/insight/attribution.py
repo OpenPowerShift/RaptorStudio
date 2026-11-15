@@ -315,6 +315,85 @@ def model_phases(rbd: Any) -> list[dict[str, Any]] | None:
     return out or None
 
 
+def model_hierarchies(rbd: Any) -> dict[str, Any] | None:
+    """The model's hierarchies, for the roll-up in `aggregate`: ``{names:
+    {hid: name}, parent: {hid: parent hid}, of: {(kind, id): parent hid}}``,
+    or None when the model has no hierarchy."""
+    sections = getattr(rbd, "sections", {}) if rbd is not None else {}
+
+    def rows(name: str) -> list[dict]:
+        section = sections.get(name)
+        return [r for r in (getattr(section, "rows", None) or [])
+                if str(r.get("ID", "0")) != "0"]
+
+    def number(value: Any) -> int:
+        try:
+            return int(float(value or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    hiers = rows("HIERARCHY_DATA")
+    if not hiers:
+        return None
+    of: dict[Key, int] = {}
+    for kind, section, column in (("block", "BLOCK_DATA", "ParentId"),
+                                  ("event", "EVENT_DATA", "ParentId")):
+        for row in rows(section):
+            parent = number(row.get(column))
+            if parent:
+                of[(kind, number(row.get("ID")))] = parent
+    return {"names": {number(r.get("ID")): str(r.get("hierarchyName") or r.get("Name")
+                                                  or f"Hierarchy {r.get('ID')}")
+                      for r in hiers},
+            "parent": {number(r.get("ID")): number(r.get("Parent")) for r in hiers},
+            "of": of}
+
+
+def _hierarchy_rows(trials: list[TrialAttribution],
+                    hierarchies: dict[str, Any]) -> list[dict[str, Any]]:
+    """Each hierarchy's share of system downtime: the Red time of the
+    outages started by anything inside it (at any depth), pooled over the
+    runs like an element's DTCI, so its interval is honest (the inside
+    elements' errors are correlated; summing their intervals would not be)."""
+    names, parent, of = hierarchies["names"], hierarchies["parent"], hierarchies["of"]
+
+    def chain(hid: int) -> list[int]:
+        out: list[int] = []
+        while hid and hid not in out and len(out) < 16:
+            out.append(hid)
+            hid = parent.get(hid, 0)
+        return out
+
+    inside: dict[int, set[Key]] = {hid: set() for hid in names}
+    for key, hid in of.items():
+        for ancestor in chain(hid):
+            inside.setdefault(ancestor, set()).add(key)
+    den = [t.red_time for t in trials]
+    n = len(trials)
+    rows = []
+    for hid, keys in inside.items():
+        if not keys:
+            continue
+        red = [sum(t.initiated[k].red_time for k in keys if k in t.initiated) for t in trials]
+        if not any(red):
+            continue
+        causes = {c: sum(t.initiator_cause.get(k, {}).get(c, 0.0)
+                         for t in trials for k in keys) / n for c in CAUSES}
+        causes = {c: v for c, v in causes.items() if v > 0}
+        total = sum(causes.values())
+        started = {k for t in trials for k in keys if k in t.initiated}
+        rows.append({
+            "kind": "hier", "id": hid, "name": names.get(hid, f"Hierarchy {hid}"),
+            "depth": len(chain(hid)), "parent": parent.get(hid, 0),
+            "elements": len(started),
+            "dtci": _ratio_stat(red, den), "red_time": _stat(red),
+            "causes": {c: v / total for c, v in causes.items()} if total else {},
+            "main_cause": max(causes, key=lambda c: causes[c]) if causes else None,
+        })
+    rows.sort(key=lambda r: (-(r["dtci"]["mean"] or 0.0), r["name"]))
+    return rows
+
+
 def attribute_trial(lines: Iterable[Any], start_stats: float = 0.0,
                     capacity: CapacityRun | None = None,
                     phases: list[dict[str, Any]] | None = None) -> TrialAttribution:
@@ -485,9 +564,12 @@ def _duration_hist(durations: list[float], bins: int = 12) -> list[dict[str, flo
 
 
 def aggregate(trials: list[TrialAttribution],
-              phases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+              phases: list[dict[str, Any]] | None = None,
+              hierarchies: dict[str, Any] | None = None) -> dict[str, Any]:
     """Statistics over runs, JSON-safe. One sample per run for every measure;
-    a run with no outage gives no sample to the shares (DTCI, DECI, FCI)."""
+    a run with no outage gives no sample to the shares (DTCI, DECI, FCI).
+    `hierarchies` (`model_hierarchies(rbd)`) adds `hierarchies`: each
+    hierarchy's share of downtime, rolled up from everything inside it."""
     names: dict[Key, str] = {}
     for trial in trials:
         names.update(trial.names)
@@ -535,6 +617,8 @@ def aggregate(trials: list[TrialAttribution],
     phase_rows = _phase_rows(trials, names, phases)
     if phase_rows:
         result["phases"] = phase_rows
+    if hierarchies:
+        result["hierarchies"] = _hierarchy_rows(trials, hierarchies)
     return result
 
 
@@ -600,7 +684,8 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
                    progress: Any = None, abort: Any = None,
                    total: int | None = None, with_outages: bool = False,
                    capacity: Iterable[CapacityRun | None] | None = None,
-                   phases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                   phases: list[dict[str, Any]] | None = None,
+                   hierarchies: dict[str, Any] | None = None) -> dict[str, Any]:
     """Attribution for a whole batch from its per-run event logs.
 
     `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
@@ -610,6 +695,7 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     `capacity` gives each run's flow track (the capacity sink), in run order,
     so the lost flow is attributed to the elements that were down.
     `phases` (`model_phases(rbd)`) adds `phases`: downtime by mission phase.
+    `hierarchies` (`model_hierarchies(rbd)`) adds the hierarchy roll-up.
     """
     from raptor.api.progress import check, report
     if total is None and hasattr(logs, "__len__"):
@@ -621,7 +707,7 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
         cap_run = next(capacity_runs, None) if capacity_runs is not None else None
         trials.append(attribute_trial(lines, start_stats, cap_run, phases))
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
-    result = aggregate(trials, phases)
+    result = aggregate(trials, phases, hierarchies)
     if with_outages:
         result["outages"] = outage_record(trials)
     return result

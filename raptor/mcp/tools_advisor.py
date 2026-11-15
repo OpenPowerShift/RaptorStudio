@@ -155,7 +155,11 @@ def downtime_drivers(run_id: str, top: int = 10) -> CallToolResult:
     `causes` (shares of its outages' time) and `main_cause`. Also `causes`
     for the whole system, `outage_durations` (p50, p90, max) and `sequences`,
     the commonest outage paths (what started it, then what kept the system
-    down) with their share of downtime, and a one-sentence `caption`.
+    down) with their share of downtime, and a one-sentence `caption`. A
+    model with hierarchies also gets `hierarchies`: each one's `dtci` for
+    everything inside it at any depth, pooled over the runs (its own
+    interval, not a sum of the elements'), with `depth`, `parent`,
+    `elements` (how many inside started an outage) and `main_cause`.
 
     This describes the design as simulated. It does not say what a change
     would achieve: for that, change the model and compare (`sweep_parameter`,

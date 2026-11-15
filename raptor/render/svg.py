@@ -329,26 +329,29 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         legend = _legend_lines(layer, bool(flow), w)
         h += 16.0 * len(legend) + 10.0
 
+    widths = _flow_widths(flow) if layer is not None and flow else None
+    # the fixed-size arrow is only for links drawn by flow, so a plain
+    # diagram carries just the one marker
+    fixed = (f'<marker id="arrow-fixed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" '
+             f'markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">'
+             f'<path d="M0,0 L10,5 L0,10 z" fill="{c["link"]}"/></marker>') if widths else ""
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0:.1f} {y0:.1f} {w:.1f} {h:.1f}" '
            f'width="{w:.0f}" height="{h:.0f}" font-family="sans-serif">',
            f'<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" '
            f'markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" '
-           f'fill="{c["link"]}"/></marker>'
-           f'<marker id="arrow-fixed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" '
-           f'markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">'
-           f'<path d="M0,0 L10,5 L0,10 z" fill="{c["link"]}"/></marker></defs>',
+           f'fill="{c["link"]}"/></marker>{fixed}</defs>',
            f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{c["bg"]}"/>']
     out.append('<g class="links">')
-    link_svg, routed = _links_svg(links, shapes, routing, c,
-                                  _flow_widths(flow) if layer is not None and flow else None)
+    link_svg, routed = _links_svg(links, shapes, routing, c, widths)
     out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
     out.extend(_elements_svg(shapes, painted, rolled, layer, c, _BANDS[theme]))
     out.append("</g>")
     if layer is not None:
+        pooled = {int(row["id"]): row for row in layer.get("hierarchies") or []}
         out.extend(_layer_svg(shapes, painted, rolled, legend, c,
-                              (x0 + margin, y0 + h - 12)))
+                              (x0 + margin, y0 + h - 12), pooled))
     if lit:
         out.append('<g class="highlights">')
         for s in lit:
@@ -407,7 +410,8 @@ def _elements_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str,
 
 def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
                rolled: dict[int, tuple[float, int]], legend: list[str],
-               c: dict[str, str], legend_at: tuple[float, float]) -> list[str]:
+               c: dict[str, str], legend_at: tuple[float, float],
+               pooled: dict[int, dict[str, Any]] | None = None) -> list[str]:
     """The marks, the hierarchy totals and the legend (its last line at `legend_at`)."""
     out = ['<g class="result-layer">']
     for s in shapes:
@@ -416,9 +420,12 @@ def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, An
             out.append(_mark_svg(s, mark, c))
         elif s.kind == "hier" and s.id in rolled:
             total, count = rolled[s.id]
+            own = (pooled or {}).get(s.id)
+            spread = (f"; ±2 SE {100 * own['low']:.3g} to {100 * own['high']:.3g} %, pooled over the runs"
+                      if own is not None and own.get("low") is not None else "")
             out.append(f'<text x="{s.cx:.1f}" y="{s.cy + HIER_H / 2 + 12:.1f}" font-size="10" '
                        f'font-weight="bold" fill="{c["text"]}" text-anchor="middle">'
-                       f'<title>{escape(f"{count} element(s) inside")}</title>'
+                       f'<title>{escape(f"{count} element(s) inside{spread}")}</title>'
                        f'Σ {100 * total:.3g} %</text>')
     x, bottom = legend_at
     for i, line in enumerate(legend):

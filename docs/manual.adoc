@@ -682,7 +682,10 @@ Results-tab ribbon extras beyond the dock itself:
    range is wider than the share itself, so read the colour as rough and
    run more trials. A hierarchy shows Σ, the total of everything inside
    it (shares add up, since each outage counts once against the element
-   that started it). Hover for the range and the full cause mix.
+   that started it). Hover for the full cause mix and the hierarchy's
+   own ±2 standard-error range, worked out from its downtime in each run
+   (adding up the ranges of the elements inside would overstate it).
+   `raptor explain` lists the same roll-up under *By hierarchy*.
 ** **Lost capacity** — the same, for each element's share of the lost
    flow, and each link into a capacity node drawn as wide as the
    average flow through that node (relative to the busiest; links into

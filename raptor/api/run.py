@@ -652,7 +652,9 @@ def run(
         # per-node mean flow: the diagram's lost-capacity layer reads it
         (runs_dir / "node_flow.json").write_text(json.dumps(flows))
     if attribution:
-        from raptor.api.insight.attribution import attribute_logs, model_phases
+        from raptor.api.insight.attribution import (
+            attribute_logs, model_hierarchies, model_phases,
+        )
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
@@ -661,7 +663,8 @@ def run(
         attributed = attribute_logs(
             [log if isinstance(log, list) else [log] for log in event_logs],
             float(experiment.get("start_stats") or 0.0), abort=abort,
-            progress=insight_progress, with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd))
+            progress=insight_progress, with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd),
+            hierarchies=model_hierarchies(sim_rbd))
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them

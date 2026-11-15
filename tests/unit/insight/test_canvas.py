@@ -62,3 +62,16 @@ def test_unknown_layers_and_missing_capacity_say_what_is_wrong():
     no_capacity = {**_attribution(), "capacity": None}
     with pytest.raises(ValueError, match="capacity analysis"):
         canvas_layer(no_capacity, "lost-capacity")
+
+
+def test_hierarchies_carry_their_own_pooled_interval():
+    from raptor.api.insight.canvas import canvas_layer
+    attribution = {
+        "runs": 4,
+        "elements": [{"kind": "block", "id": 1, "name": "A", "dtci": {"mean": 0.6, "sem": 0.05},
+                      "main_cause": "repair", "causes": {"repair": 1.0}}],
+        "hierarchies": [{"kind": "hier", "id": 7, "name": "H", "dtci": {"mean": 0.6, "sem": 0.05},
+                         "main_cause": "repair", "causes": {"repair": 1.0}}]}
+    layer = canvas_layer(attribution, "downtime-share")
+    (h,) = layer["hierarchies"]
+    assert h["id"] == 7 and h["low"] == pytest.approx(0.5) and h["high"] == pytest.approx(0.7)

@@ -262,3 +262,45 @@ def test_elements_that_share_a_name_are_told_apart():
         ("block", 1): "unnamed (block 1)", ("block", 2): "unnamed (block 2)",
         ("block", 3): "Pump", ("block", 4): "CMD_5000 (block 4)",
         ("node", 5): "CMD_5000 (node 5)", ("block", 6): "block 6"}
+
+
+# ---- roll-up by hierarchy ---------------------------------------------------
+
+def _two_block_log():
+    """Pump down 5..15 (10 h), Valve down 20..22 (2 h), end at 30."""
+    pump, valve = ("block", 1), ("block", 2)
+    return [
+        _line(5, "Block", "Pump", "Failed", element=pump),
+        _line(5, "Block", "Pump", "Repairing", element=pump),
+        _line(5, "System", "State_change", "Red"),
+        _line(15, "Block", "Pump", "Good", element=pump),
+        _line(15, "System", "State_change", "Green"),
+        _line(20, "Block", "Valve", "Failed", element=valve),
+        _line(20, "Block", "Valve", "Repairing", element=valve),
+        _line(20, "System", "State_change", "Red"),
+        _line(22, "Block", "Valve", "Good", element=valve),
+        _line(22, "System", "State_change", "Green"),
+        _line(30, "System", "Simulation_Terminate", "End"),
+    ]
+
+
+def test_a_hierarchy_owns_what_starts_inside_it_at_any_depth():
+    from raptor.api.insight.drivers import hierarchy_lines
+    # Outer (10) holds Pump and the hierarchy Inner (11), which holds Valve
+    hierarchies = {"names": {10: "Outer", 11: "Inner"}, "parent": {10: 0, 11: 10},
+                   "of": {("block", 1): 10, ("block", 2): 11}}
+    result = attribute_logs([_two_block_log(), _two_block_log()], hierarchies=hierarchies)
+    rows = {r["name"]: r for r in result["hierarchies"]}
+    assert list(rows) == ["Outer", "Inner"]                  # largest first
+    assert rows["Outer"]["red_time"]["mean"] == pytest.approx(12.0)
+    assert rows["Inner"]["red_time"]["mean"] == pytest.approx(2.0)
+    assert rows["Outer"]["dtci"]["mean"] == pytest.approx(1.0)
+    assert rows["Inner"]["dtci"]["mean"] == pytest.approx(2 / 12)
+    assert rows["Outer"]["elements"] == 2 and rows["Inner"]["elements"] == 1
+    lines = hierarchy_lines(result)
+    assert lines[0].startswith("By hierarchy")
+    assert any(line.startswith("  Inner") for line in lines)     # indented a level
+
+
+def test_a_model_without_hierarchies_has_no_roll_up():
+    assert "hierarchies" not in attribute_logs([_two_block_log()])

@@ -113,12 +113,28 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
             path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
                                for s in seq["steps"]) or "(unknown)"
             lines.append(f"  {_pct(seq['share']):>7}  {path}")
+    if attribution.get("hierarchies"):
+        lines += [""] + hierarchy_lines(attribution, n)
     if attribution.get("phases"):
         lines += [""] + phase_lines(attribution)
     capacity = attribution.get("capacity")
     if capacity:
         from raptor.api.insight.capacity_attribution import text_lines as capacity_lines
         lines += [""] + capacity_lines(capacity, n)
+    return lines
+
+
+def hierarchy_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
+    """Each hierarchy's share of downtime: the outages started by anything
+    inside it, at any depth, pooled over the runs (so ± is its own)."""
+    lines = ["By hierarchy (everything inside it, at any depth):",
+             f"{'Hierarchy':<22}{'Downtime':>10}{'±':>8}{'Inside':>8}  Main cause"]
+    for row in (attribution.get("hierarchies") or [])[:n]:
+        sem = row["dtci"]["sem"]
+        indent = "  " * max(0, int(row.get("depth") or 1) - 1)
+        lines.append(f"{(indent + row['name'])[:21]:<22}{_pct(row['dtci']['mean']):>10}"
+                     f"{(_pct(sem) if sem is not None else ''):>8}{row['elements']:>8}  "
+                     f"{CAUSE_LABELS.get(row['main_cause'] or '', '')}")
     return lines
 
 

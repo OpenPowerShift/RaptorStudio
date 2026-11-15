@@ -1041,17 +1041,22 @@ class LiveOverlayMixin:
                                       cause_colour(str(row.get("main_cause") or "other")).name())
                 item.set_result_ring(bool(row.get("uncertain")))
         largest = float(layer.get("largest") or 0.0)
+        pooled = {int(h["id"]): h for h in layer.get("hierarchies") or []}
         for hid, total in rolled.items():
             item = self._hier_items[hid]
             fraction = total / largest if largest > 0 else 0.0
             band, colour = bands["high" if fraction >= 2 / 3 else
                                  "mid" if fraction >= 1 / 3 else "low"]
             inside = rolled_names[hid]
+            own = pooled.get(hid)
+            spread = (f" (±2 SE {100 * own['low']:.3g} to {100 * own['high']:.3g} %, "
+                      "pooled over the runs)"
+                      if own is not None and own.get("low") is not None else "")
             item.set_live_fill(
                 colour,
                 f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
-                f"{measure} {100 * total:.3g} % from the {len(inside)} element(s) "
-                f"inside it → {band}\n"
+                f"{measure} {100 * total:.3g} %{spread} from the {len(inside)} "
+                f"element(s) inside it → {band}\n"
                 + ", ".join(inside[:8]) + (" …" if len(inside) > 8 else "")
                 + "\nShares add up: each outage counts once, against the "
                   "element that started it.")
