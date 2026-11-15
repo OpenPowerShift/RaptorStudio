@@ -1102,8 +1102,21 @@ average flow through that node (relative to the busiest; links into
 anything else are drawn thin). Flow is recorded per node, not per
 link, so every link into one node has that node&#8217;s width. Needs
 Capacity analysis and the event log.</p>
+</li>
+<li>
+<p><strong>Advisor findings</strong> — marks every block, node, event and hierarchy
+the Advisor has something to say about: filled by the worst severity
+(Red for an error, Yellow for a warning, blue for advice or a note),
+labelled ⚠ or ⓘ with how many findings concern it, and a tooltip
+listing them. A hierarchy shows Σ and the total for what is inside
+it. Needs no run, and follows edits as the Advisor re-checks the
+model. Findings about a setting (a pool, a resource, the experiment)
+have no element to mark and stay in the Advisor panel. Focus keeps
+the marked elements. <code>raptor advise</code> and the MCP tool <code>advise</code> give
+the same findings with their targets; the SVG drawing does not
+offer this layer yet.</p>
 <div class="paragraph">
-<p>Both layers can be drawn without the application, as an SVG with a legend:
+<p>The two result layers above can be drawn without the application, as an SVG with a legend:
 <code>raptor render MODEL -o layer.svg --layer downtime-share</code> (or
 <code>lost-capacity</code>) runs the model with attribution and draws it, and the MCP
 tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.</p>

@@ -2455,6 +2455,24 @@ def paste_data_icon(colour: str) -> QIcon:
     return _icon("paste_data", colour, draw)
 
 
+def advisor_layer_icon(colour: str) -> QIcon:
+    """A diagram block with a badge in its corner: the Advisor's findings
+    marked on the elements they concern (not the bulb of the Advisor panel)."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(6, 16, 26, 20)
+        p.drawLine(2, 26, 6, 26)
+        p.drawLine(32, 26, 38, 26)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(28, 4, 16, 16)
+        p.setBrush(QColor("#FFFFFF"))
+        p.drawRect(35, 7, 3, 7)
+        p.drawRect(35, 15, 3, 3)
+    return _icon("advisor_layer", colour, draw)
+
+
 def advisor_icon(colour: str) -> QIcon:
     """A light bulb: advice, not the Issues check mark (errors that stop a
     run), which the Advisor toggle used to share."""

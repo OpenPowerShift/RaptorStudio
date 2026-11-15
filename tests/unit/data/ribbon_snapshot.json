@@ -58,6 +58,16 @@
    "text": "Add Node",
    "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3)\n\nUnavailable: open or create a model first"
   },
+  "_advisor_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Advisor findings",
+   "tooltip": "Mark each element the Advisor has something to say about: filled by the worst severity (Red error, Yellow warning, blue advice or note), labelled with how many findings concern it, and its tooltip lists them. Needs no run."
+  },
   "_advisor_toggle_action": {
    "checkable": true,
    "checked": false,
@@ -1635,6 +1645,7 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_overlay_action": false,
    "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
@@ -1789,6 +1800,7 @@
    "_add_event_tool": true,
    "_add_hier_tool": true,
    "_add_node_tool": true,
+   "_advisor_overlay_action": true,
    "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
@@ -1943,6 +1955,7 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_overlay_action": false,
    "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,

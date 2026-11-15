@@ -231,7 +231,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         "_weak_color_action", "_capacity_overlay_action",
         "_cost_overlay_action", "_spares_overlay_action",
         "_importance_overlay_action", "_downtime_overlay_action",
-        "_lost_capacity_overlay_action")
+        "_lost_capacity_overlay_action", "_advisor_overlay_action")
     #: True only while the extra importance batches are being measured.
     #: Run/Stop/settings stay locked, but the edit guard's wording must not
     #: claim a live simulation when the baseline has already finished.
@@ -2533,6 +2533,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             "_downtime_overlay_action": logs,
             "_lost_capacity_overlay_action": logs and any(
                 d.capacity is not None for d in report_data),
+            # model findings need no run; run findings come with this one
+            "_advisor_overlay_action": self._advisor_has_element_findings(),
         }
         # A new result set invalidates every previous overlay: clear the
         # canvas before re-enabling/disabling actions, never leave old
@@ -2596,6 +2598,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 self._on_downtime_overlay_toggled(True)
             elif attr == "_lost_capacity_overlay_action":
                 self._on_lost_capacity_overlay_toggled(True)
+            elif attr == "_advisor_overlay_action":
+                self._on_advisor_overlay_toggled(True)
 
     def _sync_results_notice(self) -> None:
         """Tell the Inspector whether editing will cost the results."""

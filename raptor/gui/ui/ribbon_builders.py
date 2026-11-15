@@ -906,6 +906,7 @@ class RibbonBuilders(_Base):
             ("Cost", "_cost_overlay_action"),
             ("Spares", "_spares_overlay_action"),
             ("Importance", "_importance_overlay_action"),
+            ("Advisor findings", "_advisor_overlay_action"),
         )
         for label, _attr in entries:
             combo.addItem(label)

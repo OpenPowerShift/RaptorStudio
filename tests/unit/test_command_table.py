@@ -36,6 +36,7 @@ OFF_RIBBON = {
     "results.weak_color", "results.capacity_overlay", "results.cost_overlay",
     "results.spares_overlay", "results.importance_overlay",
     "results.downtime_overlay", "results.lost_capacity_overlay",
+    "results.advisor_overlay",
 }
 
 #: Attributes of MainWindow that handlers may start from.

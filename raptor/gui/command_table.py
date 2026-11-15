@@ -1069,6 +1069,20 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         enabled=False),
     CommandSpec(
+        id="results.advisor_overlay",
+        attr="_advisor_overlay_action",
+        text="Advisor findings",
+        icon="advisor_layer_icon:warn",
+        tooltip=(
+            "Mark each element the Advisor has something to say about: "
+            "filled by the worst severity (Red error, Yellow warning, blue "
+            "advice or note), labelled with how many findings concern it, "
+            "and its tooltip lists them. Needs no run."),
+        handler="_on_advisor_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
         id="results.weak_spread",
         attr="_weak_spread_action",
         text="Spread",

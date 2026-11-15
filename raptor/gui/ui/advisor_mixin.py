@@ -88,6 +88,9 @@ class AdvisorMixin:
         if self._rbd is None:
             panel.set_findings(None)
             self._set_advisor_title(None)
+            sync = getattr(self, "_sync_advisor_overlay", None)
+            if sync is not None:
+                sync()
             return
         from raptor.api.advisor import advise_model, sort_findings
         try:
@@ -102,6 +105,9 @@ class AdvisorMixin:
             findings, run_findings = [], []
         panel.set_findings(findings)
         self._set_advisor_title(findings)
+        sync = getattr(self, "_sync_advisor_overlay", None)
+        if sync is not None:
+            sync()
         if run_findings:
             self._introduce_advisor()
 

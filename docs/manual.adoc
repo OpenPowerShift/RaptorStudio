@@ -692,8 +692,19 @@ Results-tab ribbon extras beyond the dock itself:
    anything else are drawn thin). Flow is recorded per node, not per
    link, so every link into one node has that node's width. Needs
    Capacity analysis and the event log.
+** **Advisor findings** — marks every block, node, event and hierarchy
+   the Advisor has something to say about: filled by the worst severity
+   (Red for an error, Yellow for a warning, blue for advice or a note),
+   labelled ⚠ or ⓘ with how many findings concern it, and a tooltip
+   listing them. A hierarchy shows Σ and the total for what is inside
+   it. Needs no run, and follows edits as the Advisor re-checks the
+   model. Findings about a setting (a pool, a resource, the experiment)
+   have no element to mark and stay in the Advisor panel. Focus keeps
+   the marked elements. `raptor advise` and the MCP tool `advise` give
+   the same findings with their targets; the SVG drawing does not
+   offer this layer yet.
 +
-Both layers can be drawn without the application, as an SVG with a legend:
+The two result layers above can be drawn without the application, as an SVG with a legend:
 `raptor render MODEL -o layer.svg --layer downtime-share` (or
 `lost-capacity`) runs the model with attribution and draws it, and the MCP
 tool `render_diagram_svg` takes `layer` with a run's `run_id`.

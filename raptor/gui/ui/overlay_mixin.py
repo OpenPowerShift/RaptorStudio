@@ -54,6 +54,7 @@ class OverlayMixin(_Base):
         _importance_overlay_action: Any
         _downtime_overlay_action: Any
         _lost_capacity_overlay_action: Any
+        _advisor_overlay_action: Any
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _results: raptor.gui.ui.results.ResultsDock
         _spares_overlay_action: Any
@@ -393,7 +394,8 @@ class OverlayMixin(_Base):
                  "cost": "Cost", "spares": "Spares",
                  "importance": "Importance",
                  "downtime-share": "Share of downtime",
-                 "lost-capacity": "Lost capacity"}
+                 "lost-capacity": "Lost capacity",
+                 "advisor": "Advisor findings"}
         if kind == "share":
             kind = str((vis.get("layer") or {}).get("layer", kind))
         if kind:
@@ -475,7 +477,7 @@ class OverlayMixin(_Base):
             v._weak_colors_on = False
             self._weak_color_action.setChecked(False)
         for kind in ("capacity", "cost", "spares", "importance", "downtime",
-                     "lost_capacity"):
+                     "lost_capacity", "advisor"):
             if kind != except_kind:
                 self._uncheck_overlay(f"_{kind}_overlay_action")
 
@@ -634,6 +636,53 @@ class OverlayMixin(_Base):
         stored = node_flows(list(self._results._report_data or [])) or {}
         return {int(nid): float(row["ave_flow"])
                 for nid, row in (stored.get("nodes") or {}).items()}
+
+    def _advisor_has_element_findings(self) -> bool:
+        panel = getattr(self, "_advisor_panel", None)
+        if panel is None:
+            return False
+        from raptor.api.advisor.canvas import advisor_layer
+        return bool(advisor_layer(panel.findings())["elements"])
+
+    def _on_advisor_overlay_toggled(self, on: bool) -> None:
+        from raptor.api.advisor.canvas import advisor_layer
+        v = self._diagram_dock.view
+        if not on:
+            v.clear_result_overlays()
+            self._statusbar.showMessage("Advisor findings off")
+            self._update_overlay_chip()
+            return
+        panel = getattr(self, "_advisor_panel", None)
+        layer = advisor_layer(panel.findings() if panel is not None else [])
+        if not layer["elements"]:
+            self._statusbar.showMessage(
+                "The Advisor has nothing to say about any element on the diagram.", 8000)
+            self._uncheck_overlay("_advisor_overlay_action")
+            return
+        self._deactivate_other_canvas_overlays(except_kind="advisor")
+        v.clear_result_overlays()
+        v.apply_advisor_layer(layer)
+        top = layer["elements"][0]
+        off = layer["off_canvas"]
+        self._statusbar.showMessage(
+            f"Advisor findings on — {len(layer['elements'])} element(s) marked; "
+            f"{top['name']} has {top['count']} (worst: {top['severity']})."
+            + (f" {off} finding(s) about settings stay in the Advisor panel." if off else ""),
+            15000)
+        self._update_overlay_chip()
+
+    def _sync_advisor_overlay(self) -> None:
+        """After the Advisor re-runs: offer the layer when a finding names an
+        element, and repaint it if it is on (an edit changes the findings)."""
+        action = getattr(self, "_advisor_overlay_action", None)
+        if action is None:
+            return
+        have = self._advisor_has_element_findings()
+        if not have and action.isChecked():
+            action.setChecked(False)
+        action.setEnabled(have)
+        if have and action.isChecked():
+            self._on_advisor_overlay_toggled(True)
 
     def _share_layer_toggled(self, on: bool, layer: str) -> None:
         from raptor.api.insight.attribution import CAUSE_LABELS

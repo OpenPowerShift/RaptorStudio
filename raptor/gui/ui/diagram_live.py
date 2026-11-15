@@ -677,6 +677,8 @@ class LiveOverlayMixin:
             elif vis["kind"] == "share":
                 self.apply_share_layer(vis["layer"], vis.get("flow"),
                                        vis.get("generated"))
+            elif vis["kind"] == "advisor":
+                self.apply_advisor_layer(vis["layer"])
             elif vis["kind"] == "importance":
                 # Missing branch: entering a hierarchy rebuilt the items and
                 # repainted only the four kinds above, so the importance
@@ -951,6 +953,86 @@ class LiveOverlayMixin:
                 f"Spares — {name}: {frac * 100:.2f}% of run time "
                 f"spares/life exhausted{cost_txt} → {band}")
             item.set_result_badge("!" if frac > 0.0 else None, colour)
+
+    def _level_hier_of(self: DiagramView, kind: str, oid: int) -> int | None:  # type: ignore[misc]
+        """The hierarchy oval on this level that holds element (kind, oid)
+        somewhere inside it, or None (on this level, or elsewhere)."""
+        parent = 0
+        if kind == "hier":
+            parent = getattr(self.hiers.get(oid), "parent_id", 0) or 0
+        elif kind in self._LOCATE:
+            section, column, _attr = self._LOCATE[kind]
+            rbd = getattr(self, "_rbd_ref", None)
+            for r in getattr(getattr(rbd, "sections", {}).get(section), "rows", []):
+                try:
+                    if int(float(r.get("ID") or 0)) == oid:
+                        parent = int(float(r.get(column) or 0))
+                        break
+                except (TypeError, ValueError):
+                    continue
+        for _depth in range(16):
+            if not parent:
+                return None
+            if parent in self._hier_items:
+                return parent
+            parent = getattr(self.hiers.get(parent), "parent_id", 0) or 0
+        return None
+
+    def apply_advisor_layer(self: DiagramView, layer: dict[str, Any]) -> None:  # type: ignore[misc]
+        """The Advisor's findings on the diagram (`raptor.api.advisor.canvas.
+        advisor_layer`): each element a finding is about is filled by the
+        worst severity (Red for an error, Yellow for a warning, the accent
+        colour for advice or a note), labelled with a warning sign and how
+        many findings concern it, and its tooltip lists them. A hierarchy
+        holding such elements off this level shows their total."""
+        c = ThemeManager.instance().colour
+        self._last_result_visuals = {"kind": "advisor", "layer": layer}
+        fills = {"error": c["result_red"], "warning": c["result_yellow"],
+                 "advice": c["accent"], "info": c["accent"]}
+        items: dict[str, dict[int, Any]] = {
+            "block": self._block_items, "node": self._node_items,
+            "event": self._event_items, "hier": self._hier_items}
+        rolled: dict[int, list[dict[str, Any]]] = {}
+        for row in layer.get("elements") or []:
+            item = items[row["kind"]].get(int(row["id"])) if row["kind"] in items else None
+            if item is None:
+                hid = self._level_hier_of(row["kind"], int(row["id"]))
+                if hid is not None:
+                    rolled.setdefault(hid, []).append(row)
+                continue
+            lines = "\n".join(f"• {f['severity']}: {f['title']} ({f['rule']})"
+                              for f in row["findings"])
+            item.set_live_fill(
+                fills[row["severity"]],
+                f"{row['name']}: {row['count']} Advisor finding(s)\n{lines}\n"
+                "Open the Advisor (View ▸ Advisor) for the reasons and fixes.")
+            self._layer_fractions[item] = 1.0      # focus keeps what is flagged
+            sign = "⚠" if row["severity"] in ("error", "warning") else "ⓘ"
+            item.set_anal_label(f"{sign} {row['count']}",
+                                f"{row['count']} Advisor finding(s), worst: {row['severity']}")
+            if hasattr(item, "set_result_badge"):
+                item.set_result_badge("!", fills[row["severity"]])
+        from raptor.api.advisor.finding import SEVERITY_RANK
+        for hid, inside in rolled.items():
+            item = self._hier_items.get(hid)
+            if item is None:
+                continue
+            worst = max((r["severity"] for r in inside), key=lambda s: SEVERITY_RANK[s])
+            count = sum(r["count"] for r in inside)
+            if hid in {int(r["id"]) for r in layer.get("elements") or []
+                       if r["kind"] == "hier"}:
+                continue        # its own findings are shown; keep that label
+            self._layer_fractions[item] = 1.0
+            names = ", ".join(r["name"] for r in inside[:8]) + (" …" if len(inside) > 8 else "")
+            item.set_live_fill(
+                fills[worst],
+                f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
+                f"{count} Advisor finding(s) about {len(inside)} element(s) "
+                f"inside it: {names}")
+            item.set_anal_label(f"Σ ⚠ {count}" if SEVERITY_RANK[worst] >= 2 else f"Σ ⓘ {count}",
+                                "Advisor findings inside this hierarchy")
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)
 
     def apply_share_layer(self: DiagramView, layer: dict[str, Any],  # type: ignore[misc]
                           flow: dict[int, float] | None = None,

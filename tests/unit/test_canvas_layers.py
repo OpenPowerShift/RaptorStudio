@@ -100,3 +100,27 @@ def test_focus_with_a_layer_keeps_the_shares_that_matter(win):
     assert all(item.opacity() == 0.25 for item in view._block_items.values())
     win._focus_action.setChecked(False)
     assert all(item.opacity() == 1.0 for item in view._block_items.values())
+
+
+def test_the_advisor_layer_marks_what_the_findings_are_about(win):
+    from raptor.api.advisor.canvas import advisor_layer
+    action = win._advisor_overlay_action
+    layer = advisor_layer(win._advisor_panel.findings())
+    assert layer["elements"] and action.isEnabled()
+    win._overlay_combo.setCurrentText("Advisor findings")
+    QApplication.processEvents()
+    assert action.isChecked() and not win._downtime_overlay_action.isChecked()
+    view = win._diagram_dock.view
+    assert view._last_result_visuals["kind"] == "advisor"
+    items = {"block": view._block_items, "node": view._node_items,
+             "event": view._event_items, "hier": view._hier_items}
+    shown = [(items[r["kind"]][r["id"]], r) for r in layer["elements"]
+             if r["id"] in items[r["kind"]]]
+    assert shown
+    for item, row in shown:
+        assert item._anal_label.toPlainText().endswith(str(row["count"]))
+        assert item._live_colour is not None
+    assert "Advisor findings on" in win._statusbar.currentMessage()
+    win._overlay_combo.setCurrentText("No canvas overlay")
+    QApplication.processEvents()
+    assert view._last_result_visuals is None and not action.isChecked()
