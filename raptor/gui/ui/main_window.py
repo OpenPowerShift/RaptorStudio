@@ -2246,12 +2246,14 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.set_status_hint_fn(
             lambda msg: self._statusbar.showMessage(msg, 6000))
         self._results.set_hierarchy_options({})
-        self._results.set_selected_block_names_fn(
-            lambda: {self._diagram_dock.view.blocks[b].name
-                     for b in self._diagram_dock.view.blocks
-                     if b in self._diagram_dock.view._block_items
-                     and self._diagram_dock.view._block_items[b]
-                     .isSelected()})
+        # From the scene's selection, which skips items Qt has already
+        # deleted: walking the id->item map hit a deleted _BlockItem while a
+        # hierarchy was being entered (selection signals still in flight).
+        def selected_names() -> set[str]:
+            view = self._diagram_dock.view
+            return {view.blocks[b].name for b in view.selected_elements()[0]
+                    if b in view.blocks}
+        self._results.set_selected_block_names_fn(selected_names)
 
     def _wire_results_signals(self):
         # Event-log rows carry element names; resolve them against the
