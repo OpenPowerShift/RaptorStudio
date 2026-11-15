@@ -329,3 +329,29 @@ def test_a_default_buttons_label_fits(qapp):
     assert btn.fontMetrics().horizontalAdvance(btn.text()) < room
     dlg.close()
     ThemeManager.instance().set_dark(False)
+
+
+def test_a_disabled_default_button_does_not_look_ready(qapp):
+    from PySide6.QtGui import QColor
+    from PySide6.QtWidgets import QDialog, QHBoxLayout, QPushButton
+    from raptor.gui.resources.design_tokens import ThemeManager, active_colour
+    for dark in (False, True):
+        ThemeManager.instance().set_dark(dark)
+        dlg = QDialog()
+        lay = QHBoxLayout(dlg)
+        on, off = QPushButton("Run"), QPushButton("Run")
+        for btn in (on, off):
+            btn.setDefault(True)
+            lay.addWidget(btn)
+        off.setEnabled(False)
+        dlg.show()
+        qapp.processEvents()
+        accent = QColor(active_colour()["accent"])
+
+        def middle(btn):
+            image = btn.grab().toImage()
+            return image.pixelColor(image.width() // 2, 3)
+        assert middle(on) == accent
+        assert middle(off) != accent
+        dlg.close()
+    ThemeManager.instance().set_dark(False)

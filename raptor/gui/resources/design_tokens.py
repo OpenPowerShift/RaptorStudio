@@ -735,6 +735,13 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['accent']};
         border-color: {c['text']};
     }}
+    /* After :default, so a disabled primary button (Run while a study is
+       going, Apply with nothing chosen) looks disabled, not ready. */
+    QPushButton:default:disabled {{
+        color: {c['muted']};
+        background: {c['canvas']};
+        border-color: {c['border']};
+    }}
 
     QAbstractSpinBox {{
         background: {c['input_bg']};
