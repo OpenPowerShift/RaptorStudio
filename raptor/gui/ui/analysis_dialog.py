@@ -165,6 +165,16 @@ class AnalysisDialog(QDialog):
         layout.addWidget(self.build_result_area(), 1)
         layout.addWidget(self.caption)
         layout.addWidget(self._progress)
+        # U20: the model is not frozen while this runs; say so, and say
+        # when it changed since, so a result is never read as current.
+        self._copy_note = QLabel(
+            "This runs on a copy of the model taken when you pressed Run. You can "
+            "keep editing; changes made now are not in this result.")
+        self._copy_note.setObjectName("SectionNote")
+        self._copy_note.setWordWrap(True)
+        self._copy_note.setVisible(False)
+        layout.addWidget(self._copy_note)
+        self._revision: int | None = None
         layout.addLayout(self._build_buttons())
 
     # ---- for subclasses ----------------------------------------------------------
@@ -267,6 +277,11 @@ class AnalysisDialog(QDialog):
             self._job.cleanup()
         self._applied.clear()
         self._job = AnalysisJob(_model_copy(self._win), work, first_label=self.FIRST_LABEL)
+        self._revision = getattr(self._win, "_model_revision", 0)
+        self._copy_note.setText(
+            "This runs on a copy of the model taken when you pressed Run. You can "
+            "keep editing; changes made now are not in this result.")
+        self._copy_note.setVisible(True)
         self.caption.setText(f"{self.FIRST_LABEL}…")
         self._progress.setRange(0, 0)
         self._progress.setFormat(f"{self.FIRST_LABEL}…")
@@ -318,6 +333,13 @@ class AnalysisDialog(QDialog):
             self._progress.setValue(1)
             self._progress.setFormat("Stopped: partial results" if self._partial else "Done")
             self.show_result(job.result)
+            if self.model_changed_since_run():
+                self._copy_note.setText(
+                    "The model was edited while this ran, so these results are for "
+                    "the model as it was when you pressed Run. Run again for the "
+                    "current model.")
+            else:
+                self._copy_note.setVisible(False)
             if self._partial:
                 self.caption.setText(
                     "Stopped before the end: what is shown is only what finished"
@@ -325,6 +347,12 @@ class AnalysisDialog(QDialog):
                        ", so nothing here can be applied. Run again for a full answer.")
                     + "\n" + self.caption.text())
         self.sync_buttons()
+
+    def model_changed_since_run(self) -> bool:
+        """Whether the open model was edited after the last Run (applying a
+        result from this window counts only after it is shown)."""
+        return (self._revision is not None
+                and getattr(self._win, "_model_revision", 0) != self._revision)
 
     def finish(self, timeout: float = 600.0) -> None:
         """Wait for the running job and show its result (for tests and scripts)."""

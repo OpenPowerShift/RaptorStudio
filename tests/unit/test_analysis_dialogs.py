@@ -347,3 +347,21 @@ def test_apply_is_ready_the_moment_the_job_is_done(win, monkeypatch):
     dlg.table.selectRow(1)
     dlg.sync_buttons()
     assert dlg._apply_btn.isEnabled()
+
+
+def test_a_study_says_it_runs_on_a_copy_and_when_the_model_changed(win):
+    """U20: nothing said whether the model was frozen while a study ran,
+    or that an edit made meanwhile is not in the result."""
+    dlg = win._open_whatif_dialog()
+    dlg._block.setCurrentText("Pump")
+    dlg._preset.setCurrentText("half the repair time")
+    dlg._add_preset()
+    dlg._trials.setValue(4)
+    assert dlg.start()
+    assert not dlg._copy_note.isHidden() and "keep editing" in dlg._copy_note.text()
+    win._model_revision = getattr(win, "_model_revision", 0) + 1    # an edit meanwhile
+    dlg.finish()
+    assert dlg.model_changed_since_run()
+    assert not dlg._copy_note.isHidden() and "edited while this ran" in dlg._copy_note.text()
+    _run(dlg)                                   # run again: current, so the note goes
+    assert not dlg.model_changed_since_run() and dlg._copy_note.isHidden()
