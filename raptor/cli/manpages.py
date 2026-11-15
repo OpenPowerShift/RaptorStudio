@@ -136,6 +136,39 @@ EXAMPLES: dict[str, list[tuple[str, str]]] = {
         ("raptor extract plant.rbd --hierarchy Cooling -o cooling.rbd --deps system --pools share",
          "Save Cooling as a standalone .rbd model."),
     ],
+    "whatif": [
+        ("raptor whatif pump.rbds --name 'Faster repair' "
+         "--change 'block:Pump A.repair_params=2.5' -n 500",
+         "Compare one change with the model on 500 paired runs."),
+        ("raptor whatif pump.rbds --change-file options.json --requirement "
+         "'system.ao>=0.995' -f json",
+         "Several scenarios from a file, each checked against a target."),
+    ],
+    "sensitivity": [
+        ("raptor sensitivity pump.rbds --top 10 -n 300",
+         "The ten inputs that move availability most, widest swing first."),
+    ],
+    "recommend": [
+        ("raptor recommend plant.rbds --top 5 -n 500",
+         "Test one change for each of the five largest downtime drivers."),
+    ],
+    "optimise": [
+        ("raptor optimise spares plant.rbds --target 'system.ao>=0.995'",
+         "The cheapest spare stock whose lower bound meets 99.5 %."),
+        ("raptor optimise spares plant.rbds --mode curve -f json",
+         "Every stock level evaluated, for a trade-off chart."),
+        ("raptor optimise pm plant.rbds --blocks 'Pump A,Pump B'",
+         "Whether planned maintenance pays on two pumps, and how often."),
+        ("raptor optimise resources plant.rbds --resources Fitters --apply",
+         "The smallest crew that meets the target, written into the model."),
+    ],
+    "fit": [
+        ("raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300",
+         "A Weibull law from 'one in ten fail by 100 hours, half by 300'."),
+        ("raptor fit --law exponential --quantile 0.5=2000 --block 'Pump A'",
+         "One answer is enough for an exponential; print the raptor set "
+         "changes for Pump A."),
+    ],
     "mcp": [
         ("raptor mcp", "Serve MCP over stdio (what an assistant launches)."),
         ("raptor mcp --transport http --port 8765 --token-file ~/.raptor-token",
@@ -211,22 +244,55 @@ def _synopsis(progress: str, parser: argparse.ArgumentParser) -> str:
 
 def page(name: str, parser: argparse.ArgumentParser, *, section: int = 1,
          prog: str, description: str, see_also: list[str],
-         examples: list[tuple[str, str]] | None = None) -> str:
+         examples: list[tuple[str, str]] | None = None,
+         expand: bool = True, summary: str = "") -> str:
+    """One page. A command with sub-commands lists them; with `expand` each
+    gets its own synopsis and options (the top page only lists them, each
+    command has its own page)."""
     title = name.upper()
     out = [f'.TH "{title}" {section} "{DATE}" "RAPTOR Studio" '
            f'"RAPTOR Studio Manual"',
            ".SH NAME",
-           f"{_esc(name)} \\- {_esc(description.split(chr(10))[0])}",
+           f"{_esc(name)} \\- {_esc(summary or description.split(chr(10))[0])}",
            ".SH SYNOPSIS", _synopsis(prog, parser),
            ".SH DESCRIPTION", _esc(description)]
     opts = _option_lines(parser)
     if opts:
         out += [".SH OPTIONS", *opts]
+    nested = _subparsers(parser)
+    if nested:
+        out += _nested_sections(prog, parser, nested, expand=expand)
     if examples:
         out.append(".SH EXAMPLES")
         for cmd, why in examples:
             out += [".PP", _esc(why), ".RS", ".nf", _bold(cmd), ".fi", ".RE"]
     return "\n".join(out) + "\n" + _tail(see_also)
+
+
+def _command_help(parser: argparse.ArgumentParser) -> dict[str, str]:
+    """{command: its one-line help}, aliases left out."""
+    for a in parser._actions:                          # noqa: SLF001
+        if isinstance(getattr(a, "choices", None), dict):
+            return {c.dest: c.help or "" for c in getattr(a, "_choices_actions", [])}
+    return {}
+
+
+def _nested_sections(prog: str, parser: argparse.ArgumentParser,
+                     nested: dict[str, Any], *, expand: bool) -> list[str]:
+    """A COMMANDS list, then (with `expand`) each sub-command's synopsis and
+    options."""
+    helps = _command_help(parser)
+    out = [".SH COMMANDS"]
+    for name, text in helps.items():
+        out += [".TP", _bold(name), _esc(text)]
+    for name in helps if expand else ():
+        child = nested[name]
+        out += [f".SH {_esc(prog.upper() + ' ' + name.upper())}",
+                _synopsis(f"{prog} {name}", child)]
+        if child.description:
+            out += [".PP", _esc(child.description)]
+        out += _option_lines(child)
+    return out
 
 
 def _tail(see_also: list[str]) -> str:
@@ -257,16 +323,19 @@ def generate() -> dict[str, str]:
             seen.add(id(subs[n]))
             names.append(n)
     cmd_refs = [f"raptor-{n}(1)" for n in names]
+    helps = _command_help(root)
 
     top = page("raptor", root, prog="raptor",
                description=root.description or "", examples=EXAMPLES["raptor"],
-               see_also=cmd_refs[:6] + ["raptor-config(5)"])
+               see_also=cmd_refs + ["raptor-set-paths(7)", "raptor-config(5)"],
+               expand=False)
     top += _exit_and_env()
     pages["raptor.1"] = top
     for n in names:
         sp = subs[n]
         desc = (sp.description or sp.format_usage()).strip()
         text = page(f"raptor-{n}", sp, prog=f"raptor {n}", description=desc,
+                    summary=helps.get(n, ""),
                     examples=EXAMPLES.get(n),
                     see_also=["raptor(1)", "raptor-set-paths(7)"]
                     if n in ("run", "sweep", "get", "set") else ["raptor(1)"])

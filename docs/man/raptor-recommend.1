@@ -1,6 +1,6 @@
 .TH "RAPTOR-RECOMMEND" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-recommend \- Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The verdict says what was measured, never whether a change is worth its price. The model file is never modified.
+raptor\-recommend \- test a change for each top downtime driver
 .SH SYNOPSIS
 \fBraptor recommend\fR [\-h] [\-\-run RUN_ID] [\-\-top N] [\-n N] [\-\-min\-gain POINTS] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
 .SH DESCRIPTION
@@ -21,15 +21,23 @@ runs per change (default: the model's own)
 smallest availability gain, in points, called 'clearly helps' (default: removing 5 %% of Base's downtime)
 .TP
 \fB\-\-seed\fR \fIN\fR
-
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
-
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
+.SH EXAMPLES
+.PP
+Test one change for each of the five largest downtime drivers.
+.RS
+.nf
+\fBraptor recommend plant.rbds \-\-top 5 \-n 500\fR
+.fi
+.RE
 .SH SEE ALSO
 \fBraptor\fR(1)

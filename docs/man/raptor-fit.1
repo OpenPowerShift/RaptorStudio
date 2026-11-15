@@ -1,6 +1,6 @@
 .TH "RAPTOR-FIT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-fit \- Turn experience ('one in ten fail by 100, half by 300') into Weibull, lognormal or exponential parameters. No data needed; the fit is only as good as the answers.
+raptor\-fit \- fit a life law from experience (no data)
 .SH SYNOPSIS
 \fBraptor fit\fR [\-h] \-\-law {weibull,lognormal,exponential} [\-\-quantile P=T] [\-\-block NAME] [\-\-repair] [\-f {text,json}]
 .SH DESCRIPTION
@@ -9,7 +9,7 @@ Turn experience ('one in ten fail by 100, half by 300') into Weibull, lognormal 
 .SS Options
 .TP
 \fB\-\-law\fR \fI{weibull|lognormal|exponential}\fR
-
+the life law to fit
 .TP
 \fB\-\-quantile\fR \fIP=T\fR
 probability=age, repeatable, e.g. 0.1=100
@@ -21,6 +21,21 @@ also print the PATH=VALUE changes that give this block the fitted law (for 'rapt
 with \-\-block, the repair law instead of the failure law
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
+.SH EXAMPLES
+.PP
+A Weibull law from 'one in ten fail by 100 hours, half by 300'.
+.RS
+.nf
+\fBraptor fit \-\-law weibull \-\-quantile 0.1=100 \-\-quantile 0.5=300\fR
+.fi
+.RE
+.PP
+One answer is enough for an exponential; print the raptor set changes for Pump A.
+.RS
+.nf
+\fBraptor fit \-\-law exponential \-\-quantile 0.5=2000 \-\-block 'Pump A'\fR
+.fi
+.RE
 .SH SEE ALSO
 \fBraptor\fR(1)

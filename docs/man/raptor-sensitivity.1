@@ -1,6 +1,6 @@
 .TH "RAPTOR-SENSITIVITY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-sensitivity \- One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
+raptor\-sensitivity \- which inputs the answer is most sensitive to
 .SH SYNOPSIS
 \fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
 .SH DESCRIPTION
@@ -18,15 +18,23 @@ runs per variant (default: the model's own)
 per\-run field to watch (default availability)
 .TP
 \fB\-\-seed\fR \fIN\fR
-
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
-
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
+.SH EXAMPLES
+.PP
+The ten inputs that move availability most, widest swing first.
+.RS
+.nf
+\fBraptor sensitivity pump.rbds \-\-top 10 \-n 300\fR
+.fi
+.RE
 .SH SEE ALSO
 \fBraptor\fR(1)

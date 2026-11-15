@@ -1,6 +1,6 @@
 .TH "RAPTOR-ANALYTIC" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-analytic \- Solve the static subset of an RBD exactly: series, parallel, mixed, k\-out\-of\-n and hierarchies. Reliability mode is non\-repairable. Availability mode is steady state, independent components, perfect repair. Models outside that subset are refused with the first offending element.
+raptor\-analytic \- exact reliability/availability of a coherent RBD
 .SH SYNOPSIS
 \fBraptor analytic\fR [\-h] [\-\-mode {reliability,availability,both}] [\-\-hierarchy NAME|ID] [\-\-at T] [\-\-times T1,T2,...] [\-\-bx X1,X2,...] [\-\-tau T] [\-\-importance] [\-\-no\-importance] [\-\-equation] [\-\-ignore\-repairs] [\-\-ignore LIST] [\-\-phase N|all] [\-\-standby {active,absent}] [\-\-dependencies {up,down}] [\-\-max\-variables N] [\-\-max\-bdd\-nodes N] [\-\-progress {auto,bar,json,none}] [\-\-xlsx PATH] [\-\-ods PATH] [\-f {text,json,csv}] MODEL
 .SH DESCRIPTION
@@ -30,7 +30,7 @@ conditional reliability for another mission of T after \-\-at
 exact Birnbaum/RAW/RRW/VF/criticality (default on)
 .TP
 \fB\-\-no\-importance\fR
-
+skip the importance measures (faster on a large model)
 .TP
 \fB\-\-equation\fR
 print the path\-product equation

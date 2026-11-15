@@ -1,6 +1,6 @@
 .TH "RAPTOR-WHATIF" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-whatif \- Run the model and each scenario with the same seed and compare them by paired trials: the same change costs far less noise than two independent batches. A scenario is the model plus a short list of PATH=VALUE changes; the model file is never modified.
+raptor\-whatif \- compare one or more changes with the open model
 .SH SYNOPSIS
 \fBraptor whatif\fR [\-h] [\-\-change PATH=VALUE] [\-\-name N] [\-\-note TEXT] [\-\-change\-file FILE] [\-n N] [\-\-precision P] [\-\-requirement EXPR] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-save FILE] [\-f {text,json}] MODEL
 .SH DESCRIPTION
@@ -12,10 +12,10 @@ Run the model and each scenario with the same seed and compare them by paired tr
 one change for the scenario, repeatable
 .TP
 \fB\-\-name\fR \fIN\fR
-
+name of the scenario the \-\-change options make (default Scenario)
 .TP
 \fB\-\-note\fR \fITEXT\fR
-
+why the scenario is tried, shown with its row
 .TP
 \fB\-\-change\-file\fR \fIFILE\fR
 JSON list of {name, changes, note} scenarios
@@ -30,10 +30,10 @@ size the batch first with run\-to\-precision, e.g. 10%%
 e.g. system.ao>=0.995 (repeatable)
 .TP
 \fB\-\-seed\fR \fIN\fR
-
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
-
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
@@ -42,6 +42,21 @@ progress on stderr (auto: only on a terminal; json: one object per line; none, o
 write the scenario definition(s) as JSON
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
+.SH EXAMPLES
+.PP
+Compare one change with the model on 500 paired runs.
+.RS
+.nf
+\fBraptor whatif pump.rbds \-\-name 'Faster repair' \-\-change 'block:Pump A.repair_params=2.5' \-n 500\fR
+.fi
+.RE
+.PP
+Several scenarios from a file, each checked against a target.
+.RS
+.nf
+\fBraptor whatif pump.rbds \-\-change\-file options.json \-\-requirement 'system.ao>=0.995' \-f json\fR
+.fi
+.RE
 .SH SEE ALSO
 \fBraptor\fR(1)

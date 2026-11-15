@@ -39,7 +39,7 @@ def add_parser(sub: Any) -> None:
     p = s.add_parser("import", help="import a legacy .rbl/.json library")
     p.add_argument("library", metavar="FILE", help="new .rbdlib to write")
     p.add_argument("source", metavar="SOURCE", help=".rbl or legacy JSON")
-    p.add_argument("--name", metavar="N")
+    p.add_argument("--name", metavar="N", help="name of the new library")
     p.add_argument("--force", action="store_true",
                    help="replace an existing library file")
     p.set_defaults(func=import_command)
@@ -48,8 +48,8 @@ def add_parser(sub: Any) -> None:
 
     p = s.add_parser("apply", help="apply a part type to blocks and link them")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("--library", required=True, metavar="FILE")
-    p.add_argument("--part", required=True, metavar="PART")
+    p.add_argument("--library", required=True, metavar="FILE", help="the .rbdlib to read")
+    p.add_argument("--part", required=True, metavar="PART", help="part type name or id")
     p.add_argument("--blocks", required=True, metavar="NAMES",
                    help="comma list of block names or ids")
     p.add_argument("--override", default="", metavar="FIELDS",
@@ -60,7 +60,7 @@ def add_parser(sub: Any) -> None:
 
     p = s.add_parser("sync", help="show or apply changed part types")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("--library", required=True, metavar="FILE")
+    p.add_argument("--library", required=True, metavar="FILE", help="the .rbdlib to compare with")
     p.add_argument("--apply", action="store_true",
                    help="write the pending changes (default: report only)")
     p.add_argument("--in-place", action="store_true",
@@ -70,7 +70,7 @@ def add_parser(sub: Any) -> None:
 
     p = s.add_parser("detach", help="drop a block's link, keeping its values")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("--block", required=True, metavar="NAME|ID")
+    p.add_argument("--block", required=True, metavar="NAME|ID", help="the linked block")
     p.add_argument("--in-place", action="store_true",
                    help="write the change back to MODEL")
     p.set_defaults(func=detach_command)
@@ -90,10 +90,13 @@ def _add_save_and_insert(s: Any) -> None:
                              "(a hierarchy brings everything inside it)")
     p.add_argument("--kind", default="block",
                    choices=("block", "node", "event", "hierarchy",
-                            "annotation"))
-    p.add_argument("--name", metavar="N")
-    p.add_argument("--category", default="", metavar="TEXT")
-    p.add_argument("--source", default="", metavar="TEXT")
+                            "annotation"),
+                   help="what --block names (default block)")
+    p.add_argument("--name", metavar="N", help="part name (default: the element's)")
+    p.add_argument("--category", default="", metavar="TEXT",
+                   help="group the part is listed under")
+    p.add_argument("--source", default="", metavar="TEXT",
+                   help="where the numbers came from: a handbook, a test report, a person")
     p.add_argument("--basis", choices=BASES, default="experience",
                    type=normalise_basis,
                    help="where the numbers came from (judgement is read as "
@@ -102,8 +105,8 @@ def _add_save_and_insert(s: Any) -> None:
 
     p = s.add_parser("insert", help="insert a copy of an assembly into a model")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("--library", required=True, metavar="FILE")
-    p.add_argument("--part", required=True, metavar="PART")
+    p.add_argument("--library", required=True, metavar="FILE", help="the .rbdlib to read")
+    p.add_argument("--part", required=True, metavar="PART", help="assembly name or id")
     p.add_argument("--at", metavar="X,Y",
                    help="model position of the copy's top-left "
                         "(default: right of the model)")

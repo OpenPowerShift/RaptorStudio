@@ -24,8 +24,10 @@ def add_parser(sub: Any) -> None:
     w.add_argument("model", metavar="MODEL")
     w.add_argument("--change", action="append", default=[], metavar="PATH=VALUE",
                    help="one change for the scenario, repeatable")
-    w.add_argument("--name", default="Scenario", metavar="N")
-    w.add_argument("--note", default="", metavar="TEXT")
+    w.add_argument("--name", default="Scenario", metavar="N",
+                   help="name of the scenario the --change options make (default Scenario)")
+    w.add_argument("--note", default="", metavar="TEXT",
+                   help="why the scenario is tried, shown with its row")
     w.add_argument("--change-file", metavar="FILE",
                    help="JSON list of {name, changes, note} scenarios")
     w.add_argument("-n", "--trials", type=int, metavar="N",

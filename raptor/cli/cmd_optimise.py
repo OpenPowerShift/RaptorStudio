@@ -13,11 +13,13 @@ OPTIMISE_SCHEMA = "raptor-optimise-spares/1"
 
 def add_parser(sub: Any) -> None:
     o = sub.add_parser(
-        "optimise", help="find the cheapest spares holding that meets a target",
-        description="Simulate the analytic spare-stock path with common "
-                    "random numbers and recommend the cheapest point whose "
-                    "lower confidence bound meets the target. The model file "
-                    "is only changed when the apply flag is given.")
+        "optimise", help="search spares, maintenance or crew sizes for a target",
+        description="Search one kind of decision by simulation with paired "
+                    "trials: spare stock (the cheapest that meets a target), "
+                    "planned maintenance (whether and how often), or crew and "
+                    "tool sizes (the smallest that meets a target). A level "
+                    "meets a target only when its lower confidence bound does. "
+                    "The model file is only changed when --apply is given.")
     o.set_defaults(func=_missing)
 
     f = sub.add_parser(
@@ -26,7 +28,7 @@ def add_parser(sub: Any) -> None:
                     "by 300') into Weibull, lognormal or exponential "
                     "parameters. No data needed; the fit is only as good as "
                     "the answers.")
-    f.add_argument("--law", required=True,
+    f.add_argument("--law", required=True, help="the life law to fit",
                    choices=("weibull", "lognormal", "exponential"))
     f.add_argument("--quantile", action="append", default=[],
                    metavar="P=T", help="probability=age, repeatable, e.g. "

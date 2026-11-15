@@ -22,16 +22,18 @@ def add_parser(sub: Any) -> None:
 
     p = s.add_parser("duplicate", help="copy elements with fresh ids")
     p.add_argument("elements", nargs="+", metavar="ELEMENT")
-    p.add_argument("--copies", type=int, default=1, metavar="N")
-    p.add_argument("--dx", type=float, default=40.0, metavar="T")
-    p.add_argument("--dy", type=float, default=40.0, metavar="T")
+    p.add_argument("--copies", type=int, default=1, metavar="N", help="how many copies (default 1)")
+    p.add_argument("--dx", type=float, default=40.0, metavar="T",
+                   help="each copy's offset to the right, in diagram units (default 40)")
+    p.add_argument("--dy", type=float, default=40.0, metavar="T",
+                   help="each copy's offset downward (default 40)")
     p.add_argument("--in-place", action="store_true",
                    help="write the result back to MODEL")
     p.add_argument("-f", "--format", choices=("text", "json"), default="text")
     p.set_defaults(func=duplicate_command)
 
     p = s.add_parser("paste-data", help="copy block data groups onto blocks")
-    p.add_argument("--source", required=True, metavar="BLOCK")
+    p.add_argument("--source", required=True, metavar="BLOCK", help="the block to copy from")
     p.add_argument("--targets", required=True, metavar="NAMES",
                    help="comma list of blocks")
     p.add_argument("--groups", metavar="NAMES",

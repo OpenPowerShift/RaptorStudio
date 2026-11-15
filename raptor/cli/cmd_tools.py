@@ -43,7 +43,8 @@ def add_parser(sub: Any) -> None:
         description="Run each MODEL with the same options and compare "
                     "metric by metric.")
     c.add_argument("models", nargs="+", metavar="MODEL")
-    c.add_argument("--metric", action="append", metavar="NAME")
+    c.add_argument("--metric", action="append", metavar="NAME",
+                   help="compare only this metric (repeatable; default all)")
     c.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text")
     add_run_options(c)
@@ -88,8 +89,10 @@ def add_parser(sub: Any) -> None:
         description="Time a short pilot and predict the wall-clock time for "
                     "N runs.")
     e.add_argument("model", metavar="MODEL")
-    e.add_argument("-n", "--runs", type=int, default=100, metavar="N")
-    e.add_argument("-t", "--length", type=float, metavar="T")
+    e.add_argument("-n", "--runs", type=int, default=100, metavar="N",
+                   help="pilot runs to time (default 100)")
+    e.add_argument("-t", "--length", type=float, metavar="T",
+                   help="run length (default: the model's own)")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=estimate_command)
 
@@ -99,7 +102,8 @@ def add_parser(sub: Any) -> None:
                     "--workspace DIR' (the run id is in the JSON output and "
                     "on stderr).")
     rp.add_argument("run_id", metavar="RUN-ID")
-    rp.add_argument("--workspace", required=True, metavar="DIR")
+    rp.add_argument("--workspace", required=True, metavar="DIR",
+                    help="the workspace the run was kept in (raptor run --workspace)")
     rp.add_argument("-r", "--report", default="final",
                     metavar="NAME", help="final, end-of-run, events, ao-plot, "
                                          "capacity-plot, interim-cost "
@@ -158,16 +162,22 @@ def add_parser(sub: Any) -> None:
                     "or, when FILE ends in .svg, to a plain SVG drawing "
                     "(no Qt needed).")
     d.add_argument("model", metavar="MODEL")
-    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg")
+    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg",
+                   help="the image to write; the extension picks the format")
     d.add_argument("--level", type=int, default=0,
                    help="hierarchy id to draw (0 = top level)")
     d.add_argument("--highlight", action="append", default=[],
-                   metavar="SELECTOR")
+                   metavar="SELECTOR",
+                   help="draw this element highlighted: a name, an id or Kind:id (repeatable)")
     d.add_argument("--zoom-to", action="append", default=[],
-                   metavar="SELECTOR")
-    d.add_argument("--theme", choices=("light", "dark"), default="light")
-    d.add_argument("--max-px", type=int, default=1600)
-    d.add_argument("--no-annotations", action="store_true")
+                   metavar="SELECTOR",
+                   help="frame a close-up on these elements of the drawn level (repeatable)")
+    d.add_argument("--theme", choices=("light", "dark"), default="light",
+                   help="colours (default light)")
+    d.add_argument("--max-px", type=int, default=1600,
+                   help="longest side of a PNG in pixels (default 1600)")
+    d.add_argument("--no-annotations", action="store_true",
+                   help="leave out text boxes and other annotations")
     d.add_argument("--layer", choices=("downtime-share", "lost-capacity", "advisor"),
                    help="SVG only: run the model with attribution and draw "
                         "each element's share of downtime (or of lost flow) "
@@ -202,7 +212,8 @@ def add_parser(sub: Any) -> None:
                     "what crosses its boundary. The saved .rbd is an ordinary "
                     "model file.")
     ex.add_argument("model", metavar="MODEL")
-    ex.add_argument("--hierarchy", required=True, metavar="NAME|ID")
+    ex.add_argument("--hierarchy", required=True, metavar="NAME|ID",
+                    help="the hierarchy to save on its own")
     ex.add_argument("-o", "--output", metavar="FILE",
                     help="write the extract here (.rbd or .rbds)")
     ex.add_argument("--report-hazards", action="store_true",

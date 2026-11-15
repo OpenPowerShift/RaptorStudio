@@ -1,6 +1,6 @@
 .TH "RAPTOR-COMPARE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-compare \- Run each MODEL with the same options and compare metric by metric.
+raptor\-compare \- run two or more models and compare the results
 .SH SYNOPSIS
 \fBraptor compare\fR [\-h] [\-\-metric NAME] [\-f {text,json,csv}] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL [MODEL ...]
 .SH DESCRIPTION
@@ -9,10 +9,10 @@ Run each MODEL with the same options and compare metric by metric.
 .SS Options
 .TP
 \fB\-\-metric\fR \fINAME\fR
-
+compare only this metric (repeatable; default all)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
-
+output format (default text)
 .SS Run control
 .TP
 \fB\-n\fR, \fB\-\-runs\fR \fIN\fR

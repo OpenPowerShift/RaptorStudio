@@ -1,6 +1,6 @@
 .TH "RAPTOR-ADVISE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-advise \- Check each MODEL for things a reliability engineer would question: redundancy that cannot work, placeholder data, spares or crews that cannot meet demand, maintenance that cannot pay off, too few runs. Nothing is run and nothing is changed. Each finding has a stable rule id and says whether it is exact or an estimate.
+raptor\-advise \- say what looks wrong or unwise in a model
 .SH SYNOPSIS
 \fBraptor advise\fR [\-h] [\-f {text,json,md}] [\-\-min\-severity {error,warning,advice,info}] [\-\-only IDS] [\-\-skip IDS] [\-\-why] [\-\-strict] [\-\-simulate] [\-\-target EXPR] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-list\-rules] [\-\-ignore RULE[@TARGET]] [\-\-restore RULE[@TARGET]] [\-\-reason TEXT] [MODEL ...]
 .SH DESCRIPTION
@@ -9,7 +9,7 @@ Check each MODEL for things a reliability engineer would question: redundancy th
 .SS Options
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|md}\fR
-
+output format (default text)
 .TP
 \fB\-\-min\-severity\fR \fI{error|warning|advice|info}\fR
 hide findings below this level (default: show all)

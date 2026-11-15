@@ -65,7 +65,30 @@ def build_parser() -> argparse.ArgumentParser:
                         "'none' (same as RAPTOR_DEV_FEATURES)")
     sub = p.add_subparsers(dest="command", metavar="COMMAND")
     _register(sub)
+    _fill_common_help(p)
     return p
+
+
+#: Help for the options many commands share, where a command gives none:
+#: written once so `--help` and the man pages always explain them.
+COMMON_HELP = {
+    "format": "output format (default %(default)s)",
+    "seed": ("salt every random stream (default: the fixed seed "
+             "'raptor run' uses, so the numbers match a plain run)"),
+    "jobs": ("cores to run on (default %(default)s). Any 2 or more give "
+             "the same numbers; they differ, equally validly, from 1"),
+    "trials": "runs per point (default: the model's own)",
+}
+
+
+def _fill_common_help(parser: argparse.ArgumentParser) -> None:
+    for action in parser._actions:                      # noqa: SLF001
+        if action.option_strings and not action.help and action.dest in COMMON_HELP:
+            action.help = COMMON_HELP[action.dest]
+        choices = getattr(action, "choices", None)
+        if isinstance(choices, dict):
+            for child in dict.fromkeys(choices.values()):
+                _fill_common_help(child)
 
 
 def _register(sub: Any) -> None:
