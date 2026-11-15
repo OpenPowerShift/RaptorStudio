@@ -198,12 +198,11 @@ class RunExperimentMixin:
         # columns below: undoing used to put NumRuns back but leave the
         # experiment (which the panel and the next run read) at the new
         # value, so the model contradicted itself.
-        v._stack.beginMacro("Run settings")
+        experiment_cmd = _ExperimentCmd(self, old, experiment)
         try:
-            v._stack.push(_ExperimentCmd(self, old, experiment))
-
             sec = self._rbd.sections.get("SYSTEM_DATA")
             if not sec or not sec.rows:
+                v._stack.push(experiment_cmd)
                 self._mark_dirty()
                 return
             row = sec.rows[0]
@@ -218,14 +217,13 @@ class RunExperimentMixin:
             # value disables Run rather than being refused here.
             with v._stack.ungated():
                 apply_row_edits(v, "SYSTEM_DATA", 0, row, wanted.items(),
-                                "Run settings")
+                                "Run settings", also=(experiment_cmd,))
             # The ribbon's read-only mirrors and the Inspector both show
             # values that came from this row.
             self._sync_run_mirrors()
             self._inspector.show_system_config()
             self._mark_dirty()
         finally:
-            v._stack.endMacro()
             self._in_run_setting_edit = False
         # Changing a run setting cannot break the model's structure, so
         # do not pay for a whole-model re-validation 600 ms later. See

@@ -1353,7 +1353,7 @@ def values_differ(old, new) -> bool:
 
 
 def apply_row_edits(view, section, row_index, row, edits,
-                    macro_label: str) -> int:
+                    macro_label: str, also=()) -> int:
     """Push one `RowCellCmd` per changed cell, as ONE undo step.
 
     `edits` is an iterable of `(col, new)` pairs — or `(col, old, new)`,
@@ -1367,6 +1367,11 @@ def apply_row_edits(view, section, row_index, row, edits,
     skip-if-unchanged rule, and the write-through to the live row after the
     command is pushed. Every site that hand-rolled it had to get all three
     right, and each had its own copy to keep right.
+
+    `also` are further undo commands that belong to the same step (the run
+    experiment beside its legacy SYSTEM_DATA columns); they are pushed
+    first, inside the same macro, and make the step even when no cell
+    changes.
 
     `RowCellCmd._set` writes the row itself on redo, so writing `row[col]`
     here as well is deliberate: the live model must reflect the edit before
@@ -1382,10 +1387,12 @@ def apply_row_edits(view, section, row_index, row, edits,
         old = edit[1] if len(edit) == 3 else row.get(col, "")
         if values_differ(old, new):
             changes.append((col, old, new))
-    if not changes:
+    if not changes and not also:
         return 0
     stack.beginMacro(macro_label)
     try:
+        for command in also:
+            stack.push(command)
         for col, old, new in changes:
             stack.push(RowCellCmd(view, section, row_index, col, old, new))
             row[col] = new
