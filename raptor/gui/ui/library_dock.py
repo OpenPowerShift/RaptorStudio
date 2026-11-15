@@ -22,7 +22,7 @@ from typing import Any
 from PySide6.QtCore import QEvent, QMimeData, QObject, Qt
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton,
     QRadioButton, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
@@ -131,6 +131,12 @@ class _CanvasDrop(QObject):
         return False
 
 
+#: (stored basis, what the save dialog shows) for a part type's numbers.
+BASIS_CHOICES = (("data", "Data — measured on our own equipment"),
+                 ("handbook", "Handbook — a published source"),
+                 ("experience", "Experience — the team's estimate"))
+
+
 class _SaveDialog(QDialog):
     """Name the new entry and, for one block, choose part type or assembly."""
 
@@ -152,6 +158,21 @@ class _SaveDialog(QDialog):
         self.as_type.setEnabled(single_block)
         form.addRow(self.as_assembly)
         form.addRow(self.as_type)
+        # where a part type's numbers came from: the reviewer's first question
+        self.basis = QComboBox()
+        for key, text in BASIS_CHOICES:
+            self.basis.addItem(text, key)
+        self.basis.setCurrentIndex(len(BASIS_CHOICES) - 1)
+        self.basis.setToolTip("Where the failure and repair numbers came from; "
+                              "kept with the part type")
+        form.addRow("Numbers from:", self.basis)
+        self.source = QLineEdit()
+        self.source.setPlaceholderText("optional, e.g. OREDA 2015 table 4.2")
+        form.addRow("Source:", self.source)
+        for widget in (self.basis, self.source):
+            widget.setEnabled(single_block)
+        self.as_type.toggled.connect(
+            lambda on: [w.setEnabled(on) for w in (self.basis, self.source)])
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -328,7 +349,8 @@ class LibraryDock(QWidget):
             item.setToolTip(0, "\n".join(filter(None, (
                 part.name, part.category or None,
                 describe(part) if part.kind == ASSEMBLY else
-                f"{part.kind} part type, {len(part.fields)} field(s)",
+                f"{part.kind} part type, {len(part.fields)} field(s); "
+                f"numbers from {part.basis}",
                 part.source or None,
                 "Drag onto the canvas or double-click to "
                 + ("insert a copy" if part.kind == ASSEMBLY
@@ -484,7 +506,9 @@ class LibraryDock(QWidget):
             row = next(r for r in rbd.section("BLOCK_DATA").rows
                        if str(r.get("ID")) == str(blocks[0]))
             part = part_from_element("block", row, name=name,
-                                     category=dialog.category.text().strip())
+                                     category=dialog.category.text().strip(),
+                                     source=dialog.source.text().strip(),
+                                     basis=str(dialog.basis.currentData()))
             apply_part_to_rbd(rbd, f"block:{blocks[0]}", part)
             self._commit(before, f"Save part type {part.name}")
             self.status.setText(f"Saved part type {part.name}; the block follows it.")

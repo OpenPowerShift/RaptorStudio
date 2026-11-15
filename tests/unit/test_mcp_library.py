@@ -211,3 +211,35 @@ def test_a_part_from_a_dependent_block_applies_to_another_block(server, tmp_path
     system = PartType(id="s", name="s", kind="block",
                       fields={"dep_num": -2, "dep_type": "None", "dep_idle": 100})
     assert applicable_fields(system)["dep_num"] == -2
+
+
+def test_a_library_must_be_an_rbdlib_outside_the_managed_trees(tmp_path):
+    import asyncio
+
+    from raptor.mcp import server as srv
+    from raptor.mcp import tools_library, tools_model  # noqa: F401
+    srv.mcp._raptor_args = type("A", (), {"workspace": str(tmp_path), "read_only": False})()
+    srv.mcp._raptor_ws = None
+    spec = {"blocks": [{"name": "A", "fail_params": [100, 0, 0], "repair_params": [5, 1, 0]}],
+            "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}]}
+    res = asyncio.run(srv.mcp.call_tool("build_model", {"name": "m", "spec": spec,
+                                                         "validate_model": False}))
+    mid = res.structured_content["model_id"]
+
+    def save(path, **kw):
+        return asyncio.run(srv.mcp.call_tool("save_part_type", {
+            "model_id": mid, "element": "A", "library_path": path, "link": False, **kw}))
+
+    def refused(path, **kw):
+        try:
+            return save(path, **kw).is_error
+        except Exception:  # noqa: BLE001 - a schema refusal raises
+            return True
+    assert refused("notes.txt")
+    assert refused(f"models/{mid}/evil.rbdlib")
+    assert refused("runs/x.rbdlib")
+    assert refused("lib", basis="guesswork")
+    ok = save("lib")
+    assert not ok.is_error and (tmp_path / "lib.rbdlib").is_file()
+    srv.mcp._raptor_ws = None

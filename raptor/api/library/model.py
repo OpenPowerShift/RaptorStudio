@@ -109,6 +109,8 @@ def normalise_basis(value: str | None) -> str:
     text = str(value or "").strip().lower()
     if text in ("", "judgement", "judgment"):
         return "experience"
+    if text not in BASES:
+        raise ValueError(f"basis must be one of {', '.join(BASES)}; got {value!r}")
     return text
 
 

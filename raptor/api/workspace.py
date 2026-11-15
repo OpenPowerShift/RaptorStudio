@@ -871,6 +871,31 @@ class Workspace:
             raise PathOutsideWorkspace(
                 f"Path {str(path)!r} resolves outside the workspace") from None
 
+    def refuse_managed(self, target: Path) -> None:
+        """Refuse a write into the trees the workspace itself manages.
+
+        Path containment alone allowed a save to clobber
+        models/<id>/model.rbds (including a closed model that is meant to
+        survive a restart), runs/<id>/summary.json or the render cache.
+        """
+        target = Path(target).resolve()
+        for managed, why in (
+                ("models", "refusing to overwrite a model's files: the models tree "
+                           "is managed by the workspace (use a path under Tables/ or "
+                           "another allowed directory)"),
+                ("runs", "refusing to write inside the runs directory; run "
+                         "artefacts are managed by the engine"),
+                ("renders", "refusing to overwrite the render cache; renders are "
+                            "managed by render_diagram")):
+            root = (self.root / managed).resolve()
+            if target == root or root in target.parents:
+                raise WorkspaceError(why)
+
+    def check_quota(self, extra_bytes: int = 0) -> None:
+        """Refuse a write of `extra_bytes` that would take the workspace over
+        its size cap (after evicting old runs)."""
+        self._check_quota(extra_bytes)
+
     # ------------------------------------------------------------------
     # Quotas
     # ------------------------------------------------------------------
@@ -950,26 +975,7 @@ class Workspace:
             raise WorkspaceArgumentError(
                 f"format={fmt!r} needs a .{fmt} path; got {dest.suffix!r}")
         target = dest.resolve()
-        # Do not overwrite any model's own files, or a run's sibling
-        # artefacts. Path containment alone allowed a save to clobber
-        # models/<id>/model.rbds (including a closed model that is meant
-        # to survive a restart) and runs/<id>/summary.json.
-        models_dir = (self.root / "models").resolve()
-        if target == models_dir or models_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to overwrite a model's files: the models tree "
-                "is managed by the workspace (use a path under Tables/ or "
-                "another allowed directory)")
-        runs_dir = (self.root / "runs").resolve()
-        if target == runs_dir or runs_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to write inside the runs directory; run "
-                "artefacts are managed by the engine")
-        renders_dir = (self.root / "renders").resolve()
-        if target == renders_dir or renders_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to overwrite the render cache; renders are "
-                "managed by render_diagram")
+        self.refuse_managed(target)
         with self._lock_for(model_id):
             _sync_counts(handle.rbd)
             export_bytes = self._model_bytes(handle.rbd)

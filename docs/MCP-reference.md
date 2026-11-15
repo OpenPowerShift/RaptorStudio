@@ -3568,7 +3568,7 @@ Parameter notes:
 
 #### `save_assembly`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Part types and libraries](#tools-library)
 
 Save a group of elements as a reusable assembly.
@@ -3622,7 +3622,7 @@ Parameter notes:
 
 #### `save_part_type`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Part types and libraries](#tools-library)
 
 Save an element's data as a part type and optionally link it.
@@ -3638,7 +3638,7 @@ part never includes the element's name, position or id.
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
-| `basis` | string | no | `experience` | — |
+| `basis` | string | no | `experience` | `data`, `handbook`, `experience`, `judgement` |
 | `category` | string | no | `` | — |
 | `element` | string | yes | — | — |
 | `kind` | string | no | `block` | — |

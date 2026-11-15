@@ -188,3 +188,28 @@ def test_an_annotation_part_creates_a_note_and_undoes(win):
     win._undo_stack.undo()
     assert not any(entry.get("text") == "Inspect this"
                    for entry in view.annotations)
+
+
+def test_a_saved_part_type_keeps_where_its_numbers_came_from(win, monkeypatch):
+    rbd = win._rbd
+    row = _first_block(rbd)
+    win._diagram_dock.view._block_items[int(row["ID"])].setSelected(True)
+
+    def exec_(self):
+        self.name.setText("Seal")
+        self.as_type.setChecked(True)
+        self.basis.setCurrentIndex(self.basis.findData("handbook"))
+        self.source.setText("OREDA 2015")
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(L._SaveDialog, "exec", exec_)
+    win._library_dock_widget.save_selection()
+    (part,) = [p for p in local_parts(win._rbd).values() if p.name == "Seal"]
+    assert part.basis == "handbook" and part.source == "OREDA 2015"
+
+
+def test_the_basis_is_one_of_three():
+    import pytest as _pytest
+    from raptor.api.library.model import PartType
+    assert PartType("p", "P", basis="judgement").basis == "experience"
+    with _pytest.raises(ValueError, match="basis"):
+        PartType("p", "P", basis="guesswork")

@@ -1,10 +1,12 @@
 """MCP tools for part types and libraries (WP-4.3)."""
 from __future__ import annotations
 
+from typing import Literal
+
 from mcp.types import CallToolResult
 
 from raptor.mcp import context
-from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, ok
+from raptor.mcp.result import DESTRUCTIVE, EDIT, READ_ONLY, guarded, ok
 from raptor.mcp.server import mcp
 
 
@@ -38,15 +40,36 @@ def _library(path: str):
 
 def _library_for_writing(path: str, name: str):
     """(library, resolved path): the existing library at `path`, or a new
-    one, at a path inside the workspace (or an `--allow-write` directory)."""
+    one, at a `.rbdlib` path inside the workspace (or an `--allow-write`
+    directory), never inside the trees the workspace manages."""
+    from pathlib import PurePosixPath
+
     from raptor.api.library.model import Library
     path = context.require_relative_path(path, "library_path")
-    dest = context.workspace().resolve_output_path(
-        path, allow_extra=context.allowed_write_dirs())
+    suffix = PurePosixPath(path).suffix.lower()
+    if suffix == "":
+        path += ".rbdlib"
+    elif suffix != ".rbdlib":
+        raise ValueError(f"a part library is a .rbdlib file; got {suffix!r}")
+    ws = context.workspace()
+    dest = ws.resolve_output_path(path, allow_extra=context.allowed_write_dirs())
+    ws.refuse_managed(dest)
     if dest.is_file():
         return _library(path), str(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     return Library(name, path=str(dest)), str(dest)
+
+
+def _write_library(library, dest: str) -> None:
+    """Write `library`, inside the workspace's size cap."""
+    import json
+    from pathlib import Path
+
+    from raptor.api.library.model import write_library
+    ws = context.workspace()
+    if ws.root.resolve() in Path(dest).resolve().parents:
+        ws.check_quota(len(json.dumps(library.to_dict(), indent=1)) + 1)
+    write_library(library, dest)
 
 
 @mcp.tool(annotations=READ_ONLY("Part types"))
@@ -91,7 +114,7 @@ def list_part_types(model_id: str | None = None,
                         for row in rows) or "No part type matched.")
 
 
-@mcp.tool(annotations=ADDITIVE("Apply part type"))
+@mcp.tool(annotations=EDIT("Apply part type"))
 @guarded
 def apply_part_type(model_id: str, part: str, elements: list[str],
                     library_path: str | None = None,
@@ -126,12 +149,12 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
               f"Applied **{found.name}** to {len(results)} block(s).")
 
 
-@mcp.tool(annotations=ADDITIVE("Save part type"))
+@mcp.tool(annotations=DESTRUCTIVE("Save part type"))
 @guarded
 def save_part_type(model_id: str, element: str, name: str | None = None,
                    library_path: str | None = None, kind: str = "block",
                    category: str = "", source: str = "",
-                   basis: str = "experience",
+                   basis: Literal["data", "handbook", "experience", "judgement"] = "experience",
                    link: bool = True) -> CallToolResult:
     """Save an element's data as a part type and optionally link it.
 
@@ -143,7 +166,7 @@ def save_part_type(model_id: str, element: str, name: str | None = None,
     part never includes the element's name, position or id.
     """
     from raptor.api.library.links import apply_part_to_rbd
-    from raptor.api.library.model import part_from_element, write_library
+    from raptor.api.library.model import part_from_element
 
     context.require_write()
     ws = context.workspace()
@@ -169,7 +192,7 @@ def save_part_type(model_id: str, element: str, name: str | None = None,
         stem = library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
         library, dest = _library_for_writing(library_path, stem or "Library")
         library.parts[part.id] = part
-        write_library(library, dest)
+        _write_library(library, dest)
     if link:
         apply_part_to_rbd(rbd, f"{kind}:{row.get('ID')}", part,
                           library=library_path or "")
@@ -180,7 +203,7 @@ def save_part_type(model_id: str, element: str, name: str | None = None,
               + ("; the element follows it." if link else "."))
 
 
-@mcp.tool(annotations=ADDITIVE("Sync part types"))
+@mcp.tool(annotations=EDIT("Sync part types"))
 @guarded
 def sync_part_types(model_id: str, library_path: str | None = None,
                     dry_run: bool = True) -> CallToolResult:
@@ -204,7 +227,7 @@ def sync_part_types(model_id: str, library_path: str | None = None,
     return ok(result, "\n".join(lines) or "Every linked block matches its part.")
 
 
-@mcp.tool(annotations=ADDITIVE("Save assembly"))
+@mcp.tool(annotations=DESTRUCTIVE("Save assembly"))
 @guarded
 def save_assembly(model_id: str, elements: list[str], name: str,
                   library_path: str | None = None, category: str = "",
@@ -221,8 +244,6 @@ def save_assembly(model_id: str, elements: list[str], name: str,
     from raptor.api.library.assembly import (
         add_local_part, assembly_from_elements, describe,
     )
-    from raptor.api.library.model import write_library
-
     context.require_write()
     ws = context.workspace()
     rbd = ws.get(model_id).rbd
@@ -232,7 +253,7 @@ def save_assembly(model_id: str, elements: list[str], name: str,
         stem = library_path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
         library, dest = _library_for_writing(library_path, stem or "Library")
         library.parts[part.id] = part
-        write_library(library, dest)
+        _write_library(library, dest)
     else:
         add_local_part(rbd, part)
         ws.save(model_id)
@@ -242,7 +263,7 @@ def save_assembly(model_id: str, elements: list[str], name: str,
               + (f" to `{library_path}`." if library_path else " in the model."))
 
 
-@mcp.tool(annotations=ADDITIVE("Insert assembly"))
+@mcp.tool(annotations=EDIT("Insert assembly", idempotent=False))
 @guarded
 def insert_assembly(model_id: str, part: str,
                     library_path: str | None = None,
