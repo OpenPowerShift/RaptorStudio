@@ -501,6 +501,28 @@ class OutageRate:
     def few(self) -> bool:
         return 0 < self.outages < self.FEW
 
+    def to_dict(self) -> dict[str, Any]:
+        """``{outages, runs, up_time, between, few}``: `between` is working
+        time per outage over every run (None with no outage)."""
+        return {"outages": self.outages, "runs": self.runs,
+                "up_time": self.up_time, "between": self.between, "few": self.few}
+
+    def sentence(self, units: str = "") -> str:
+        """One line for a run summary, next to Raptor's MTBDE: what the
+        pooled figure is, and why it differs."""
+        runs = f"{self.runs:,} run{'s' if self.runs != 1 else ''}"
+        if not self.outages:
+            return (f"No system outage in {runs}: MTBDE is each run's length, "
+                    "a floor, not a measured time between outages.")
+        between = self.between
+        unit = f" {units}" if units else ""
+        count = f"{self.outages:,} outage{'s' if self.outages != 1 else ''} in {runs}"
+        rough = " (too few outages for a firm figure)" if self.few else ""
+        shown = "N/A" if between is None else f"{between:.6g}{unit}"
+        return (f"Time between outages, pooled: {shown} ({count}){rough}. "
+                "MTBDE above averages each run's own figure, so it reads higher "
+                "when some runs have few or no outages.")
+
 
 def _field(row: Any, name: str) -> Any:
     return row.get(name) if isinstance(row, dict) else getattr(row, name, None)

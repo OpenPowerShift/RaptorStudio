@@ -33,7 +33,13 @@ Final Results "Availability" row reports.
 |Mean Time Between Downing Events (MTBDE)
 |stem:["MTBDE" = "Uptime" / ("number of downing events")]
 |Average stretch of working time between one stoppage and the next.
-Uptime here is Green + Yellow.
+Uptime here is Green + Yellow. Raptor works this out *in each run* and
+then averages the runs, and a run with no outage gives its whole length
+(shown with `>`). So when outages are rare, MTBDE is a floor and reads
+higher than the rate the runs found. The pooled figure, total uptime over
+total outages across every run, is that rate. `raptor run` prints it under
+the table as *Time between outages, pooled*, `simulate` returns it as
+`outages.between` and the report's cover uses it.
 
 |Mean Down Time (MDT)
 |stem:["MDT" = "Downtime" / ("number of downing events")]

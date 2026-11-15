@@ -235,3 +235,37 @@ def test_the_cover_lists_only_the_analyses_that_were_on():
     none = run_info(load_rbd(gold), model="m", runs=3, units="hours",
                     manifest={"analyses": {"capacity": False, "cost": False}})
     assert none.analyses == []
+
+
+def test_the_run_summary_line_says_what_the_pooled_rate_is():
+    from raptor.api.presentation import OutageRate
+    rate = OutageRate(outages=40, runs=60, up_time=290_000.0)
+    assert rate.to_dict() == {"outages": 40, "runs": 60, "up_time": 290_000.0,
+                              "between": 7250.0, "few": False}
+    line = rate.sentence("hours")
+    assert line.startswith("Time between outages, pooled: 7250 hours (40 outages in 60 runs).")
+    assert "averages each run's own figure" in line
+    assert "too few" in OutageRate(outages=2, runs=5, up_time=10.0).sentence()
+    assert "a floor" in OutageRate(outages=0, runs=5, up_time=10.0).sentence()
+
+
+def test_raptor_run_prints_and_returns_the_pooled_rate(tmp_path, capsys):
+    import json
+
+    from raptor.api import build
+    from raptor.cli.main import main
+    from raptor.core.fileio.rbd import save_rbd
+    model = tmp_path / "m.rbd"
+    save_rbd(build.build_from_spec({
+        "blocks": [{"name": "Pump", "fail_dist": "Exponential", "fail_params": [50],
+                    "repair_dist": "Exponential", "repair_params": [5]}],
+        "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+        "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "End"}],
+        "experiment": {"trials": 4, "termination_type": "TimeSim", "term_condition": 500.0}}), str(model))
+    assert main(["run", str(model), "-f", "json"]) == 0
+    doc = json.loads(capsys.readouterr().out)
+    outages = doc["outages"]
+    assert outages["runs"] == 4
+    assert outages["outages"] == sum(r["num_system_failures"] for r in doc["runs"])
+    assert main(["run", str(model)]) == 0
+    assert "Time between outages, pooled:" in capsys.readouterr().out

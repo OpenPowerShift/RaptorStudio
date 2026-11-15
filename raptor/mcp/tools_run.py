@@ -270,6 +270,10 @@ async def simulate(  # noqa: PLR0912, PLR0915
     (Mean_Flow / FlowGenerated: the delivered fraction, where Availability
     only means some flow got through) and Lost_Flow.  `caveats` is the model-validation subset
     of `warnings` (surfaced separately so a client can show them first).
+    `outages` is {outages, runs, up_time, between, few}: working time per
+    system outage pooled over every run. MTBDE averages each run's own
+    figure, and a run with no outage gives its whole length, so with rare
+    outages quote `between` (and say "rough" when `few`) rather than MTBDE.
     The Markdown body is a table with units in the headers.
 
     The model is **validated first**; structural errors are returned with
@@ -441,6 +445,11 @@ async def simulate(  # noqa: PLR0912, PLR0915
         data["importance"] = result.importance
     if getattr(result, "precision", None):
         data["precision"] = result.precision
+    from raptor.api.presentation import pooled_outages
+    rate = pooled_outages(result.per_run)
+    if rate is not None:
+        # MTBDE is a mean of per-run figures (a floor when outages are rare)
+        data["outages"] = rate.to_dict()
     md = summary_table(
         result,
         display_unit=getattr(handle.rbd, "display_unit", None),
@@ -448,6 +457,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
     )
     if getattr(result, "isolation", None):
         md = f"**{result.isolation['banner']}**\n\n" + md
+    if rate is not None:
+        md += "\n\n" + rate.sentence(data["units"])
     if "Capacity_Weighted_Availability" in data["summary"]:
         md += ("\n\nCapacity analysis: `Availability` counts any flow reaching "
                "the end; `Capacity_Weighted_Availability` (Mean_Flow / "

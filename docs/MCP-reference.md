@@ -3564,6 +3564,10 @@ Units_Produced, Mean_Flow, Mean_Capacity, Capacity_Weighted_Availability
 (Mean_Flow / FlowGenerated: the delivered fraction, where Availability
 only means some flow got through) and Lost_Flow.  `caveats` is the model-validation subset
 of `warnings` (surfaced separately so a client can show them first).
+`outages` is {outages, runs, up_time, between, few}: working time per
+system outage pooled over every run. MTBDE averages each run's own
+figure, and a run with no outage gives its whole length, so with rare
+outages quote `between` (and say "rough" when `few`) rather than MTBDE.
 The Markdown body is a table with units in the headers.
 
 The model is **validated first**; structural errors are returned with
@@ -3633,6 +3637,7 @@ Parameter notes:
 | `isolation` | object | no |
 | `model_hash` | string | yes |
 | `model_id` | string | yes |
+| `outages` | object | yes |
 | `requested_runs` | integer | yes |
 | `run_id` | string | yes |
 | `runs` | integer | yes |

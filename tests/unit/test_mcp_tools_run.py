@@ -71,6 +71,11 @@ class TestSimulate:
         assert "summary" in data
         assert data["runs"] == 2
         assert "| Metric |" in _text(result)
+        # MTBDE is a mean of per-run figures; the pooled rate comes with it
+        assert data["outages"]["runs"] == 2
+        assert set(data["outages"]) == {"outages", "runs", "up_time", "between", "few"}
+        assert ("Time between outages, pooled" in _text(result)
+                or "No system outage" in _text(result))
 
     def test_simulate_availability_in_markdown(self, ws_with_motor):
         from raptor.mcp.tools_run import simulate

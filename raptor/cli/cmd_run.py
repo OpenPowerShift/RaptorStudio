@@ -331,6 +331,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
                      args: Any) -> dict:
     """The structured results (schema raptor-results/1)."""
     import raptor
+    from raptor.api.presentation import pooled_outages
     handle = ws.get(model_id)
     sec = handle.rbd.sections.get("SYSTEM_DATA")
     row = sec.rows[0] if sec and sec.rows else {}
@@ -351,6 +352,8 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
         "summary": {m.name: _null_nan(m.to_dict())
                     for m in result.metrics},
         "runs": result.per_run,
+        # MTBDE is a mean of per-run figures; this is the pooled rate
+        **({"outages": rate.to_dict()} if (rate := pooled_outages(result.per_run)) else {}),
         "warnings": list(warns) + list(result.warnings),
         "files": files,
         "run_id": result.run_id if getattr(args, "workspace", None) else None,
@@ -393,6 +396,11 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
         lines.append(f"{n:<{w}}  " + " ".join(
             f"{_fmt(m.get(k)):>14}" for k in ("mean", "min", "max", "stdev",
                                               "sem")))
+    outages = doc.get("outages")
+    if outages and (not metrics or "MTBDE" in metrics):
+        from raptor.api.presentation import OutageRate
+        rate = OutageRate(outages["outages"], outages["runs"], outages["up_time"])
+        lines.extend(["", rate.sentence(doc["model"].get("units") or "")])
     for wmsg in doc["warnings"]:
         lines.append(f"warning: {wmsg}")
     imp = doc.get("importance")

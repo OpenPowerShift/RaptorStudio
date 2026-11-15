@@ -1519,6 +1519,9 @@
    "model_id": {
     "type": "string"
    },
+   "outages": {
+    "type": "object"
+   },
    "requested_runs": {
     "type": "integer"
    },
@@ -1560,6 +1563,7 @@
    "estimated_wall_seconds",
    "model_hash",
    "model_id",
+   "outages",
    "requested_runs",
    "run_id",
    "runs",
