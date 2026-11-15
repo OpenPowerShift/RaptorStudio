@@ -357,3 +357,19 @@ def test_validation_issues_are_carried_over():
         pytest.skip("builder refuses the invalid parameter before validation")
     hits = [f for f in advise_model(rbd) if f.rule == "M-VAL-000"]
     assert hits and hits[0].severity == "error" and hits[0].targets[0].name == "A"
+
+
+def test_blocks_that_share_a_name_are_told_apart():
+    """G16: two unnamed blocks gave two identical Advisor lines."""
+    from pathlib import Path
+
+    from raptor.api.advisor import advise_model
+    from raptor.api.advisor.context import _distinct_names
+    from raptor.core.fileio.rbd import load_rbd
+
+    rows = _distinct_names([{"id": 3, "name": None}, {"id": 4, "name": "Pump"},
+                            {"id": 5, "name": "Pump"}, {"id": 6, "name": "Valve"}], "block")
+    assert [r["name"] for r in rows] == ["block 3", "Pump (block 4)", "Pump (block 5)", "Valve"]
+    gold = Path(__file__).resolve().parents[2] / "golden" / "TwoBlockRedundancy" / "input.rbd"
+    messages = [f.message for f in advise_model(load_rbd(str(gold)))]
+    assert len(messages) == len(set(messages))

@@ -37,6 +37,25 @@ def on(value: Any) -> bool:
     return bool(value)
 
 
+def _distinct_names(rows: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
+    """Give each row a name a reader can tell apart: an unnamed element, or
+    one whose name another shares, is called by its id as well.  Two blocks
+    both called "unnamed" otherwise gave the Advisor two identical lines
+    that looked like one finding listed twice."""
+    from collections import Counter
+    def raw(row: dict[str, Any]) -> str:
+        name = str(row.get("name") or "").strip()
+        return "" if name.lower() in ("", "none", "unnamed") else name
+    counts = Counter(raw(row) for row in rows)
+    for row in rows:
+        name = raw(row)
+        if not name:
+            row["name"] = f"{kind} {row.get('id')}"
+        elif counts[name] > 1:
+            row["name"] = f"{name} ({kind} {row.get('id')})"
+    return rows
+
+
 def _friendly_rows(rbd: Any, section: str) -> list[dict[str, Any]]:
     from raptor.api.build import combined_map
     sec = rbd.sections.get(section)
@@ -120,7 +139,7 @@ class ModelContext:
 
     @cached_property
     def blocks(self) -> list[dict]:
-        return [b for b in self._all_blocks if b.get("id")]
+        return _distinct_names([b for b in self._all_blocks if b.get("id")], "block")
 
     @cached_property
     def default_block(self) -> dict | None:
@@ -137,7 +156,7 @@ class ModelContext:
 
     @cached_property
     def nodes(self) -> list[dict]:
-        return _friendly_rows(self.rbd, "NODE_DATA")
+        return _distinct_names(_friendly_rows(self.rbd, "NODE_DATA"), "node")
 
     @cached_property
     def events(self) -> list[dict]:
