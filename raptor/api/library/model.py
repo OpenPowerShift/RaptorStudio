@@ -99,6 +99,19 @@ def _slug(text: str) -> str:
     return slug or "part"
 
 
+#: Where a part type's numbers came from.
+BASES = ("data", "handbook", "experience")
+
+
+def normalise_basis(value: str | None) -> str:
+    """A basis as stored: 'judgement' (the name before 2026-11-15) reads as
+    'experience', so older libraries keep their meaning."""
+    text = str(value or "").strip().lower()
+    if text in ("", "judgement", "judgment"):
+        return "experience"
+    return text
+
+
 @dataclass(frozen=True)
 class PartType:
     id: str
@@ -107,9 +120,12 @@ class PartType:
     category: str = ""
     description: str = ""
     source: str = ""
-    basis: str = "judgement"        # data | handbook | judgement
+    basis: str = "experience"       # data | handbook | experience
     updated: str = ""
     kind: str = "block"            # block | node | event | hierarchy | annotation
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "basis", normalise_basis(self.basis))
 
     @property
     def version(self) -> str:
@@ -131,7 +147,7 @@ class PartType:
             category=str(row.get("category") or ""),
             description=str(row.get("description") or ""),
             source=str(row.get("source") or ""),
-            basis=str(row.get("basis") or "judgement"),
+            basis=normalise_basis(row.get("basis")),
             updated=str(row.get("updated") or ""),
             kind=str(row.get("kind") or "block"),
         )
@@ -187,7 +203,7 @@ def _number(text: Any) -> Any:
 def part_from_element(kind: str, row: dict[str, Any], *,
                       name: str | None = None, part_id: str | None = None,
                       category: str = "", description: str = "",
-                      source: str = "", basis: str = "judgement") -> PartType:
+                      source: str = "", basis: str = "experience") -> PartType:
     """Everything an element's row carries that belongs to a part type."""
     if kind == "annotation":
         return part_from_annotation(row, name=name, part_id=part_id,
@@ -230,7 +246,7 @@ def part_from_element(kind: str, row: dict[str, Any], *,
 def part_from_block(row: dict[str, Any], *, name: str | None = None,
                     part_id: str | None = None, category: str = "",
                     description: str = "", source: str = "",
-                    basis: str = "judgement") -> PartType:
+                    basis: str = "experience") -> PartType:
     """Backward-compatible block part."""
     return part_from_element("block", row, name=name, part_id=part_id,
                              category=category, description=description,
@@ -240,7 +256,7 @@ def part_from_block(row: dict[str, Any], *, name: str | None = None,
 def part_from_annotation(entry: dict[str, Any], *, name: str | None = None,
                          part_id: str | None = None, category: str = "",
                          description: str = "", source: str = "",
-                         basis: str = "judgement") -> PartType:
+                         basis: str = "experience") -> PartType:
     """A canvas annotation as a reusable template (kind, text, style, size)."""
     fields = {key: entry[key] for key in KIND_FIELDS["annotation"]
               if key in entry and entry[key] not in (None, "")}

@@ -3567,14 +3567,15 @@ Save an element's data as a part type and optionally link it.
 `kind` is block, node, event, hierarchy or annotation; `element` is the
 name/id (or annotation id). With `library_path`, adds the part to that
 `.rbdlib` file. Without it, stores the part inside the model and links
-the element by default. The part never includes the element's name,
-position or id.
+the element by default. `basis` says where the numbers came from:
+data, handbook or experience ("judgement" is read as experience). The
+part never includes the element's name, position or id.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
-| `basis` | string | no | `judgement` | — |
+| `basis` | string | no | `experience` | — |
 | `category` | string | no | `` | — |
 | `element` | string | yes | — | — |
 | `kind` | string | no | `block` | — |
@@ -3586,6 +3587,7 @@ position or id.
 
 Parameter notes:
 
+- `basis` — `basis` says where the numbers came from: data, handbook or experience ("judgement" is read as experience).
 - `element` — `kind` is block, node, event, hierarchy or annotation; `element` is the name/id (or annotation id).
 - `kind` — `kind` is block, node, event, hierarchy or annotation; `element` is the name/id (or annotation id).
 - `library_path` — With `library_path`, adds the part to that `.rbdlib` file.

@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from raptor.api.library.model import BASES, normalise_basis
 from raptor.cli import exitcodes as X
 from raptor.cli.common import emit_json, eprint, open_model, workspace_for
 from raptor.cli.exitcodes import CliError
@@ -93,8 +94,10 @@ def _add_save_and_insert(s: Any) -> None:
     p.add_argument("--name", metavar="N")
     p.add_argument("--category", default="", metavar="TEXT")
     p.add_argument("--source", default="", metavar="TEXT")
-    p.add_argument("--basis", choices=("data", "handbook", "judgement"),
-                   default="judgement")
+    p.add_argument("--basis", choices=BASES, default="experience",
+                   type=normalise_basis,
+                   help="where the numbers came from (judgement is read as "
+                        "experience)")
     p.set_defaults(func=add_command)
 
     p = s.add_parser("insert", help="insert a copy of an assembly into a model")

@@ -168,3 +168,19 @@ def test_a_hierarchy_part_keeps_the_level_and_phasing(tmp_path):
     part = part_from_element("hierarchy", row)
     assert part.kind == "hierarchy"
     assert part.fields["level"] == 2.0
+
+
+def test_a_judgement_basis_reads_as_experience():
+    # 'judgement' was the name before 2026-11-15; older libraries keep meaning
+    from raptor.api.library.model import PartType
+    assert PartType.from_dict({"name": "Seal", "basis": "judgement"}).basis == "experience"
+    assert PartType.from_dict({"name": "Seal"}).basis == "experience"
+    assert PartType(id="s", name="Seal", basis="Handbook").basis == "handbook"
+    assert PartType(id="s", name="Seal").to_dict()["basis"] == "experience"
+
+
+def test_the_cli_takes_judgement_as_experience():
+    from raptor.cli.main import build_parser
+    args = build_parser().parse_args(
+        ["library", "add", "lib.rbdlib", "m.rbds", "--block", "Pump", "--basis", "judgement"])
+    assert args.basis == "experience"

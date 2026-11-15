@@ -131,15 +131,16 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
 def save_part_type(model_id: str, element: str, name: str | None = None,
                    library_path: str | None = None, kind: str = "block",
                    category: str = "", source: str = "",
-                   basis: str = "judgement",
+                   basis: str = "experience",
                    link: bool = True) -> CallToolResult:
     """Save an element's data as a part type and optionally link it.
 
     `kind` is block, node, event, hierarchy or annotation; `element` is the
     name/id (or annotation id). With `library_path`, adds the part to that
     `.rbdlib` file. Without it, stores the part inside the model and links
-    the element by default. The part never includes the element's name,
-    position or id.
+    the element by default. `basis` says where the numbers came from:
+    data, handbook or experience ("judgement" is read as experience). The
+    part never includes the element's name, position or id.
     """
     from raptor.api.library.links import apply_part_to_rbd
     from raptor.api.library.model import part_from_element, write_library
