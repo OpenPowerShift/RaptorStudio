@@ -210,12 +210,17 @@ def test_ignore_finding_hides_it_from_advise_and_restores(server, model):
     target = hit["targets"][0]["path"].split(".", 1)[0]
     data = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
                    target=target, reason="cold standby by design"))
-    assert data["changed"] and data["ignored"] == [
-        {"rule": "M-STR-002", "target": target, "reason": "cold standby by design"}]
+    (entry,) = data["ignored"]
+    assert data["changed"] and {k: entry[k] for k in ("rule", "target", "reason")} == {
+        "rule": "M-STR-002", "target": target, "reason": "cold standby by design"}
+    # by name and rule title, as the desktop app lists it
+    assert entry["subject"].startswith("Block ") and entry["title"]
     after = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
     assert "M-STR-002" not in {f["rule"] for f in after["findings"]}
     assert after["ignored"] == data["ignored"]
-    assert context.workspace().get(model).rbd.advisor["ignored"] == data["ignored"]
+    # the file keeps only what was decided; titles and names are worked out
+    assert context.workspace().get(model).rbd.advisor["ignored"] == [
+        {k: entry[k] for k in ("rule", "target", "reason")}]
     back = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
                    target=target, restore=True))
     assert back == {"model_id": model, "ignored": [], "changed": True}

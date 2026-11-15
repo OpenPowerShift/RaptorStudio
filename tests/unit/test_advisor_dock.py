@@ -252,9 +252,23 @@ def test_ignoring_a_finding_hides_it_keeps_the_reason_and_undoes(window, qapp, m
     card(window, "M-SPR-002").ignore_one.trigger()
     qapp.processEvents()
     assert "M-SPR-002" not in rules(window)
-    assert panel.ignored() == [{"rule": "M-SPR-002", "target": f"block:{target.id}",
-                                "reason": "on purpose"}]
+    (entry,) = panel.ignored()
+    assert (entry["rule"], entry["target"], entry["reason"]) == (
+        "M-SPR-002", f"block:{target.id}", "on purpose")
     assert panel.ignored_button.isVisible() and "1 ignored" in panel.ignored_button.text()
+    # U28: listed by name and rule title, with a way to go to the block
+    assert entry["subject"] == f"Block {target.name}"
+    panel.ignored_button.click()
+    qapp.processEvents()
+    from PySide6.QtWidgets import QLabel, QToolButton
+    row = panel.ignored_rows[0]
+    assert target.name in row.findChild(QLabel).text()
+    assert f"block:{target.id}" not in row.findChild(QLabel).text()
+    located = []
+    panel.locate_requested.connect(located.append)
+    next(b for b in row.findChildren(QToolButton) if b.text() == "Show").click()
+    assert located and located[0].targets[0].id == target.id
+    panel.ignored_button.click()
     assert window._diagram_dock.view._stack.index() == depth + 1
     window._diagram_dock.view._stack.undo()
     qapp.processEvents()
@@ -278,7 +292,8 @@ def test_restore_from_the_ignored_list(window, qapp, monkeypatch):
     qapp.processEvents()
     assert len(panel.ignored_rows) == 1
     from PySide6.QtWidgets import QToolButton
-    panel.ignored_rows[0].findChild(QToolButton).click()
+    next(b for b in panel.ignored_rows[0].findChildren(QToolButton)
+         if b.text() == "Restore").click()
     qapp.processEvents()
     assert "M-SPR-002" in rules(window) and panel.ignored() == []
 

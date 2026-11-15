@@ -83,3 +83,49 @@ def parse(text: str) -> tuple[str, str]:
     """``RULE`` or ``RULE@TARGET`` (the CLI's spelling) -> (rule, target)."""
     rule, _, target = text.partition("@")
     return rule.strip(), target.strip()
+
+
+#: what each target kind is called in a sentence
+_KIND_WORDS = {"block": "Block", "node": "Node", "event": "Event", "hier": "Hierarchy",
+               "pool": "Spare pool", "resource": "Resource", "trigger": "Trigger",
+               "phase": "Phase", "link": "Connection"}
+
+
+def describe(rbd: Any, entry: dict) -> dict[str, Any]:
+    """An ignored entry for a person: the rule's title, what it is about by
+    name ("Node UPS_Ready", not "node:26"), and in `locate` the `Target` to
+    go to (None for the whole rule). `target` stays the stored key, which
+    restoring the entry needs."""
+    from raptor.api.advisor.context import ModelContext
+    from raptor.api.advisor.finding import Target
+    from raptor.api.advisor.registry import list_rules
+
+    info = next((r for r in list_rules() if r.id == entry.get("rule")), None)
+    out: dict[str, Any] = {"rule": entry.get("rule", ""),
+                           "title": info.title if info else entry.get("rule", ""),
+                           "reason": entry.get("reason", ""),
+                           "target": entry.get("target", ""),
+                           "subject": "All findings", "locate": None}
+    text = entry.get("target", "")
+    if not text:
+        return out
+    kind, _, key = text.partition(":")
+    word = _KIND_WORDS.get(kind, kind.capitalize())
+    name = key
+    target_id: int | None = None
+    if key.isdigit():
+        target_id = int(key)
+        ctx = ModelContext(rbd)
+        rows = {"block": ctx.blocks, "node": ctx.nodes, "event": ctx.events}.get(kind, [])
+        row = next((r for r in rows if str(r.get("id")) == key), None)
+        name = str(row.get("name")) if row and row.get("name") else f"{key} (no longer in the model)"
+    out["subject"] = f"{word} {name}"
+    out["locate"] = Target(kind, target_id, name)
+    return out
+
+
+def listed(rbd: Any) -> list[dict]:
+    """The dismissed entries for output (JSON-safe): `rule`, `target` and
+    `reason` as stored, plus the rule's `title` and the `subject` by name."""
+    return [{key: value for key, value in describe(rbd, entry).items() if key != "locate"}
+            for entry in entries(rbd)]

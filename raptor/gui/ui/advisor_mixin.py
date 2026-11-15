@@ -105,7 +105,8 @@ class AdvisorMixin:
         except Exception:  # noqa: BLE001 - the Advisor must never break an edit
             log.exception("advisor refresh failed")
             findings, run_findings = [], []
-        panel.set_findings(findings, ignore.entries(self._rbd))
+        panel.set_findings(findings, [ignore.describe(self._rbd, entry)
+                                      for entry in ignore.entries(self._rbd)])
         self._set_advisor_title(findings)
         sync = getattr(self, "_sync_advisor_overlay", None)
         if sync is not None:

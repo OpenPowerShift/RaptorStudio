@@ -177,8 +177,10 @@ def _text(doc: dict, why: bool) -> None:
             how = "; ".join(fix["assignments"]) or "in the application"
             print(f"      fix: {fix['label']} [{how}]")
     for entry in doc.get("ignored") or []:
+        # the name a person knows, then the RULE@TARGET that --restore takes
         what = entry["rule"] + (f"@{entry['target']}" if entry["target"] else "")
-        print(f"  ignored: {what}" + (f": {entry['reason']}" if entry["reason"] else ""))
+        print(f"  ignored: {entry.get('subject', what)}: {entry.get('title', '')} [{what}]"
+              + (f": {entry['reason']}" if entry["reason"] else ""))
 
 
 def _markdown(doc: dict) -> None:
@@ -264,7 +266,7 @@ def advise_command(args: Any) -> int:
             from raptor.api.advisor import ignore
             docs.append({"model": path, "counts": tally,
                          "findings": [f.to_dict() for f in shown],
-                         "ignored": ignore.entries(ws.get(mid).rbd)})
+                         "ignored": ignore.listed(ws.get(mid).rbd)})
             if tally["error"] or (args.strict and tally["warning"]):
                 worst = max(worst, X.INVALID)
     _emit(docs, args.format, args.why)

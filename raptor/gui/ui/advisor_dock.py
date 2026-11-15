@@ -10,6 +10,8 @@ model with forty notes still reads as "these five first".
 """
 from __future__ import annotations
 
+from html import escape
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QToolButton, QVBoxLayout,
@@ -283,13 +285,25 @@ class AdvisorPanel(QWidget):
             row = QWidget(self._ignored_host)
             line = QHBoxLayout(row)
             line.setContentsMargins(0, 0, 0, 0)
-            what = entry["rule"] + (f" · {entry['target']}" if entry.get("target")
-                                    else " · every finding")
-            label = QLabel(what + (f"\n{entry['reason']}" if entry.get("reason") else
-                                   "\n(no reason given)"))
+            # by name and rule title, not "M-STR-003 · node:26" (U28)
+            title = entry.get("title") or entry["rule"]
+            subject = entry.get("subject") or entry.get("target") or "every finding"
+            reason = entry.get("reason") or "(no reason given)"
+            label = QLabel(f"<b>{escape(subject)}</b>: {escape(title)}<br>"
+                           f"Ignored because: {escape(reason)}")
+            label.setToolTip(entry["rule"])
             label.setWordWrap(True)
             label.setStyleSheet(f"color: {colour['muted']};")
             line.addWidget(label, 1)
+            locate = entry.get("locate")
+            if locate is not None and locate.kind in ("block", "node", "event", "hier"):
+                show = QToolButton(row)
+                show.setText("Show")
+                show.setAutoRaise(True)
+                show.setToolTip(f"Select {subject} on the diagram")
+                show.clicked.connect(lambda _=False, e=entry: self.locate_requested.emit(
+                    _finding_for(e)))
+                line.addWidget(show, 0, Qt.AlignmentFlag.AlignTop)
             restore = QToolButton(row)
             restore.setText("Restore")
             restore.setAutoRaise(True)
@@ -325,3 +339,11 @@ class AdvisorPanel(QWidget):
             self.more_button.setText("Show the first five only" if self._expanded
                                      else f"Show {hidden} more")
         self._rebuild_ignored()
+
+
+def _finding_for(entry: dict) -> Finding:
+    """A stand-in finding for an ignored entry, so Show can reuse the
+    panel's own locate path."""
+    return Finding(rule=entry["rule"], severity="info", category="ignored",
+                   title=entry.get("title") or entry["rule"], message="", why="",
+                   targets=(entry["locate"],))

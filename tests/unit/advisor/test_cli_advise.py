@@ -152,12 +152,15 @@ def test_ignore_writes_the_entry_back_and_restore_removes_it(capsys, tmp_path):
                            "--reason", "cold standby by design")
     assert code == X.OK
     assert "M-STR-002: B backs up A" not in out
-    assert "ignored: M-STR-002@block:2: cold standby by design" in out
+    assert ("ignored: Block B: Backup depends on the unit it backs up "
+            "[M-STR-002@block:2]: cold standby by design") in out
     saved = json.loads(open(path).read())
     assert saved["advisor"]["ignored"] == [
         {"rule": "M-STR-002", "target": "block:2", "reason": "cold standby by design"}]
     code, out, _ = run_cli(capsys, "advise", path, "-f", "json")
-    assert json.loads(out)["results"][0]["ignored"] == saved["advisor"]["ignored"]
+    (shown,) = json.loads(out)["results"][0]["ignored"]
+    assert {k: shown[k] for k in ("rule", "target", "reason")} == saved["advisor"]["ignored"][0]
+    assert shown["subject"] == "Block B"
     code, out, _ = run_cli(capsys, "advise", path, "--restore", "M-STR-002@block:2")
     assert code == X.OK and "M-STR-002: B backs up A" in out
     assert "advisor" not in json.loads(open(path).read())

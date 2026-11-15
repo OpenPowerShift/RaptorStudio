@@ -81,7 +81,7 @@ def advise(model_id: str, run_id: str | None = None,
     limit = max(1, min(int(limit), 200))
     shown = [f.to_dict() for f in visible[:limit]]
     tally = counts(found)
-    dismissed = ignore.entries(rbd)
+    dismissed = ignore.listed(rbd)
     data = {"model_id": model_id, "run_id": run_id, "findings": shown, "counts": tally,
             "shown": len(shown), "truncated": len(visible) > len(shown),
             "ignored": dismissed}
@@ -186,7 +186,7 @@ def ignore_finding(model_id: str, rule: str, target: str | None = None,
             changed = True
         if changed:
             ws.save(model_id)
-    entries = ignore.entries(ws.get(model_id).rbd)
+    entries = ignore.listed(ws.get(model_id).rbd)
     what = f"{rule}" + (f" for {target}" if target else " (every finding of it)")
     text = ((f"Restored {what}." if changed else f"{what} was not ignored.")
             if restore else f"Ignored {what}" + (f": {reason}" if reason else "."))
