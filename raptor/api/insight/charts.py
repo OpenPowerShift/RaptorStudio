@@ -337,7 +337,23 @@ def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
         caption=("Low right, frequent short outages: improve reliability. "
                  "High left, rare long ones: repair and logistics."
                  if points else "No element started an outage."),
-        provenance={"runs": attribution.get("runs", 0), "absolute": absolute})
+        provenance={"runs": attribution.get("runs", 0), "absolute": absolute,
+                    # outages a run are a count, not a share: drawn as a
+                    # percentage, 2.8 a run read "280 %"
+                    "x_format": "" if absolute else "percent",
+                    "units": units})
+
+
+def bubble_tip(spec: ChartSpec, point: dict[str, Any]) -> str:
+    """The hover text of one frequency-against-duration bubble."""
+    from raptor.api.insight.axes import pct
+    share = pct(float(point.get("area") or 0))
+    if spec.provenance.get("absolute"):
+        units = spec.provenance.get("units") or ""
+        return (f"{point['name']}: {float(point['x']):.3g} outages a run, "
+                f"{float(point['y']):.3g}{' ' + units if units else ''} each on "
+                f"average; {share} of downtime")
+    return f"{point['name']}: {pct(float(point['x']))} of outages, {share} of downtime"
 
 
 def importance_quadrant(importance: dict[str, Any],

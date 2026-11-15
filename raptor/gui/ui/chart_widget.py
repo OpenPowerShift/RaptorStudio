@@ -31,7 +31,7 @@ from raptor.api.insight.axes import (
     FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, pct, period_axis,
     place_labels, tick_text,
 )
-from raptor.api.insight.charts import ChartSpec
+from raptor.api.insight.charts import ChartSpec, bubble_tip
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.chart_theme import cause_brush, cause_colour, cause_ink
 
@@ -798,7 +798,8 @@ class ChartWidget(QWidget):
         if not points:
             return self._paint_none(painter, spec, palette, area)
         frame = self._scatter_frame(painter, spec, palette, area, points,
-                                    x_fmt="percent", y_fmt="")
+                                    x_fmt=spec.provenance.get("x_format", "percent"),
+                                    y_fmt="")
         area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
         fill = QColor(palette["accent"])
         fill.setAlpha(110)
@@ -812,8 +813,7 @@ class ChartWidget(QWidget):
             labels.append((x, y, radius, str(point["name"])))
             self._hit(QRectF(x - radius, y - radius, radius * 2, radius * 2),
                       "element", str(point["name"]),
-                      f"{point['name']}: {pct(float(point['x']))} of outages, "
-                      f"{pct(float(point.get('area') or 0))} of downtime")
+                      bubble_tip(spec, point))
         self._label_points(painter, palette, frame, labels)
 
     def _paint_quadrant(self, painter, spec, palette, area) -> None:

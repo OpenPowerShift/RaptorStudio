@@ -698,7 +698,8 @@ def _bubble(spec: ChartSpec, area: _Box) -> list[str]:
     if not points:
         return []
     out: list[str] = []
-    frame = _scatter_frame(out, spec, area, points, x_fmt="percent", y_fmt="")
+    frame = _scatter_frame(out, spec, area, points,
+                           x_fmt=spec.provenance.get("x_format", "percent"), y_fmt="")
     area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
     labels = []
     for point in sorted(points, key=lambda p: -float(p.get("area") or 0)):

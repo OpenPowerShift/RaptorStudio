@@ -82,6 +82,12 @@ def test_the_frequency_duration_map_reads_in_counts_and_time_when_it_can():
     assert spec.series == [{"name": "Pump", "x": 4.0, "y": 2.5, "area": 0.2}]
     assert spec.y_label == "mean outage length (hours)"
     assert spec.caption.startswith("Low right, frequent short outages: improve reliability")
+    # U12: a count of outages, not a share: 4 a run is not "400 %"
+    assert spec.provenance["x_format"] == ""
+    assert charts.bubble_tip(spec, spec.series[0]) == (
+        "Pump: 4 outages a run, 2.5 hours each on average; 20 % of downtime")
+    from raptor.render.charts_svg import render
+    assert " %" not in render(spec).split("Frequency against duration")[1].split("share of downtime")[0]
 
 
 def test_the_quadrant_drops_elements_without_both_importance_measures():
