@@ -73,3 +73,30 @@ def test_turning_a_layer_off_clears_rings_and_link_widths(win):
     assert all(link._flow_width is None for link in view._links)
     assert not any(item._result_ring for item in view._block_items.values())
     assert view._last_result_visuals is None
+
+
+def test_focus_with_a_layer_keeps_the_shares_that_matter(win):
+    view = win._diagram_dock.view
+    win._downtime_overlay_action.setChecked(True)
+    win._focus_action.setChecked(True)
+    QApplication.processEvents()
+    assert win._focus_box.isVisible() or not win.isVisible()
+    assert not win._focus_box.isHidden()
+    fractions = view._layer_fractions
+    assert fractions and max(fractions.values()) == pytest.approx(1.0)
+    win._focus_slider.setValue(50)
+    kept = {item for item, f in fractions.items() if f >= 0.5}
+    for item in fractions:
+        assert item.opacity() == (1.0 if item in kept else 0.25)
+    assert view.focus_kept() == len(kept)
+    assert f"{len(kept)} kept" in win._focus_label.text()
+    win._focus_slider.setValue(0)                  # everything painted stays
+    assert all(item.opacity() == 1.0 for item in fractions)
+    # with the layer off, focus is the selection alone and the slider goes
+    win._downtime_overlay_action.setChecked(False)
+    QApplication.processEvents()
+    assert view._layer_fractions == {}
+    assert win._focus_box.isHidden()
+    assert all(item.opacity() == 0.25 for item in view._block_items.values())
+    win._focus_action.setChecked(False)
+    assert all(item.opacity() == 1.0 for item in view._block_items.values())

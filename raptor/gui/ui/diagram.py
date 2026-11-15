@@ -267,6 +267,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
         self._focus_mode = False
+        #: With a result layer on, focus keeps what holds at least this
+        #: fraction of the largest share (7.6.6); the Yellow band's edge.
+        self._focus_threshold = 1 / 3
+        #: Each painted item's share as a fraction of the largest, set by
+        #: `apply_share_layer` and cleared with the overlays.
+        self._layer_fractions: dict[Any, float] = {}
         self._scene.selectionChanged.connect(self._on_selection_changed)
         self._user_zoomed = False
         #: Current semantic-zoom state: None until first applied, then
@@ -2979,8 +2985,23 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             return
         self._apply_focus(items)
 
+    def set_focus_threshold(self, fraction: float) -> None:
+        """Keep, in focus mode, what holds at least `fraction` (0 to 1) of
+        the largest share on the active result layer."""
+        self._focus_threshold = min(1.0, max(0.0, float(fraction)))
+        if self._focus_mode:
+            self.set_focus_mode(True)
+
+    def focus_kept(self) -> int:
+        """How many layer-painted elements focus mode keeps at full opacity."""
+        return sum(1 for f in self._layer_fractions.values()
+                   if f >= self._focus_threshold)
+
     def _apply_focus(self, selected: list[Any]) -> None:
-        chosen = set(selected)
+        # the selection, and with a result layer on, everything at or above
+        # the threshold: a big diagram reads as the few elements that matter
+        chosen = set(selected) | {item for item, f in self._layer_fractions.items()
+                                  if f >= self._focus_threshold}
         for items in (self._block_items, self._node_items,
                       self._event_items, getattr(self, "_hier_items", {})):
             for item in items.values():

@@ -610,6 +610,7 @@ class LiveOverlayMixin:
         """
         self._last_result_visuals = None
         self._weak_colors_on = False
+        self._layer_fractions: dict[Any, float] = {}
         for link in self._links:
             link.set_flow_width(None)
         for item in self._block_items.values():
@@ -639,6 +640,8 @@ class LiveOverlayMixin:
             if hasattr(hier_item, "_live_colour"):
                 hier_item._live_colour = None
         self.retheme()
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)          # back to the selection alone
         self.update()
 
     def _reapply_result_visuals(self: DiagramView) -> None:  # type: ignore[misc]
@@ -1017,6 +1020,8 @@ class LiveOverlayMixin:
                 continue
             band, colour = bands[row["band"]]
             value = float(row["value"])
+            top = float(layer.get("largest") or 0.0)
+            self._layer_fractions[item] = value / top if top > 0 else 0.0
             spread = (f" (±2 SE {100 * row['low']:.3g} to {100 * row['high']:.3g} %)"
                       if row.get("low") is not None else "")
             mix = ", ".join(f"{k.replace('_', ' ')} {100 * v:.0f} %"
@@ -1045,6 +1050,7 @@ class LiveOverlayMixin:
         for hid, total in rolled.items():
             item = self._hier_items[hid]
             fraction = total / largest if largest > 0 else 0.0
+            self._layer_fractions[item] = fraction
             band, colour = bands["high" if fraction >= 2 / 3 else
                                  "mid" if fraction >= 1 / 3 else "low"]
             inside = rolled_names[hid]
@@ -1082,3 +1088,5 @@ class LiveOverlayMixin:
                     f"the busiest node ({busiest:.4g}). Flow is recorded per "
                     f"node, not per link, so every link into a node is drawn "
                     f"at the node's flow.")
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)          # keep the shares that matter

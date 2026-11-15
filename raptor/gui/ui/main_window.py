@@ -1986,6 +1986,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             "QLabel { color: #EAF2FB; padding: 0 6px; font-weight: 600; }")
         self._overlay_chip.setVisible(False)
         self._statusbar.addPermanentWidget(self._overlay_chip)
+        self._build_focus_slider()
         self._units_chip = QLabel("")
         self._units_chip.setToolTip(
             "Time units for THIS model (Project Settings)")

@@ -1108,6 +1108,15 @@ Capacity analysis and the event log.</p>
 <code>lost-capacity</code>) runs the model with attribution and draws it, and the MCP
 tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.</p>
 </div>
+<div class="paragraph">
+<p>With either layer on, <strong>View ▸ Focus</strong> keeps the elements that matter: any
+whose share is at least a set fraction of the largest stays at full
+strength, and the rest (with their labels) are dimmed to a quarter, links
+and topology unchanged. A slider beside the overlay name in the status bar
+sets the fraction (a third of the largest, the Yellow band&#8217;s edge, to
+start) and says how many elements it keeps. Selected elements always stay.
+Without a layer, Focus dims everything but the selection.</p>
+</div>
 </li>
 <li>
 <p><strong>Weak Links</strong> — paints every block, node, event and hierarchy by

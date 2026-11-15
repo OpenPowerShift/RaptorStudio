@@ -697,6 +697,14 @@ Both layers can be drawn without the application, as an SVG with a legend:
 `raptor render MODEL -o layer.svg --layer downtime-share` (or
 `lost-capacity`) runs the model with attribution and draws it, and the MCP
 tool `render_diagram_svg` takes `layer` with a run's `run_id`.
++
+With either layer on, *View ▸ Focus* keeps the elements that matter: any
+whose share is at least a set fraction of the largest stays at full
+strength, and the rest (with their labels) are dimmed to a quarter, links
+and topology unchanged. A slider beside the overlay name in the status bar
+sets the fraction (a third of the largest, the Yellow band's edge, to
+start) and says how many elements it keeps. Selected elements always stay.
+Without a layer, Focus dims everything but the selection.
 ** **Weak Links** — paints every block, node, event and hierarchy by
    its availability, dependability or reliability against the model's
    Green/Yellow and Yellow/Red thresholds (needs Weak Link analysis on).

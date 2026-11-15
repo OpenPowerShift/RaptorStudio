@@ -330,6 +330,55 @@ class OverlayMixin(_Base):
                 f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
         self._update_overlay_chip()
 
+    def _build_focus_slider(self) -> None:
+        """View ▸ Focus with a result layer on keeps what holds at least a
+        set fraction of the largest share (7.6.6): this slider, beside the
+        overlay chip, sets the fraction. Shown only while both are on."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
+        box = QWidget()
+        box.setObjectName("focus_threshold")
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 4, 0)
+        label = QLabel("")
+        label.setStyleSheet("QLabel { color: #EAF2FB; padding: 0 4px; }")
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setRange(0, 100)
+        slider.setFixedWidth(90)
+        slider.setValue(round(100 * self._diagram_dock.view._focus_threshold))
+        slider.setToolTip("Focus keeps the elements whose share is at least this "
+                          "fraction of the largest; the rest are dimmed. "
+                          "The topology stays.")
+        row.addWidget(label)
+        row.addWidget(slider)
+        self._focus_label, self._focus_slider, self._focus_box = label, slider, box
+
+        def moved(value: int) -> None:
+            view = self._diagram_dock.view
+            view.set_focus_threshold(value / 100)
+            label.setText(f"Focus from {value} % of the largest: "
+                          f"{view.focus_kept()} kept")
+
+        slider.valueChanged.connect(moved)
+        moved(slider.value())
+        box.setVisible(False)
+        self._statusbar.addPermanentWidget(box)
+        action = getattr(self, "_focus_action", None)
+        if action is not None:
+            action.toggled.connect(lambda _on: self._update_overlay_chip())
+
+    def _update_focus_slider(self, share_layer: bool) -> None:
+        box = getattr(self, "_focus_box", None)
+        if box is None:
+            return
+        view = self._diagram_dock.view
+        show = share_layer and bool(getattr(view, "_focus_mode", False))
+        if show:
+            value = self._focus_slider.value()
+            self._focus_label.setText(f"Focus from {value} % of the largest: "
+                                      f"{view.focus_kept()} kept")
+        box.setVisible(show)
+
     def _update_overlay_chip(self) -> None:
         """Status-bar readout of the one active canvas overlay."""
         chip = getattr(self, "_overlay_chip", None)
@@ -337,6 +386,7 @@ class OverlayMixin(_Base):
             return
         v = self._diagram_dock.view
         vis = getattr(v, "_last_result_visuals", None) or {}
+        self._update_focus_slider(vis.get("kind") == "share")
         kind = "weak" if getattr(v, "_weak_colors_on", False) \
             else vis.get("kind")
         names = {"weak": "Weak Links", "capacity": "Capacity",
