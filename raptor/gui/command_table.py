@@ -95,6 +95,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+P",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.export",
+        attr="_export_action",
+        text="Export\u2026",
+        icon="export_tables_icon:text",
+        tooltip=(
+            "Save the report, the tables or the diagram: one window, pick the "
+            "file type (PDF, Excel, OpenDocument, SVG or PNG)"),
+        handler="_export_any",
+        shortcut="Ctrl+E",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_pdf",
         attr="_export_pdf_action",
         text="Export PDF…",
@@ -110,9 +121,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Export Tables\u2026",
         icon="export_tables_icon:text",
         tooltip=(
-            "Write the model's tables (blocks, nodes, links, ... ) and a "
-            "run's result tables as CSV, text or one spreadsheet with a tab "
-            "per table"),
+            "Choose which tables to write, the model's and a run's results, "
+            "as CSV files, text or one spreadsheet with a tab per table"),
         handler="_export_tables",
         enabled_when="model_open"),
     CommandSpec(
@@ -1408,9 +1418,11 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save", "file.save_as",
               "file.close_file", "file.quit", "home.diff")),
-    ("Print and Export", ("file.print", "file.export_pdf", "file.export_xlsx",
-               "file.export_ods", "file.export_tables", "file.export_svg",
-               "file.export_png", "file.copy_view")),
+    # U22: one Export (the file type picks what is written), then Export
+    # Tables for choosing tables; the single-type commands stay in the
+    # command palette and on their shortcuts.
+    ("Print and Export", ("file.print", "file.export", "file.export_tables",
+                          "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after

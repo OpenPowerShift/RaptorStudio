@@ -2202,10 +2202,10 @@ tables reflect the model as it is on screen, including edits you have not
 saved. Your format choices are remembered.</p>
 </div>
 <div class="paragraph">
-<p>For one workbook without the dialog, <strong>File ▸ Print and Export ▸ Export
-Excel Workbook…</strong> or <strong>Export OpenDocument Spreadsheet…</strong> asks only where to
-save it, and writes the tables the dialog ticks by default. The Save
-dialog&#8217;s file-type list offers both types either way. The command line
+<p>For one workbook without the dialog, <strong>File ▸ Print and Export ▸ Export…</strong>
+(Ctrl+E) asks only where to save it: pick <strong>Excel workbook</strong> or
+<strong>OpenDocument spreadsheet</strong> as the file type and it writes the tables the
+dialog ticks by default. The command line
 has the same: <code>raptor tables MODEL --run --format xlsx --format ods</code>.</p>
 </div>
 <div class="sect2">
@@ -2342,7 +2342,15 @@ groups the starting examples into <strong>Basics</strong>, <strong>Advanced</str
 exercises.</p>
 </li>
 <li>
-<p>Print… / Export PDF… — a report: a cover with the title block, the run
+<p>Export… (Ctrl+E) — one Save window for everything below except Export
+Tables: the file type you pick (or the name&#8217;s extension, such as
+<code>.xlsx</code>) says what is written: the PDF report, the tables as an Excel
+or OpenDocument workbook, or the diagram as SVG or PNG. The single-type
+commands (Export PDF…, Export Diagram SVG…, Save Bitmap) remain in the
+command palette (Ctrl+Shift+P).</p>
+</li>
+<li>
+<p>Print… / the PDF report — a report: a cover with the title block, the run
 information and the key figures; a contents page; each hierarchy
 level&#8217;s diagram; the model data; the results, grouped as on screen;
 Weak Link analysis; the graph; and, if ticked, the event log and the
@@ -2354,15 +2362,14 @@ Print and Export dialog&#8217;s <strong>Pages across</strong> gives a level at l
 strips. Print sends the same report to the printer.</p>
 </li>
 <li>
-<p>Export Tables… — the model&#8217;s tables and a run&#8217;s results as CSV, text
-or one spreadsheet (see <a href="#export-tables">Exporting tables</a>).</p>
+<p>Export Tables… — choose which tables to write, the model&#8217;s and a run&#8217;s
+results, as CSV, text or one spreadsheet (see <a href="#export-tables">Exporting tables</a>).</p>
 </li>
 <li>
-<p>Export Diagram SVG… — the current hierarchy level as a scalable
-vector file.</p>
+<p>Diagram as SVG — the current hierarchy level as a scalable vector file.</p>
 </li>
 <li>
-<p>Save Bitmap / Copy View — PNG of the diagram, file or clipboard.</p>
+<p>Diagram as PNG / Copy View — PNG of the diagram, file or clipboard.</p>
 </li>
 </ul>
 </div>
@@ -3811,33 +3818,13 @@ documentation.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+P</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export PDF…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the printable report (diagram + results + weak link) as a PDF file</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export Excel Workbook…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one Excel workbook (.xlsx), set up to read, filter and print</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export OpenDocument Spreadsheet…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+E</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export Tables…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Write the model&#8217;s tables (blocks, nodes, links, &#8230;&#8203; ) and a run&#8217;s result tables as CSV, text or one spreadsheet with a tab per table</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export Diagram SVG…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save Bitmap</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the diagram view as a PNG image</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Choose which tables to write, the model&#8217;s and a run&#8217;s results, as CSV files, text or one spreadsheet with a tab per table</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

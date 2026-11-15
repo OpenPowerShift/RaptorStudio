@@ -86,8 +86,8 @@ image::app-first-look.png[The RAPTOR Studio main window]
 The blue **File** button, left of the tabs, brings the start page back:
 New (a blank model, or any example as a new, unsaved copy), a searchable
 list of your recent files, Open, Save, Save As and Close, and a *Print
-and Export* page (Print, Export PDF, Export Tables, Export Diagram SVG,
-Save Bitmap, Copy View). Press Esc to go back to the model.
+and Export* page (Print; Export, one Save window for the PDF report, a
+workbook, SVG or PNG; Export Tables; Copy View). Press Esc to go back to the model.
 
 The *New* page offers a blank model and every example: the *Basics*,
 one idea each from this guide, and the *Advanced* ones — a hospital's

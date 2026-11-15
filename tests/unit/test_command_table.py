@@ -37,6 +37,10 @@ OFF_RIBBON = {
     "results.spares_overlay", "results.importance_overlay",
     "results.downtime_overlay", "results.lost_capacity_overlay",
     "results.advisor_overlay",
+    # U22: the File view's one Export… writes each of these by file type;
+    # the single-type commands stay for the palette and shortcuts.
+    "file.export_pdf", "file.export_xlsx", "file.export_ods",
+    "file.export_svg", "file.export_png",
 }
 
 #: Attributes of MainWindow that handlers may start from.

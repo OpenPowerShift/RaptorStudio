@@ -1500,10 +1500,10 @@ same names are replaced -- the dialog counts them before you export. The
 tables reflect the model as it is on screen, including edits you have not
 saved. Your format choices are remembered.
 
-For one workbook without the dialog, **File ▸ Print and Export ▸ Export
-Excel Workbook…** or **Export OpenDocument Spreadsheet…** asks only where to
-save it, and writes the tables the dialog ticks by default. The Save
-dialog's file-type list offers both types either way. The command line
+For one workbook without the dialog, **File ▸ Print and Export ▸ Export…**
+(Ctrl+E) asks only where to save it: pick *Excel workbook* or
+*OpenDocument spreadsheet* as the file type and it writes the tables the
+dialog ticks by default. The command line
 has the same: `raptor tables MODEL --run --format xlsx --format ods`.
 
 [[spreadsheets]]
@@ -1598,7 +1598,13 @@ the Help window stays usable, and can be closed, while a dialog is open.
   groups the starting examples into **Basics**, **Advanced**, and
   **Tutorial Examples**; every tutorial card names the feature it
   exercises.
-* Print… / Export PDF… — a report: a cover with the title block, the run
+* Export… (Ctrl+E) — one Save window for everything below except Export
+  Tables: the file type you pick (or the name's extension, such as
+  `.xlsx`) says what is written: the PDF report, the tables as an Excel
+  or OpenDocument workbook, or the diagram as SVG or PNG. The single-type
+  commands (Export PDF…, Export Diagram SVG…, Save Bitmap) remain in the
+  command palette (Ctrl+Shift+P).
+* Print… / the PDF report — a report: a cover with the title block, the run
   information and the key figures; a contents page; each hierarchy
   level's diagram; the model data; the results, grouped as on screen;
   Weak Link analysis; the graph; and, if ticked, the event log and the
@@ -1608,11 +1614,10 @@ the Help window stays usable, and can be closed, while a dialog is open.
   no block is split), and a branching diagram is fitted to its page. The
   Print and Export dialog's *Pages across* gives a level at least that many
   strips. Print sends the same report to the printer.
-* Export Tables… — the model's tables and a run's results as CSV, text
-  or one spreadsheet (see <<export-tables>>).
-* Export Diagram SVG… — the current hierarchy level as a scalable
-  vector file.
-* Save Bitmap / Copy View — PNG of the diagram, file or clipboard.
+* Export Tables… — choose which tables to write, the model's and a run's
+  results, as CSV, text or one spreadsheet (see <<export-tables>>).
+* Diagram as SVG — the current hierarchy level as a scalable vector file.
+* Diagram as PNG / Copy View — PNG of the diagram, file or clipboard.
 
 [[standards]]
 == IEC 61078 and standards alignment

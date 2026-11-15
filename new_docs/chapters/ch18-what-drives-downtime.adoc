@@ -47,7 +47,7 @@ attribution it offers the one action that turns the drivers strip on.
 
 To hand the answer to someone who will not open the model, write the report:
 the Story, its charts, how to read each measure and the diagram, as a PDF or
-one self-contained HTML file. It is the document File › Export PDF makes;
+one self-contained HTML file. It is the document File › Export… makes as a PDF report;
 add `results` or `data_tables` to `--report-include` for the tables. An AI
 assistant uses the MCP tool `export_report`.
 

@@ -8,6 +8,7 @@
 | Ctrl+S | Save (works anywhere in the app) |
 | Ctrl+Shift+S | Save As… |
 | Ctrl+P | Print… (diagram / results / weak link, with title block) |
+| Ctrl+E | Export… (one Save window: PDF report, Excel or OpenDocument workbook, diagram SVG or PNG) |
 | Ctrl+W | Close the current model (asks to save first) |
 | Ctrl+Q* | Quit |
 

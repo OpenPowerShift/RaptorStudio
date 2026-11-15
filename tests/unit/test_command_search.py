@@ -76,3 +76,23 @@ def test_arrow_keys_move_the_list_while_typing(win, qapp):
     palette = dialog.results.palette()
     assert (palette.color(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight)
             == palette.color(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight))
+
+
+def test_one_export_window_picks_the_writer_by_file_type():
+    """U22: five Export commands each opened their own save window."""
+    from raptor.gui.ui.export_mixin import ExportMixin, export_choice
+
+    types = ExportMixin.EXPORT_TYPES
+    assert export_choice(types, "/x/r.xlsx", types[0][0]) == ("_export_workbook_xlsx", ".xlsx")
+    assert export_choice(types, "/x/r", "Diagram as SVG (*.svg)") == ("_export_diagram_svg", ".svg")
+    assert export_choice(types, "/x/r", "") == ("_export_pdf", ".pdf")
+
+
+def test_the_export_window_writes_the_chosen_type(win, tmp_path, monkeypatch):
+    from raptor.gui.ui import filedialogs as fdg
+
+    target = tmp_path / "diagram"
+    monkeypatch.setattr(fdg, "getSaveFileName",
+                        lambda *a, **k: (str(target), "Diagram as SVG (*.svg)"))
+    win._export_any()
+    assert (tmp_path / "diagram.svg").read_text().lstrip().startswith("<?xml")

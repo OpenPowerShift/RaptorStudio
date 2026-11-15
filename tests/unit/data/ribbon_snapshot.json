@@ -505,6 +505,18 @@
    "text": "Explorer",
    "tooltip": "Explorer (Ctrl+Shift+E)"
   },
+  "_export_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+E"
+   ],
+   "text": "Export\u2026",
+   "tooltip": "Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)\n\nUnavailable: open or create a model first"
+  },
   "_export_library_action": {
    "checkable": false,
    "checked": false,
@@ -563,7 +575,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Export Tables\u2026",
-   "tooltip": "Write the model's tables (blocks, nodes, links, ... ) and a run's result tables as CSV, text or one spreadsheet with a tab per table\n\nUnavailable: open or create a model first"
+   "tooltip": "Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table\n\nUnavailable: open or create a model first"
   },
   "_export_xlsx_action": {
    "checkable": false,
@@ -1746,6 +1758,7 @@
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
@@ -1907,6 +1920,7 @@
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": true,
    "_export_library_action": true,
    "_export_ods_action": true,
    "_export_pdf_action": true,
@@ -2068,6 +2082,7 @@
    "_duplicate_action": false,
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
