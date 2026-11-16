@@ -53,7 +53,7 @@ class AutosaveMixin(_Base):
             self._autosave_timer.stop()
 
     def _recovery_path(self):
-        import tempfile
+        from raptor.gui.state_dir import state_dir
         # `.rbds` (not the old `.rbd`): autosave must never silently drop
         # annotations, formulas/rates or the display-unit preference the
         # legacy format cannot carry. The extension also selects
@@ -63,8 +63,10 @@ class AutosaveMixin(_Base):
         n = getattr(self, "_window_serial", 1)
         name = ("unsaved_recovery.rbds" if n <= 1
                 else f"unsaved_recovery-{n}.rbds")
-        return str(Path(tempfile.gettempdir())
-                   / "raptor_studio_recovery" / name)
+        # A private folder in the user's profile, not the shared temp
+        # directory: there anyone could plant a "recovery copy" for the next
+        # session to offer, or a symlink for autosave to write through.
+        return str(state_dir("recovery") / name)
 
     def _clear_recovery(self):
         """Delete the rolling recovery copy on a clean exit (the original

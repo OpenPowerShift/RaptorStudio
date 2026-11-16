@@ -31,8 +31,9 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Runs anywhere.** One installer or `pip install`, on Windows, macOS and Linux.
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
   `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
-  a continuous-integration job, a Jupyter notebook or a shell loop.
-- **Usable from an AI assistant.** An MCP server with **68 tools** (67 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
+  a continuous-integration job, a Jupyter notebook or a shell loop. `raptor run --precision 10%` grows the batch
+  until the interval is tight enough instead of making you guess a run count.
+- **Usable from an AI assistant.** An MCP server with **94 tools** (93 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
   compare and explain models, run long batches in the background, and draw the diagram. The
   [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
   setup, concepts and task recipes; the generated
@@ -45,7 +46,7 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
   exactly as before.
-- **Documentation that ships with it.** _Break It Before It Breaks_, a 24-chapter tutorial book with a model for each
+- **Documentation that ships with it.** _Break It Before It Breaks_, a 26-chapter tutorial book with a model for each
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
 
@@ -73,7 +74,7 @@ The equations are on the Formulas page, and the tutorial's weak-link chapter wor
 | **Run-time estimate**                | Know how long a batch will take before you start it, in the app, on the command line and from an assistant.                                                                                                                      |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
 | **Parameter sweeps and comparisons** | Vary any field over a list of values, or run two or more models side by side, from the application, the command line or an assistant. **Differences** shows what is different between two models, and runs nothing.              |
-| **AI assistant (MCP)**               | 68 tools (67 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
+| **AI assistant (MCP)**               | 94 tools (93 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Several models at once**           | Each model opens in its own window with its own undo history and results.                                                                                                                                                         |
 | **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |
@@ -156,6 +157,11 @@ raptor run model.rbd -n 500 --importance both   # also rank the blocks by import
 raptor run model.rbd -r events -r end-of-run -o results/   # also write Raptor 7-format report files
 raptor sweep model.rbd --vary "block:Pump A.repair_params[0]=12,24,48" --metric Availability
 raptor diff before.rbds after.rbds   # what changed between two versions
+raptor advise model.rbds             # what looks wrong or unwise, with fixes
+raptor explain model.rbds --story    # what drives the downtime, in words
+raptor whatif model.rbds --change "block:Pump A.repair_params=6,1,0" -n 200   # one change against Base, paired
+raptor sensitivity model.rbds --top 8 -n 100   # which inputs the answer is most sensitive to
+raptor optimise spares model.rbds --target "system.ao>=0.995"   # the least spare stock that meets a target
 ```
 
 `raptor help` lists every command and topic.
@@ -166,7 +172,7 @@ The app opens on a start page with a blank model, worked examples (from the guid
 emergency power, a water-treatment works, a data centre and a phased airliner flight) and links to the
 built-in documentation, which the **Help** ribbon tab also opens:
 
-- **User Guide** — the tutorial book _Break It Before It Breaks_: 24 chapters, from a three-block lantern to a
+- **User Guide** — the tutorial book _Break It Before It Breaks_: 26 chapters, from a three-block lantern to a
   phased airliner flight, with companion `.rbds` models you can open straight from the book (the `opsmodel` buttons).
 - **Reference Manual** — field-by-field reference; **F1** jumps to the section for the focused panel or dialog.
 - **Formulas** — every metric, the importance measures and the distribution table as equations, on one page.
@@ -241,8 +247,9 @@ Directions under consideration — ideas, not commitments, in no fixed order:
   bounded analytical solver for static RBDs is available now.
 - **Richer maintenance and logistics.** Crews, shifts and supply chains that
   the model can express directly.
-- **Uncertainty and sensitivity analysis.** Ask which input matters most, and
-  how sure the answer is.
+- **Uncertainty in the inputs.** One-at-a-time sensitivity, paired what-ifs
+  and run-to-precision are available now; carrying the uncertainty of the
+  failure data itself through to the answer is not yet.
 
 ## Licence & credits
 

@@ -1,7 +1,9 @@
-"""Canvas overlays: weak-link, spread, importance, capacity, cost and spares.
+"""Canvas overlays: weak-link, spread, importance, capacity, cost, spares,
+share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from typing import TYPE_CHECKING, Any
 
@@ -51,6 +53,9 @@ class OverlayMixin(_Base):
         _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         _gy_spin: PySide6.QtWidgets.QDoubleSpinBox
         _importance_overlay_action: Any
+        _downtime_overlay_action: Any
+        _lost_capacity_overlay_action: Any
+        _advisor_overlay_action: Any
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _results: raptor.gui.ui.results.ResultsDock
         _spares_overlay_action: Any
@@ -327,6 +332,55 @@ class OverlayMixin(_Base):
                 f"{worst:.6g} (Green ≥ {gy:.6g} ≥ Yellow ≥ {yr:.6g} > Red)")
         self._update_overlay_chip()
 
+    def _build_focus_slider(self) -> None:
+        """View ▸ Focus with a result layer on keeps what holds at least a
+        set fraction of the largest share (7.6.6): this slider, beside the
+        overlay chip, sets the fraction. Shown only while both are on."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
+        box = QWidget()
+        box.setObjectName("focus_threshold")
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 4, 0)
+        label = QLabel("")
+        label.setStyleSheet("QLabel { color: #EAF2FB; padding: 0 4px; }")
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setRange(0, 100)
+        slider.setFixedWidth(90)
+        slider.setValue(round(100 * self._diagram_dock.view._focus_threshold))
+        slider.setToolTip("Focus keeps the elements whose share is at least this "
+                          "fraction of the largest; the rest are dimmed. "
+                          "The topology stays.")
+        row.addWidget(label)
+        row.addWidget(slider)
+        self._focus_label, self._focus_slider, self._focus_box = label, slider, box
+
+        def moved(value: int) -> None:
+            view = self._diagram_dock.view
+            view.set_focus_threshold(value / 100)
+            label.setText(f"Focus from {value} % of the largest: "
+                          f"{view.focus_kept()} kept")
+
+        slider.valueChanged.connect(moved)
+        moved(slider.value())
+        box.setVisible(False)
+        self._statusbar.addPermanentWidget(box)
+        action = getattr(self, "_focus_action", None)
+        if action is not None:
+            action.toggled.connect(lambda _on: self._update_overlay_chip())
+
+    def _update_focus_slider(self, share_layer: bool) -> None:
+        box = getattr(self, "_focus_box", None)
+        if box is None:
+            return
+        view = self._diagram_dock.view
+        show = share_layer and bool(getattr(view, "_focus_mode", False))
+        if show:
+            value = self._focus_slider.value()
+            self._focus_label.setText(f"Focus from {value} % of the largest: "
+                                      f"{view.focus_kept()} kept")
+        box.setVisible(show)
+
     def _update_overlay_chip(self) -> None:
         """Status-bar readout of the one active canvas overlay."""
         chip = getattr(self, "_overlay_chip", None)
@@ -334,11 +388,17 @@ class OverlayMixin(_Base):
             return
         v = self._diagram_dock.view
         vis = getattr(v, "_last_result_visuals", None) or {}
+        self._update_focus_slider(vis.get("kind") == "share")
         kind = "weak" if getattr(v, "_weak_colors_on", False) \
             else vis.get("kind")
         names = {"weak": "Weak Links", "capacity": "Capacity",
                  "cost": "Cost", "spares": "Spares",
-                 "importance": "Importance"}
+                 "importance": "Importance",
+                 "downtime-share": "Share of downtime",
+                 "lost-capacity": "Lost capacity",
+                 "advisor": "Advisor findings"}
+        if kind == "share":
+            kind = str((vis.get("layer") or {}).get("layer", kind))
         if kind:
             chip.setText(f"Canvas: {names.get(kind, kind)}")
             chip.show()
@@ -417,7 +477,8 @@ class OverlayMixin(_Base):
         if except_kind != "weak" and getattr(v, "_weak_colors_on", False):
             v._weak_colors_on = False
             self._weak_color_action.setChecked(False)
-        for kind in ("capacity", "cost", "spares", "importance"):
+        for kind in ("capacity", "cost", "spares", "importance", "downtime",
+                     "lost_capacity", "advisor"):
             if kind != except_kind:
                 self._uncheck_overlay(f"_{kind}_overlay_action")
 
@@ -542,4 +603,132 @@ class OverlayMixin(_Base):
         self._statusbar.showMessage(
             f"Spares colouring on — {flagged} of {len(exhausted_frac)} "
             f"block(s) had spares/life-exhausted time this run")
+        self._update_overlay_chip()
+
+    # -- result layers from the attribution (plan 7.6.1) -----------------
+
+    _SHARE_LAYERS = {
+        "downtime-share": ("_downtime_overlay_action", "downtime",
+                           "Share of downtime"),
+        "lost-capacity": ("_lost_capacity_overlay_action", "lost_capacity",
+                          "Lost capacity"),
+    }
+
+    def _canvas_attribution(self) -> dict | None:
+        """The run's downtime attribution, worked out now when the Drivers
+        tab has not done it yet (it replays the event log, with progress)."""
+        results = self._results
+        page = getattr(results, "_drivers_page", None)
+        attribution = getattr(page, "_attribution", None)
+        if attribution is None and getattr(results, "_event_logs", None):
+            results._refresh_drivers()
+            attribution = getattr(page, "_attribution", None)
+        return attribution
+
+    def _on_downtime_overlay_toggled(self, on: bool) -> None:
+        self._share_layer_toggled(on, "downtime-share")
+
+    def _on_lost_capacity_overlay_toggled(self, on: bool) -> None:
+        self._share_layer_toggled(on, "lost-capacity")
+
+    def _node_flow(self) -> dict[int, float]:
+        """Each capacity node's average flow over the runs."""
+        from raptor.api.results import node_flows
+        stored = node_flows(list(self._results._report_data or [])) or {}
+        return {int(nid): float(row["ave_flow"])
+                for nid, row in (stored.get("nodes") or {}).items()}
+
+    def _advisor_has_element_findings(self) -> bool:
+        panel = getattr(self, "_advisor_panel", None)
+        if panel is None:
+            return False
+        from raptor.api.advisor.canvas import advisor_layer
+        return bool(advisor_layer(panel.findings())["elements"])
+
+    def _on_advisor_overlay_toggled(self, on: bool) -> None:
+        from raptor.api.advisor.canvas import advisor_layer
+        v = self._diagram_dock.view
+        if not on:
+            v.clear_result_overlays()
+            self._statusbar.showMessage("Advisor findings off")
+            self._update_overlay_chip()
+            return
+        panel = getattr(self, "_advisor_panel", None)
+        layer = advisor_layer(panel.findings() if panel is not None else [])
+        if not layer["elements"]:
+            self._statusbar.showMessage(
+                "The Advisor has nothing to say about any element on the diagram.", 8000)
+            self._uncheck_overlay("_advisor_overlay_action")
+            return
+        self._deactivate_other_canvas_overlays(except_kind="advisor")
+        v.clear_result_overlays()
+        v.apply_advisor_layer(layer)
+        top = layer["elements"][0]
+        off = layer["off_canvas"]
+        self._statusbar.showMessage(
+            f"Advisor findings on — {len(layer['elements'])} element(s) marked; "
+            f"{top['name']} has {top['count']} (worst: {top['severity']})."
+            + (f" {off} finding(s) about settings stay in the Advisor panel." if off else ""),
+            15000)
+        self._update_overlay_chip()
+
+    def _sync_advisor_overlay(self) -> None:
+        """After the Advisor re-runs: offer the layer when a finding names an
+        element, and repaint it if it is on (an edit changes the findings)."""
+        action = getattr(self, "_advisor_overlay_action", None)
+        if action is None:
+            return
+        have = self._advisor_has_element_findings()
+        if not have and action.isChecked():
+            action.setChecked(False)
+        action.setEnabled(have)
+        if have and action.isChecked():
+            self._on_advisor_overlay_toggled(True)
+
+    def _share_layer_toggled(self, on: bool, layer: str) -> None:
+        from raptor.api.insight.attribution import CAUSE_LABELS
+        from raptor.api.insight.canvas import canvas_layer
+        attr, kind, title = self._SHARE_LAYERS[layer]
+        v = self._diagram_dock.view
+        if not on:
+            v.clear_result_overlays()
+            self._statusbar.showMessage(f"{title} off")
+            self._update_overlay_chip()
+            return
+        attribution = self._canvas_attribution()
+        if attribution is None:
+            self._statusbar.showMessage(
+                f"{title} needs the run's event log: tick Event log under Run "
+                "panel ▸ Recording and run again.", 12000)
+            self._uncheck_overlay(attr)
+            return
+        try:
+            data = canvas_layer(attribution, layer)
+        except ValueError as exc:
+            self._statusbar.showMessage(f"{title}: {exc}.", 12000)
+            self._uncheck_overlay(attr)
+            return
+        if not data["elements"]:
+            self._statusbar.showMessage(
+                f"{title}: no element has a share in this run (no system "
+                "outage).", 12000)
+            self._uncheck_overlay(attr)
+            return
+        flow = generated = None
+        if layer == "lost-capacity":
+            flow = self._node_flow() or None
+            generated = (attribution.get("capacity") or {}).get("generated")
+        self._deactivate_other_canvas_overlays(except_kind=kind)
+        v.clear_result_overlays()
+        v.apply_share_layer(data, flow, generated)
+        top = data["elements"][0]
+        cause = CAUSE_LABELS.get(top.get("main_cause") or "", "")
+        rough = sum(1 for row in data["elements"] if row["uncertain"])
+        self._statusbar.showMessage(
+            f"{title} on — {top['name']} has the largest {data['measure']} "
+            f"({pct(top['value'])}{', mostly ' + cause.lower() if cause else ''})."
+            f" The letter is the main cause; a dashed ring marks "
+            f"{rough} share(s) the runs disagree on."
+            + (" Link width = flow through the node it feeds." if flow else ""),
+            15000)
         self._update_overlay_chip()

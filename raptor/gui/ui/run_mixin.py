@@ -3,6 +3,7 @@
 Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
+from raptor.core.run_manifest import manifest_with_streams
 from raptor.gui.run_text import run_outcome_text
 from raptor.gui.ui.foreground_run import ForegroundRun
 
@@ -227,12 +228,49 @@ class RunMixin(_Base):
         return open_diff(self, other_path, open_model)
 
     def _open_sweep_dialog(self):
-        """Simulate > Batch > Sweep: one number over a range, at full speed."""
+        """Analyse > Sweep: one number over a range, at full speed."""
         return self._open_batch_dialog("_sweep_dialog", "SweepDialog")
 
     def _open_compare_dialog(self):
-        """Simulate > Batch > Compare: this model beside other model files."""
+        """Analyse > Compare: this model beside other model files."""
         return self._open_batch_dialog("_compare_dialog", "CompareDialog")
+
+    def _open_recommend_dialog(self):
+        """Analyse > Recommend: a tested change for each top driver."""
+        from raptor.gui.ui.recommend_dialog import open_recommend
+        return open_recommend(self)
+
+    def _open_whatif_dialog(self):
+        """Analyse > What If: scenarios compared with the model, paired."""
+        from raptor.gui.ui.whatif_dialog import open_whatif
+        return open_whatif(self)
+
+    def _open_sensitivity_dialog(self):
+        """Analyse > Sensitivity: the tornado."""
+        from raptor.gui.ui.tornado_dialog import open_tornado
+        return open_tornado(self)
+
+    def _open_experience_dialog(self, block_id: int, use: str = "fail"):
+        """Inspector > Estimate from experience: a law from shares and ages."""
+        from raptor.gui.ui.experience_dialog import open_experience
+        return open_experience(self, block_id, use)
+
+    def _open_precision_dialog(self):
+        """Simulate > Trials to Precision: size the run by a precision."""
+        from raptor.gui.ui.precision_dialog import open_precision
+        return open_precision(self)
+
+    def _open_optimise_spares(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "spares")
+
+    def _open_optimise_pm(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "pm")
+
+    def _open_optimise_crews(self):
+        from raptor.gui.ui.optimise_dialogs import open_optimiser
+        return open_optimiser(self, "crews")
 
     def _open_batch_dialog(self, attr: str, cls_name: str):
         # One window of each kind. It is kept -- with its results and
@@ -272,7 +310,8 @@ class RunMixin(_Base):
 
     def _present_baseline_results(self, *, logs, eor, fin, report_data,
                                   notes, ao_lines, cap_lines, cost_lines,
-                                  units, manifest, importance_total=None):
+                                  units, manifest, importance_total=None,
+                                  rbd=None):
         """Put the finished baseline on screen while importance runs.
 
         Called once per run, on the GUI thread. `follow_up=True` keeps the
@@ -288,7 +327,7 @@ class RunMixin(_Base):
             logs, eor, fin, report_data=report_data, units=units,
             notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, manifest=manifest, importance=None,
-            follow_up=True)
+            follow_up=True, rbd=rbd)
         if not ok:
             return False
         self._note_results_basis()
@@ -317,6 +356,7 @@ class RunMixin(_Base):
              cap_lines, cost_lines, units) = result
         except (TypeError, ValueError):
             return False
+        self._note_out_of_service(report_notes)
         self._push_weak_settings()
         result_streams = state.get("streams") or {}
         eor_source = result_streams.get("end_of_run")
@@ -330,8 +370,8 @@ class RunMixin(_Base):
             logs=logs, eor=eor_source, fin=fin, report_data=report_data,
             notes=report_notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, units=units,
-            manifest=(state.get("run_metadata") or {}).get("manifest"),
-            importance_total=total)
+            manifest=manifest_with_streams(state.get("run_metadata") or {}),
+            importance_total=total, rbd=getattr(self, "_last_run_model", None))
 
     #: Ask before a run that a MEASURED previous run of this model says
     #: will take longer than this many seconds.
@@ -705,6 +745,7 @@ class RunMixin(_Base):
             # simulation.
             self._notify_negative_times(
                 run_metadata.get("negative_draws", []), report_notes)
+            self._note_out_of_service(report_notes)
             if run_metadata.get("hit_safety_bound"):
                 report_notes.append(
                     "Note: the run reached the simulation safety bound "
@@ -735,7 +776,8 @@ class RunMixin(_Base):
                     fin=final_results_lines, report_data=report_data,
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
-                    units=units, manifest=run_metadata.get("manifest"),
+                    units=units, manifest=manifest_with_streams(run_metadata),
+                    rbd=run_model,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
             overlays = (self._checked_overlay_state()
@@ -757,8 +799,8 @@ class RunMixin(_Base):
                     report_data=report_data, units=units,
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
-                    manifest=run_metadata.get("manifest"),
-                    importance=importance)
+                    manifest=manifest_with_streams(run_metadata),
+                    importance=importance, rbd=run_model)
                 self._note_results_basis()
                 self._remember_report_streams(streams)
                 self._results_show_action.setEnabled(bool(report_data))
@@ -867,6 +909,15 @@ class RunMixin(_Base):
         self._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] = f"{value:.6f}"
         self._mark_dirty()
 
+    def _note_out_of_service(self, report_notes: list[str]) -> None:
+        """U27: a result made with elements out of service says so, in the
+        notes and the status bar, so it is not taken for the model as built."""
+        from raptor.core.fileio.out_of_service import note
+        text = note(self._rbd) if self._rbd is not None else ""
+        if text and ("Note: " + text) not in report_notes:
+            report_notes.insert(0, "Note: " + text)
+            self.statusBar().showMessage(text, 15000)
+
     def _notify_negative_times(self, per_run, report_notes: list[str]) -> None:
         """After a batch that drew negative times (clamped to 0.000001): a note in the results and,
         unless the model ignores the warning, Raptor 7's dialog with its "Don't show this message
@@ -956,7 +1007,7 @@ class RunMixin(_Base):
         self._results.set_results(event_logs, eor_lines, final_lines,
                                   report_data=report_data, units=units,
                                   ao_lines=ao_lines, cap_lines=cap_lines,
-                                  manifest=manifest)
+                                  manifest=manifest, rbd=getattr(self, "_rbd", None))
         self._note_results_basis()
         self._results_show_action.setEnabled(bool(report_data))
         self._results_float_action.setEnabled(bool(report_data))

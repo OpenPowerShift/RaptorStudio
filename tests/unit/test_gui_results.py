@@ -131,7 +131,8 @@ def test_details_parses_stats_and_sparing_tables(qapp):
     assert summary.item(0, 5).text() == "0.006018"
     from raptor.gui.ui.results import RAW_VALUE_ROLE
     assert summary.item(0, 1).data(RAW_VALUE_ROLE) == 0.746514202
-    assert summary.item(0, 0).toolTip().startswith("Operational Availability")
+    from raptor.api.insight import measures
+    assert summary.item(0, 0).toolTip() == measures.explainer_text("availability")
 
     spare = dock.section_table("SPARING")
     spare_headers = [spare.horizontalHeaderItem(i).text()
@@ -361,16 +362,18 @@ def test_save_raw_report_writes_the_selected_subtab(real_results,
     assert "Final_Results_Report for" in saved
 
 
-def test_save_graph_image_writes_a_png(real_results, monkeypatch, tmp_path):
-    """The Graphs tab (Ao/Capacity plots) exports as a PNG image."""
+def test_a_chart_over_time_saves_as_a_png(real_results, tmp_path):
+    """The charts over time (the old Graphs tab) export as a PNG image."""
     dock, _ = real_results
     dock.resize(900, 600)
     dock.show()
     QApplication.instance().processEvents()
+    page = dock._charts_page
+    key = next(k for k in ("availability-through-run", "capacity-through-run",
+                           "trial-outcome") if not page.missing_reason(k))
+    assert page.select(key)
     path = str(tmp_path / "graph.png")
-    monkeypatch.setattr(_fdg, "getSaveFileName",
-                        staticmethod(lambda *a, **kw: (path, "")))
-    dock._save_graph_image()
+    page.save_png(path)
     assert os.path.exists(path)
     assert os.path.getsize(path) > 0
 
@@ -969,18 +972,14 @@ def test_export_appendix_c_availability_plot_data_when_present(
     assert non_blank == [ln for ln in ao_lines if ln]
 
 
-def test_y_axis_minimum_is_the_models_and_changes_the_graph_scale(qapp):
-    from PySide6.QtCore import QRectF
-    from raptor.gui.ui.plots import AoPlotWidget
-    plot = AoPlotWidget()
-    area = QRectF(0, 0, 100, 100)
-    assert plot._y_map(area, 1.0) == 0.0 and plot._y_map(area, 0.0) == 100.0
-    plot.set_y_min(0.5)
-    assert plot.y_min == 0.5
-    assert plot._y_map(area, 0.75) == 50.0            # halfway up the 0.5..1.0 range
-    assert plot._y_map(area, 0.2) == 100.0            # below the axis: clamped to the floor
-    plot.set_y_min(5.0)
-    assert plot.y_min == 0.999999                     # the original's own ceiling
+def test_y_axis_minimum_is_the_models_and_changes_the_chart_scale(qapp):
+    dock = ResultsDock()
+    dock.set_y_axis_min(0.5)
+    assert dock.y_axis_min == 0.5
+    dock.set_y_axis_min(5.0)
+    assert dock.y_axis_min == 0.999999                # the original's own ceiling
+    dock.set_y_axis_min(0.0)
+    assert dock.y_axis_min == 0.0
 
 
 def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_flag(qapp):
@@ -993,7 +992,7 @@ def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_f
     w = MainWindow()
     w._load_into_app(rbd, "x")
     assert not w._dirty
-    assert w._results._ao_plot.y_min == float(before["graphYmin"])
+    assert w._results.y_axis_min == float(before["graphYmin"])
     w._results.y_axis_min_changed.emit(0.25)
     assert w._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] == "0.250000" and w._dirty
 
@@ -1021,14 +1020,6 @@ def test_weak_tables_expand_to_all_rows(qapp):
     blocks = dock._details_tabs.widget(idx).findChildren(QTableWidget)[0]
     assert blocks.rowCount() > 8
     assert blocks.minimumHeight() >= blocks.rowCount() * 20
-
-
-def test_y_axis_min_is_disabled_for_capacity_plots(qapp):
-    dock = ResultsDock()
-    dock._graph_mode.setCurrentIndex(3)   # Capacity (Flow)
-    assert dock._y_axis_btn.isEnabled() is False
-    dock._graph_mode.setCurrentIndex(0)
-    assert dock._y_axis_btn.isEnabled() is True
 
 
 def test_capacity_matches_raptor_for_full_flow_nodes(qapp):
@@ -1158,3 +1149,73 @@ def test_capacity_tab_shows_the_capacity_weighted_availability_simulate_reports(
     metrics = metrics_to_dict(aggregate_metrics(report_data))
     assert f"Mean flow: {metrics['Mean_Flow']['mean']:,.2f}" in text
     assert f"availability {metrics['Capacity_Weighted_Availability']['mean']:.2%})" in text
+
+
+def test_clicking_a_metric_card_opens_the_explainer(real_results):
+    from raptor.api.insight import measures
+
+    dock, _ = real_results
+    dock._explainer.hide()
+    dock._cards["MTBDE"].clicked.emit("MTBDE")
+    assert not dock._explainer.isHidden()
+    assert dock._explainer.measure_id() == "mtbde"
+    assert dock._explainer._body.text() == measures.explainer_text("mtbde")
+
+
+def test_the_availability_explainer_draws_the_ladder(real_results):
+    dock, _ = real_results
+    dock._cards["Availability"].clicked.emit("Availability")
+    assert dock._explainer.measure_id() == "availability"
+    assert not dock._explainer._ladder.isHidden()
+
+
+def test_double_clicking_a_row_label_explains_it(qapp):
+    lines = [
+        "Final_Results_Report for x.rbd  fixed",
+        "***SUMMARY***",
+        "                         Minimum         Mean            Maximum         St.Dev          SEM",
+        "Availability             0.746514202     0.752532575     0.758550947     0.008511264     0.006018372",
+    ]
+    dock = ResultsDock()
+    dock._populate_details(lines)
+    table = dock.section_table("SUMMARY")
+    assert table is not None and table.rowCount() > 0
+    table.setCurrentCell(0, 0)
+    dock._explain_table_cell(table, 0)
+    assert not dock._explainer.isHidden()
+    assert dock._explainer.measure_id() == "availability"
+
+
+def test_an_unknown_label_does_not_open_the_explainer(real_results):
+    dock, _ = real_results
+    dock._explainer.hide()
+    dock._explain_measure("Not a measure at all")
+    assert dock._explainer.isHidden()
+
+
+def test_the_charts_tab_builds_from_a_real_run(real_results):
+    dock, _ = real_results
+    page = dock._charts_page
+    names = page.titles()
+    assert "Run-to-run outcome" in names
+    assert "Availability ladder" in names
+    assert page.selected_spec() is not None
+
+
+def test_how_often_it_goes_down_is_pooled_over_the_runs():
+    """8 outages in 200 runs of 8,760 h is once every ~219,000 h, not the
+    censored MTBDE mean (8,760 h, one run) the sentence once quoted."""
+    from types import SimpleNamespace as NS
+
+    from raptor.gui.ui.results import _pooled_time_between_downings
+    runs = [NS(num_system_failures=1 if i < 8 else 0, ending_sim_time=8760.0,
+               red_percent=0.1 if i < 8 else 0.0) for i in range(200)]
+    pooled = _pooled_time_between_downings(runs)
+    assert pooled == pytest.approx((200 * 8760 - 8 * 8.76) / 8)
+    assert _pooled_time_between_downings(runs[8:]) is None
+
+
+def test_a_small_share_is_never_shown_as_zero():
+    from raptor.gui.ui.results_common import _pct_short
+    assert _pct_short(0.0055) == "<0.1%" and _pct_short(0.0) == "0.0%"
+    assert _pct_short(99.99) == ">99.9%" and _pct_short(7.3) == "7.3%"

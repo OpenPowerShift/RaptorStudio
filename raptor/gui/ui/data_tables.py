@@ -61,6 +61,11 @@ from raptor.gui.ui.data_tables_sparing_mixin import DataTablesSparingMixin
 from raptor.gui.ui.data_tables_edit_mixin import DataTablesEditMixin
 
 
+def _is_fill_down_key(event) -> bool:
+    return (event.key() == Qt.Key.Key_D
+            and event.modifiers() == Qt.KeyboardModifier.ControlModifier)
+
+
 class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                      DataTablesCostsMixin, DataTablesKeyedMixin, QWidget):
     #: Emitted after ANY committed edit so MainWindow can mark dirty.
@@ -378,9 +383,6 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         self._pm_table.itemChanged.connect(self._on_pm_cell_changed)
         self._apply_level_column()
         from PySide6.QtGui import QKeySequence, QShortcut
-        fill = QShortcut(QKeySequence("Ctrl+D"), self)
-        fill.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        fill.activated.connect(self.fill_down)
         for _t, _k in self._level_tables():
             cast(_DataTable, _t).paste_text = self.paste_into_selection
             _t.selectionModel().selectionChanged.connect(self._update_banner)
@@ -539,8 +541,213 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         layout.setSpacing(0)
         layout.addLayout(bar)
         layout.addWidget(self._tabs, 1)
+        self._stats = QLabel("")
+        self._stats.setObjectName("SectionNote")
+        layout.addWidget(self._stats)
+        self._tabs.currentChanged.connect(lambda _i: self._update_stats())
+        for _t, _k in self._level_tables():
+            _t.itemSelectionChanged.connect(self._update_stats)
+            _t.currentCellChanged.connect(
+                lambda _r, _c, *_a: self._update_stats())
+        for _t in (self._spares_table, self._resources_table,
+                   self._triggers_table, self._phases_table):
+            _t.itemSelectionChanged.connect(self._update_stats)
+            _t.currentCellChanged.connect(
+                lambda _r, _c, *_a: self._update_stats())
+        find_replace = QShortcut(QKeySequence("Ctrl+H"), self)
+        find_replace.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        find_replace.activated.connect(self.find_replace)
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
+
+    def _current_table(self) -> QTableWidget | None:
+        table = self._tabs.currentWidget()
+        return table if isinstance(table, QTableWidget) else None
+
+    def _cell_text(self, table: QTableWidget, row: int, col: int) -> str:
+        """What a cell shows, from its editor widget or its item."""
+        widget = table.cellWidget(row, col)
+        if widget is not None:
+            from PySide6.QtWidgets import QLineEdit
+            edit = widget.findChild(QLineEdit)
+            if edit is not None:
+                return edit.text()
+        item = table.item(row, col)
+        return item.text() if item is not None else ""
+
+    def _update_stats(self) -> None:
+        """Count/sum/mean/min/max of the selected numeric column."""
+        table = self._current_table()
+        if table is None:
+            self._stats.setText("")
+            return
+        col = table.currentColumn()
+        if col < 0:
+            self._stats.setText("")
+            return
+        values = []
+        for row in range(table.rowCount()):
+            if table.isRowHidden(row):
+                continue
+            text = self._cell_text(table, row, col).strip()
+            try:
+                values.append(float(text))
+            except ValueError:
+                continue
+        if not values:
+            self._stats.setText("")
+            return
+        mean = sum(values) / len(values)
+        self._stats.setText(
+            f"{len(values)} value(s) · sum {sum(values):.6g} · "
+            f"mean {mean:.6g} · min {min(values):.6g} · "
+            f"max {max(values):.6g}")
+
+    def find_replace(self) -> None:
+        """Ctrl+H: replace in the visible rows of the current table."""
+        from PySide6.QtWidgets import (
+            QCheckBox, QDialog, QFormLayout, QLineEdit,
+        )
+        table = self._current_table()
+        if table is None:
+            return
+        dlg = QDialog(self)
+        tab = self._tabs.tabText(self._tabs.currentIndex())
+        dlg.setWindowTitle(f"Find and Replace — {tab}")
+        form = QFormLayout(dlg)
+        hidden = any(table.isRowHidden(r) for r in range(table.rowCount()))
+        scope = QLabel(f"Replaces in the {tab} table"
+                       + (", in the rows the filter shows." if hidden else "."))
+        scope.setWordWrap(True)
+        form.addRow(scope)
+        find = QLineEdit()
+        replace = QLineEdit()
+        whole = QCheckBox("Whole cell")
+        sensitive = QCheckBox("Match case")
+        form.addRow("Find:", find)
+        form.addRow("Replace with:", replace)
+        form.addRow(whole)
+        form.addRow(sensitive)
+        count = QLabel("")
+        form.addRow(count)
+        run = QPushButton("Replace all")
+        run.setDefault(True)
+        cancel = QPushButton("Cancel")
+        cancel.clicked.connect(dlg.reject)
+        run.clicked.connect(dlg.accept)
+        form.addRow(run, cancel)
+
+        def targets() -> list[tuple[int, int, Any]]:
+            needle = find.text()
+            if not needle:
+                return []
+            found = []
+            for row in range(table.rowCount()):
+                if table.isRowHidden(row):
+                    continue
+                for col in range(table.columnCount()):
+                    widget = table.cellWidget(row, col)
+                    from PySide6.QtWidgets import QLineEdit
+                    edit = (widget.findChild(QLineEdit)
+                            if widget is not None else None)
+                    item = table.item(row, col)
+                    if edit is None and (
+                            item is None or not (
+                                item.flags() & Qt.ItemFlag.ItemIsEditable)):
+                        continue
+                    if edit is not None:
+                        text = edit.text()
+                    elif item is not None:
+                        text = item.text()
+                    else:
+                        continue
+                    hay = text if sensitive.isChecked() else text.lower()
+                    key = needle if sensitive.isChecked() else needle.lower()
+                    if (hay == key if whole.isChecked() else key in hay):
+                        found.append((row, col, edit if edit is not None
+                                      else item))
+            return found
+
+        def update_count() -> None:
+            n = len(targets())
+            count.setText(f"{n} match(es)")
+
+        find.textChanged.connect(update_count)
+        whole.toggled.connect(update_count)
+        sensitive.toggled.connect(update_count)
+        update_count()
+        from raptor.gui.ui.modality import exec_dialog
+        if exec_dialog(dlg) != QDialog.DialogCode.Accepted:
+            return
+        changed = self._replace_cells(table, find.text(), replace.text(),
+                                      whole.isChecked(), sensitive.isChecked())
+        # The dialog has closed, so its own label would tell no one.
+        win = self.window()
+        if hasattr(win, "statusBar"):
+            win.statusBar().showMessage(
+                f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
+                if changed else "Nothing to replace: no cell changed.", 5000)
+
+    def _replace_cells(self, table: QTableWidget, needle: str,
+                       replacement: str, whole: bool, case: bool) -> int:
+        """Replace in the visible editable cells; one undo macro."""
+        if not needle:
+            return 0
+        from PySide6.QtWidgets import QLineEdit
+        targets: list[Any] = []
+        for row in range(table.rowCount()):
+            if table.isRowHidden(row):
+                continue
+            for col in range(table.columnCount()):
+                widget = table.cellWidget(row, col)
+                edit = (widget.findChild(QLineEdit)
+                        if widget is not None else None)
+                item = table.item(row, col)
+                if edit is None and (
+                        item is None or not (
+                            item.flags() & Qt.ItemFlag.ItemIsEditable)):
+                    continue
+                if edit is not None:
+                    text = edit.text()
+                elif item is not None:
+                    text = item.text()
+                else:
+                    continue
+                hay = text if case else text.lower()
+                key = needle if case else needle.lower()
+                if hay == key if whole else key in hay:
+                    target: Any = edit if edit is not None else item
+                    targets.append(target)
+        edits: list[tuple[Any, str]] = []
+        for target in targets:
+            text = target.text()
+            if case:
+                new = replacement if whole else text.replace(needle, replacement)
+            else:
+                import re
+                new = (replacement if whole else re.sub(
+                    re.escape(needle), replacement, text, flags=re.IGNORECASE))
+            if new != text:
+                edits.append((target, new))
+        if not edits:
+            # No macro: an empty one is still an undo step that does nothing.
+            return 0
+        stack = getattr(getattr(self, "_view", None), "_stack", None)
+        if stack is not None:
+            stack.beginMacro("Replace in table")
+        changed = 0
+        try:
+            for target, new in edits:
+                target.setText(new)
+                if hasattr(target, "editingFinished"):
+                    target.editingFinished.emit()
+                if target.text() == new:
+                    changed += 1
+        finally:
+            if stack is not None:
+                stack.endMacro()
+        return changed
 
     @staticmethod
     def _make_table(headers: list[str], tips: dict[str, str] | None = None,
@@ -580,14 +787,28 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
 
     @staticmethod
     def _ensure_header_widths(table: QTableWidget) -> None:
-        """Widen columns whose header text would otherwise clip mid-word."""
+        """Widen columns whose header text, or whose drop-down's longest
+        choice (the unrepairable repair law), would otherwise clip mid-word.
+
+        A column's drop-downs share one list of choices, so the first rows
+        are enough: a large model does not pay for a scan of every row."""
         header = table.horizontalHeader()
         metrics = header.fontMetrics()
+        rows = min(table.rowCount(), 25)
         for col in range(table.columnCount()):
             item = table.horizontalHeaderItem(col)
             if item is None:
                 continue
             need = metrics.horizontalAdvance(item.text()) + 24
+            for row in range(rows):
+                combo = table.cellWidget(row, col)
+                if isinstance(combo, QComboBox) and combo.count():
+                    cm = combo.fontMetrics()
+                    longest = max(cm.horizontalAdvance(combo.itemText(i))
+                                  for i in range(combo.count()))
+                    # the arrow, the frame and the theme's padding
+                    need = max(need, longest + 44)
+                    break
             if table.columnWidth(col) < need:
                 table.setColumnWidth(col, need)
 
@@ -919,6 +1140,19 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         label.setGeometry(table.viewport().rect())
         label.raise_()
         label.show()
+
+    def event(self, event):
+        """Ctrl+D inside the tables is fill down (as in a spreadsheet); on
+        the canvas it is Duplicate. A window shortcut and a widget shortcut
+        on one key are ambiguous to Qt and then neither fires, so the
+        tables claim the key while they have the focus instead."""
+        if event.type() in (QEvent.Type.ShortcutOverride, QEvent.Type.KeyPress) \
+                and _is_fill_down_key(event):
+            if event.type() == QEvent.Type.KeyPress:
+                self.fill_down()
+            event.accept()
+            return True
+        return super().event(event)
 
     def eventFilter(self, watched, event):
         """Keep each empty-state note the size of its table viewport, and
@@ -1564,7 +1798,13 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             rmean, rsd = repair_stats if repair_stats is not None \
                 else (None, None)
             for col, val in ((13, fmean), (14, fsd), (15, rmean), (16, rsd)):
-                t.setItem(r, col, self._ro(stat_text(val)))
+                cell = self._ro(stat_text(val))
+                if isinstance(val, (int, float)):
+                    # exports and sorting take the exact value, the grid
+                    # shows four figures
+                    cell.setData(RAW_VALUE_ROLE, native_to_display(
+                        val, native_u, display_u) if display_u else val)
+                t.setItem(r, col, cell)
         self._lazy_pending[t] = set(bids)
         t.setUpdatesEnabled(True)
         self._realize_initial(t)

@@ -16,7 +16,10 @@ GOLDEN = REPO / "tests" / "golden"
 
 
 def _tools() -> dict:
-    from raptor.mcp import server, tools_model, tools_run, tools_metrics, tools_tables  # noqa: F401
+    from raptor.mcp import (  # noqa: F401
+        server, tools_advisor, tools_library, tools_metrics, tools_model, tools_optimise,
+        tools_run, tools_tables,
+    )
     try:
         from raptor.mcp import tools_view  # noqa: F401
     except ImportError:
@@ -55,7 +58,11 @@ READ_ONLY = {
 }
 DESTRUCTIVE = {"save_model_as", "close_model", "delete_element",
                "delete_elements", "delete_link", "undo_last_edit",
-               "redo_last_edit", "delete_file", "delete_annotation"}
+               "redo_last_edit", "delete_file", "delete_annotation",
+               # they can overwrite a part in an existing .rbdlib file
+               "save_part_type", "save_assembly",
+               # each replaces a file of the same name
+               "export_tables", "export_report", "export_analytical"}
 
 
 class TestAnnotations:

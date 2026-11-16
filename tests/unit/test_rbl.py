@@ -100,7 +100,7 @@ def test_version_six_libraries_read_their_fixed_ldts():
 
 
 def test_the_gui_module_reads_and_writes_rbl_and_keeps_json(tmp_path):
-    from raptor.gui.ui.block_library import export_library, load_library, rbl_stamp
+    from raptor.core.fileio.block_library import export_library, load_library, rbl_stamp
     assert rbl_stamp("Sat Oct 10 15:26:13 2026") == "Sat_Oct_10_15:26:13_2026"
     rbd = load_rbd(str(GOLD.parent / "input.rbd"))
     rows = rbd.section("BLOCK_DATA").rows

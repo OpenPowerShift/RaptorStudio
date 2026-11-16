@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui import clipboard_payload as cp
+from raptor.core.edit import clipboard_payload as cp
 
 MODEL = "tests/golden/Phasing3/input.rbd"
 

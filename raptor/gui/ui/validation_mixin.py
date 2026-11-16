@@ -90,6 +90,8 @@ class ValidationMixin(_Base):
             return list(cached[1])
         from raptor.api.validate import issues as api_validate
         api_issues = api_validate(self._rbd)
+        # kept for the Advisor, which shows the same issues: one pass, not two
+        self._api_issues = (rev, api_issues)
         issues = self._compute_validation_issues(api_issues)
         warnings = self._warnings_from_api(api_issues)
         self._validation_cache = (rev, issues, warnings)
@@ -231,6 +233,10 @@ class ValidationMixin(_Base):
         # saying "Not ready" until you happened to switch tabs.
         # No-ops when the panel has not been built yet.
         self._update_readiness()
+        # The Advisor reads the same model state, so it follows the same pass.
+        refresh_advisor = getattr(self, "_refresh_advisor", None)
+        if refresh_advisor is not None:
+            refresh_advisor()
         if not issues and not warnings:
             if announce:
                 # Replace the "Checking the model…" message: it has no

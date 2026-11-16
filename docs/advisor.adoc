@@ -1,0 +1,82 @@
+= The Advisor: is my model right?
+:toc: left
+:toclevels: 3
+
+The Advisor checks a model before it is run and a finished run after it.
+Every finding has a stable rule id, a severity (`error`, `warning`,
+`advice`, `info`), a basis (`exact`, `statistical`, `heuristic`) and, where
+one exists, a fix. This page is the catalogue; the tutorial chapter
+<<ch-advisor>> shows the workflow.
+
+== Severities
+
+* **error** — the model cannot run or the result cannot be trusted.
+* **warning** — the result will be misleading in a way you should see first.
+* **advice** — a cheaper, clearer or safer alternative exists.
+* **info** — a fact worth knowing, not a defect.
+
+== The rules
+
+[cols="1,2,4,2",options="header"]
+|===
+| Rule | Level | Finding | Basis
+
+| `M-CAP-001` | warning | Capacity analysis with no flow | exact
+| `M-DAT-001` | warning | Default failure and repair data | exact
+| `M-DAT-002` | warning | Repair takes longer than the life | exact
+| `M-DAT-006` | warning | Maintenance on a falling failure rate | exact
+| `M-DAT-007` | advice | Maintenance cannot reduce random failures | exact
+| `M-EXP-001` | warning | Too few runs | exact
+| `M-EXP-002` | advice | Rough intervals | exact
+| `M-PM-001` | warning | Maintenance never happens | exact
+| `M-PM-003` | advice | Redundant blocks maintained together | heuristic
+| `M-PM-004` | advice | Maintenance interval longer than the life | exact
+| `M-RES-001` | error | More units needed than exist | exact
+| `M-RES-002` | warning | Crew or equipment overloaded | heuristic
+| `M-RES-003` | advice | Crew or equipment busy | heuristic
+| `M-RES-005` | advice | Resource not used | exact
+| `M-SPR-001` | info | Spares are unlimited everywhere | exact
+| `M-SPR-002` | warning | Spares will run out | heuristic
+| `M-SPR-003` | advice | The shelf may be empty when needed | heuristic
+| `M-SPR-006` | warning | Emergency order is slower than routine delivery | exact
+| `M-SPR-007` | warning | Reorder level at or above the starting stock | exact
+| `M-SPR-008` | advice | Spare pool not used | exact
+| `M-STR-002` | warning | Backup depends on the unit it backs up | exact
+| `M-STR-003` | advice | Parallel paths that are all required | exact
+| `M-VAL-000` | error | Model validation | exact
+| `R-CAP-101` | info | Some demand is not delivered | statistical
+| `R-CAP-102` | advice | Downtime share and capacity share disagree | statistical
+| `R-CAP-103` | warning | Availability overstates the service delivered | statistical
+| `R-DRV-001` | info | A few elements cause most of the downtime | statistical
+| `R-DRV-002` | advice | Where a top contributor's time goes | statistical
+| `R-DRV-006` | info | The top two cannot be told apart | statistical
+| `R-LOG-101` | advice | Logistics delay costs availability | statistical
+| `R-PM-101` | advice | Planned maintenance takes the system down | statistical
+| `R-QUA-001` | advice | Downtime is not yet known precisely | statistical
+| `R-QUA-002` | warning | Too few system failures to time them | statistical
+| `R-QUA-003` | info | No system failure in any run | exact
+| `R-QUA-005` | advice | A few bad runs drive the average | exact
+| `R-REQ-001` | warning | Target met, missed or too close to call | statistical
+| `R-RES-101` | warning | Waiting for people or equipment costs availability | statistical
+| `R-SPR-101` | warning | Waiting for spares costs availability | statistical
+|===
+
+
+== Running the checks
+
+From the application: **Analyse ▸ Advisor**, or the canvas badge on a
+model. From a terminal:
+
+[source,bash]
+----
+raptor advise MODEL
+raptor advise MODEL --simulate --target 'system.ao>=0.995'
+raptor advise MODEL --why --only M-SPR,M-PM
+raptor advise MODEL --format json
+----
+
+`--simulate` runs the model with its own settings and adds the after-run
+findings (precision, requirements, drivers). `--strict` makes warnings exit
+with status 3, for CI. The same rules are available to an assistant through
+the MCP `advise` tool, and every finding lists its rule id so a review can
+quote it.

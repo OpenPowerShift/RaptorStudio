@@ -17,9 +17,13 @@ def pages():
     return manpages.generate()
 
 
-def _long_options(parser):
-    return {o for a in parser._actions for o in a.option_strings
-            if o.startswith("--") and o != "--help"}
+def _long_options(parser, nested=False):
+    found = {o for a in parser._actions for o in a.option_strings
+             if o.startswith("--") and o != "--help"}
+    if nested:
+        for child in _subs(parser).values():
+            found |= _long_options(child, nested=True)
+    return found
 
 
 def _subs(parser):
@@ -50,7 +54,7 @@ def test_every_parser_option_is_in_its_page_and_no_other(pages):
         key = f"raptor-{name}.1"
         if key not in pages:
             continue
-        in_parser = _long_options(sp)
+        in_parser = _long_options(sp, nested=True)
         in_page = _page_options(
             pages[key].split(".SH EXIT STATUS")[0].split(".SH EXAMPLES")[0])
         assert in_parser <= in_page, (name, in_parser - in_page)
@@ -123,3 +127,31 @@ def test_bash_completion_loads_and_completes_commands(tmp_path):
         capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     assert "run" in proc.stdout.split()
+
+
+def test_a_command_with_sub_commands_documents_each(pages):
+    """D7: `raptor optimise` listed none of spares, pm or resources."""
+    text = pages["raptor-optimise.1"]
+    for sub in ("SPARES", "PM", "RESOURCES"):
+        assert f".SH RAPTOR OPTIMISE {sub}" in text
+    assert "\\-\\-budget" in text and "\\-\\-extra" in text
+
+
+def test_the_top_page_lists_every_command(pages):
+    text = pages["raptor.1"].split(".SH COMMANDS")[1].split(".SH ")[0]
+    for name in ("run", "whatif", "sensitivity", "recommend", "optimise", "fit"):
+        assert f"\\fB{name}\\fR" in text, name
+
+
+def test_every_option_has_help():
+    import argparse
+    missing = []
+
+    def walk(parser, name):
+        for a in parser._actions:
+            if a.option_strings and not a.help and not isinstance(a, argparse._HelpAction):
+                missing.append((name, a.option_strings))
+        for sub, child in _subs(parser).items():
+            walk(child, f"{name} {sub}")
+    walk(build_parser(), "raptor")
+    assert not missing

@@ -242,6 +242,9 @@ class _BlockItem(QGraphicsRectItem):
         self._link_cut: str | None = None  # None | "linked" | "cut" -- Raptor 7 overlay
         self._fev_hatch = False  # Failure Effects View: induced by a dependency
         self._result_badge: tuple[str, str | None] | None = None  # None | (glyph_str, colour_hex)
+        #: A hollow dashed ring round the result badge: the result is
+        #: uncertain (the runs disagree), so read the colour as rough.
+        self._result_ring = False
         self._dep_badge: dict | None = None  # None | dict(colour, glyph, tooltip, ...)
         # Live Simulation View state (Appendix D fill) -- set by
         # `set_live_fill`, cleared by `retheme`. While it is on, the
@@ -434,6 +437,14 @@ class _BlockItem(QGraphicsRectItem):
             self._result_badge = new
             self.update()
 
+    def set_result_ring(self, on: bool) -> None:
+        """A hollow dashed ring round the result badge: the share's ±2 SE
+        range is wider than the share itself (`canvas.UNCERTAIN`)."""
+        if self._result_ring != bool(on):
+            self.prepareGeometryChange()
+            self._result_ring = bool(on)
+            self.update()
+
     def set_dependency_badge(self, desc: dict | None):
         """Dependency marker -- a small dot in the bottom-left corner
         (the one corner `_link_cut`/`_result_badge` don't use), coloured
@@ -455,8 +466,10 @@ class _BlockItem(QGraphicsRectItem):
 
     def boundingRect(self) -> QRectF:
         # Room for the corner badges, which overhang the block by half
-        # their size (painting outside the bounding rect leaves trails).
-        m = 9.0
+        # their size (painting outside the bounding rect leaves trails),
+        # and for the uncertainty ring round one only while it shows: the
+        # layout and drag code read this rect.
+        m = 13.0 if self._result_ring else 9.0
         return super().boundingRect().adjusted(-m, -m, m, m)
 
     def hoverEnterEvent(self, event):
@@ -509,6 +522,11 @@ class _BlockItem(QGraphicsRectItem):
             f.setBold(True)
             painter.setFont(f)
             painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, glyph)
+            if self._result_ring:
+                ring = QPen(QColor(COLOUR["text"]), 1.4, Qt.PenStyle.DashLine)
+                painter.setPen(ring)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawEllipse(badge_rect.adjusted(-3.5, -3.5, 3.5, 3.5))
             painter.restore()
         if self._dep_badge:
             painter.save()
@@ -628,8 +646,7 @@ class _NodeItem(QGraphicsEllipseItem):
         ifont = QFont("sans-serif", 8 if node_type in (1, 3) else 7)
         ifont.setBold(True)
         inner.setFont(ifont)
-        inner.setToolTip({"1": "Start node", "3": "End node"}.get(
-            str(node_type), "k-of-n node"))  # same default as _inner_tip()
+        inner.setToolTip(node_kind_tip(node_type))
         tm = inner.boundingRect()
         inner.setPos(-tm.width() / 2, -tm.height() / 2)
 
@@ -679,8 +696,7 @@ class _NodeItem(QGraphicsEllipseItem):
         self._name_label.setDefaultTextColor(QColor(c["text"]))
 
     def _inner_tip(self) -> str:
-        return {"1": "Start node", "3": "End node"}.get(
-            str(self._node_type), "k-of-n node")
+        return node_kind_tip(self._node_type)
 
     def set_anal_label(self, text: str | None,
                        tooltip: str | None = None) -> None:
@@ -920,3 +936,21 @@ def _view_status(view, msg: str):
     sink = getattr(view, "status_message_sink", None)
     if callable(sink):
         sink(msg)
+
+
+#: What each kind of node is, for its hover text. Only a regular node (type
+#: 2) is a k-out-of-n vote; the others are markers. In/Out used to fall
+#: through to "k-of-n node".
+NODE_KIND_TIPS = {
+    1: "Start node: where the diagram's paths begin",
+    2: "k-out-of-n node: up when at least k of the paths into it are up",
+    3: "End node: the system is up while a path reaches it",
+    4: "Hierarchy In: where the paths inside this hierarchy begin "
+       "(its connection from the level above)",
+    5: "Hierarchy Out: where the paths inside this hierarchy end; the "
+       "hierarchy is up while a path reaches it",
+}
+
+
+def node_kind_tip(node_type: int) -> str:
+    return NODE_KIND_TIPS.get(int(node_type), "Node")

@@ -92,10 +92,11 @@ def collect_raw_report_sections(win) -> list[tuple[str, list[str], int]]:
 EXPORT_SECTIONS = [
     ("diagram", "Diagram (every hierarchy level)", False, True),
     ("data_tables", "Model data (blocks, nodes, pools, ...)", False, True),
+    ("story", "Story, charts and model checks", True, True),
     ("results", "Results (summary, logistics, sparing, cost, ...)", True,
      True),
     ("weak", "Weak link analysis", True, True),
-    ("graphs", "Graph (the one on the Graphs tab)", True, True),
+    ("graphs", "Chart over time (the one shown on the Charts tab)", True, True),
     ("event_log", "Event log (the current run and filter; long)", True,
      False),
     ("raw", "Raw reports (End of Run, Final Results, Interim Cost; long)",

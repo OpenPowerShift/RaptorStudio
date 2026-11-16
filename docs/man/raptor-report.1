@@ -1,6 +1,6 @@
 .TH "RAPTOR-REPORT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-report \- Print a report of an earlier run kept with 'raptor run \-\-workspace DIR' (the run id is in the JSON output and on stderr).
+raptor\-report \- print a stored run's report
 .SH SYNOPSIS
 \fBraptor report\fR [\-h] \-\-workspace DIR [\-r NAME] [\-f {text,json}] RUN\-ID
 .SH DESCRIPTION
@@ -9,12 +9,12 @@ Print a report of an earlier run kept with 'raptor run \-\-workspace DIR' (the r
 .SS Options
 .TP
 \fB\-\-workspace\fR \fIDIR\fR
-
+the workspace the run was kept in (raptor run \-\-workspace)
 .TP
 \fB\-r\fR, \fB\-\-report\fR \fINAME\fR
 final, end\-of\-run, events, ao\-plot, capacity\-plot, interim\-cost (default final)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .SH SEE ALSO
 \fBraptor\fR(1)

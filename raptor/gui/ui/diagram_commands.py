@@ -1353,7 +1353,7 @@ def values_differ(old, new) -> bool:
 
 
 def apply_row_edits(view, section, row_index, row, edits,
-                    macro_label: str) -> int:
+                    macro_label: str, also=()) -> int:
     """Push one `RowCellCmd` per changed cell, as ONE undo step.
 
     `edits` is an iterable of `(col, new)` pairs — or `(col, old, new)`,
@@ -1367,6 +1367,11 @@ def apply_row_edits(view, section, row_index, row, edits,
     skip-if-unchanged rule, and the write-through to the live row after the
     command is pushed. Every site that hand-rolled it had to get all three
     right, and each had its own copy to keep right.
+
+    `also` are further undo commands that belong to the same step (the run
+    experiment beside its legacy SYSTEM_DATA columns); they are pushed
+    first, inside the same macro, and make the step even when no cell
+    changes.
 
     `RowCellCmd._set` writes the row itself on redo, so writing `row[col]`
     here as well is deliberate: the live model must reflect the edit before
@@ -1382,10 +1387,12 @@ def apply_row_edits(view, section, row_index, row, edits,
         old = edit[1] if len(edit) == 3 else row.get(col, "")
         if values_differ(old, new):
             changes.append((col, old, new))
-    if not changes:
+    if not changes and not also:
         return 0
     stack.beginMacro(macro_label)
     try:
+        for command in also:
+            stack.push(command)
         for col, old, new in changes:
             stack.push(RowCellCmd(view, section, row_index, col, old, new))
             row[col] = new
@@ -1457,3 +1464,83 @@ class PhaseStructureCmd(_ViewCmd):
     def undo(self):
         self._restore(self._before)
         self._done()
+
+
+class BlockCellsCmd(_ViewCmd):
+    """Replace cells on several BLOCK_DATA rows in one undo step.
+
+    Used by Paste Data Only: the rows are ordinary file rows, so the command
+    copies the old values and reloads the scene (keeping the undo history)
+    rather than teaching every typed object a new field.
+    """
+
+    def __init__(self, view, changes: list[dict], text: str) -> None:
+        super().__init__(view, text)
+        self._changes = [dict(change) for change in changes]
+
+    def _apply(self, new: bool) -> None:
+        for change in self._changes:
+            change["row"][change["column"]] = (
+                change["new"] if new else change["old"])
+        if self._changes:
+            # The model rows changed under the scene; rebuild it without
+            # clearing the stack (this command is on that stack).
+            self._v.load_rbd(self._v.rbd, keep_history=True)
+        self._done()
+
+    def redo(self) -> None:
+        self._apply(True)
+
+    def undo(self) -> None:
+        self._apply(False)
+
+
+class AdvisorStateCmd(_ViewCmd):
+    """Ignore or restore an Advisor finding: swaps the model's `advisor`
+    state (dismissed findings and their reasons). No data rule reads it."""
+
+    needs_rule_check = False
+
+    def __init__(self, win: Any, before: dict, after: dict, label: str):
+        super().__init__(win._diagram_dock.view, label)
+        self._win, self.before, self.after = win, before, after
+
+    def _set(self, state: dict) -> None:
+        if self._win._rbd is not None:
+            self._win._rbd.advisor = dict(state)
+        self._done()
+        refresh = getattr(self._win, "_refresh_advisor", None)
+        if refresh is not None:
+            refresh()
+
+    def redo(self):
+        self._set(self.after)
+
+    def undo(self):
+        self._set(self.before)
+
+
+class OutOfServiceCmd(_ViewCmd):
+    """Take elements out of service, or put them back (U27): swaps the
+    model's `out_of_service` map and redraws the marks. The elements' own
+    data never changes."""
+
+    def __init__(self, view: Any, before: dict, after: dict, label: str):
+        super().__init__(view, label)
+        self.before, self.after = before, after
+
+    needs_rule_check = False           # no input rule reads it
+
+    def _set(self, state: dict) -> None:
+        rbd = getattr(self._v, "_rbd_ref", None)
+        if rbd is not None:
+            rbd.out_of_service = dict(state)
+        from raptor.gui.ui.diagram_out_of_service import apply_marks
+        apply_marks(self._v)
+        self._done()
+
+    def redo(self):
+        self._set(self.after)
+
+    def undo(self):
+        self._set(self.before)

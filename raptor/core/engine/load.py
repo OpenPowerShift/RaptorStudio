@@ -130,6 +130,13 @@ def _load_blocks(
     return blocks_by_id
 
 
+def _out_of_service_applied(rbd_file: RbdFile) -> RbdFile:
+    """The model with its out-of-service elements as plain data (a copy;
+    the same object when none are)."""
+    from raptor.core.fileio.out_of_service import apply
+    return apply(rbd_file)
+
+
 def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
                progress: Callable[[str, int, int], None] | None = None) -> SimulationModel:
     """Load a parsed `.rbd` file's `BLOCK_DATA`/`EVENT_DATA`/`NODE_DATA`/
@@ -141,7 +148,12 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
     it is a FailSim events-only model.
 
     `progress(stage, done, total)` reports the slow part of set-up (see
-    `build_efpa_graph`)."""
+    `build_efpa_graph`).
+
+    Elements the user took out of service (`rbd_file.out_of_service`) are
+    turned into plain data first, on a copy (see
+    `raptor.core.fileio.out_of_service`)."""
+    rbd_file = _out_of_service_applied(rbd_file)
     blocks_by_id = _load_blocks(rbd_file, progress)
     # Block comments: only `maintDefer` is read by the engine.
     _comments = rbd_file.sections.get("COMMENTS")

@@ -1,5 +1,6 @@
 """Event and hierarchy items of the diagram canvas."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.diagram_item_core import _phased_hatch, _snap_of, _snapped_x, _snapped_y
 from collections.abc import Callable, Mapping
@@ -408,6 +409,45 @@ class _HierItem(QGraphicsEllipseItem):
         drop = (self._label.boundingRect().height() + 1
                 if self._name_below() else 0)
         self._anal_label.setPos(-tm.width() / 2, self.H / 2 + 2 + drop)
+        scent = getattr(self, "_scent", None)
+        if scent is not None:
+            below = (self._anal_label.pos().y() + tm.height()
+                     if self._anal_label.isVisible() else self.H / 2 + 2 + drop)
+            scent.setPos(-self.SCENT_W / 2, below + 1)
+
+    #: Width of the "scent" bar under a rolled-up hierarchy (plan 7.6.1).
+    SCENT_W = 72
+
+    def set_scent(self, parts: list[tuple[str, float, str]] | None,
+                  tooltip: str = "") -> None:
+        """A small bar under the hierarchy: one segment per (name, fraction
+        of the hierarchy's total, colour) for its top contributors, so a
+        problem can be followed down level by level. None removes it."""
+        from PySide6.QtWidgets import QGraphicsRectItem
+        old = getattr(self, "_scent", None)
+        if old is not None:
+            old.setParentItem(None)
+            if old.scene() is not None:
+                old.scene().removeItem(old)
+            self._scent = None
+        if not parts:
+            return
+        bar = QGraphicsRectItem(0, 0, self.SCENT_W, 5, self)
+        bar.setPen(QPen(Qt.PenStyle.NoPen))
+        bar.setBrush(QBrush(QColor(COLOUR["border"])))
+        bar.setToolTip(tooltip)
+        x = 0.0
+        for name, fraction, colour in parts:
+            width = self.SCENT_W * max(0.0, min(1.0, fraction))
+            if width <= 0:
+                continue
+            seg = QGraphicsRectItem(x, 0, width, 5, bar)
+            seg.setPen(QPen(QColor(COLOUR["canvas"]), 0.5))
+            seg.setBrush(QBrush(QColor(colour)))
+            seg.setToolTip(f"{name}: {pct(fraction)} of this hierarchy's total")
+            x += width
+        self._scent = bar
+        self._layout_anal_label()
 
     def _relayout_labels(self) -> None:
         self._layout_label()

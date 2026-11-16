@@ -322,3 +322,97 @@ def remap_dependencies(plan: PastePlan, *, keep_external: bool) -> int:
                 row[num_col], row[type_col] = "0", "None"
                 dropped += 1
     return dropped
+
+
+# -- duplicate and data-only paste (WP-1.5) --------------------------------
+
+#: BLOCK_DATA columns each data group owns.  Failure and repair are the two
+#: applied by default; the others let a user copy a whole sparing or PM
+#: policy without touching the block's identity or placement.
+DATA_GROUPS: dict[str, tuple[str, ...]] = {
+    "Failure": ("FDist", "#FParam", "FStream",
+                "FParam1", "FParam2", "FParam3"),
+    "Repair": ("RDist", "#RParam", "RStream",
+               "RParam1", "RParam2", "RParam3"),
+    "Logistics delays": ("Pre-LDTDist", "Param1", "Param2", "Param3",
+                         "Post-LDTDist", "Param1#2", "Param2#2", "Param3#2"),
+    "Spares": ("SparePoolName", "SpType", "RSO", "Stock", "NewSp",
+               "ArriveEvery", "ESO", "EmerTime", "SLO", "Level", "Quan",
+               "SLOTime"),
+    "PM": ("usesPM", "PMFreq", "PMSpare", "PMRefresh", "PMMisDefer",
+           "PMFailReset", "PMReqDefer", "PMStaggerTime", "pmTriggered",
+           "pmTrig", "Dist", "Param1#3", "Param2#3", "Param3#3"),
+    "Costs": ("initial", "running", "standby", "idle", "repHold",
+              "repPerTime", "repFixed", "donePerTime", "doneFixed",
+              "pmHoldCost", "pmCost", "pmFixedCost", "perSpare",
+              "emerShipping", "addDone"),
+}
+
+_NAME_LIMIT = 20
+
+
+def _name_series(base: str) -> tuple[str, Any] | None:
+    """(stem, iterator of suffixes) for a name ending in letters/digits."""
+    import re
+    match = re.match(r"^(.*?)(\d+)$", base)
+    if match:
+        stem, digits = match.group(1), match.group(2)
+        width = len(digits)
+        return stem, (f"{n:0{width}d}" for n in range(
+            int(digits) + 1, int(digits) + 10000))
+    match = re.match(r"^(.*?)([A-Za-z])$", base)
+    if match:
+        stem, letter = match.group(1), match.group(2)
+        return stem, (chr(code) for code in
+                      range(ord(letter) + 1, ord("Z") + 1))
+    return None
+
+
+def next_free_name(existing: Collection[str], base: str,
+                   limit: int = _NAME_LIMIT) -> str:
+    """`Pump_A` -> the next unused `Pump_B`; `Pump_9` -> `Pump_10`; a base
+    with no suffix gets `_2`, `_3`, ...  The result is at most `limit`
+    characters, trimming the stem rather than the suffix."""
+    used = {str(name) for name in existing}
+    base = str(base)[:limit]
+
+    def candidate(stem: str, suffix: str) -> str:
+        room = max(1, limit - len(suffix))
+        return (stem[:room] + suffix)[:limit]
+
+    series = _name_series(base)
+    if series is not None:
+        stem, suffixes = series
+        for suffix in suffixes:
+            name = candidate(stem, suffix)
+            if name not in used:
+                return name
+    for n in range(2, 10000):
+        name = candidate(base, f"_{n}")
+        if name not in used:
+            return name
+    return candidate(base, "_2")
+
+
+def plan_paste_data(src_row: dict, dst_rows: Collection[dict],
+                    groups: Collection[str]) -> list[dict]:
+    """The changes that copy one block's chosen data groups onto others.
+
+    Returns `[{row, id, column, old, new}]`; the caller applies the same
+    list as one undo step.  Name, position, id, parent, links and
+    dependency are never in a group, so they cannot be overwritten.
+    """
+    columns = [column for group in groups
+               for column in DATA_GROUPS.get(group, ())]
+    changes: list[dict] = []
+    for row in dst_rows:
+        if row is src_row:
+            continue
+        for column in columns:
+            if column not in src_row or column not in row:
+                continue
+            old, new = row.get(column), src_row.get(column)
+            if old != new:
+                changes.append({"row": row, "id": row.get("ID", ""),
+                                "column": column, "old": old, "new": new})
+    return changes

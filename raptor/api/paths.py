@@ -42,6 +42,14 @@ _ELEMENT_KINDS = {
     "hier": "Hier", "hierarchy": "Hier", "link": "Link",
 }
 
+#: Pools and crews have their own sections; a path names a row and a column.
+_AUX_KINDS: dict[str, tuple[str, dict[str, str]]] = {
+    "pool": ("SPARE_POOL_DATA", {"stock": "Stock",
+                                  "new_spares": "NewSp",
+                                  "arrive_every": "ArriveEvery"}),
+    "resource": ("RESOURCE_DATA", {"units": "NumIn", "num_in": "NumIn"}),
+}
+
 #: `system.<name>` -> `configure_system` keyword.
 SYSTEM_FIELDS = {
     "runs": "num_runs", "num_runs": "num_runs",
@@ -64,7 +72,20 @@ class ParsedPath:
     field: str           # field name ("" for rate)
 
 
-def parse_path(text: str) -> ParsedPath:
+def _parse_aux(kind: str, rest: str, text: str) -> ParsedPath:
+    """`pool:NAME.stock` / `resource:NAME.units`."""
+    fields = _AUX_KINDS[kind][1]
+    if "." not in rest:
+        raise PathError(
+            f"path {text!r} needs a field after the name, e.g. "
+            f"{kind}:{rest}.{next(iter(fields))}")
+    selector, field = rest.rsplit(".", 1)
+    if not selector or not field:
+        raise PathError(f"path {text!r} has an empty selector or field")
+    return ParsedPath(kind, selector, field)
+
+
+def parse_path(text: str) -> ParsedPath:  # noqa: C901
     """Split ``kind:selector.field`` / ``system.field`` / ``rate:NAME``."""
     text = text.strip()
     if not text:
@@ -84,6 +105,8 @@ def parse_path(text: str) -> ParsedPath:
         if not rest:
             raise PathError("rate: needs a name")
         return ParsedPath("rate", rest, "")
+    if kind in _AUX_KINDS:
+        return _parse_aux(kind, rest, text)
     if kind not in _ELEMENT_KINDS:
         raise PathError(
             f"unknown kind {kind!r} in {text!r}; use one of "
@@ -172,6 +195,9 @@ def apply_assignment(workspace: Workspace, model_id: str, text: str) -> dict:
                                 str(value_text))
         return {"path": path_text, "value": value_text, "applied": ["rate"]}
 
+    if p.kind in _AUX_KINDS:
+        return _apply_aux(workspace, model_id, p, value, path_text)
+
     selector = (f"{_ELEMENT_KINDS[p.kind]}:{p.selector}"
                 if p.selector.isdigit() else p.selector)
     if p.field in _DIST_FIELDS and isinstance(value, str):
@@ -180,6 +206,34 @@ def apply_assignment(workspace: Workspace, model_id: str, text: str) -> dict:
         value = _merge_params(workspace, model_id, selector, p.field, value)
     build.update_element(workspace, model_id, selector, {p.field: value})
     return {"path": path_text, "value": value, "applied": [p.field]}
+
+
+def _apply_aux(workspace: Workspace, model_id: str, p: ParsedPath,
+               value: Any, path_text: str) -> dict:
+    """Change a spare pool's stock or a crew pool's units."""
+    section, columns = _AUX_KINDS[p.kind]
+    column = columns.get(p.field)
+    if column is None:
+        raise PathError(
+            f"unknown {p.kind} field {p.field!r}; use one of "
+            f"{', '.join(sorted(columns))}")
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise PathError(f"{path_text}: {value!r} is not a whole number") from None
+    low = 1 if p.kind == "resource" else 0
+    if number < low:
+        raise PathError(f"{path_text}: must be at least {low}")
+    rbd = workspace.get(model_id).rbd
+    if section not in rbd.sections:
+        raise PathError(f"this model has no {section.lower()} rows")
+    rows = rbd.section(section).rows
+    for row in rows:
+        if str(row.get("PoolName", "")).strip() == p.selector.strip():
+            row[column] = str(number)
+            workspace.save(model_id)
+            return {"path": path_text, "value": number, "applied": [p.field]}
+    raise PathError(f"{p.kind} {p.selector!r} not found")
 
 
 def _merge_params(workspace: Workspace, model_id: str, selector: str,
@@ -206,11 +260,64 @@ def apply_assignments(workspace: Workspace, model_id: str,
                       texts: list[str]) -> list[dict]:
     """Apply several, in order. Stops at the first error (earlier changes
     stay applied to the in-memory copy; callers that need all-or-nothing
-    work on a copy, as `raptor run` does)."""
-    return [apply_assignment(workspace, model_id, t) for t in texts]
+    work on a copy, as `raptor run` does).
+
+    A distribution followed by its parameters on the same element
+    (``fail_dist=weibull`` then ``fail_params=1.5,500``) is applied as one
+    edit: one at a time, the new law would be checked against the old
+    law's parameters (an exponential's mean then a Weibull's scale of 0)
+    and refused."""
+    out: list[dict] = []
+    index = 0
+    while index < len(texts):
+        pair = _dist_pair(texts, index)
+        if pair is not None:
+            out.extend(_apply_dist_pair(workspace, model_id, *pair))
+            index += 2
+            continue
+        out.append(apply_assignment(workspace, model_id, texts[index]))
+        index += 1
+    return out
 
 
-def get_value(workspace: Workspace, model_id: str, path_text: str) -> Any:
+_PARAMS_OF = {"fail_dist": "fail_params", "fdist": "fail_params",
+              "repair_dist": "repair_params", "rdist": "repair_params"}
+
+
+def _dist_pair(texts: list[str], index: int
+               ) -> tuple[ParsedPath, Any, str, ParsedPath, Any, str] | None:
+    if index + 1 >= len(texts):
+        return None
+    try:
+        (path1, value1), (path2, value2) = (split_assignment(texts[index]),
+                                            split_assignment(texts[index + 1]))
+        p1, p2 = parse_path(path1), parse_path(path2)
+    except PathError:
+        return None
+    if (p1.kind not in _ELEMENT_KINDS or p1.field not in _PARAMS_OF
+            or (p2.kind, p2.selector) != (p1.kind, p1.selector)
+            or p2.field != _PARAMS_OF[p1.field]):
+        return None
+    return p1, parse_value(value1), texts[index], p2, parse_value(value2), texts[index + 1]
+
+
+def _apply_dist_pair(workspace: Workspace, model_id: str,
+                     p1: ParsedPath, dist: Any, text1: str,
+                     p2: ParsedPath, params: Any, text2: str) -> list[dict]:
+    from raptor.api import build
+    selector = (f"{_ELEMENT_KINDS[p1.kind]}:{p1.selector}"
+                if p1.selector.isdigit() else p1.selector)
+    if isinstance(dist, str):
+        dist = distribution_code(dist)
+    params = _merge_params(workspace, model_id, selector, p2.field, params)
+    build.update_element(workspace, model_id, selector,
+                         {p1.field: dist, p2.field: params})
+    return [{"path": split_assignment(text1)[0], "value": dist, "applied": [p1.field]},
+            {"path": split_assignment(text2)[0], "value": params, "applied": [p2.field]}]
+
+
+def get_value(workspace: Workspace, model_id: str,  # noqa: C901, PLR0912
+              path_text: str) -> Any:
     """Read one path's current value."""
     from raptor.api import rates
     from raptor.api.build import combined_map, resolve_element
@@ -240,6 +347,20 @@ def get_value(workspace: Workspace, model_id: str, path_text: str) -> Any:
         if idx is None:
             raise PathError(f"no rate named {p.selector!r}")
         return rbd.rates[idx]
+    if p.kind in _AUX_KINDS:
+        section, columns = _AUX_KINDS[p.kind]
+        column = columns.get(p.field)
+        if column is None:
+            raise PathError(f"unknown {p.kind} field {p.field!r}")
+        if section not in rbd.sections:
+            raise PathError(f"this model has no {section.lower()} rows")
+        for row in rbd.section(section).rows:
+            if str(row.get("PoolName", "")).strip() == p.selector.strip():
+                try:
+                    return int(float(row.get(column) or 0))
+                except (TypeError, ValueError):
+                    return row.get(column)
+        raise PathError(f"{p.kind} {p.selector!r} not found")
     selector = (f"{_ELEMENT_KINDS[p.kind]}:{p.selector}"
                 if p.selector.isdigit() else p.selector)
     section, row = resolve_element(rbd, selector)
@@ -292,3 +413,40 @@ def help_text() -> str:
         "such as @MTBF*2",
     ]
     return "\n".join(lines)
+
+
+def cell_changes(rbd: Any, texts: list[str]) -> list[dict]:
+    """The file cells that `texts` would change, without changing `rbd`.
+
+    Each entry is ``{section, index, column, old, new}``: row `index` of
+    `section` in `rbd`.  The assignments are applied to a copy, so a caller
+    such as the application can turn them into one undo step on its own
+    rows.  Raises `PathError` for a change that cannot be applied, and
+    leaves `rbd` untouched either way."""
+    import copy
+    import tempfile
+
+    from raptor.api import build
+
+    with tempfile.TemporaryDirectory(prefix="raptor-cells-") as scratch:
+        workspace = Workspace(scratch)
+        model_id = workspace.register_model(copy.deepcopy(rbd), name="copy")["model_id"]
+        try:
+            apply_assignments(workspace, model_id, list(texts))
+        except PathError:
+            raise
+        except (build.BuildError, ValueError, LookupError) as exc:
+            raise PathError(str(exc)) from exc
+        changed = workspace.get(model_id).rbd
+    out: list[dict] = []
+    for name, section in rbd.sections.items():
+        other = changed.sections.get(name)
+        if other is None or len(other.rows) != len(section.rows):
+            raise PathError(f"the change adds or removes {name.lower()} rows; "
+                            "apply it with 'raptor set'")
+        for index, (row, new_row) in enumerate(zip(section.rows, other.rows, strict=True)):
+            for column in sorted(set(row) | set(new_row)):
+                if row.get(column) != new_row.get(column):
+                    out.append({"section": name, "index": index, "column": column,
+                                "old": row.get(column), "new": new_row.get(column)})
+    return out

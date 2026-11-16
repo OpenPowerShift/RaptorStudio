@@ -690,7 +690,8 @@ def test_results_refresh_preserves_tab_scroll_and_selectors(qapp):
     populate()
     qapp.processEvents()
     dock._run_selector.setCurrentIndex(1)
-    dock._graph_run.setCurrentIndex(1)
+    assert dock._charts_page.select("availability-through-run")
+    dock._charts_page.run_box.setValue(2)
     dock._raw_tabs.setCurrentIndex(1)
     raw = dock._raw_tabs.currentWidget()
     raw.verticalScrollBar().setValue(20)
@@ -707,8 +708,9 @@ def test_results_refresh_preserves_tab_scroll_and_selectors(qapp):
     qapp.processEvents()
 
     assert dock._run_selector.currentIndex() == 1
-    assert dock._graph_run.count() > 1
-    assert dock._graph_run.currentIndex() == 1
+    assert dock._charts_page.selected_key() == "availability-through-run"
+    assert dock._charts_page.run_box.maximum() > 1
+    assert dock._charts_page.run_box.value() == 2
     assert dock._raw_tabs.currentIndex() == 1
     assert dock._raw_tabs.currentWidget().verticalScrollBar().value() == \
         raw_scroll

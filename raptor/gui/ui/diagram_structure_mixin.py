@@ -44,6 +44,7 @@ from raptor.gui.ui.diagram_commands import (
     LayoutCmd,
     CollapseCmd,
     MoveCmd,
+    ParamsCmd,
     RouteGripCmd,
     SplitLinkCmd,
 )
@@ -131,6 +132,8 @@ class StructureMixin(_Base):
         links: list[raptor.core.model.Link]
         nodes: dict[int, raptor.core.model.RBDNode]
         def scene_to_model(self, scene_pos: Any) -> tuple[float, float]: ...
+        def add_block_from_template(self, row: dict,
+                                    at_model: Any = None) -> int: ...
         structural_about_to_change: PySide6.QtCore.SignalInstance
         def sync_model_positions(self, only: set[tuple[str, int]] | None = ...) -> Any: ...
 
@@ -1458,7 +1461,7 @@ class StructureMixin(_Base):
         added_nodes = 0
         self._stack.beginMacro(f"Add {info[2]} in parallel")
         try:
-            oid, added_nodes = self._parallel_steps(kind, target_key, info)
+            oid, added_nodes, _join = self._parallel_steps(kind, target_key, info)
         finally:
             self._stack.endMacro()
         item = self._item_for_insert_kind(kind, oid)
@@ -1475,9 +1478,12 @@ class StructureMixin(_Base):
                            f"{target_name}{extra}")
         return oid
 
-    def _parallel_steps(self, kind: str, target_key, info) -> tuple[int, int]:
+    def _parallel_steps(self, kind: str, target_key, info, make=None
+                        ) -> tuple[int, int, int]:
         """The undoable steps of `insert_element_in_parallel` (no macro).
-        Returns (new element id, number of nodes added)."""
+        `make(centre)` creates the new element (a fresh one by default; a
+        copy for Duplicate in Parallel). Returns (new element id, number of
+        nodes added, join node id)."""
         node_info = ("node", "Node", "Node")
         added = 0
 
@@ -1519,7 +1525,7 @@ class StructureMixin(_Base):
             provisional = QPointF(centre.x(), centre.y() + 2.0 * hh + gap)
         else:
             provisional = QPointF(centre.x() + 2.0 * hw + gap, centre.y())
-        oid = self._create_inserted_element(kind, provisional)
+        oid = (make or (lambda at: self._create_inserted_element(kind, at)))(provisional)
         first = self._next_link_id()
         self._stack.push(AddCmd(self, "link", [
             self._make_link_row("Node", split[1], info[1], oid, first),
@@ -1527,7 +1533,7 @@ class StructureMixin(_Base):
         ]))
 
         self._layout_parallel_group(split, join, page_flow)
-        return oid, added
+        return oid, added, join[1]
 
     def _layout_parallel_group(self, split, join, page_flow: str) -> None:
         """Lay out the split node, the join node and every branch between
@@ -1629,3 +1635,209 @@ class StructureMixin(_Base):
         self._refresh_lod()
         self._recount_link_ends()
         return eid
+
+
+    # -- patterns (WP-1.6) ------------------------------------------------
+
+    def _unique_block_name(self, stem: str) -> str:
+        # compare the name as it will be stored: "Block 1" is saved as
+        # Block_1, so checking the raw stem let a pattern reuse a name
+        stem = self._sanitize_name(stem)
+        existing = {str(row.get("blockName") or "")
+                    for row in self._rbd_ref.section("BLOCK_DATA").rows}
+        if stem not in existing:
+            return stem
+        from raptor.core.edit.clipboard_plan import next_free_name
+        return next_free_name(existing, stem)
+
+    def add_series(self, count: int, x: float, y: float) -> list[int]:
+        """`count` blocks linked in a row; one undo macro."""
+        if count < 1:
+            return []
+        ids: list[int] = []
+        self._stack.beginMacro(f"Add series of {count}")
+        try:
+            head = self.add_node("In", x, y)
+            for index in range(count):
+                ids.append(self.add_block(
+                    self._unique_block_name(f"Block {index + 1}"),
+                    x + (index + 1) * (BLOCK_W + 20.0), y))
+            tail = self.add_node("Out", x + (count + 1) * (BLOCK_W + 20.0), y)
+            self.connect_elements("Node", head, "Block", ids[0])
+            for left, right in itertools.pairwise(ids):
+                self.connect_elements("Block", left, "Block", right)
+            self.connect_elements("Block", ids[-1], "Node", tail)
+        finally:
+            self._stack.endMacro()
+        return ids
+
+    def add_parallel(self, count: int, k: int, x: float,
+                     y: float) -> list[int]:
+        """A split node, `count` blocks stacked one above another, and a
+        join node needing `k` of them."""
+        if count < 1:
+            return []
+        k = max(1, min(int(k), count))
+        ids: list[int] = []
+        step = BLOCK_W + 20.0
+        rise = BLOCK_H + 30.0
+        self._stack.beginMacro(f"Add {k} of {count} in parallel")
+        try:
+            split = self.add_node("Split", x, y)
+            for index in range(count):
+                # side by side they read as a series chain
+                ids.append(self.add_block(
+                    self._unique_block_name(f"Block {index + 1}"),
+                    x + step, y + (index - (count - 1) / 2.0) * rise))
+            join = self.add_node("Join", x + 2 * step, y)
+            self.connect_elements("Node", split, "Block", ids[0])
+            for block_id in ids[1:]:
+                self.connect_elements("Node", split, "Block", block_id)
+            for block_id in ids:
+                self.connect_elements("Block", block_id, "Node", join)
+            old = self.nodes[join].good_paths if join in self.nodes else -1
+            self._stack.push(ParamsCmd(self, "node k", join, old, k))
+        finally:
+            self._stack.endMacro()
+        return ids
+
+
+    def _rewire_link(self, link: Any, endpoint: tuple[str, int],
+                     side: str) -> None:
+        """Delete one link and reconnect its `side` end to `endpoint`."""
+        if link is None:
+            return
+        from raptor.gui.ui.diagram_commands import DeleteCmd
+        rows = self._rbd_ref.section("LINK_DATA").rows
+        row = next((row for row in rows
+                    if _safe_int(row.get("FromID")) == link.connect_from_id
+                    and _safe_int(row.get("ToID")) == link.connect_to_id), None)
+        if row is None:
+            return
+        other = ((link.connect_t_ref.replace("RBD", "", 1),
+                  link.connect_to_id) if side == "from"
+                 else (link.connect_f_ref.replace("RBD", "", 1),
+                       link.connect_from_id))
+        self._stack.push(DeleteCmd(self, [], [], [], [row]))
+        if side == "from":
+            self.connect_elements(endpoint[0], endpoint[1],
+                                  other[0], other[1])
+        else:
+            self.connect_elements(other[0], other[1],
+                                  endpoint[0], endpoint[1])
+
+    def duplicate_parallel(self, copies: int = 1, k: int | None = None
+                           ) -> list[int]:
+        """Add `copies` copies of the one selected block in parallel.
+
+        A block with one link in and one link out gets the same treatment
+        as Add in Parallel (U26): a split node before it and a join node
+        after it are reused when they are ordinary nodes and added
+        otherwise (beside Start, End, a hierarchy's In and Out, or a
+        neighbouring block), and the group is laid out again. A new join
+        node needs 1 path (any one copy keeps the system up) unless `k`
+        says otherwise; a reused join keeps its k unless `k` is given.
+        A block missing a link gets its own split and join nodes. One undo
+        macro.
+        """
+        if copies < 1 or self._rbd_ref is None:
+            return []
+        selected = [bid for bid, item in self._block_items.items()
+                    if item.isSelected() and bid != 0]
+        if len(selected) != 1:
+            _view_status(self, "Duplicate in Parallel needs exactly one "
+                              "selected block")
+            return []
+        bid = selected[0]
+        block = self.blocks[bid]
+        row = next((r for r in self._rbd_ref.section("BLOCK_DATA").rows
+                    if _safe_int(r.get("ID")) == bid), None)
+        if row is None:
+            return []
+
+        def endpoint(link: Any, incoming: bool) -> tuple[str, int]:
+            if incoming:
+                return (link.connect_f_ref.replace("RBD", "", 1),
+                        link.connect_from_id)
+            return (link.connect_t_ref.replace("RBD", "", 1),
+                    link.connect_to_id)
+
+        incoming = next((link for link in self.links
+                         if link.connect_t_ref.replace("RBD", "", 1) == "Block"
+                         and link.connect_to_id == bid), None)
+        outgoing = next((link for link in self.links
+                         if link.connect_f_ref.replace("RBD", "", 1) == "Block"
+                         and link.connect_from_id == bid), None)
+        x, y = block.x_position, block.y_position
+        ids: list[int] = []
+        info = ("block", "Block", "Block")
+        item = self._block_items[bid]
+        if incoming is not None and outgoing is not None \
+                and self._parallel_refusal(item, info) is None:
+            key = self._item_key(item)
+            self._clear_link_insert_hover()
+            self._stack.beginMacro(f"Add {copies} in parallel")
+            try:
+                join = 0
+                for _index in range(copies):
+                    clone = dict(row)
+                    clone["blockName"] = self._unique_block_name(block.name)
+
+                    def make(at: QPointF, clone: dict = clone) -> int:
+                        return self.add_block_from_template(
+                            clone, at_model=self.scene_to_model(at))
+                    new_id, _added, join = self._parallel_steps(
+                        "block", key, info, make=make)
+                    ids.append(new_id)
+                if k is not None and join in self.nodes:
+                    n = len(self._item_links(self._node_items[join])[0])
+                    wanted = max(1, min(int(k), n))
+                    self._stack.push(ParamsCmd(self, "node k", join,
+                                               self.nodes[join].good_paths, wanted))
+            finally:
+                self._stack.endMacro()
+            return ids
+        self._stack.beginMacro(f"Add {copies} in parallel")
+        try:
+            upstream = endpoint(incoming, True) if incoming else None
+            downstream = endpoint(outgoing, False) if outgoing else None
+            if upstream is not None and upstream[0] == "Node":
+                node = self.nodes.get(upstream[1])
+                if node is not None and node.type_node == 1:
+                    # Start allows one outgoing link. Put a split node in
+                    # front of the original, then branch from the split.
+                    split = self.add_node("Split", x - BLOCK_W, y)
+                    self._rewire_link(incoming, ("Node", split), "from")
+                    upstream = ("Node", split)
+            if downstream is not None and downstream[0] == "Node":
+                node = self.nodes.get(downstream[1])
+                if node is not None and node.type_node == 3:
+                    join = self.add_node("Join", x + BLOCK_W, y)
+                    self._rewire_link(outgoing, ("Node", join), "to")
+                    downstream = ("Node", join)
+            if upstream is None:
+                upstream = ("Node", self.add_node("Split", x - BLOCK_W, y))
+            if downstream is None:
+                downstream = ("Node",
+                              self.add_node("Join", x + BLOCK_W, y))
+            for index in range(copies):
+                clone = dict(row)
+                clone["blockName"] = self._unique_block_name(block.name)
+                new_id = self.add_block_from_template(
+                    clone, at_model=(x, y + (index + 1) * (BLOCK_H + 10.0)))
+                ids.append(new_id)
+                self.connect_elements(upstream[0], upstream[1],
+                                      "Block", new_id)
+                self.connect_elements("Block", new_id,
+                                      downstream[0], downstream[1])
+            if downstream[0] == "Node":
+                node = self.nodes.get(downstream[1])
+                old = node.good_paths if node is not None else -1
+                # any one path by default: all of them is a series chain
+                wanted = int(k) if k is not None else 1
+                wanted = max(1, min(wanted, copies + 1))
+                self._stack.push(ParamsCmd(self, "node k", downstream[1],
+                                           old, wanted))
+        finally:
+            self._stack.endMacro()
+        return ids

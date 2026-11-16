@@ -232,6 +232,19 @@ With these exact files and 10 trials you should see something like:
 |System Failures (Mean) |about 0.5 to 0.7 per trial
 |===
 
+==== From the command line
+
+The same run without the window, from the `new_docs` folder:
+
+[source,bash]
+----
+raptor run models/Lantern1.rbds --metrics Reliability,System_Failures
+----
+
+It prints one row per measure: mean, min, max, standard deviation and
+the standard error of the mean (`sem`). `raptor info models/Lantern1.rbds`
+lists the blocks and links you just read on the canvas.
+
 === What just happened
 
 The simulator played your camping trip **10 times**. Each play is one
@@ -300,9 +313,10 @@ many early deaths. Does reliability go up or down?
 .Answer
 [%collapsible]
 ====
-Reliability drops. With shape 1.1 the battery produces many
-very early deaths, and the chain has no spare parts. Expect roughly
-0.25–0.30 at 100 trials.
+Reliability drops, but only a little: about 0.35 against 0.38 (with
+100 trials either figure can be off by about 0.05, so run 2,000 to see the
+difference clearly). With shape 1.1 the battery produces more early
+deaths, and the chain has no spare parts.
 ====
 
 === What you learned

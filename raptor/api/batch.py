@@ -83,6 +83,7 @@ def run_variants(
             progress(i, len(variants), label)
         entry: dict[str, Any] = {"label": label,
                                  "assignments": list(var["assignments"])}
+        vid = None
         try:
             clone = copy.deepcopy(source)
             info = ws.register_model(clone, name=f"variant{i + 1}",
@@ -99,7 +100,32 @@ def run_variants(
                          warnings=res.warnings)
         except Exception as exc:                          # noqa: BLE001
             entry["error"] = f"{type(exc).__name__}: {exc}"
+        finally:
+            # the copy has done its job once its run is on disk; kept, every
+            # study left one model per variant in the workspace for good
+            if vid is not None:
+                try:
+                    ws.close(vid, delete=True)
+                except Exception:                         # noqa: BLE001
+                    pass
         out.append(entry)
     if progress:
         progress(len(variants), len(variants), "")
     return out
+
+
+def discard_runs(ws: Workspace, results: list[dict[str, Any]]) -> None:
+    """Delete the run folders of `results` (from :func:`run_variants`) once
+    their numbers have been read: a study's intermediate runs are not
+    results anyone asked to keep, and would crowd out the ones they did."""
+    import shutil
+
+    from raptor.api.run import run_dir
+    for row in results:
+        run_id = row.get("run_id")
+        if not run_id:
+            continue
+        try:
+            shutil.rmtree(run_dir(ws, run_id), ignore_errors=True)
+        except Exception:                                 # noqa: BLE001
+            pass

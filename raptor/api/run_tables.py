@@ -132,6 +132,13 @@ def bundle_from_run(workspace: Workspace, run_id: str,
     if num_runs < 0:
         raise RunArtefactsError(
             f"Run {run_id!r} has invalid run metadata; re-run it")
+    attribution = None
+    attr_path = runs_dir / "attribution.json"
+    if attr_path.is_file():
+        try:
+            attribution = json.loads(attr_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            attribution = None
     # Filenames come from `api.run` (the writer), not from literals restated
     # here. The `_read_lines(None)` guard covers a run whose artefact is
     # absent -- an incomplete or older run directory.
@@ -148,4 +155,19 @@ def bundle_from_run(workspace: Workspace, run_id: str,
         event_logs=_split_events(
             _tagged(runs_dir, _read_lines(section_path(runs_dir, "events")),
                     "events_ids")),
+        attribution=attribution,
+        periods=_periods(workspace, run_id, attribution),
     )
+
+
+def _periods(workspace: Workspace, run_id: str,
+             attribution: dict | None) -> dict | None:
+    """The yearly results for the export, when the run kept its outage
+    record and the model counts in hours (a year needs a known unit)."""
+    if not attribution or not str(attribution.get("units") or "").lower().startswith("hour"):
+        return None
+    from raptor.api.insight import drivers
+    try:
+        return drivers.periods(workspace, run_id, rows=True)
+    except (drivers.NoAttribution, ValueError, OSError):
+        return None

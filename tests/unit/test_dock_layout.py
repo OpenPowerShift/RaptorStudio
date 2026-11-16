@@ -1318,3 +1318,58 @@ def test_closing_results_keeps_the_status_bar_and_window_resizable(qapp):
     assert sb.geometry().y() + sb.geometry().height() <= w.height()
     w._dirty = False
     w.close()
+
+
+def test_no_results_page_floors_the_bottom_splitter(qapp):
+    """The results dock is as tall as its tallest page's minimum, so one
+    page with a tall minimum (a chart that asked for 300 px) stops the user
+    dragging the bottom splitter.  Keep every page's floor small."""
+    w = _shown(qapp)
+    tabs = w._results._tabs
+    floors = {tabs.tabText(i): tabs.widget(i).minimumSizeHint().height()
+              for i in range(tabs.count())}
+    assert max(floors.values()) <= 160, floors
+    w.close()
+
+
+def test_no_orphan_dock_tab_bar_peeks_over_the_status_bar(qapp):
+    """tabifyDockWidget can leave a stale bar for a group behind; it must
+    not show through above the status bar."""
+    from PySide6.QtWidgets import QTabBar
+    w = _shown(qapp)
+    for _ in range(4):
+        qapp.processEvents()
+    status_top = w.statusBar().geometry().top()
+    peeking = [[bar.tabText(i) for i in range(bar.count())]
+               for bar in w.findChildren(QTabBar)
+               if bar.parent() is w and bar.isVisible()
+               and bar.geometry().top() < status_top < bar.geometry().bottom()]
+    assert peeking == []
+    w.close()
+
+
+def test_a_collapsed_side_group_hides_its_tab_bar(qapp):
+    """Collapsing Model Explorer | Part Library leaves a strip one title
+    bar wide; their tab bar must not stick out over the canvas (it showed
+    as a clipped "art Library < >" strip), and must come back on restore."""
+    from PySide6.QtWidgets import QTabBar, QToolButton
+    w = _shown(qapp)
+
+    def bar():
+        return next(b for b in w.findChildren(QTabBar) if b.parent() is w
+                    and "Part Library" in [b.tabText(i) for i in range(b.count())])
+
+    def toggle(prefix):
+        title = w._explorer_dock.titleBarWidget()
+        next(b for b in title.findChildren(QToolButton)
+             if b.accessibleName().startswith(prefix)).click()
+        for _ in range(4):
+            qapp.processEvents()
+
+    assert bar().geometry().height() > 0
+    toggle("Minimize")
+    assert bar().geometry().height() == 0
+    toggle("Restore")
+    assert bar().geometry().height() > 0
+    w._dirty = False
+    w.close()

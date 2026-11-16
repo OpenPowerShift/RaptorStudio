@@ -212,10 +212,13 @@ def render_svg_file(
     theme: str = "light",
     include_annotations: bool = True,
     routing: str = "straight",
+    layer: dict[str, Any] | None = None,
+    flow: dict[int, float] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Draw ``model_path`` (``.rbd``/``.rbds``) as SVG to ``out_path``, in
     process and without Qt (see `raptor.render.svg`). Returns
-    ``(svg_path, meta)``; a bad level or selector raises ``ValueError``."""
+    ``(svg_path, meta)``; a bad level or selector raises ``ValueError``.
+    `layer`/`flow` draw a result layer (`raptor.api.insight.canvas.run_layer`)."""
     from raptor.render.svg import render_svg
     path = Path(model_path)
     if path.suffix.lower() == ".rbds":
@@ -226,7 +229,8 @@ def render_svg_file(
         rbd = load_rbd(str(path))
     svg, meta = render_svg(rbd, level=level, highlight=highlight or [],
                            zoom_to=zoom_to or [], margin=margin, theme=theme,
-                           include_annotations=include_annotations, routing=routing)
+                           include_annotations=include_annotations, routing=routing,
+                           layer=layer, flow=flow)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(svg, encoding="utf-8")

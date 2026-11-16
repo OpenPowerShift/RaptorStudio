@@ -272,7 +272,8 @@ def test_the_file_view_saves_one_workbook(ran, qapp, tmp_path, monkeypatch,
     the latest run's results, to the file the Save dialog names."""
     from raptor.gui.command_table import BACKSTAGE
     from raptor.gui.ui import filedialogs
-    assert cid in dict(BACKSTAGE)["Print and Export"]
+    # U22: the File view shows one Export…; these remain as commands
+    assert "file.export" in dict(BACKSTAGE)["Print and Export"]
     asked = {}
 
     def fake(parent, caption, default_path):

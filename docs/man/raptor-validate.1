@@ -1,6 +1,6 @@
 .TH "RAPTOR-VALIDATE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-validate \- Check each MODEL the way a run would, without running; an .rbds file is also checked against the format's JSON Schema (see `raptor schema`). Exit 3 if any model has errors (or warnings, with \-\-strict).
+raptor\-validate \- check models and report errors and warnings
 .SH SYNOPSIS
 \fBraptor validate\fR [\-h] [\-f {text,json}] [\-\-strict] MODEL [MODEL ...]
 .SH DESCRIPTION
@@ -9,7 +9,7 @@ Check each MODEL the way a run would, without running; an .rbds file is also che
 .SS Options
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .TP
 \fB\-\-strict\fR
 warnings are failures too

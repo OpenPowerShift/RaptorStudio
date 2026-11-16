@@ -134,7 +134,7 @@ class ForegroundRun:
             self._show_results_dock()
             w._results.show_live_logs(self.live_logs, total)
         if self.cap_lines:
-            # Capacity analysis on: stream the snapshots so far into the Graphs tab.
+            # Capacity analysis on: stream the snapshots so far into the Charts tab.
             w._results.update_live_capacity(self.cap_lines)
             self._show_results_dock()
         if self.ao_lines:
