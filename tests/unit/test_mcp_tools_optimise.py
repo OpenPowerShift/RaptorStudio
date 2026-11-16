@@ -44,7 +44,10 @@ def test_spares_names_the_stock_and_its_changes(opt_model):
     assert not result.is_error, text
     data = result.structured_content
     assert data["recommended"] is not None
-    assert data["changes"] == data["recommended"]["changes"]
+    # the recommended stocks, less any pool already at its recommendation
+    base = data["base"]["stocks"]
+    assert data["changes"] == [c for c in data["recommended"]["changes"]
+                               if int(c.rsplit("=", 1)[1]) != base[c.split(".")[0][5:]]]
     assert all(c.startswith("pool:Seals.") and "=" in c for c in data["changes"])
     assert data["caption"] in text and "Changes to apply" in text
     assert _rbds(opt_model) == before          # the model is never edited

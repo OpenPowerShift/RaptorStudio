@@ -210,6 +210,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{PROG}: the model cannot be run: {exc}", file=sys.stderr)
         return X.REFUSED
     except Exception as exc:                      # noqa: BLE001
+        from raptor.api.build import AmbiguousName, ElementNotFound
+        if isinstance(exc, (ElementNotFound, AmbiguousName)):
+            # a misspelt or ambiguous name is a bad command line, not a crash
+            print(f"{PROG}: {exc}", file=sys.stderr)
+            return X.USAGE
         if args.verbose >= 2 or args.debug:
             raise
         print(f"{PROG}: error: {exc} (use -vv for the traceback)",

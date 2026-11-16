@@ -288,7 +288,7 @@ def sync_command(args: Any) -> int:
         print(f"{entry['name']} ({entry['block']}) follows "
               f"{entry['name_part']} {entry['version']}:")
         for field_name, values in entry["changes"].items():
-            print(f"  {field_name}: {values['block']} -> {values['part']}")
+            print(f"  {field_name}: {values['element']} -> {values['part']}")
     if not args.apply:
         print("\nDry run; pass --apply to write these changes.")
     else:

@@ -128,3 +128,35 @@ def test_the_svg_marks_them_too(rbd):
     assert svg.count('stroke-dasharray="6 4"') >= 2 + 2      # two outlines, Attitude's two links
     plain, meta = render_svg(load_rbd(str(GOLD / "HierarchyExample" / "input.rbd")))
     assert "out_of_service" not in meta and "oos-" not in plain
+
+
+def test_a_hierarchy_and_those_inside_it_carry_its_state(rbd):
+    rows = rbd.sections["HIERARCHY_DATA"].rows
+    hid = int(next(r["ID"] for r in rows if r["hierarchyName"] == "900path"))
+    assert oos.hierarchies(rbd) == {}
+    oos.set_state(rbd, "hier", hid, "cut")
+    assert oos.hierarchies(rbd) == {hid: "cut"}
+    # nest another hierarchy inside it: the inner one is cut too
+    inner = next(r for r in rows if r["hierarchyName"] == "650path")
+    inner["Parent"] = str(hid)
+    assert oos.hierarchies(rbd) == {hid: "cut", int(inner["ID"]): "cut"}
+    rbd.out_of_service = {**rbd.out_of_service, "hier:1": "maybe"}   # dropped
+    assert oos.hierarchies(rbd)[hid] == "cut"
+
+
+def test_the_canvas_marks_a_cut_hierarchy(rbd):
+    pytest.importorskip("PySide6")
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+    QApplication.instance() or QApplication([])
+    from raptor.gui.ui.diagram import DiagramView
+    from raptor.gui.ui.diagram_out_of_service import set_states
+    v = DiagramView()
+    v.load_rbd(rbd)
+    hid = int(next(r["ID"] for r in rbd.sections["HIERARCHY_DATA"].rows
+                   if r["hierarchyName"] == "900path"))
+    assert set_states(v, [("hier", hid)], "cut")
+    oval = v._hier_items[hid]
+    assert oval._oos_mark is not None and "CUT" in oval.toolTip()
+    assert any(link._oos_cut for link in v._links if oval in (link._from, link._to))
