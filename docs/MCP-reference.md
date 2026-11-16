@@ -2305,8 +2305,8 @@ Parameter notes:
 Take elements out of service for a what-if, without changing their
 data. A hierarchy covers everything inside it. Every later simulation,
 study and analytical result uses the state until it is put back; the
-model's own numbers are untouched. Saved in .rbds (a legacy .rbd has
-no place for it). describe_model lists what is out of service.
+model's own numbers are untouched. Saved in .rbds only (a .rbd file
+has no place for it). describe_model lists what is out of service.
 Returns {changed: [{kind, id, name, state}], out_of_service: [...]}.
 
 **Parameters**
@@ -2325,7 +2325,10 @@ Parameter notes:
 
 **Returns**
 
-`{changed: [{kind, id, name, state}], out_of_service: [{kind, id, name, state}]}`, the second the model's whole list after the change.
+| Field | Type | Always present |
+| --- | --- | --- |
+| `changed` | array<any> | yes |
+| `out_of_service` | array<any> | yes |
 
 **Example**
 

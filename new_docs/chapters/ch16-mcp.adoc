@@ -772,6 +772,11 @@ you need the exact argument shape.
   blocks. One save; name, position, links and dependency are never changed
   by a data-only copy.
 
+| `set_out_of_service`
+| Take blocks, events or hierarchies out of service for a what-if: `cut`
+  (down for the whole run) or `linked` (never fails), or put them back with
+  `in_service`. Their data is unchanged; every later run says what was out.
+
 | `list_part_types`, `apply_part_type`, `save_part_type`, `sync_part_types`
 | Reuse an element's data as a named part type (block, node, event,
   hierarchy or annotation): list parts from a `.rbdlib` file or the model,

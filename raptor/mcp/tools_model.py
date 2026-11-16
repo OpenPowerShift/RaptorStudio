@@ -2370,8 +2370,8 @@ def set_out_of_service(
     """Take elements out of service for a what-if, without changing their
     data. A hierarchy covers everything inside it. Every later simulation,
     study and analytical result uses the state until it is put back; the
-    model's own numbers are untouched. Saved in .rbds (a legacy .rbd has
-    no place for it). describe_model lists what is out of service.
+    model's own numbers are untouched. Saved in .rbds only (a .rbd file
+    has no place for it). describe_model lists what is out of service.
     Returns {changed: [{kind, id, name, state}], out_of_service: [...]}.
     """
     context.check_batch(elements, "elements")

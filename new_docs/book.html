@@ -10778,6 +10778,12 @@ you need the exact argument shape.</p>
   by a data-only copy.</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>set_out_of_service</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Take blocks, events or hierarchies out of service for a what-if: <code>cut</code>
+  (down for the whole run) or <code>linked</code> (never fails), or put them back with
+  <code>in_service</code>. Their data is unchanged; every later run says what was out.</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_part_types</code>, <code>apply_part_type</code>, <code>save_part_type</code>, <code>sync_part_types</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Reuse an element&#8217;s data as a named part type (block, node, event,
   hierarchy or annotation): list parts from a <code>.rbdlib</code> file or the model,

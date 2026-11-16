@@ -198,3 +198,9 @@ def set_out_of_service(workspace: Any, model_id: str, elements: Sequence[str],
                                              "hier": "hierarchyName"}[kind]) or oid)})
     workspace.save(model_id)
     return {"changed": changed, "out_of_service": oos.describe(rbd)}
+
+
+def out_of_service(workspace: Any, model_id: str) -> list[dict[str, str]]:
+    """[{kind, id, name, state}] for what the user took out of service."""
+    from raptor.core.fileio.out_of_service import describe
+    return describe(workspace.get(model_id).rbd)

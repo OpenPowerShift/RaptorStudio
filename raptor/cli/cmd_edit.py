@@ -122,7 +122,6 @@ def paste_data_command(args: Any) -> int:
 def out_of_service_command(args: Any) -> int:
     from raptor.api import edit
     from raptor.api.build import BuildError
-    from raptor.core.fileio.out_of_service import describe
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         if args.elements:
@@ -137,7 +136,7 @@ def out_of_service_command(args: Any) -> int:
                 raise CliError(str(exc), X.USAGE) from exc
             _save_back(ws, mid, args.model, args.in_place)
         else:
-            result = {"changed": [], "out_of_service": describe(ws.get(mid).rbd)}
+            result = {"changed": [], "out_of_service": edit.out_of_service(ws, mid)}
     if args.format == "json":
         emit_json(result, None)
         return X.OK

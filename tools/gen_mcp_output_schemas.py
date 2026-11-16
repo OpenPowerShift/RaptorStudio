@@ -234,6 +234,8 @@ def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) ->
     rec.call("update_elements", model_id=m4, updates=[{"selector": "B3", "patch": {"fail_params": [80.0, 0.0]}}])
     rec.call("duplicate_elements", model_id=m4, elements=["B3"], copies=1)
     rec.call("copy_element_data", model_id=m4, source="B1", targets=["B3"], groups=["Failure"])
+    rec.call("set_out_of_service", model_id=m4, elements=["B3"], state="cut")
+    rec.call("set_out_of_service", model_id=m4, elements=["B3"], state="in_service")
     rec.call("replace_in_table", model_id=m4, table="inputs.blocks_all", column="blockName", find="B3_2", replace="B4")
     hier = rec.call("add_hierarchy", model_id=m4, name="H4") or {}
     hid = hier.get("hier_id")

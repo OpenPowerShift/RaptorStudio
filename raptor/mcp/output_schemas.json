@@ -2647,6 +2647,21 @@
   ],
   "type": "object"
  },
+ "set_out_of_service": {
+  "properties": {
+   "changed": {
+    "type": "array"
+   },
+   "out_of_service": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "changed",
+   "out_of_service"
+  ],
+  "type": "object"
+ },
  "simulate": {
   "properties": {
    "caveats": {
