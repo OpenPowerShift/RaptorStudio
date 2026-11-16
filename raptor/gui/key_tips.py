@@ -17,7 +17,7 @@ from __future__ import annotations
 #: tabs; it is F, not the E it used to be (F was Finish's).
 FILE_KEY_TIP = "F"
 TAB_KEY_TIPS: dict[str, str] = {
-    "Model": "M", "Arrange": "A", "Data": "D", "Simulate": "S",
+    "Model": "M", "Arrange": "A", "Data": "D", "Simulate": "S", "Analyse": "N",
     "Debug": "B", "Results": "R", "View": "V", "Help": "H",
 }
 
@@ -34,7 +34,8 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
         "arrange.anno_arrow": "W", "model.import_rbd": "M",
         "sim.extract_hierarchy": "U", "model.hier_up": "J",
-        "model.hier_home": "F",
+        "model.hier_home": "F", "model.quick_add": "Q",
+        "home.duplicate": "G",
     },
     "Arrange": {
         "model.auto_layout": "L", "view.snap": "G", "arrange.order_front": "F",
@@ -47,9 +48,14 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "data.export_library": "E", "data.import_library": "I",
     },
     "Simulate": {
-        "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S",
+        "sim.run": "R", "sim.live_sim": "A", "sim.run_settings": "S", "sim.precision": "N",
         "sim.pause": "P", "sim.stop_run": "T", "sim.jump": "J",
-        "sim.sweep": "W", "sim.compare": "C",
+    },
+    "Analyse": {
+        "analyse.whatif": "W", "sim.recommend": "M", "analyse.sensitivity": "T",
+        "sim.sweep": "S", "analyse.optimise_spares": "P",
+        "analyse.optimise_pm": "A", "analyse.optimise_crews": "C",
+        "sim.compare": "O",
     },
     "Debug": {
         "sim.step": "S", "sim.step_next_time": "N", "sim.step_finish": "F",
@@ -63,10 +69,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Results": {
         "results.results_show": "S", "results.results_float": "W",
         "results.clear_results": "C", "results.spof": "P",
-        "results.domains": "D",
-        "results.weak_color": "K", "results.capacity_overlay": "U",
-        "results.cost_overlay": "O", "results.spares_overlay": "R",
-        "results.importance_overlay": "I", "results.weak_spread": "T",
+        "results.domains": "D", "results.weak_spread": "T",
     },
     "View": {
         "arrange.fit": "F", "arrange.zoom_selection": "S",
@@ -75,8 +78,9 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.explorer_toggle": "E", "view.inspector_toggle": "N",
         "view.fev_inspector_toggle": "V", "view.results_toggle": "R",
         "view.run_toggle": "U", "view.data_tables": "D",
-        "view.live_log_toggle": "G",
+        "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
+        "view.focus": "M",
     },
     "Help": {
         "help.guide": "G", "help.manual": "M", "help.formulas": "O",

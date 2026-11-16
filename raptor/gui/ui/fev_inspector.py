@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from raptor.core.engine.fmeca import fmeca_entries
 from raptor.core.engine.system_status import SystemColor
 from raptor.gui.resources.design_tokens import SPACING, active_colour
+from raptor.gui.ui.contrast import readable_text_colour
 
 _HEADERS = ("Category", "Element", "State", "Detail")
 
@@ -297,11 +298,12 @@ class FevInspectorDock(QWidget):
             SystemColor.YELLOW: theme["result_yellow"],
             SystemColor.RED: theme["result_red"],
         }.get(colour, theme["muted"])
-        # A white glyph on these colours is legible in both themes; the
-        # result palette is already chosen for contrast with white text.
+        # White is not legible on every result colour (about 2:1 on the
+        # dark theme's yellow), so the ink is chosen by contrast.
+        ink = readable_text_colour(background).name()
         self._system_badge.setText(word.upper())
         self._system_badge.setStyleSheet(
-            f"QLabel {{ background: {background}; color: white; "
+            f"QLabel {{ background: {background}; color: {ink}; "
             "font-weight: 700; border-radius: 4px; padding: 3px 8px; }")
 
     def _populate(self, rows: list[tuple[str, str, str, str]],

@@ -335,8 +335,7 @@ class _Stub:
 
 def test_recovery_path_differs_by_window(original_recovery_path, monkeypatch,
                                          tmp_path):
-    import tempfile
-    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     names = {n: Path(original_recovery_path(_Stub(n))).name
              for n in (1, 2, 3)}
     assert names == {1: "unsaved_recovery.rbds",
@@ -347,7 +346,7 @@ def test_recovery_path_differs_by_window(original_recovery_path, monkeypatch,
     assert Path(original_recovery_path(_Stub(0))).name == \
         "unsaved_recovery.rbds"
     p = Path(original_recovery_path(_Stub(2)))
-    assert p.parent == tmp_path / "raptor_studio_recovery"
+    assert p.parent == tmp_path / "raptor-studio" / "recovery"
 
 
 def _use_real_recovery_paths(monkeypatch, original, w):
@@ -356,13 +355,12 @@ def _use_real_recovery_paths(monkeypatch, original, w):
 
 def test_closing_one_window_leaves_the_others_recovery_copy(
         win, original_recovery_path, monkeypatch, tmp_path):
-    import tempfile
-    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     second = win._spawn_window()
     for w in (win, second):
         _use_real_recovery_paths(monkeypatch, original_recovery_path, w)
-    d = tmp_path / "raptor_studio_recovery"
-    d.mkdir()
+    d = tmp_path / "raptor-studio" / "recovery"
+    d.mkdir(parents=True, exist_ok=True)
     for w in (win, second):
         Path(w._recovery_path()).write_text("x")
     assert win._recovery_path() != second._recovery_path()
@@ -373,8 +371,8 @@ def test_closing_one_window_leaves_the_others_recovery_copy(
 
 @pytest.fixture
 def recovery_dir(tmp_path):
-    d = tmp_path / "raptor_studio_recovery"
-    d.mkdir()
+    d = tmp_path / "raptor-studio" / "recovery"
+    d.mkdir(parents=True, exist_ok=True)
     shutil.copy(B, d / "unsaved_recovery.rbds")
     shutil.copy("new_docs/models/Bakery1.rbds", d / "unsaved_recovery-2.rbds")
     return d
@@ -449,3 +447,16 @@ def test_nothing_to_recover_asks_nothing(win, tmp_path, monkeypatch):
     asked = _ask(monkeypatch, True)
     win._check_recovery()
     assert asked == []
+
+
+def test_the_state_folder_is_private_and_in_the_users_profile(monkeypatch, tmp_path):
+    import os
+    import stat
+    from raptor.gui.state_dir import state_dir
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    folder = state_dir("recovery")
+    assert folder == tmp_path / "raptor-studio" / "recovery"
+    if os.name == "posix":
+        assert stat.S_IMODE(folder.stat().st_mode) == 0o700
+    assert state_dir("other", create=False) == tmp_path / "raptor-studio" / "other"
+    assert not (tmp_path / "raptor-studio" / "other").exists()

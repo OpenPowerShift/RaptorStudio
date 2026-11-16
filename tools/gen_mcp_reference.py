@@ -53,6 +53,9 @@ CATEGORIES: list[tuple[str, str, str]] = [
     ("analysis", "Analysis",
      "Check a model, solve its static subset exactly, test failures, and "
      "measure which parts matter."),
+    ("library", "Part types and libraries",
+     "Reuse one block's data across many blocks and models, with links and "
+     "overrides."),
     ("what-if", "Simulation and what-if",
      "Run simulations, estimate or control long batches, sweep a parameter "
      "and compare models or runs."),
@@ -111,6 +114,31 @@ TOOL_CATEGORY: dict[str, str] = {
     "validate_model": "analysis",
     "analytical_analysis": "analysis",
     "describe_metrics": "analysis",
+    "advise": "analysis",
+    "list_advisor_rules": "analysis",
+    "ignore_finding": "analysis",
+    "apply_fix": "analysis",
+    "downtime_drivers": "analysis",
+    "annual_availability": "analysis",
+    "run_story": "analysis",
+    "run_chart": "analysis",
+    "duplicate_elements": "build-edit",
+    "copy_element_data": "build-edit",
+    "set_out_of_service": "build-edit",
+    "replace_in_table": "build-edit",
+    "list_part_types": "library",
+    "apply_part_type": "library",
+    "save_part_type": "library",
+    "save_assembly": "library",
+    "insert_assembly": "library",
+    "sync_part_types": "library",
+    "what_if": "what-if",
+    "sensitivity": "what-if",
+    "recommend_changes": "what-if",
+    "optimise_spares": "what-if",
+    "optimise_pm": "what-if",
+    "optimise_resources": "what-if",
+    "fit_from_experience": "what-if",
     "single_point_failures": "analysis",
     "failure_effects": "analysis",
     "failure_effects_batch": "analysis",
@@ -137,6 +165,7 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_tables": "results",
     "get_table": "results",
     "export_tables": "results",
+    "export_report": "results",
     "export_analytical": "results",
     # Meta and documentation
     "list_distributions": "meta",
@@ -255,6 +284,46 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "analytical_analysis": {"model_id": "<model_id>", "mode": "reliability",
                             "at": 500, "importance": True},
     "describe_metrics": {"run_id": "<run_id>"},
+    "advise": {"model_id": "<model_id>", "run_id": "<run_id>",
+               "targets": [{"metric": "system.ao", "op": ">=", "value": 0.995}]},
+    "list_advisor_rules": {},
+    "ignore_finding": {"model_id": "<model_id>", "rule": "M-STR-002", "target": "block:2",
+                       "reason": "cold standby by design"},
+    "apply_fix": {"model_id": "<model_id>", "rule": "M-STR-002", "target": "Pump_B"},
+    "downtime_drivers": {"run_id": "<run_id>", "top": 5},
+    "annual_availability": {"run_id": "<run_id>", "below": 0.97},
+    "run_story": {"run_id": "<run_id>"},
+    "run_chart": {"run_id": "<run_id>", "chart": "downtime-pareto"},
+    "sensitivity": {"model_id": "<model_id>", "top": 10, "trials": 200},
+    "recommend_changes": {"model_id": "<model_id>", "top": 3, "trials": 200},
+    "optimise_spares": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
+    "optimise_pm": {"model_id": "<model_id>", "objective": "cost", "trials": 200},
+    "optimise_resources": {"model_id": "<model_id>", "target": 0.995, "trials": 200},
+    "fit_from_experience": {"law": "weibull", "block": "Pump",
+                           "quantiles": [{"probability": 0.1, "age": 100},
+                                         {"probability": 0.5, "age": 300}]},
+    "duplicate_elements": {"model_id": "<model_id>",
+                           "elements": ["Pump_A"], "copies": 2},
+    "copy_element_data": {"model_id": "<model_id>", "source": "Pump_A",
+                          "targets": ["Pump_B"], "groups": ["Failure"]},
+    "set_out_of_service": {"model_id": "<model_id>", "elements": ["Pump_A"],
+                           "state": "cut"},
+    "replace_in_table": {"model_id": "<model_id>",
+                         "table": "inputs.blocks_all",
+                         "column": "blockName", "find": "Pump",
+                         "replace": "Pump_A"},
+    "list_part_types": {"model_id": "<model_id>"},
+    "apply_part_type": {"model_id": "<model_id>", "part": "pump",
+                        "elements": ["Pump_A", "Pump_B"]},
+    "save_part_type": {"model_id": "<model_id>", "element": "Pump_A",
+                       "name": "Pump, centrifugal"},
+    "sync_part_types": {"model_id": "<model_id>", "dry_run": True},
+    "save_assembly": {"model_id": "<model_id>",
+                      "elements": ["Cooling_Loop"], "name": "Cooling loop"},
+    "insert_assembly": {"model_id": "<model_id>", "part": "Cooling loop"},
+    "what_if": {"model_id": "<model_id>",
+                "changes": ["block:Pump.repair_params=8,0,0"],
+                "name": "Faster repair", "trials": 200},
     "single_point_failures": {"model_id": "<model_id>"},
     "failure_effects": {"model_id": "<model_id>", "fail": ["Pump"]},
     "failure_effects_batch": {
@@ -295,6 +364,7 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "list_tables": {"model_id": "<model_id>", "run_id": "<run_id>"},
     "get_table": {"model_id": "<model_id>", "table": "results.summary",
                   "run_id": "<run_id>"},
+    "export_report": {"run_id": "<run_id>", "path": "Reports/plant.pdf"},
     "export_tables": {"model_id": "<model_id>", "run_id": "<run_id>",
                       "formats": ["xlsx"]},
     "export_analytical": {"model_id": "<model_id>",
@@ -514,12 +584,68 @@ RETURN_NOTES: dict[str, str] = {
     "get_run_results": "`{run_id, model_id, model_name, runs, units, "
                        "metrics, capacity, per_run, weak_link, files}`.",
     "export_tables": "`{folder, tables, files: [path], resource_links}`.",
+    "export_report": "`{path, sections, bytes, resource_links}`.",
     "render_diagram": "Image content plus `{width, height, elements_drawn, "
                       "elements_in_view, px_per_unit, effective_label_px, "
                       "legible, zoom_to, highlighted, png_path, "
                       "resource_link}`.",
     "export_analytical": "`{path, modes, results: [{mode, phase, "
                          "reliability | availability}], resource_links}`.",
+    "run_story": "`{headline, dots, drivers, findings, numbers, sections, "
+                 "provenance, caption}` — the same object the application "
+                 "and `raptor explain --story` render.",
+    "duplicate_elements": "`{copies, elements: [{block: [...], node: "
+                          "[...], ...}], count}` with the fresh ids.",
+    "copy_element_data": "`{changes: [{id, column, old, new}], count, "
+                        "blocks}`.",
+    "set_out_of_service": "`{changed: [{kind, id, name, state}], "
+                          "out_of_service: [{kind, id, name, state}]}`, the "
+                          "second the model's whole list after the change.",
+    "replace_in_table": "`{changes: [{id, column, old, new}], count, "
+                        "table, column}`; name validation can refuse the "
+                        "whole set with a ValueError.",
+    "list_part_types": "`{source, parts: [{id, name, category, source, "
+                        "basis, version, fields}], count}`.",
+    "apply_part_type": "`{part, version, elements: [{block, part, version, "
+                        "overrides, fields}], count}`.",
+    "save_part_type": "`{part: {...}, linked}`; the part never includes the "
+                      "block's name, position or id.",
+    "save_assembly": "`{part, name, contents, library_path}`; `contents` "
+                     "reads like `1 hierarchy, 4 blocks, 9 links`.",
+    "insert_assembly": "`{part, name, elements: {block: [ids], ...}, count, "
+                       "annotations, notes}`; the copy is not connected.",
+    "sync_part_types": "`{dry_run, pending: [{block, name, part, "
+                       "name_part, version, recorded_version, changes}], "
+                       "applied, count}`.",
+    "sensitivity": "`{metric, trials, seed, base, inputs, batches, caption, "
+                   "note}`; each input has its low/high paired effect and SEM, "
+                   "swing, elasticity, and whether it is distinguishable.",
+    "optimise_spares": "`{mode, metric, target, pools, base, points, recommended, "
+                       "target_met, changes, caption, note, ...}`; each point has "
+                       "stocks, cost, mean, lower, upper and its PATH=VALUE `changes`.",
+    "optimise_pm": "`{objective, advice, rows, recommendations, changes, caption, "
+                   "note, ...}`; each recommendation has block, option, mean, "
+                   "worthwhile and `changes`.",
+    "optimise_resources": "`{metric, target, resources, rows, recommendations, "
+                          "changes, caption, note, ...}`; each recommendation has "
+                          "resource, units, mean, lower, why and `changes`.",
+    "fit_from_experience": "`{law, params, slots, mean, fitted, stated, shape_note}`; "
+                          "with `block`, also `changes` (PATH=VALUE) and `update` "
+                          "(the fields for `update_element`).",
+    "recommend_changes": "`{schema, trials, seed, base, rows, caption, note, bars, "
+                         "attribution_run_id}`; each row has `name`, `changes` "
+                         "(PATH=VALUE), `why`, `gain` (availability, sem, "
+                         "p_better, low, high, downtime_avoided), `cost` (unit, "
+                         "run_total_change, note), `weigh` and `verdict`; "
+                         "`bars` holds the confidence and minimum gain the "
+                         "verdicts used. Verdicts are measured, never priced.",
+    "what_if": "`{trials, seed, base, rows, variance_reduction, "
+               "requirements, caption, note}`; each row's `metrics[key]` has "
+               "the scenario value, paired delta and SEM, p_better and the "
+               "Base value. The open model is never modified.",
+    "run_chart": "`{kind, title, subtitle, x_label, y_label, series, marks, "
+                 "annotations, caption, provenance, run_id}` and, unless "
+                 "`render_svg=False`, `svg` with the same figure as a document.",
 }
 
 
@@ -561,10 +687,8 @@ def _kind(tool: Any) -> str:
 
 def _live() -> tuple[list[Any], list[Any], list[Any], list[Any]]:
     """Every live tool, resource, resource template and prompt."""
-    from raptor.mcp import (  # noqa: F401 -- importing registers every tool
-        prompts, resources, server, tools_analytic, tools_data, tools_model,
-        tools_run, tools_metrics, tools_tables, tools_view, tools_svg,
-    )
+    from raptor.mcp import prompts, resources, server  # noqa: F401 -- registers prompts/resources
+    server.import_all_tool_modules()
 
     tools = sorted(asyncio.run(server.mcp.list_tools()), key=lambda t: t.name)
     fixed = sorted(asyncio.run(server.mcp.list_resources()), key=lambda r: r.uri)

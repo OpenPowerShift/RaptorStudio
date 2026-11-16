@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *68 tools* (including the `ping` health check), a set of
+The server exposes *94 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,8 +388,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 68 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 67 when `--no-render` hides the PNG diagram tool.
+  listed below: 93 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 92 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -689,6 +689,114 @@ you need the exact argument shape.
   treatment is given: `dependencies="up"|"down"`, `standby="active"|"absent"`
   or `phase=N`. Names the first offender.
 
+| `advise`
+| Say what looks wrong or unwise in a model, most important first: redundancy
+  that cannot work, placeholder data, spares or crews that cannot meet
+  demand, maintenance that cannot pay off, too few runs. With `run_id`, add
+  what the run says (precision, what drives the downtime) and judge it
+  against `targets`. Each finding has a rule id, a method (exact,
+  statistical or an estimate) and, where there is one, a fix.
+
+| `list_advisor_rules`
+| List every Advisor rule with its level, method and phase.
+
+| `apply_fix`
+| Apply one finding's suggested fix as a single undoable edit.
+
+| `ignore_finding`
+| Dismiss a finding that does not apply to this model (one target, or every
+  finding of a rule), with the reason; or bring it back with
+  `restore=True`. The entry is saved in the model, so `advise` and the
+  application stop showing it for everyone and list it under `ignored`.
+
+| `downtime_drivers`
+| For a run made with `attribution=True`: each element's share of system
+  downtime, of outages and of failures, split by cause (repair, waiting for
+  a spare, waiting for people or equipment, logistics, maintenance), and the
+  commonest outage paths.
+
+| `annual_availability`
+| For a run made with `attribution=True`: availability year by year (or for
+  any period length) with percentiles, pooled and by year number, the worst
+  periods, and how often a period falls below a given availability.
+
+| `run_story`
+| The answer-first Story of a finished run: headline against target, the
+  run-to-run dots, the top drivers, the top findings, six key numbers and
+  provenance. The same object the application's Story tab paints and
+  `raptor explain --story` prints.
+
+| `run_chart`
+| One chart of a finished run as a `ChartSpec`, with its numbers in the
+  text; `render_svg=True` adds the figure as SVG. Names include `trial-outcome`, `ecdf`,
+  `convergence`, `availability-ladder`, and, with `attribution=True`,
+  `downtime-pareto`, `downtime-waterfall`, `outage-histogram`,
+  `frequency-duration`, `downtime-treemap`, `outage-anatomy` and
+  `ensemble-ribbon`.
+
+| `what_if`
+| Compare a changed model with Base using paired trials: each metric's
+  scenario value, the paired difference with its standard error, the chance
+  the scenario is better, the variance pairing cut, and requirement
+  verdicts. The open model is never modified.
+
+| `recommend_changes`
+| One tested change for each of the `top` downtime drivers, chosen from the
+  cause behind its outages: the `PATH=VALUE` change, the paired availability
+  gain with its standard error and chance of being better, the downtime
+  saved per run, the unit cost the model holds (null when it holds none)
+  and a verdict. The open model is never modified.
+
+| `optimise_spares`, `optimise_pm`, `optimise_resources`
+| The optimisers of `raptor optimise`: the cheapest spare stock that meets a
+  target, whether PM is worthwhile and at what interval, and how many crews
+  are needed. Each searches with paired simulation and returns its
+  recommendation as `changes` (`PATH=VALUE`) to apply with the editing
+  tools. The open model is never modified.
+
+| `fit_from_experience`
+| A Weibull, lognormal or exponential law from shares and ages known from experience ("one
+  in ten fail by 100 hours, half by 300"), with no data: the parameters,
+  mean, the law's own ages at 1 to 99 % and what its shape means. Given a
+  `block`, also the `changes` and the `update_element` fields that give it
+  the law. Changes nothing itself.
+
+| `replace_in_table`
+| Find and replace in one model table column, with whole-cell and case
+  options. Name columns use the manual-rename rules and a refused set
+  changes nothing.
+
+| `duplicate_elements`, `copy_element_data`
+| Duplicate a selection with fresh ids and names, or copy one block's
+  data groups (Failure, Repair, logistics, spares, PM, costs) onto other
+  blocks. One save; name, position, links and dependency are never changed
+  by a data-only copy.
+
+| `set_out_of_service`
+| Take blocks, events or hierarchies out of service for a what-if: `cut`
+  (down for the whole run) or `linked` (never fails), or put them back with
+  `in_service`. Their data is unchanged; every later run says what was out.
+
+| `list_part_types`, `apply_part_type`, `save_part_type`, `sync_part_types`
+| Reuse an element's data as a named part type (block, node, event,
+  hierarchy or annotation): list parts from a `.rbdlib` file or the model,
+  apply one (recording the link), save an element as a part, and show or
+  apply the changes a library has made while respecting overrides.
+
+| `save_assembly`, `insert_assembly`
+| Save a selection (a hierarchy with everything inside it, a node with its
+  blocks, events, a whole redundant group) as an assembly in a `.rbdlib`
+  file or the model's own list, and insert a fresh copy later: new ids,
+  free names, internal links kept, links to elements outside it dropped,
+  and spare pools or resources the target lacks reset as a paste resets
+  them.
+
+| `sensitivity`
+| One-at-a-time tornado: up to `top` inputs varied low and high against
+  Base with the same seed, each effect paired with its standard error, the
+  swing, elasticity and whether it is distinguishable. A screening view; it
+  cannot show interactions.
+
 | `describe_metrics`
 | List the result metrics and their units (availability, reliability,
   dependability, MTBDE/MDT, MTBM variants, MMT variants, failures and
@@ -815,7 +923,10 @@ you need the exact argument shape.
   `highlight`/`include_annotations` options as `render_diagram`. Available
   even when `--no-render` hides the PNG tool, and useful when SVG text is
   easier to inspect than an image. Fonts are not measured, so long names
-  are shortened (the full name is in each element's `<title>`).
+  are shortened (the full name is in each element's `<title>`). With
+  `layer` and the `run_id` of a run made with attribution it draws the
+  share-of-downtime or lost-capacity layer, with a legend;
+  `layer="advisor"` marks the Advisor's findings and needs no run.
 
 | `auto_layout`
 | Re-arrange the diagram onto the shared layered grid and save the
@@ -875,6 +986,13 @@ or `results.summary`.
   fixed-width file per table) and `txt_report` (one combined report), in
   any combination. Files go to `Tables/<model>` in the workspace unless a
   workspace-relative `folder` is given.
+
+| `export_report`
+| Writes the run report a decision maker reads: `.pdf` or one
+  self-contained `.html`. By default the diagram and the plain-English
+  story; add `results` and `data_tables` in `sections` for the tables.
+  The file goes to `Reports/<model>_<run>.pdf` unless a workspace-relative
+  `path` is given.
 |===
 
 ==== Reference

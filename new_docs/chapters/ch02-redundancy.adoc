@@ -121,6 +121,22 @@ system shrugs and carries on. Later, if Pump_B also dies, the node goes
 This ripple — part fails, node re-checks, system re-checks — is how
 every event in every model travels.
 
+==== From the command line
+
+`raptor step` plays one trial a state change at a time and stops when a
+block you name changes status:
+
+[source,bash]
+----
+raptor run models/Espresso1.rbds -n 1000 --metrics Reliability
+raptor step models/Espresso1.rbds --break Pump_A -f text
+----
+
+The first command gives the long-run reliability. The second prints the
+moment Pump_A dies, the event-log lines above, and the node going
+*Degraded*. `raptor run ... -r events -o DIR` writes the whole event
+log of every trial to `DIR/rpt_events_Espresso1.txt`.
+
 .Limits of this model
 [NOTE]
 ====
@@ -168,7 +184,8 @@ up or down, and by roughly how much? Then run 100 trials and check.
 ====
 down. A 150-hour pump is near-dead by hour 500
 (survival ≈ 3.6%), so the second pump almost never rescues a season.
-Expect roughly 0.30 at 100 trials — most of the gain from Pump_A alone.
+Expect roughly 0.23 to 0.24 (against 0.37 with two good pumps): barely
+more than Pump_A would manage on its own.
 ====
 
 === What you learned

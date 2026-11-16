@@ -1,0 +1,119 @@
+"""PM advice: the age-replacement screen and a small simulated search."""
+from __future__ import annotations
+
+import pytest
+
+from raptor.api import build
+from raptor.api.optimise.pm import (
+    cost_rate, screen, weibull_optimum,
+)
+from raptor.api.workspace import Workspace
+
+SPEC = {
+    "blocks": [{"name": "Pump", "fail_dist": "Weibull",
+                "fail_params": [2.0, 100.0, 0.0],
+                "repair_dist": "Fixed", "repair_params": [5, 0, 0],
+                "uses_pm": 1, "pm_freq": 400.0,
+                "pm_dist": "Fixed", "pm_params": [2, 0, 0],
+                "pm_cost": 1.0, "pm_fixed_cost": 10.0,
+                "rep_fixed_cost": 100.0}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "Pump"},
+              {"from": "Pump", "to": "End"}],
+    "experiment": {"trials": 4, "termination_type": "TimeSim",
+                   "term_condition": 2000.0},
+}
+
+
+def test_a_wear_out_law_has_a_finite_cost_optimum():
+    optimum = weibull_optimum(2.0, 100.0, cp=1.0, cf=10.0)
+    assert optimum is not None and 0 < optimum < 300
+    assert cost_rate(optimum, 2.0, 100.0, 1.0, 10.0) < cost_rate(
+        optimum * 0.4, 2.0, 100.0, 1.0, 10.0)
+    assert cost_rate(optimum, 2.0, 100.0, 1.0, 10.0) < cost_rate(
+        optimum * 3, 2.0, 100.0, 1.0, 10.0)
+
+
+def test_a_constant_failure_rate_is_not_worth_preventing():
+    assert weibull_optimum(1.0, 100.0, 1.0, 10.0) is None
+    assert weibull_optimum(0.7, 100.0, 1.0, 10.0) is None
+
+
+def test_the_screen_names_the_block_and_the_interval():
+    rbd = build.build_from_spec(SPEC)
+    advice = screen(rbd)
+    assert len(advice) == 1
+    entry = advice[0]
+    assert entry.block == "Pump" and entry.worthwhile is True
+    assert entry.interval is not None and entry.cp >= 1 and entry.cf >= 1
+
+
+def test_the_simulated_search_reports_a_curve_and_a_recommendation(tmp_path):
+    from raptor.api.optimise.pm import optimise_pm
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(SPEC), name="m")["model_id"]
+    result = optimise_pm(ws, mid, trials=3, seed=2)
+    assert result["recommendations"]
+    rec = result["recommendations"][0]
+    assert rec["block"] == "Pump"
+    options = {row["option"] for row in rec["curve"]}
+    assert "no PM" in options
+    assert any("optimum" in option for option in options)
+    assert result["batches"] == 1 + 6
+    assert result["caption"]
+
+
+def test_the_availability_screen_weighs_downtimes_worked_by_hand():
+    # PM takes 2 h and a repair 5 h: the age-replacement optimum for a
+    # Weibull(2, 100) life with cp=2, cf=5, computed independently from the
+    # closed form integral of R (erf), is close to 72.4 h.
+    import math
+    rbd = build.build_from_spec(SPEC)
+    entry = screen(rbd, objective="availability")[0]
+    assert (entry.cp, entry.cf) == (2.0, 5.0)
+
+    def rate(t: float) -> float:
+        r = math.exp(-(t / 100) ** 2)
+        return (2 * r + 5 * (1 - r)) / (50 * math.sqrt(math.pi)
+                                        * math.erf(t / 100))
+    hand = min(range(1000, 30000), key=lambda t: rate(t / 100)) / 100
+    assert abs(entry.interval - hand) < 0.05
+
+
+def test_the_cost_screen_multiplies_hourly_rates_by_durations():
+    rbd = build.build_from_spec(SPEC)
+    entry = screen(rbd, objective="cost")[0]
+    # pm_fixed 10 + pm_cost 1/h x 2 h; a failure is rep_fixed 100 +
+    # the default 1/h repair rate x 5 h + the default 1 per spare.
+    assert (entry.cp, entry.cf) == (12.0, 106.0)
+    assert entry.worthwhile is True
+
+
+def test_a_pm_as_long_as_a_repair_is_run_to_failure():
+    spec = {**SPEC, "blocks": [dict(SPEC["blocks"][0],
+                                    pm_params=[5, 0, 0])]}
+    entry = screen(build.build_from_spec(spec), objective="availability")[0]
+    assert entry.worthwhile is False and entry.interval is None
+
+
+def test_an_exponential_life_is_never_worth_preventing(tmp_path):
+    """A memoryless part gains nothing from early replacement: the screen
+    says so and only 'no PM' is simulated, so noise cannot recommend PM."""
+    from raptor.api.optimise.pm import optimise_pm
+    spec = {**SPEC, "blocks": [{**SPEC["blocks"][0], "fail_dist": "Exponential",
+                                "fail_params": [100]}]}
+    (advice,) = screen(build.build_from_spec(spec))
+    assert advice.worthwhile is False and "exponential" in advice.reason
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(spec), name="e")["model_id"]
+    result = optimise_pm(ws, mid, trials=3, seed=2)
+    (rec,) = result["recommendations"]
+    assert [row["option"] for row in rec["curve"]] == ["no PM"]
+    assert rec["worthwhile"] is False and result["changes"] == []
+
+
+def test_worthwhile_needs_a_paired_gain_beyond_noise():
+    from raptor.api.optimise.pm import _paired_stat
+    mean, sem = _paired_stat([0.9, 0.9, 0.9], [0.91, 0.89, 0.92])
+    assert mean == pytest.approx(0.00667, rel=1e-2)
+    assert sem is not None and mean < 2 * sem      # not told from noise

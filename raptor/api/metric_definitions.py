@@ -119,6 +119,10 @@ def samples_from_per_run(per_run: Iterable[Any]) -> dict[str, int]:
     }
 
 
+#: At or above this, a capacity figure includes Raptor's "no limit" value.
+UNLIMITED_CAPACITY = 999_999_999.0 * 0.5
+
+
 def _metric_row(spec: Mapping[str, str], entry: Any, units: str,
                 samples: Mapping[str, int] | None) -> dict[str, Any]:
     """One metric's row of `from_summary`."""
@@ -161,6 +165,12 @@ def from_summary(summary: Mapping[str, Any], *, units: str = "",
         notes.append("Censored values are lower bounds (marked > in the "
                      "report); their standard deviation and SEM are not "
                      "shown.")
+    capacity = next((row for row in rows if row["key"] == "mean_capacity"), None)
+    if capacity is not None and (capacity.get("max") or 0) >= UNLIMITED_CAPACITY:
+        notes.append("Mean capacity counts the times nothing limits the flow at "
+                     "Raptor's 'no limit' value (999,999,999), as Raptor's Final "
+                     "Results does, so it is not a usable capacity; read mean "
+                     "flow and capacity-weighted availability instead.")
     if samples is not None and runs:
         short = [f"{row['metric']}: {row['samples']} of {runs} runs"
                  for row in rows

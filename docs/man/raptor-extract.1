@@ -1,6 +1,6 @@
 .TH "RAPTOR-EXTRACT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-extract \- Build a standalone model from one hierarchy (its In node becomes Start, its Out node End) and save it, or list what crosses its boundary. The saved .rbd is an ordinary model file.
+raptor\-extract \- save one hierarchy as a standalone model
 .SH SYNOPSIS
 \fBraptor extract\fR [\-h] \-\-hierarchy NAME|ID [\-o FILE] [\-\-report\-hazards] [\-f {text,json}] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
 .SH DESCRIPTION
@@ -9,7 +9,7 @@ Build a standalone model from one hierarchy (its In node becomes Start, its Out 
 .SS Options
 .TP
 \fB\-\-hierarchy\fR \fINAME|ID\fR
-
+the hierarchy to save on its own
 .TP
 \fB\-o\fR, \fB\-\-output\fR \fIFILE\fR
 write the extract here (.rbd or .rbds)
@@ -18,7 +18,7 @@ write the extract here (.rbd or .rbds)
 list what crosses the boundary and the treatment each would get; write nothing
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .SS Isolated hierarchy (a port extension, not a raptor feature)
 .TP
 \fB\-\-deps\fR \fI{up|system|refuse}\fR

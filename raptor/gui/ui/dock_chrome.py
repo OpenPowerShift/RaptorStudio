@@ -254,12 +254,36 @@ class DockSlotChrome:
                 self._minimize_bottom(e)
             else:
                 self._restore_bottom(e)
+        self._sync_side_tab_bars()
         self.retheme()
         # Minimising hides content without hiding the dock, so `visibilityChanged`
         # never fires; sync the ribbon toggle or it still reads "open" and the next
         # click closes instead of restoring.
         for e in self.entries:
             self.sync_action(e["dock"])
+
+    def _sync_side_tab_bars(self) -> None:
+        """A collapsed side group is a strip a title bar wide; its tab bar
+        ("Model Explorer | Part Library") would be squeezed into it and
+        stick out over the canvas.  Hiding it does not last (QMainWindow
+        shows its dock tab bars again on every layout pass), so give it no
+        height until the group is restored."""
+        from PySide6.QtWidgets import QTabBar
+
+        side = [e for e in self.entries if e.get("edge") in _SIDE]
+        if not side:
+            return
+        titles = {e["dock"].windowTitle() for e in side}
+        collapsed = all(e["minimized"] for e in side)
+        try:
+            bars = self.win.findChildren(QTabBar)
+        except RuntimeError:        # the window is going away
+            return
+        for bar in bars:
+            if bar.parent() is self.win and any(
+                    bar.tabText(i) in titles for i in range(bar.count())):
+                bar.setMaximumHeight(0 if collapsed else _NO_MAX)
+                bar.updateGeometry()
 
     def _label_min_button(self, e: dict[str, Any], minimized: bool) -> None:
         dock = e["dock"]

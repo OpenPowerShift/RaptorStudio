@@ -1,6 +1,6 @@
 .TH "RAPTOR-DIFF" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-diff \- Compare two model files (.rbd or .rbds, in any combination) and list the differences: elements added, removed, renamed or changed, connections, hierarchy moves, system settings, rates, spare pools and the rest. Nothing is run; this compares the models, not their results (see raptor compare). Elements are matched by name, then by id.
+raptor\-diff \- show what is different between two models
 .SH SYNOPSIS
 \fBraptor diff\fR [\-h] [\-f {text,json,md,csv}] [\-\-ignore CATS] [\-\-all] [\-\-match {auto,name,id}] [\-\-only GROUPS] [\-\-exit\-code] A B
 .SH DESCRIPTION
@@ -9,7 +9,7 @@ Compare two model files (.rbd or .rbds, in any combination) and list the differe
 .SS Options
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|md|csv}\fR
-
+output format (default text)
 .TP
 \fB\-\-ignore\fR \fICATS\fR
 comma\-separated categories to leave out (default layout,derived; categories: layout, derived, identity, failure, repair, streams, sparing, maintenance, logistics, dependency, cost, phasing, capacity, structure, system, project, other)

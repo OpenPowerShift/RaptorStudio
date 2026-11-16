@@ -7,6 +7,8 @@ callers use the correct parameter order (for example Weibull is
 """
 from __future__ import annotations
 
+import math
+from itertools import pairwise
 from typing import Any
 
 #: code -> parameter names (in slot order) and valid-range guidance.
@@ -15,8 +17,13 @@ PARAM_INFO: dict[int, dict[str, Any]] = {
     2: {"params": ["degrees_of_freedom"], "ranges": {"degrees_of_freedom": "> 0"}},
     3: {"params": ["trials", "probability"], "ranges": {"trials": ">= 1 integer", "probability": "0-1"}},
     4: {"params": ["mean", "location"], "ranges": {"mean": "> 0", "location": ">= 0"}},
-    5: {"params": ["mean", "k"], "ranges": {"mean": "> 0", "k": ">= 1 integer"}},
-    6: {"params": ["mean", "k", "location"], "ranges": {"mean": "> 0", "k": "> 0", "location": ">= 0"}},
+    # Erlang and Gamma: the file's first slot is the shape and the second the
+    # scale (`rng._erlang(p[0] * p[1], round(p[0]))`); the mean is their product
+    5: {"params": ["k", "scale"],
+        "ranges": {"k": ">= 1 integer (stages)", "scale": "> 0 (each stage's mean; mean = k x scale)"}},
+    6: {"params": ["shape", "scale", "location"],
+        "ranges": {"shape": "> 0", "scale": "> 0 (mean = shape x scale + location)",
+                   "location": ">= 0"}},
     7: {"params": ["mean", "stdev"], "ranges": {"mean": "> 0", "stdev": "> 0"}},
     8: {"params": ["mean", "stdev"], "ranges": {"mean": ">= 0", "stdev": "> 0"}},
     9: {"params": ["lower", "upper"], "ranges": {"lower": "integer", "upper": ">= lower"}},
@@ -91,4 +98,236 @@ def describe_dist(code: int, params: list[float]) -> dict[str, Any]:
     }
     if notes:
         out["notes"] = notes
+    return out
+
+
+#: Which parameter slots scale when the mean is multiplied, per distribution
+#: code.  `("mean",)` scales one slot; `("mean", "stdev")` keeps the shape
+#: (CV) by scaling spread too; The fixed and uniform laws scale their values.
+_SCALE_SLOTS: dict[int, tuple[int, ...]] = {
+    4: (0, 1),        # Exponential: mean and location shift together
+    5: (1,),          # Erlang: the scale (k x scale is the mean)
+    6: (1, 2),        # Gamma: scale and location
+    7: (0, 1),        # Lognormal: mean and stdev keep sigma
+    8: (0, 1),        # Normal: mean and stdev keep the CV
+    9: (0, 1),        # Uniform integer: lower and upper
+    10: (0, 1),       # Uniform real: lower and upper
+    11: (1, 2),       # Pearson 5: scale and location
+    12: (2,),         # Pearson 6: scale
+    13: (0,),         # Poisson: mean
+    14: (0, 1, 2),    # Triangular: lower, mode, upper
+    15: (1, 2),       # Weibull: scale and location
+    19: (0,),         # Fixed: value
+    21: (0, 1),       # Extreme value: scale and location
+    22: (0, 1),       # Laplace: scale and location
+}
+
+
+def scales_with_mean(code: int) -> bool:
+    """Whether `scale_mean` can move this law's mean by a factor."""
+    return code in _SCALE_SLOTS
+
+
+def scale_mean(code: int, params: list[float], factor: float) -> list[float]:
+    """The parameters with the distribution's mean multiplied by `factor`.
+
+    Shape parameters are untouched: Weibull's shape, Gamma's k, Lognormal's
+    sigma (mean and stdev scale together), so the law keeps its shape and
+    only its time scale moves.  Laws without a scale slot (Beta, Binomial,
+    Chi-square, empirical) raise ValueError rather than guessing.
+
+    `factor` must be positive.  The result is a new list; `params` is not
+    changed.
+    """
+    if factor <= 0:
+        raise ValueError("factor must be positive")
+    slots = _SCALE_SLOTS.get(code)
+    if slots is None:
+        raise ValueError(
+            f"{dist_name(code)} has no scale parameter to move; use its own "
+            "parameters")
+    out = [float(value) for value in params]
+    for slot in slots:
+        if slot >= len(out):
+            continue
+        out[slot] *= factor
+    return out
+
+
+def from_quantiles(  # noqa: C901, PLR0912, PLR0915
+        law: str, quantiles: dict[float, float]) -> dict[str, Any]:
+    """Fit a two-parameter life law from experience: shares failed by given ages (WP-4.4).
+
+    `quantiles` maps probability to age, e.g. `{0.1: 100, 0.5: 300}` for
+    "one in ten fail by 100, half by 300".  Two points solve the law in
+    closed form; three or more use a least-squares fit of the linearised
+    quantile function.  Returns the parameters in slot order plus the
+    implied mean, the fitted quantiles and a plain reading of the shape.
+
+    Laws: `weibull`, `lognormal` and `exponential`.  Inconsistent answers
+    (a higher probability at an earlier age) are refused by name.
+    """
+    from statistics import NormalDist
+
+    if law not in ("weibull", "lognormal", "exponential"):
+        raise ValueError(
+            "law must be one of weibull, lognormal or exponential")
+    points = sorted((float(p), float(t)) for p, t in quantiles.items())
+    # The exponential has one parameter, so one answer fixes it.
+    if len(points) < (1 if law == "exponential" else 2):
+        raise ValueError("give at least two quantiles"
+                         + ("" if law == "exponential" else
+                            " (an exponential law needs only one)"))
+    for probability, age in points:
+        if not 0 < probability < 1:
+            raise ValueError(f"probability {probability!r} must be in (0, 1)")
+        if age <= 0:
+            raise ValueError(f"age {age!r} must be positive")
+    ages = [age for _p, age in points]
+    if any(after <= before for before, after in pairwise(ages)):
+        raise ValueError(
+            "the answers are inconsistent: a higher probability cannot "
+            "have an earlier age")
+
+    def implied(params: dict[str, float], probability: float) -> float:
+        if law == "weibull":
+            return params["scale"] * (
+                -math.log(1 - probability)) ** (1 / params["shape"])
+        if law == "lognormal":
+            z = NormalDist().inv_cdf(probability)
+            return math.exp(params["mu"] + params["sigma"] * z)
+        return -params["mean"] * math.log(1 - probability)
+
+    if law == "exponential":
+        ys = [-math.log(1 - p) for p, _t in points]
+        ts = [t for _p, t in points]
+        mean = sum(y * t for y, t in zip(ys, ts, strict=True)) / sum(
+            y * y for y in ys)
+        params = {"mean": mean}
+        slots = [mean]
+        note = "random failures: planned maintenance cannot reduce them"
+    elif law == "weibull":
+        xs = [math.log(t) for _p, t in points]
+        ys = [math.log(-math.log(1 - p)) for p, _t in points]
+        if len(points) == 2:
+            beta = (ys[1] - ys[0]) / (xs[1] - xs[0])
+            intercept = ys[0] - beta * xs[0]
+        else:
+            mean_x = sum(xs) / len(xs)
+            mean_y = sum(ys) / len(ys)
+            beta = (sum((x - mean_x) * (y - mean_y)
+                        for x, y in zip(xs, ys, strict=True))
+                    / sum((x - mean_x) ** 2 for x in xs))
+            intercept = mean_y - beta * mean_x
+        if beta <= 0:
+            raise ValueError("the answers imply a decreasing failure rate; "
+                             "use exponential or check the order")
+        scale = math.exp(-intercept / beta)
+        params = {"shape": beta, "scale": scale}
+        slots = [beta, scale, 0.0]
+        note = ("wears out: planned maintenance can help" if beta > 1
+                else "random failures: planned maintenance cannot help")
+    else:
+        zs = [NormalDist().inv_cdf(p) for p, _t in points]
+        xs = [math.log(t) for _p, t in points]
+        if len(points) == 2:
+            sigma = (xs[1] - xs[0]) / (zs[1] - zs[0])
+            mu = xs[0] - sigma * zs[0]
+        else:
+            mean_z = sum(zs) / len(zs)
+            mean_x = sum(xs) / len(xs)
+            sigma = (sum((z - mean_z) * (x - mean_x)
+                         for z, x in zip(zs, xs, strict=True))
+                     / sum((z - mean_z) ** 2 for z in zs))
+            mu = mean_x - sigma * mean_z
+        if sigma <= 0:
+            raise ValueError("the answers imply a negative spread; check "
+                             "the order")
+        params = {"mu": mu, "sigma": sigma}
+        slots = [math.exp(mu + sigma * sigma / 2),
+                 math.sqrt((math.exp(sigma * sigma) - 1)
+                           * math.exp(2 * mu + sigma * sigma))]
+        note = ("repair times: the longer tail is why a mean alone "
+                "understates the wait" if law == "lognormal" else "")
+    if law == "lognormal":
+        params_out = {"mu": params["mu"], "sigma": params["sigma"]}
+        mean = slots[0]
+    elif law == "weibull":
+        params_out = {"shape": params["shape"], "scale": params["scale"]}
+        mean = params["scale"] * math.gamma(1 + 1 / params["shape"])
+    else:
+        params_out = {"mean": params["mean"]}
+        mean = params["mean"]
+    return {
+        "law": law,
+        "params": params_out,
+        "slots": slots,
+        "mean": mean,
+        "fitted": {round(p, 6): implied(params, p) for p in (0.01, 0.1, 0.5,
+                                                              0.9, 0.99)},
+        "stated": {p: t for p, t in points},
+        "shape_note": note,
+        "warnings": _fit_warnings(law, params, points, implied),
+    }
+
+
+#: How far a fitted age may stray from a stated one before the fit is called
+#: loose (as a share of the stated age).
+LOOSE_FIT = 0.25
+
+
+def _fit_warnings(law: str, params: dict[str, float],
+                  points: list[tuple[float, float]], implied: Any) -> list[str]:
+    """What a reader should know before using the law: that it misses an
+    answer by much, or that close answers made it nearly a fixed age (where
+    a small change to either answer moves it a lot)."""
+    out = []
+    worst = max(points, key=lambda pt: abs(implied(params, pt[0]) / pt[1] - 1))
+    gap = abs(implied(params, worst[0]) / worst[1] - 1)
+    if gap > LOOSE_FIT:
+        out.append(
+            f"The {law} law fits the answers loosely: it puts "
+            f"{100 * worst[0]:.3g} % failed at {implied(params, worst[0]):,.4g}, "
+            f"against the {worst[1]:,.4g} given. Check the answers, or try "
+            "another law.")
+    if law == "weibull" and params["shape"] > 10:
+        out.append(
+            f"The answers are very close together, so the law is nearly a "
+            f"fixed age (shape {params['shape']:.3g}): a small change to either "
+            "answer moves it a lot.")
+    if law == "lognormal" and params["sigma"] < 0.05:
+        out.append(
+            f"The answers are very close together, so the law is nearly a "
+            f"fixed time (sigma {params['sigma']:.3g}): a small change to "
+            "either answer moves it a lot.")
+    return out
+
+
+def experience_changes(fit: dict[str, Any], block: str,
+                      use: str = "fail") -> list[str]:
+    """PATH=VALUE edits that give `block` the law `fit` (from
+    `from_quantiles`) as its failure (`use="fail"`) or repair
+    (`use="repair"`) distribution, every parameter slot written."""
+    if use not in ("fail", "repair"):
+        raise ValueError("use must be 'fail' or 'repair'")
+    slots = list(fit["slots"]) + [0.0] * (3 - len(fit["slots"]))
+    params = ",".join(f"{value:.10g}" for value in slots)
+    return [f"block:{block}.{use}_dist={fit['law']}",
+            f"block:{block}.{use}_params={params}"]
+
+
+def fit_document(fit: dict[str, Any], block: str | None = None,
+                 use: str = "fail") -> dict[str, Any]:
+    """A `from_quantiles` fit as the CLI's JSON and the MCP tool return it:
+    `fitted` and `stated` as lists of {probability, age} (a JSON object's
+    keys are strings, so a share would not read back as a number), and with
+    `block` the `changes` and the `update` fields that give it the law."""
+    out: dict[str, Any] = {
+        **fit,
+        "fitted": [{"probability": p, "age": t} for p, t in fit["fitted"].items()],
+        "stated": [{"probability": p, "age": t} for p, t in fit["stated"].items()],
+    }
+    if block:
+        out["changes"] = experience_changes(fit, block, use)
+        out["update"] = {f"{use}_dist": fit["law"], f"{use}_params": list(fit["slots"])}
     return out

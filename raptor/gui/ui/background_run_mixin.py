@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.ui import settings
 from raptor.core.engine.runner import run_simulation_with_reports
+from raptor.core.run_manifest import manifest_with_streams
 
 
 
@@ -472,7 +473,7 @@ class BackgroundRunMixin(_Base):
                 if result:
                     # The baseline is now on screen; do not let the live
                     # Ao/Capacity catch-up re-show the dock or steal the
-                    # Graphs tab while importance runs.
+                    # Charts tab while importance runs.
                     self._bg_last_report_count = len(result[3] or [])
         # Importance owns the status line and the bar for this phase. The
         # ordinary-batch progress/stage below are stale now (the worst is
@@ -716,8 +717,9 @@ class BackgroundRunMixin(_Base):
                     units=units, notes=report_notes,
                     ao_lines=ao_lines, cap_lines=cap_lines,
                     cost_lines=cost_lines,
-                    manifest=(state.get("run_metadata") or {}).get("manifest"),
-                    importance=importance)
+                    manifest=manifest_with_streams(state.get("run_metadata") or {}),
+                    importance=importance,
+                    rbd=getattr(self, "_last_run_model", None))
                 self._note_results_basis()
                 self._remember_report_streams(state.get("streams") or {})
                 self._results_show_action.setEnabled(bool(report_data))

@@ -1,8 +1,8 @@
 .TH "RAPTOR-SWEEP" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-sweep \- Run MODEL once per combination of the \-\-vary values (a cartesian product), on copies, and tabulate the metrics.
+raptor\-sweep \- run a parameter sweep
 .SH SYNOPSIS
-\fBraptor sweep\fR [\-h] \-\-vary SPEC [\-\-metric NAME] [\-f {text,json,csv}] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+\fBraptor sweep\fR [\-h] \-\-vary SPEC [\-\-metric NAME] [\-f {text,json,csv}] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
 .SH DESCRIPTION
 Run MODEL once per combination of the \-\-vary values (a cartesian product), on copies, and tabulate the metrics.
 .SH OPTIONS
@@ -15,7 +15,7 @@ PATH=START:STOP:STEP or PATH=v1,v2,...; repeat for a grid
 metric(s) to tabulate (default Availability); repeatable
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json|csv}\fR
-
+output format (default text)
 .SS Run control
 .TP
 \fB\-n\fR, \fB\-\-runs\fR \fIN\fR
@@ -41,6 +41,24 @@ give up after DURATION, e.g. 90s, 10m (default 10m); partial results are kept
 .TP
 \fB\-\-analysis\fR \fILIST\fR
 weak,cost,capacity (replaces the model's setting); 'none' clears all
+.TP
+\fB\-\-precision\fR \fIP\fR
+run until the watched metric's relative half\-width is P, e.g. 10%% or 0.1 (implies growing batches; ignores \-\-runs)
+.TP
+\fB\-\-precision\-metric\fR \fINAME\fR
+metric watched by \-\-precision (default system.ao; a probability is watched as 1 \- value, a time as itself)
+.TP
+\fB\-\-min\-trials\fR \fIN\fR
+first \-\-precision batch (default 50)
+.TP
+\fB\-\-max\-trials\fR \fIN\fR
+most \-\-precision may run (default 20000)
+.TP
+\fB\-\-precision\-batch\fR \fIN\fR
+smallest \-\-precision step (default 50)
+.TP
+\fB\-\-precision\-confidence\fR \fIC\fR
+confidence of the \-\-precision interval (default 0.95)
 .TP
 \fB\-\-importance\fR \fIMODE\fR
 IEC 61078 Annex D importance measures estimated by re\-simulation: improvement (RRW, Vesely\-Fussell), risk (RAW), both (adds Birnbaum). Costs one extra batch per block, two for 'both'

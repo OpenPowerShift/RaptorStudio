@@ -95,6 +95,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+P",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.export",
+        attr="_export_action",
+        text="Export\u2026",
+        icon="export_icon:text",
+        tooltip=(
+            "Save the report, the tables or the diagram: one window, pick the "
+            "file type (PDF, Excel, OpenDocument, SVG or PNG)"),
+        handler="_export_any",
+        shortcut="Ctrl+E",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_pdf",
         attr="_export_pdf_action",
         text="Export PDF…",
@@ -110,9 +121,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Export Tables\u2026",
         icon="export_tables_icon:text",
         tooltip=(
-            "Write the model's tables (blocks, nodes, links, ... ) and a "
-            "run's result tables as CSV, text or one spreadsheet with a tab "
-            "per table"),
+            "Choose which tables to write, the model's and a run's results, "
+            "as CSV files, text or one spreadsheet with a tab per table"),
         handler="_export_tables",
         enabled_when="model_open"),
     CommandSpec(
@@ -196,6 +206,75 @@ COMMANDS: tuple[CommandSpec, ...] = (
         tooltip="Paste previously copied elements with fresh ids",
         handler="_edit_paste",
         enabled_when="can_paste"),
+    CommandSpec(
+        id="view.focus",
+        attr="_focus_action",
+        text="Focus",
+        icon="focus_icon:text",
+        tooltip="Dim everything except the selection (topology stays)",
+        handler="_diagram_dock.view.set_focus_mode",
+        on="toggled",
+        checkable=True),
+    CommandSpec(
+        id="model.quick_add",
+        attr="_quick_add_action",
+        text="Quick Add",
+        icon="quick_add_icon:accent",
+        tooltip="Add an element at the cursor (Space or / on the canvas)",
+        handler="_diagram_dock.view.show_quick_add"),
+    CommandSpec(
+        id="view.command_search",
+        attr="_command_search_action",
+        text="Run a Command…",
+        icon="command_search_icon:text",
+        tooltip="Search every command by name (Ctrl+Shift+P)",
+        handler="_command_search",
+        shortcut="Ctrl+Shift+P",
+        more_shortcuts=("Ctrl+K",)),
+    CommandSpec(
+        id="data.find_replace",
+        attr="_find_replace_action",
+        text="Find and Replace…",
+        icon="find_replace_icon:text",
+        tooltip="Find and replace in the Data Tables grid (Ctrl+H there)",
+        handler="_data_tables_find_replace"),
+    CommandSpec(
+        id="home.duplicate",
+        attr="_duplicate_action",
+        text="Duplicate",
+        icon="duplicate_icon:accent",
+        tooltip="Duplicate the selected elements in place (Ctrl+D)",
+        handler="_edit_duplicate",
+        shortcut="Ctrl+D",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.duplicate_parallel",
+        attr="_duplicate_parallel_action",
+        text="Duplicate in Parallel",
+        icon="duplicate_parallel_icon:text",
+        tooltip="Copy the selected block in parallel between its "
+                "neighbours (Ctrl+Alt+D)",
+        handler="_edit_duplicate_parallel",
+        shortcut="Ctrl+Alt+D",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.array",
+        attr="_array_action",
+        text="Array…",
+        icon="array_icon:text",
+        tooltip="Duplicate the selection in a row or column",
+        handler="_edit_array",
+        enabled_when="can_copy"),
+    CommandSpec(
+        id="home.paste_data",
+        attr="_paste_data_action",
+        text="Paste Data Only",
+        icon="paste_data_icon:text",
+        tooltip="Copy the clipboard block's data onto the selected "
+                "blocks (Ctrl+Shift+V)",
+        handler="_edit_paste_data",
+        shortcut="Ctrl+Shift+V",
+        enabled_when="can_copy"),
     CommandSpec(
         id="home.syscfg",
         attr="_syscfg_action",
@@ -656,6 +735,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_show_run_panel",
         enabled_when="run_settings_available"),
     CommandSpec(
+        id="sim.precision",
+        attr="_precision_action",
+        text="Trials to Precision…",
+        icon="precision_icon:accent",
+        tooltip=(
+            "How many trials the answer needs: runs a copy in growing batches "
+            "until the confidence interval is within a stated precision (for "
+            "availability, of the unavailability), then sets the trials for "
+            "the next Run."),
+        handler="_open_precision_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
         id="sim.sweep",
         attr="_sweep_action",
         text="Sweep…",
@@ -678,6 +769,77 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "Full speed, on the cores in the Cores box. Runs on copies: "
             "nothing is changed."),
         handler="_open_compare_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="sim.recommend",
+        attr="_recommend_action",
+        text="Recommend…",
+        icon="recommend_icon:accent",
+        tooltip=(
+            "Find the blocks that cause the most downtime, propose one change "
+            "for each (faster repair, one more spare, one more crew, ...) and "
+            "test every change against this model with paired runs: the "
+            "change, the gain it measurably gives and its cost. Runs on "
+            "copies; Apply writes a change in as one undo step."),
+        handler="_open_recommend_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.whatif",
+        attr="_whatif_action",
+        text="What If…",
+        icon="whatif_icon:accent",
+        tooltip=(
+            "Compare changes with this model: half a block's repair time, one "
+            "more spare, no PM, or any PATH=VALUE change. Base and each "
+            "scenario run with the same seed, so the gain is measured pair by "
+            "pair. Runs on copies; Apply writes a scenario in as one undo step."),
+        handler="_open_whatif_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.sensitivity",
+        attr="_sensitivity_action",
+        text="Sensitivity…",
+        icon="tornado_icon:accent",
+        tooltip=(
+            "Which inputs the result is most sensitive to: each block's life "
+            "and repair, PM intervals, spare stock and crews moved low and "
+            "high one at a time with paired runs, drawn as a tornado, widest "
+            "swing first. Runs on copies."),
+        handler="_open_sensitivity_dialog",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_spares",
+        attr="_optimise_spares_action",
+        text="Spares…",
+        icon="spares_optimise_icon:accent",
+        tooltip=(
+            "The cheapest spare stock that meets an availability target with "
+            "95 % confidence, or the whole cost/availability trade-off, found "
+            "with paired runs. Runs on copies; Apply writes the stock in."),
+        handler="_open_optimise_spares",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_pm",
+        attr="_optimise_pm_action",
+        text="Maintenance…",
+        icon="pm_optimise_icon:accent",
+        tooltip=(
+            "Is planned maintenance worthwhile on each block, and how often? "
+            "A formula screens each block, then no PM and several intervals "
+            "are run with paired runs. Runs on copies; Apply writes the best "
+            "interval in."),
+        handler="_open_optimise_pm",
+        enabled_when="can_start_batch"),
+    CommandSpec(
+        id="analyse.optimise_crews",
+        attr="_optimise_crews_action",
+        text="Crews…",
+        icon="crew_optimise_icon:accent",
+        tooltip=(
+            "How many units of each repair crew or tool are needed to meet an "
+            "availability target with 95 % confidence, found with paired runs. "
+            "Runs on copies; Apply writes the size in."),
+        handler="_open_optimise_crews",
         enabled_when="can_start_batch"),
     CommandSpec(
         id="sim.extract_hierarchy",
@@ -956,6 +1118,51 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         enabled=False),
     CommandSpec(
+        id="results.downtime_overlay",
+        attr="_downtime_overlay_action",
+        text="Share of downtime",
+        icon="share_icon:accent",
+        tooltip=(
+            "Colour each block and event by its share of system downtime "
+            "(Red from ⅔ of the largest share, Yellow from ⅓), print the "
+            "share under it, mark the cause that dominates it with a letter "
+            "in the corner, and ring the letter when the runs disagree on "
+            "the share. Works out the drivers from the event log when the "
+            "Drivers tab has not."),
+        handler="_on_downtime_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
+        id="results.lost_capacity_overlay",
+        attr="_lost_capacity_overlay_action",
+        text="Lost capacity",
+        icon="flow_icon:warn",
+        tooltip=(
+            "Colour each element by its share of the lost flow, with the "
+            "main-cause letter and the uncertainty ring as for Share of "
+            "downtime, and draw each link into a capacity node as wide as "
+            "the flow through that node. Needs Capacity analysis and the "
+            "event log."),
+        handler="_on_lost_capacity_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
+        id="results.advisor_overlay",
+        attr="_advisor_overlay_action",
+        text="Advisor findings",
+        icon="advisor_layer_icon:warn",
+        tooltip=(
+            "Mark each element the Advisor has something to say about: "
+            "filled by the worst severity (Red error, Yellow warning, blue "
+            "advice or note), labelled with how many findings concern it, "
+            "and its tooltip lists them. Needs no run."),
+        handler="_on_advisor_overlay_toggled",
+        on="toggled",
+        checkable=True,
+        enabled=False),
+    CommandSpec(
         id="results.weak_spread",
         attr="_weak_spread_action",
         text="Spread",
@@ -1097,6 +1304,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled=False,
         enabled_when="live_session"),
     CommandSpec(
+        id="view.advisor_toggle",
+        attr="_advisor_toggle_action",
+        text="Advisor",
+        icon="advisor_icon:text",
+        tooltip=(
+            "Show the Advisor — what looks wrong or unwise in the model, why, "
+            "and what to do about it"),
+        checkable=True),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1202,9 +1418,11 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save", "file.save_as",
               "file.close_file", "file.quit", "home.diff")),
-    ("Print and Export", ("file.print", "file.export_pdf", "file.export_xlsx",
-               "file.export_ods", "file.export_tables", "file.export_svg",
-               "file.export_png", "file.copy_view")),
+    # U22: one Export (the file type picks what is written), then Export
+    # Tables for choosing tables; the single-type commands stay in the
+    # command palette and on their shortcuts.
+    ("Print and Export", ("file.print", "file.export", "file.export_tables",
+                          "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after
@@ -1222,13 +1440,20 @@ LAYOUT: tuple[Page, ...] = (
     # the model's by a tab.
     _p("Model", "_model_page_index",
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
-                           Btn("home.copy"), Btn("home.select_all")),
+                           Btn("home.copy"), Btn("home.duplicate"),
+                           Btn("home.select_all")),
+             # Duplicate in Parallel, Array and Paste Data Only live in the
+             # canvas menu's Duplicate submenu, their shortcuts and command
+             # search: four more buttons pushed Build off a 1280 px ribbon.
              priority=2),
        Group("Tools", (Btn("model.select", True), Btn("model.connect", True))),
        Group("Build", (Btn("model.add_block", True),
                        Btn("model.add_node", True),
                        Btn("model.add_event", True),
                        Btn("model.add_hier", True),
+                       # one column of three small buttons; alone between
+                       # the large ones Quick Add left a gap
+                       Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
                        Btn("results.analytical", True)), priority=4),
@@ -1265,15 +1490,24 @@ LAYOUT: tuple[Page, ...] = (
        # watched); off, Run uses the cores shown right beside it.
        Group("Run", (Btn("sim.run", True), Btn("sim.live_sim", True),
                      Custom("_build_trials_box"), Custom("_build_cores_box"),
-                     Btn("sim.run_settings"))),
+                     Btn("sim.run_settings"), Btn("sim.precision"))),
        Group("Control", (Btn("sim.pause"), Btn("sim.stop_run"),
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis
        # box. No second set of toggles on the ribbon.
-       Group("Animation", (Custom("_build_speed_controls"),), priority=1),
-       # Many runs at once: one parameter across values, or several models.
-       Group("Batch", (Btn("sim.sweep", True), Btn("sim.compare", True)),
-             priority=3)),
+       Group("Animation", (Custom("_build_speed_controls"),), priority=1)),
+    # Many runs at once, each answering a question about the model: what a
+    # change would do, which inputs matter, what to hold and how often to
+    # maintain, and how it compares with other models. All run on copies.
+    _p("Analyse", "_analyse_page_index",
+       Group("What If", (Btn("analyse.whatif", True), Btn("sim.recommend", True)),
+             priority=4),
+       Group("Sensitivity", (Btn("analyse.sensitivity", True), Btn("sim.sweep", True)),
+             priority=3),
+       Group("Optimise", (Btn("analyse.optimise_spares", True),
+                          Btn("analyse.optimise_pm", True),
+                          Btn("analyse.optimise_crews", True)), priority=2),
+       Group("Compare", (Btn("sim.compare", True),), priority=1)),
     # Stepping and what-if failures are one activity -- pause, fail a block,
     # step on, repair it -- so they share a tab instead of making the user
     # cross between two. (Raptor 7 keeps its Failure Effects view a
@@ -1299,11 +1533,7 @@ LAYOUT: tuple[Page, ...] = (
                       Btn("results.results_float", True),
                       Btn("results.clear_results"),
                       Btn("results.spof"), Btn("results.domains"))),
-       Group("Show on Canvas", (Btn("results.weak_color", True),
-                                Btn("results.capacity_overlay"),
-                                Btn("results.cost_overlay"),
-                                Btn("results.spares_overlay"),
-                                Btn("results.importance_overlay"))),
+       Group("Show on Canvas", (Custom("_build_overlay_control"),)),
        # Spread belongs with the band controls: it changes the active
        # overlay's bands (Weak Links or Cost), not the overlay itself.
        Group("Bands", (Custom("_build_weak_link_settings"),
@@ -1319,9 +1549,11 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.fev_inspector_toggle"),
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
+                        Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
-       Group("Appearance", (Btn("view.theme", True), Btn("view.prefs", True),
+       Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
+                            Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
              priority=2)),

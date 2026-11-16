@@ -223,6 +223,24 @@ def build_schema() -> dict[str, Any]:
             "annotations": {"type": "array", "items": annotation},
             "flow_directions": {"type": "object",
                                 "additionalProperties": {"type": "string"}},
+            "advisor": {"type": "object", "additionalProperties": False,
+                        "description": "Advisor findings the model's owner "
+                                       "dismissed, each with its reason",
+                        "properties": {"ignored": {"type": "array", "items": {
+                            "type": "object", "additionalProperties": False,
+                            "required": ["rule"],
+                            "properties": {
+                                "rule": {"type": "string"},
+                                "target": {"type": "string"},
+                                "reason": {"type": "string"}}}}}},
+            "out_of_service": {
+                "type": "object",
+                "description": "Elements taken out of service for a what-if, "
+                               "without changing their data: 'cut' (down for "
+                               "the whole run) or 'linked' (never fails). Keys "
+                               "are block:ID, event:ID or hier:ID",
+                "propertyNames": {"pattern": "^(block|event|hier):[0-9]+$"},
+                "additionalProperties": {"enum": ["cut", "linked"]}},
             "view": {"type": "object", "additionalProperties": False,
                      "properties": {
                          "link_routing": {"enum": ["straight", "angled",

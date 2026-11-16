@@ -1,6 +1,6 @@
 .TH "RAPTOR-FEV" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-fev \- Fail things and read the effects (Failure Effects View).
+raptor\-fev \- Failure Effects View: fail things, read the effects
 .SH SYNOPSIS
 \fBraptor fev\fR [\-h] [\-\-phase N] [\-\-fail SEL] [\-\-repair SEL] [\-\-cycle SEL] [\-\-script FILE] [\-\-log FILE] [\-f {text,json}] [\-\-criticality] [\-\-capacity] MODEL
 .SH DESCRIPTION
@@ -28,7 +28,7 @@ read actions from FILE, one per line (\- for stdin); each `write` line records t
 write the legacy\-format Failure Effects log (CRLF, the file Write To Failure Effects Log appends to)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .TP
 \fB\-\-criticality\fR
 add the Criticality line (a developer option)

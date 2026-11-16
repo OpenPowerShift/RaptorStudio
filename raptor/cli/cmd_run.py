@@ -169,8 +169,14 @@ def run_model(ws: Any, model_id: str, args: Any, *,
         confirm_long_run=True, seed=getattr(args, "seed", None),
         progress=progress,
         setup_progress=_setup_callback(getattr(args, "progress", "auto")))
+    precision = getattr(args, "precision", None)
+    if precision and getattr(args, "hierarchy", None):
+        raise CliError("--precision does not combine with --hierarchy yet",
+                       X.USAGE)
     try:
-        if getattr(args, "hierarchy", None):
+        if precision:
+            result = _run_precision(ws, model_id, args, precision, kwargs)
+        elif getattr(args, "hierarchy", None):
             from raptor.api import isolate
             try:
                 result = api_run.run_isolated(
@@ -189,12 +195,67 @@ def run_model(ws: Any, model_id: str, args: Any, *,
     return result, applied, warns
 
 
+def _run_precision(ws: Any, model_id: str, args: Any, text: str,
+                   kwargs: dict) -> Any:
+    """Run in growing batches until the requested relative precision."""
+    from raptor.api.scenarios import Precision, run_to_precision
+    try:
+        relative = (float(text.rstrip("%")) / 100 if text.endswith("%")
+                    else float(text))
+    except ValueError:
+        raise CliError(f"--precision {text!r} is not a number or percent",
+                       X.USAGE) from None
+    try:
+        precision = Precision(
+            metric=getattr(args, "precision_metric", "system.ao"),
+            relative=relative,
+            min_trials=getattr(args, "min_trials", 50),
+            max_trials=getattr(args, "max_trials", 20_000),
+            batch=getattr(args, "precision_batch", 50),
+            confidence=getattr(args, "precision_confidence", 0.95))
+        precision.field()
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    inner = kwargs.pop("progress", None)
+
+    def progress(done: int, total: int, note: str) -> None:
+        if inner is not None:
+            inner(done, total)
+
+    try:
+        outcome = run_to_precision(
+            ws, model_id, precision,
+            workers=kwargs.get("workers", 1), seed=kwargs.get("seed"),
+            progress=progress, timeout_s=kwargs.get("timeout_s", 1800.0),
+            confirm_long_run=True,
+            collect_events=kwargs.get("collect_events", False),
+            availability_plot=kwargs.get("availability_plot"),
+            interim_cost=kwargs.get("interim_cost"),
+            setup_progress=kwargs.get("setup_progress"))
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    result = outcome.result
+    result.precision = outcome.to_dict()
+    half = outcome.half_width
+    eprint(f"precision: {outcome.trials:,} trials, {outcome.watched()} "
+           f"{outcome.mean:.6g}"
+           + (f" ± {half:.3g}" if half is not None else "")
+           + f" at {100 * precision.confidence:.0f} % confidence "
+           f"(target ±{100 * precision.relative:.3g} %; "
+           f"{outcome.STOPPED.get(outcome.stopped, outcome.stopped)})")
+    return result
+
+
 def _progress_callback(mode: str):
     if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
         return None
     import json as _json
+    last: list[Any] = [None]
 
     def cb(done: int, total: int | None) -> None:
+        if (done, total) == last[0]:
+            return          # the engine polls; json printed the same line hundreds of times
+        last[0] = (done, total)
         if mode == "json":
             eprint(_json.dumps({"event": "progress", "done": done,
                                 "total": total}))
@@ -211,8 +272,12 @@ def _setup_callback(mode: str):
     if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
         return None
     import json as _json
+    last: list[Any] = [None]
 
     def cb(stage: str, done: int, total: int) -> None:
+        if (stage, done, total) == last[0]:
+            return
+        last[0] = (stage, done, total)
         if mode == "json":
             eprint(_json.dumps({"event": "setup", "stage": stage,
                                 "done": done, "total": total}))
@@ -223,11 +288,72 @@ def _setup_callback(mode: str):
     return cb
 
 
+def insight_callback(mode: str):
+    """Progress of the work after the last replication (the attribution
+    replay, capacity states): a `raptor.api.progress.ProgressFn`."""
+    if mode == "none" or (mode == "auto" and not sys.stderr.isatty()):
+        return None
+    import json as _json
+    last: list[Any] = [None]
+
+    def cb(p: Any) -> None:
+        key = (p.stage, p.done, p.total)
+        if key == last[0]:
+            return
+        last[0] = key
+        if mode == "json":
+            eprint(_json.dumps({"event": "insight", "stage": p.stage,
+                                "label": p.label, "done": p.done,
+                                "total": p.total}))
+        else:
+            tot = f"/{p.total}" if p.total else ""
+            sys.stderr.write(f"\r{p.label} {p.done}{tot}"
+                             + ("\n" if p.total and p.done >= p.total else ""))
+            sys.stderr.flush()
+    return cb
+
+
+def add_study_progress(parser: Any) -> None:
+    """`--progress` for a study (what-if, sensitivity, an optimiser)."""
+    parser.add_argument(
+        "--progress", choices=("auto", "bar", "json", "none"), default="auto",
+        help="progress on stderr (auto: only on a terminal; json: one object per "
+             "line; none, or -q, for silence)")
+
+
+def study_progress(args: Any):
+    """A `(done, total, label)` hook printing a study's progress on stderr,
+    or None under -q, `--progress none`, or `auto` when stderr is not a
+    terminal (so a pipeline's log is not filled with counters)."""
+    mode = getattr(args, "progress", "auto") or "auto"
+    if (getattr(args, "quiet", False) or mode == "none"
+            or (mode == "auto" and not sys.stderr.isatty())):
+        return None
+    import json as _json
+
+    def cb(done: int, total: int | None, label: str | None = "") -> None:
+        if mode == "json":
+            eprint(_json.dumps({"event": "progress", "done": done, "total": total,
+                                "label": label or ""}))
+        elif label:
+            eprint(f"[{done}/{total or '?'}] {label}")
+    return cb
+
+
+def progress_options(mode: str) -> dict[str, Any]:
+    """The three progress hooks `raptor.api.run.run` takes, for a CLI
+    `--progress` mode."""
+    return {"progress": _progress_callback(mode),
+            "setup_progress": _setup_callback(mode),
+            "insight_progress": insight_callback(mode)}
+
+
 def results_document(result: Any, ws: Any, model_id: str, model_path: str,
                      applied: dict, warns: list[str], files: list[str],
                      args: Any) -> dict:
     """The structured results (schema raptor-results/1)."""
     import raptor
+    from raptor.api.presentation import pooled_outages
     handle = ws.get(model_id)
     sec = handle.rbd.sections.get("SYSTEM_DATA")
     row = sec.rows[0] if sec and sec.rows else {}
@@ -243,11 +369,14 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
             "stats_start": _num(row.get("StartStats")),
             "seed": getattr(args, "seed", None),
             "jobs": getattr(args, "jobs", 1),
+            "streams": getattr(result, "streams", "sequential"),
             "applied": applied,
         },
         "summary": {m.name: _null_nan(m.to_dict())
                     for m in result.metrics},
         "runs": result.per_run,
+        # MTBDE is a mean of per-run figures; this is the pooled rate
+        **({"outages": rate.to_dict()} if (rate := pooled_outages(result.per_run)) else {}),
         "warnings": list(warns) + list(result.warnings),
         "files": files,
         "run_id": result.run_id if getattr(args, "workspace", None) else None,
@@ -257,6 +386,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
         "versions": {"raptor": raptor.__version__,
                      "python": platform.python_version()},
         **({"isolation": result.isolation} if getattr(result, "isolation", None) else {}),
+        **({"precision": result.precision} if getattr(result, "precision", None) else {}),
         # --importance: the ranking `summary_text` prints and JSON carries.
         **({"importance": result.importance} if getattr(result, "importance", None) else {}),
     }
@@ -278,7 +408,8 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
     rows = doc["summary"]
     names = [n for n in rows if not metrics or n in metrics]
     head = (f"{doc['model']['name']}: {doc['options']['runs']} run(s), "
-            f"{doc['wall_seconds']:.1f}s")
+            f"{doc['wall_seconds']:.1f}s, "
+            f"{doc['options'].get('streams', 'sequential')} streams")
     lines = [head, ""]
     if doc.get("isolation"):
         lines.insert(0, doc["isolation"]["banner"])
@@ -290,6 +421,11 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
         lines.append(f"{n:<{w}}  " + " ".join(
             f"{_fmt(m.get(k)):>14}" for k in ("mean", "min", "max", "stdev",
                                               "sem")))
+    outages = doc.get("outages")
+    if outages and (not metrics or "MTBDE" in metrics):
+        from raptor.api.presentation import OutageRate
+        rate = OutageRate(outages["outages"], outages["runs"], outages["up_time"])
+        lines.extend(["", rate.sentence(doc["model"].get("units") or "")])
     for wmsg in doc["warnings"]:
         lines.append(f"warning: {wmsg}")
     imp = doc.get("importance")

@@ -120,6 +120,26 @@ class AnnotationMixin(_Base):
             i += 1
         return i
 
+    def add_annotation_from_part(self, part: Any) -> int | None:
+        """Create a new annotation from a part-type template, at the view."""
+        if getattr(self, "_rbd_ref", None) is None:
+            return None
+        fields = dict(getattr(part, "fields", {}) or {})
+        kind = str(fields.pop("kind", "text") or "text")
+        aid = self._next_anno_id()
+        centre = self.mapToScene(self.viewport().rect().center())
+        entry = {
+            "kind": kind, "id": aid, "parent": self._current_parent,
+            "x": round(centre.x(), 2), "y": round(centre.y(), 2),
+            "w": float(fields.pop("w", 120) or 120),
+            "h": float(fields.pop("h", 40) or 40),
+            "text": str(fields.pop("text", "") or ""),
+            "z": self.new_annotation_z(),
+            **self._anno_default_props(kind)}
+        entry.update(fields)
+        self._stack.push(AnnoCmd(self, entry, add=True))
+        return aid
+
     def _begin_annotation(self, kind: str, scene_pos: QPointF):
         """Create a new text annotation (single click: it grows with its
         own content, unlike rect/ellipse's two-click drag placement --

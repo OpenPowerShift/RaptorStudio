@@ -1,6 +1,6 @@
 .TH "RAPTOR-STEP" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-step \- Run one replication (\-\-run, default the first) one state change at a time (the window's Step button) and print, for every stop, the time, the system state, the event\-log lines written and the blocks whose status changed. Stops after \-\-events stops, at the first stop at or past \-\-until, when the \-\-break block changes status, or at the end of the run (the last record has done=true).
+raptor\-step \- step through a run, printing what each step changed
 .SH SYNOPSIS
 \fBraptor step\fR [\-h] [\-\-run N] [\-\-until T] [\-\-events N] [\-\-break SEL] [\-\-fine] [\-f {ndjson,text}] MODEL
 .SH DESCRIPTION
@@ -24,7 +24,7 @@ stop when this block (name or number) changes status
 advance one calendar entry per stop instead of one state change
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{ndjson|text}\fR
-
+output format (default ndjson)
 .SH EXAMPLES
 .PP
 The first ten stops of run 1: time, system state, event\-log lines and the blocks that changed.

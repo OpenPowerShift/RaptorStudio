@@ -12,7 +12,6 @@ import logging
 import os
 import signal
 import sys
-import tempfile
 from typing import cast
 from pathlib import Path
 
@@ -20,9 +19,13 @@ from PySide6.QtCore import QEvent, QTimer
 from PySide6.QtWidgets import QApplication
 from raptor.gui.ui.main_window import MainWindow
 
-#: Fixed path for the --debug log. A fixed location survives a crashed
-#: terminal, so the log can still be read afterwards.
-DEBUG_LOG_PATH = Path(tempfile.gettempdir()) / "raptor_studio_debug.log"
+def _debug_log_path(create: bool = True) -> Path:
+    """Fixed path for the --debug log, in the user's private state folder:
+    a fixed location survives a crashed terminal, so the log can still be
+    read afterwards (a fixed name in the shared temp folder could be a
+    planted symlink)."""
+    from raptor.gui.state_dir import state_dir
+    return state_dir(create=create) / "debug.log"
 
 
 def _configure_debug_tracing() -> None:
@@ -39,8 +42,9 @@ def _configure_debug_tracing() -> None:
     # has no stderr at all: `sys.stderr` is None.
     handlers: list[logging.Handler] = (
         [logging.StreamHandler(sys.stderr)] if sys.stderr is not None else [])
+    log_path = _debug_log_path()
     try:
-        handlers.append(logging.FileHandler(DEBUG_LOG_PATH, mode="w"))
+        handlers.append(logging.FileHandler(log_path, mode="w"))
     except OSError:
         pass   # stderr alone still works
     logging.basicConfig(
@@ -53,10 +57,10 @@ def _configure_debug_tracing() -> None:
     # file=None -> faulthandler's OWN fd, which survives after Python's
     # logging handlers might not get a chance to flush during a hard
     # native crash (a raw OS-level write, not routed through logging).
-    fault_fd = open(DEBUG_LOG_PATH, "a")  # noqa: SIM115 -- faulthandler writes to it until exit
+    fault_fd = open(log_path, "a")  # noqa: SIM115 -- faulthandler writes to it until exit
     faulthandler.enable(file=fault_fd, all_threads=True)
     log = logging.getLogger("raptor.gui")
-    log.debug("debug tracing enabled -- log file: %s", DEBUG_LOG_PATH)
+    log.debug("debug tracing enabled -- log file: %s", log_path)
 
 
 def _enable_crash_backtrace() -> None:
@@ -74,7 +78,7 @@ def _enable_crash_backtrace() -> None:
         if sys.stderr is not None:
             faulthandler.enable(all_threads=True)
         else:
-            fault_fd = open(DEBUG_LOG_PATH, "a")  # noqa: SIM115 -- faulthandler keeps writing to it until exit
+            fault_fd = open(_debug_log_path(), "a")  # noqa: SIM115 -- faulthandler keeps writing to it until exit
             faulthandler.enable(file=fault_fd, all_threads=True)
     except (RuntimeError, OSError, ValueError):
         logging.getLogger("raptor.gui").warning(
@@ -173,7 +177,7 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
         "--debug", action="store_true",
         help="verbose model-load/render tracing + a native-crash "
              f"backtrace on segfault, written to stderr and to "
-             f"{DEBUG_LOG_PATH} (also settable via RAPTOR_GUI_DEBUG=1)")
+             f"{_debug_log_path(create=False)} (also settable via RAPTOR_GUI_DEBUG=1)")
     parser.add_argument(
         "--mcp", action="store_true", default=False,
         help="Start the MCP server instead of the GUI (no Qt required).")

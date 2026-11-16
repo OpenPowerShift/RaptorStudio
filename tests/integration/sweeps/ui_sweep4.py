@@ -206,9 +206,9 @@ def u06_enable_analyses_and_run():
     # overview cards all have values
     for acronym, card in w._results._cards.items():
         assert card._value.text() not in ("", "—"), acronym
-    # graphs tab parses Ao lines without error
-    g = w._results._graphs_page
-    assert g is not None
+    # the Charts tab parses the recorded rows without error
+    g = w._results._charts_page
+    assert g is not None and g.titles()
     print(f"    batch of 3 runs in {time.time()-run_started:.1f}s")
 run_check("U06.batch_run_all_analyses", u06_enable_analyses_and_run)
 
@@ -414,7 +414,7 @@ run_check("U15.fev.interactive_log", u15_interactive_log)
 
 # ==================================== 16. block library roundtrip
 def u16_block_library():
-    from raptor.gui.ui.block_library import export_library, load_library
+    from raptor.core.fileio.block_library import export_library, load_library
     w._new_file(); pe()
     v = w._diagram_dock.view
     a = next(x for x in v.blocks if x != 0)

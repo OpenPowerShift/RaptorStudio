@@ -9,7 +9,7 @@ from raptor.gui import app
 
 def test_crash_backtrace_survives_a_missing_stderr(monkeypatch, tmp_path):
     log = tmp_path / "debug.log"
-    monkeypatch.setattr(app, "DEBUG_LOG_PATH", log)
+    monkeypatch.setattr(app, "_debug_log_path", lambda create=True: log)
     monkeypatch.setattr(sys, "stderr", None)
     was_enabled = faulthandler.is_enabled()
     faulthandler.disable()
@@ -26,7 +26,8 @@ def test_crash_backtrace_survives_a_missing_stderr(monkeypatch, tmp_path):
 
 def test_debug_tracing_survives_a_missing_stderr(monkeypatch, tmp_path):
     import logging
-    monkeypatch.setattr(app, "DEBUG_LOG_PATH", tmp_path / "debug.log")
+    monkeypatch.setattr(app, "_debug_log_path",
+                        lambda create=True: tmp_path / "debug.log")
     monkeypatch.setattr(sys, "stderr", None)
     root = logging.getLogger()
     saved = list(root.handlers), root.level

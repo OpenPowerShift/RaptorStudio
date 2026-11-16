@@ -21,9 +21,9 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **68 tools** in 7 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **67**.
+- **94 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **93**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
-- The tutorial book has **24 chapters**; the MCP chapter is book chapter 23 of 24 (source `new_docs/chapters/ch16-mcp.adoc`).
+- The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
 
 - **Start small.** Install the optional `[mcp]` extra, connect one client, and
@@ -366,12 +366,13 @@ Every tool carries an MCP risk hint:
 
 - **read-only** — changes no model. Safe to call repeatedly. Examples:
   `list_models`, `validate_model`, `get_report`, `render_diagram`.
-- **writes** — edits a model, writes run results, or exports a file.
-  Examples: `add_block`, `connect`, `configure_system`, `simulate`,
-  `export_tables`.
-- **destructive** — deletes, closes or reverts something. Examples:
-  `delete_element`, `close_model`, `delete_file`, `undo_last_edit`,
-  `save_model_as` (overwrites an existing export of that name).
+- **writes** — edits a model or writes run results. Examples:
+  `add_block`, `connect`, `configure_system`, `simulate`.
+- **destructive** — deletes, closes, reverts or overwrites something.
+  Examples: `delete_element`, `close_model`, `delete_file`,
+  `undo_last_edit`, and the exports `save_model_as`, `export_tables`,
+  `export_report` and `export_analytical` (each replaces a file of the
+  same name).
 
 Start the server with `--read-only` to refuse tools that create, edit or
 delete a model or export a file; opening an existing model, analysis and
@@ -469,6 +470,22 @@ whose estimate exceeds `timeout_s` unless `confirm_long_run` is true. It
 returns `run_id`, `runs`, `requested_runs`, `truncated`, `warnings`,
 `caveats` and a `summary` with min/mean/max/stdev/sem per metric.
 
+Instead of guessing `num_runs`, pass `precision`, e.g.
+`{"relative": 0.05, "metric": "system.ao"}`: `simulate` grows the batch
+until the watched result is known to that relative precision and returns a
+`precision` block (`watched`, `value`, the interval, `trials`, `stopped`
+and the pass history). Availability and reliability are watched as the part
+lost (1 − value) unless `on` says otherwise; a time such as `system.mdt` is
+watched as itself. The stop rule is half-width ≤ r/(1+r) × mean with
+Student's t at `confidence` (0.95). `max_trials` is held to the server's
+`--max-runs`.
+
+`what_if`, `sensitivity`, `recommend_changes` and the optimisers are held
+to the same limits as a run: `trials` (or the model's own NumRuns when it
+is left out) within `--max-runs`, a finite `timeout_s` up to a day, and a
+bounded number of variants. Their scratch copies and intermediate runs are
+removed when they finish.
+
 Use `simulate` for a batch that fits in one tool call, and `start_run` when
 it does not:
 
@@ -485,6 +502,124 @@ section; `list_tables` lists the available input and result table keys;
 `get_table` returns typed rows for one of them; `get_timeseries` returns
 points to plot. `describe_metrics` lists the metric names and units if you
 are unsure what a column means.
+
+<a id="advise"></a>
+
+### Ask what is wrong, and what drives the downtime
+
+`advise` checks a model the way a reviewer would, before anything is run: a
+backup that depends on the unit it backs up, parallel paths that are all
+required, placeholder data, spares or crews that cannot meet demand,
+maintenance that cannot pay off, too few runs. Each finding has a stable
+rule id, says whether it is exact or an estimate, carries the numbers it
+used and, where there is one, a fix. `list_advisor_rules` lists every rule.
+`apply_fix` applies one finding's fix as a single undoable edit.
+`ignore_finding` dismisses a finding that does not apply (one target, or
+the whole rule) with a reason saved in the model; `advise` then leaves it
+out and lists it under `ignored`, and `restore=True` brings it back.
+
+To learn what causes the downtime, run with `attribution=True` (`simulate`
+or `start_run`) and call `downtime_drivers`: each system outage is charged
+to the element that started it and split by cause (hands-on repair, waiting
+for a spare, waiting for people or equipment, logistics delay, planned
+maintenance, held by another element). `advise` with that `run_id` then
+adds the after-run findings: how precisely the downtime is known, which
+few elements cause most of it and which lever fits, and, with `targets`,
+whether each requirement is met, missed or too close to call.
+
+`annual_availability` cuts the same run's outages on year boundaries (or any
+period length) and gives the percentiles of availability per period, pooled
+and by year number, the worst periods, and with `below` how often a period
+falls under a guarantee. An average over a whole life hides a bad year; this
+shows it.
+
+`run_story` returns the short answer-first Story for a finished run: the
+headline against its target, the run-to-run dots and the share that met it,
+the top drivers, the top findings, six key numbers and provenance. It is the
+same object the application's Story tab paints and `raptor explain --story`
+prints.
+
+`replace_in_table` finds and replaces in one model table column
+(`inputs.blocks_all`, nodes, events, pools, ...), with whole-cell and case
+options; a set that would break a name is refused whole.
+
+`duplicate_elements` copies a selection with fresh ids and names, and
+`copy_element_data` copies one block's chosen data groups onto others without
+touching names, positions, links or dependencies.
+
+`set_out_of_service` takes blocks, events or hierarchies out of service for
+a what-if without changing their data: `cut` (down for the whole run, its
+path broken), `linked` (never fails) or `in_service`. A hierarchy covers
+everything inside it. Every later run and study uses the state, each result
+carries an "Out of service" warning, and `describe_model` lists what is out.
+It is saved in .rbds only.
+
+`list_part_types`, `apply_part_type`, `save_part_type` and `sync_part_types`
+share an element's data as a named part type: blocks, nodes, events,
+hierarchies and annotations all have one. Applying one writes ordinary
+block columns and records a link in the model, so the engine still sees an
+ordinary block; `sync_part_types` reports (or applies) later changes and
+leaves hand-edited fields alone while they are marked as overrides.
+
+`save_assembly` and `insert_assembly` keep structure instead of values: a
+selection (a hierarchy with everything inside it, a node with its blocks,
+events) is saved with its internal links, and inserting it adds a fresh copy
+with new ids and free names. Links to elements outside the copy are dropped,
+and spare pools or resources the target model lacks are reset, as a paste
+from another model resets them; the result's `notes` say what was reset.
+
+`sensitivity` screens the inputs one at a time: it varies block lives,
+repair times, PM intervals, spare stock and crews at a low and a high value,
+pairs each variant with Base, and ranks the swings. It shows each input
+alone; interactions need the global methods.
+
+`what_if` compares one changed model with Base: `changes` are PATH=VALUE
+edits, Base and the scenario run with the same seed, and the result gives
+each metric's paired difference with its standard error and the chance the
+scenario is better. The open model is untouched.
+
+`recommend_changes` goes from the downtime drivers to decisions: it picks
+the `top` blocks causing the most downtime, proposes one change for each
+from the cause behind its outages (repair or delays halved, one more spare
+or crew, PM half as often, a part that lasts twice as long), and tests each
+against Base with paired runs. Every row gives the PATH=VALUE change, the
+availability gain with its standard error and chance of being better, the
+downtime saved per run, the unit cost the model holds (null when none) and
+a verdict of what was measured: "clearly helps" needs a real gain (95 %
+confidence shared across the changes tested) that removes at least 5 % of
+the downtime; "helps a little" is real but smaller. No verdict weighs cost,
+so do not present one as advice to spend money.
+
+`optimise_spares`, `optimise_pm` and `optimise_resources` search rather
+than test one change. `optimise_spares` walks a Poisson-backorder path of
+stock levels and returns the cheapest point whose lower confidence bound
+meets the target (or, with `mode="curve"`, the whole frontier);
+`optimise_pm` screens each block with the age-replacement formula and then
+simulates no PM and 0.5 to 2 times its interval; `optimise_resources`
+simulates crew sizes around the offered load. Each returns `changes`, the
+PATH=VALUE edits for its recommendation, and never edits the model: apply
+them with `manage_spare_pools`, `update_element` or `manage_resources`. A
+recommendation that misses its target is said to miss it.
+
+`fit_from_experience` turns shares and ages from experience ("one in ten fail by 100
+hours, half by 300") into a Weibull, lognormal or exponential law, as
+`raptor fit` does. Given a `block`, it also returns the `changes` and the
+`update` fields (law and parameters together) for `update_element`.
+
+`run_chart` returns one chart of a finished run as the same `ChartSpec` the
+application paints. The text gives the caption and the numbers drawn; pass
+`render_svg=true` for the figure itself as SVG (off by default: the SVG is
+most of the answer's size). The base charts (`trial-outcome`, `ecdf`, `convergence`,
+`availability-ladder`) need only the run; the downtime charts need
+`attribution=True` (including the treemap, the outage anatomy and the
+run-to-run ribbon), and
+`importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
+`--chart-svg PATH` writes it.
+
+Attribution replays the event log, so the results are the same with it on;
+it holds the log in memory for the batch, so leave it off for very large
+runs. It describes the design as simulated. To learn what a change would
+achieve, change the model and compare.
 
 <a id="analyse"></a>
 
@@ -577,6 +712,11 @@ field was never applied, not that the model is insensitive.
 - `export_tables` writes CSV, fixed-width text, a combined text report, an
   Excel workbook or an ODS workbook. With no `tables`, it exports the default
   set; with no `formats`, it writes one `.xlsx`.
+- `export_report` writes a run's report as one PDF or one self-contained
+  HTML file: the Story (headline, what drives the downtime, findings,
+  charts, how to read each measure) and the diagram by default; add
+  `results` or `data_tables` to `sections` for the tables. Run with
+  `attribution=True` for the drivers part.
 - `export_analytical` solves exactly and writes a spreadsheet with Summary,
   Elements, Curve, Equation and Assumptions sheets. `phase="all"` solves
   every phase.
@@ -587,6 +727,12 @@ field was never applied, not that the model is insensitive.
   tell when to zoom in.
 - `render_diagram_svg` draws the same level as SVG text without Qt, which is
   useful on a headless server or when checking layout and connections.
+  With `layer` (`downtime-share` or `lost-capacity`) and the `run_id` of a
+  run made with `attribution=True`, it draws the run's result on the
+  diagram as the application's Show on canvas layers do: band fills, the
+  share under each element, the main cause's letter, a dashed ring where
+  the runs disagree, Σ on each hierarchy, links as wide as their node's
+  flow, and a legend.
 
 Both renderers accept `theme` (`light`/`dark`) and `routing` (`straight`,
 `angled`, `orthogonal`). Renders are content-addressed: an edit changes the
@@ -601,8 +747,10 @@ replication, and a batch can run for hours. What helps:
 
 - **Run in the background.** `start_run` returns a `job_id` at once. Poll
   `run_status`; its `phase` is `setting_up` while the model is prepared
-  (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`, so
-  a quiet start is not a hang. `cancel_run` stops a job between replications,
+  (with `setup`: `stage`, `done`, `total`, `percent`), then `simulating`,
+  then, with `attribution=True`, `attributing` while the event log is
+  replayed (with `attributing`: `label`, `done`, `total`), so a quiet start
+  or finish is not a hang. `cancel_run` stops a job between replications,
   or during set-up; completed replications become a truncated run.
 - **Use the cores.** Leave `workers` out and a model of 500+ elements run
   20+ times uses half the machine's cores, at most 8, never fewer than two.

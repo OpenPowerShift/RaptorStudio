@@ -152,6 +152,9 @@ class ContextMenuMixin:
                 comment_h.setEnabled(self.has_convertible_comment(
                     "hier", it2._hier_id))
                 hid_menu.addSeparator()
+                from raptor.gui.ui.diagram_out_of_service import add_submenu
+                add_submenu(self, hid_menu, [("hier", int(it2._hier_id))])
+                hid_menu.addSeparator()
                 del_h = hid_menu.addAction("Delete hierarchy")
                 chosen_h = self._exec_menu(hid_menu, event)
                 if chosen_h is copy_h:
@@ -313,6 +316,15 @@ class ContextMenuMixin:
         cut_act.setEnabled(n_sel > 0 or n_annos > 0)
         paste_act = menu.addAction("Paste Here (at pointer)")
         paste_act.setEnabled(self.can_paste())
+        dup_menu = menu.addMenu("Duplicate")
+        dup_act = dup_menu.addAction("Duplicate")
+        dup_act.setEnabled(n_sel > 0 or n_annos > 0)
+        par_act = dup_menu.addAction("Duplicate in Parallel…")
+        par_act.setEnabled(kind == "Block" and n_sel == 1)
+        arr_act = dup_menu.addAction("Array…")
+        arr_act.setEnabled(n_sel > 0 or n_annos > 0)
+        data_act = dup_menu.addAction("Paste Data Only")
+        data_act.setEnabled(self.can_paste() and n_sel > 0)
         # Comment -> annotation: offered for the element actually
         # right-clicked (even in a multi-selection), enabled only when it
         # has a comment to convert. Links have no Inspector comment box.
@@ -335,6 +347,9 @@ class ContextMenuMixin:
             menu.addSeparator()
             out_act = menu.addAction("Move to parent level")
         self._hier_move_submenu(menu)
+        if kind in ("Block", "Event"):
+            from raptor.gui.ui.diagram_out_of_service import add_submenu, selected_targets
+            add_submenu(self, menu, selected_targets(self))
         menu.addSeparator()
         remove_links_act = None
         if kind != "Link":
@@ -389,6 +404,35 @@ class ContextMenuMixin:
                 _view_status(self, "Routing point added")
         elif chosen is paste_act:
             self.paste(at_model=(mx, my))
+        elif chosen is dup_act:
+            self.duplicate_selection()
+        elif chosen is par_act:
+            # the ribbon's form: k starts at 1 (U26: copies+1 was a
+            # series chain) and says what the choice means
+            from raptor.gui.ui.count_form import ask_redundancy
+            answer = ask_redundancy(
+                self, "Duplicate in Parallel", count_label="Copies to add:",
+                count_default=1, count_max=50, already=1,
+                intro="Copies of the selected block side by side with it, "
+                      "between the same neighbours.")
+            if answer is not None:
+                self.duplicate_parallel(*answer)
+        elif chosen is arr_act:
+            from PySide6.QtWidgets import QInputDialog
+            copies, ok = QInputDialog.getInt(self, "Array", "Copies:", 3, 1,
+                                            200)
+            direction = "right"
+            if ok:
+                direction, ok = QInputDialog.getItem(
+                    self, "Array", "Direction:", ["right", "down"], 0, False)
+            spacing = 1
+            if ok:
+                spacing, ok = QInputDialog.getInt(
+                    self, "Array", "Spacing:", 1, 1, 20)
+            if ok:
+                self.array_selection(copies, direction, spacing)
+        elif chosen is data_act:
+            self.paste_data(("Failure", "Repair"))
         elif comment_act is not None and comment_oid is not None \
                 and chosen is comment_act:
             self.comment_to_annotation(kind.lower(), int(comment_oid))

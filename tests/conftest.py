@@ -85,6 +85,15 @@ def _open_models_in_new_windows():
 
 
 @pytest.fixture(autouse=True)
+def _advisor_already_introduced():
+    """The first run with findings opens the Advisor once per install; in
+    tests that would make dock layout depend on which test ran first, so
+    every test starts as an install that has seen it."""
+    QSettings().setValue("advisor/introduced", True)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _empty_clipboard():
     """Nothing on the system clipboard between tests: Copy puts a Raptor
     clip there, and Paste is only available while one is, so a clip left by
@@ -501,6 +510,34 @@ def _is_fidelity_module(path: str) -> bool:
 
 
 _exit_status = None
+_session_temp: str | None = None
+
+
+def pytest_configure(config):
+    """Give the session its own temp root, removed before the hard exit.
+
+    `pytest_unconfigure` ends the process with `os._exit`, which skips
+    `atexit` and every `TemporaryDirectory` finalizer, so each session left
+    its stream spools, analysis workspaces and the like in the system temp
+    folder (tens per run, thousands over weeks). Everything the code under
+    test makes with `tempfile` now lands here instead, worker processes
+    included (they inherit TMPDIR), and goes in one rmtree. pytest's own
+    `tmp_path` root stays where it was, so a failure's files are kept."""
+    global _session_temp
+    import tempfile
+    if _session_temp is not None or os.environ.get("RAPTOR_TEST_TEMP"):
+        return
+    original = tempfile.gettempdir()
+    os.environ.setdefault("PYTEST_DEBUG_TEMPROOT", original)
+    _session_temp = tempfile.mkdtemp(prefix="raptor-tests-", dir=original)
+    os.environ["RAPTOR_TEST_TEMP"] = os.environ["TMPDIR"] = _session_temp
+    tempfile.tempdir = _session_temp
+
+
+def _remove_session_temp() -> None:
+    import shutil
+    if _session_temp is not None:
+        shutil.rmtree(_session_temp, ignore_errors=True)
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -526,6 +563,7 @@ def pytest_unconfigure(config):
     the crash is teardown-only, so exit deterministically instead of
     letting the interpreter walk Qt's destroyed globals."""
     import sys
+    _remove_session_temp()
     if _exit_status is None:
         # pytest_sessionfinish never ran (e.g. a collection-time crash
         # before any session existed) -- nothing to force-exit around.

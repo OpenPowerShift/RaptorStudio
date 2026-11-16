@@ -171,3 +171,23 @@ def test_build_model_refuses_a_spec_nested_too_deep(deep):
     rbd.sections["HIERARCHY_DATA"].rows.append(row)
     with pytest.raises(BuildError, match="at most 8 deep"):
         build_from_spec({"rbds_text": render_rbds(rbd)})
+
+
+def test_a_very_deep_parent_chain_is_counted_without_recursion():
+    """S6: the builder's depth count recursed, so a file with a long chain
+    of nested hierarchies hit Python's recursion limit on load."""
+    from types import SimpleNamespace
+
+    from raptor.core.fileio.builder import validate
+    from raptor.core.input_rules import hierarchy_depths
+
+    n = 3000
+    rows = [{"ID": str(i), "Parent": str(i - 1), "level": str(i),
+             "hierarchyName": f"H{i}"} for i in range(1, n + 1)]
+    sections = {"HIERARCHY_DATA": SimpleNamespace(rows=rows)}
+    depths = hierarchy_depths(SimpleNamespace(sections=sections))
+    assert depths[1] == 1 and depths[n] == n
+    rbd = build.build_from_spec(build.series(1))
+    rbd.sections["HIERARCHY_DATA"].rows[:] = [
+        r for r in rbd.sections["HIERARCHY_DATA"].rows if str(r.get("ID")) == "0"] + rows
+    validate(rbd)                       # must not raise RecursionError

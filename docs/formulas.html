@@ -31,7 +31,9 @@
 </li>
 <li><a href="#analytical-solver">9. Analytical solver (exact, static subset)</a></li>
 <li><a href="#iec61078">10. IEC 61078 analytical forms and this simulator</a></li>
-<li><a href="#_what_a_reliability_block_diagram_cannot_tell_you">11. What a reliability block diagram cannot tell you</a></li>
+<li><a href="#attribution">11. Downtime and lost-capacity attribution</a></li>
+<li><a href="#_what_a_reliability_block_diagram_cannot_tell_you">12. What a reliability block diagram cannot tell you</a></li>
+<li><a href="#availability-ladder">13. The availability ladder</a></li>
 </ul>
 </div>
 </div>
@@ -83,7 +85,13 @@ Final Results "Availability" row reports.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Time Between Downing Events (MTBDE)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">\$"MTBDE" = "Uptime" / ("number of downing events")\$</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Average stretch of working time between one stoppage and the next.
-Uptime here is Green + Yellow.</p></td>
+Uptime here is Green + Yellow. Raptor works this out <strong>in each run</strong> and
+then averages the runs, and a run with no outage gives its whole length
+(shown with <code>&gt;</code>). So when outages are rare, MTBDE is a floor and reads
+higher than the rate the runs found. The pooled figure, total uptime over
+total outages across every run, is that rate. <code>raptor run</code> prints it under
+the table as <strong>Time between outages, pooled</strong>, <code>simulate</code> returns it as
+<code>outages.between</code> and the report&#8217;s cover uses it.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mean Down Time (MDT)</p></td>
@@ -933,7 +941,104 @@ Raptor 7 prints them; this page is not duplicated into the application.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_what_a_reliability_block_diagram_cannot_tell_you">11. What a reliability block diagram cannot tell you</h2>
+<h2 id="attribution">11. Downtime and lost-capacity attribution</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>These are observers: they replay the event log and the capacity sink after
+a run, and never change a result. The full definitions and the three
+criticality indices are in the Advisor help (<code>advisor.html</code>).</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 50%;">
+<col style="width: 30%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Measure</th>
+<th class="tableblock halign-left valign-top">Formula</th>
+<th class="tableblock halign-left valign-top">Reads as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DTCI of element \$e\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"DTCI"_e = ("Red time in outages"_e) / ("total Red time")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of the system&#8217;s downtime caused by outages that element started.
+Pooled over the runs: the element&#8217;s Red time summed over every run, over
+the total Red time summed over every run. Its SEM is the delta-method
+standard error of that ratio. (Averaging each run&#8217;s own share would weigh
+a run with a minute of downtime like a run with a day.)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DECI of element \$e\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"DECI"_e = ("outages started by"_e) / ("all system outages")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of downing <strong>events</strong> the element started, regardless of how long
+they lasted. Pooled over the runs, like DTCI.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FCI of element \$e\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"FCI"_e = ("failure outages started by"_e) / ("all failure outages")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">DECI restricted to outages whose initiator failed rather than going into
+planned maintenance.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Share of lost capacity (proportional)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$L(t) = max(0, F_"gen" - F(t))\$, then
+\$"lost"_e = sum_t L(t) dot w_e / (sum_j w_j)\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">At every instant the lost flow is shared among the elements that were
+down, in proportion to their <strong>standalone capacity contribution</strong> \$w\$.
+Shares sum to the engine&#8217;s own lost flow, every run. Reported pooled over
+the runs, like DTCI: the element&#8217;s lost energy summed over every run, over
+all lost energy summed over every run, with the delta-method SEM.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Standalone capacity contribution</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$w_e = F_"gen" - F("only" e "down")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The flow lost if that element alone were down, from the Failure Effects
+view (no simulation, no random draw). Elements Idle through a dependency
+on a block or an event are charged to the element they depend on. The
+<strong>Of which via dependants</strong> figure is the part of that charge the Idle
+dependants explain: the master&#8217;s charge scaled by the dependants' own
+contributions over the master&#8217;s, at most the whole charge. A dependency
+on a node, a hierarchy or the whole system has no element to follow, so
+it is charged to the dependant itself. When nothing was charged this
+way, <code>raptor explain</code> says so in a line instead of printing a column of
+zeros.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Marginal lost capacity</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$w_e(t) = L(t) - L(t; e "restored")\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Answers "what would fixing this one buy?"; overlapping losses are
+counted once per element, so the shares need <strong>not</strong> add up to the whole.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lost energy of an element</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$E_e = integral "lost"_e(t) dif t\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flow × time over the statistics window; the element&#8217;s share of the
+energy or product not supplied.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Period availability (a year)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$A_p = 1 - ("Red time inside period" p) / ("length of period" p)\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exact slicing of the system&#8217;s Red intervals, not plot samples. Pooled
+over run-years and reported by year index with P1–P99. The final partial
+period is dropped by default (or pro-rated on request).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Percentile (nearest rank)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$P_k = x_(ceil(k n / 100))\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The sorted value&#8217;s nearest-rank position; stated here because percentiles
+have several definitions. <code>p_below</code> is a proportion, so it carries a
+Wilson interval.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_a_reliability_block_diagram_cannot_tell_you">12. What a reliability block diagram cannot tell you</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
@@ -970,6 +1075,54 @@ one that wins.</p>
 </div>
 <div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
 Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="availability-ladder">13. The availability ladder</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The same downtime can be counted three ways. The difference between the
+rungs is exactly the delay the next cause adds.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 27.2727%;">
+<col style="width: 27.2727%;">
+<col style="width: 45.4546%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Rung</th>
+<th class="tableblock halign-left valign-top">Formula</th>
+<th class="tableblock halign-left valign-top">Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inherent availability \$A_i\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$1 - ("hands-on repair time") / T\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Only the repair itself: a design figure.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Achieved availability \$A_a\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$1 - ("repair" + "planned maintenance") / T\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Adds planned maintenance: a maintenance-policy figure.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Operational availability \$A_o\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\$"uptime" / T\$</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Adds logistics, waiting for spares and crews, and dependency holds: what
+the plant actually achieved.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The downtime rungs are the engine&#8217;s own split
+(\$"repair" + "PM" + "logistics" + "not repairable" + "other"\$), and
+they add to the reported downtime; the measure registry
+(<code>raptor/api/insight/measures.py</code>) reads them and the application, the
+report and MCP show the same numbers.</p>
+</div>
 </div>
 </div>
 </div>

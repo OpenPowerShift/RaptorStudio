@@ -77,7 +77,10 @@ APPENDIX_D_STATE_COLOURS = {
 
 LIGHT_COLOUR = {
     "nav": "#0B2340",
-    "accent": "#1479C9",
+    "accent": "#1371BB",
+    # a selected row: white on the accent (5.1:1)
+    "selection_bg": "#1371BB",
+    "selection_text": "#FFFFFF",
     "surface": "#FFFFFF",
     "canvas": "#EDF2F7",
     "text": "#132238",
@@ -99,20 +102,24 @@ LIGHT_COLOUR = {
     # deliberate exception to the Appendix D rule: Green/Yellow/Red
     # PERCENT is a traffic-light metric and stays red/orange/green,
     # not the block-state colours.
-    "result_green": "#218B61",
-    "result_yellow": "#D99219",
-    "result_red": "#CC4545",
+    "result_green": "#1E7D57",
+    "result_yellow": "#BB7E16",
+    "result_red": "#C93939",
     # Ribbon icon colours for go / stop / warning. Not the Appendix D
     # state colours: LimeGreen is 2:1 on the light ribbon, under the 3:1 an
     # icon needs, so each theme gets its own shade.
     "go": "#1B873F",
     "stop": "#C62828",
-    "warn": "#B25E00",
+    "warn": "#A85900",
 }
 
 DARK_COLOUR = {
     "nav": "#0A1628",
     "accent": "#3399E0",
+    # a selected row: the bright accent behind dark text read as low contrast;
+    # a deeper blue with white text is 7.2:1 and still stands off the surface
+    "selection_bg": "#1E5A8F",
+    "selection_text": "#FFFFFF",
     "surface": "#1A2332",
     "canvas": "#111927",
     "text": "#E1E8F0",
@@ -128,12 +135,16 @@ DARK_COLOUR = {
     "standby": APPENDIX_D_STATE_COLOURS["warm_standby"],
     "maintenance": APPENDIX_D_STATE_COLOURS["maintenance"],
     "idle": APPENDIX_D_STATE_COLOURS["idle"],
-    "relationship": "#7454A6",
+    # Lighter than the light theme's purple: #7454A6 is only 2.7:1 on the
+    # dark surface, and the canvas draws relationship labels in it.
+    # tests/unit/test_theme_audit.py holds every coloured token used as
+    # text to 4.5:1 on each panel background.
+    "relationship": "#9F83CD",
     "failed": APPENDIX_D_STATE_COLOURS["repairing"],
     # Same traffic-light exception in dark.
     "result_green": "#34A873",
     "result_yellow": "#E6A91A",
-    "result_red": "#E05555",
+    "result_red": "#E46B6B",
     "go": "#4CC764",
     "stop": "#F0605D",
     "warn": "#F2A93B",
@@ -152,6 +163,9 @@ class ThemeManager:
 
     def __init__(self):
         self._dark = False
+        #: whether the token palette and stylesheet have been put on the
+        #: application yet: a first `set_dark(False)` must still apply them
+        self._applied = False
 
     @classmethod
     def instance(cls) -> ThemeManager:
@@ -178,6 +192,11 @@ class ThemeManager:
 
     def set_dark(self, dark: bool):
         if self._dark == dark:
+            # Light is the starting state, so a light launch used to skip
+            # `_apply` and run on the platform palette (rich-text links in
+            # #0000FF rather than the accent, for one).
+            if not self._applied:
+                self._apply()
             return
         self._dark = dark
         self._apply()
@@ -222,10 +241,26 @@ class ThemeManager:
         # makes every unstyled widget follow the active theme too.
         app.setPalette(_build_palette(self.colour))
         app.setStyleSheet(global_stylesheet())
+        self._applied = True
+        _relink_labels(app)
 
     @staticmethod
     def _qcolor(hex_str: str) -> QColor:
         return QColor(hex_str)
+
+
+def _relink_labels(app: QApplication) -> None:
+    """A rich-text QLabel takes its link colour from the palette when its
+    text is SET, so a link drawn before a theme switch kept the old
+    theme's blue (dark blue on the dark surface).  Setting the same text
+    again (after a clear: QLabel ignores an unchanged text) lays it out with
+    the new palette."""
+    from PySide6.QtWidgets import QLabel
+    for widget in app.allWidgets():
+        if isinstance(widget, QLabel) and "<a " in widget.text():
+            text = widget.text()
+            widget.clear()
+            widget.setText(text)
 
 
 def _build_palette(c: dict) -> QPalette:
@@ -248,8 +283,8 @@ def _build_palette(c: dict) -> QPalette:
     p.setColor(QPalette.ColorRole.ToolTipBase, canvas)
     p.setColor(QPalette.ColorRole.ToolTipText, text)
     p.setColor(QPalette.ColorRole.BrightText, QColor(c["failed"]))
-    p.setColor(QPalette.ColorRole.Highlight, accent)
-    p.setColor(QPalette.ColorRole.HighlightedText, window)
+    p.setColor(QPalette.ColorRole.Highlight, QColor(c["selection_bg"]))
+    p.setColor(QPalette.ColorRole.HighlightedText, QColor(c["selection_text"]))
     p.setColor(QPalette.ColorRole.PlaceholderText, muted)
     p.setColor(QPalette.ColorRole.Link, accent)
     for group in (QPalette.ColorGroup.Disabled,):
@@ -399,7 +434,7 @@ def _build_stylesheet(c: dict) -> str:
     }}
     #RibbonFileButton:hover {{
         background: {c['accent']};
-        color: #FFFFFF;
+        color: {c['surface']};
     }}
     QLabel#RibbonFieldLabel {{
         color: {c['muted']};
@@ -426,8 +461,8 @@ def _build_stylesheet(c: dict) -> str:
         border: 1px solid {c['border']};
     }}
     QTreeView::item:selected, QListView::item:selected, QTableView::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     QFileDialog {{
         background: {c['surface']};
@@ -437,8 +472,8 @@ def _build_stylesheet(c: dict) -> str:
         padding: 2px 4px;
     }}
     QTreeWidget::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* No QTreeWidget::branch rules: styling any branch subcontrol makes Qt
        drop the native expand/collapse arrows, leaving no image for those
@@ -487,8 +522,8 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['surface']};
     }}
     QTableWidget::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* The header's own background shows wherever there is no section (past the last column, the empty part of a
        row-number strip, the corner): left unset it fell back to the dark platform palette in the light theme. */
@@ -531,8 +566,8 @@ def _build_stylesheet(c: dict) -> str:
         border: 1px solid {c['border']};
     }}
     QMenu::item:selected {{
-        background: {c['accent']};
-        color: {c['surface']};
+        background: {c['selection_bg']};
+        color: {c['selection_text']};
     }}
     /* Groups are divided by a hairline, not boxed: a full frame round
        every group made the ribbon read as a form. */
@@ -630,8 +665,8 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['surface']};
         color: {c['text']};
         border: 1px solid {c['border']};
-        selection-background-color: {c['accent']};
-        selection-color: {c['surface']};
+        selection-background-color: {c['selection_bg']};
+        selection-color: {c['selection_text']};
         outline: none;
     }}
     QLineEdit {{
@@ -688,16 +723,24 @@ def _build_stylesheet(c: dict) -> str:
     /* Dialog default buttons (Open/Save/OK), marked via
        QPushButton::default, get the accent fill so the primary action
        stands out from Cancel. The native-dialog toolbuttons are themed by
-       forcing non-native dialogs; see filedialogs.py. */
+       forcing non-native dialogs; see filedialogs.py. No bolder font:
+       Qt sizes a button from its plain font, not a pseudo-state's, so a
+       bold :default label was cut at both ends ("Jse for Intake_Screer"). */
     QPushButton:default {{
         background: {c['accent']};
-        color: #ffffff;
+        color: {c['surface']};
         border-color: {c['accent']};
-        font-weight: 600;
     }}
     QPushButton:default:hover {{
         background: {c['accent']};
         border-color: {c['text']};
+    }}
+    /* After :default, so a disabled primary button (Run while a study is
+       going, Apply with nothing chosen) looks disabled, not ready. */
+    QPushButton:default:disabled {{
+        color: {c['muted']};
+        background: {c['canvas']};
+        border-color: {c['border']};
     }}
 
     QAbstractSpinBox {{

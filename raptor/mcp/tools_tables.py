@@ -12,7 +12,9 @@ from typing import Any, Literal
 from mcp.types import CallToolResult
 
 from raptor.mcp import context
-from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, markdown_table, ok
+from raptor.mcp.result import (
+    DESTRUCTIVE, EDIT, READ_ONLY, guarded, markdown_table, ok,
+)
 from raptor.mcp.server import mcp
 
 Format = Literal["csv", "txt", "txt_report", "xlsx", "ods"]
@@ -123,13 +125,14 @@ def get_table(model_id: str, table: str, run_id: str | None = None,
     return ok(data, markdown=md)
 
 
-@mcp.tool(annotations=ADDITIVE("Export tables"))
+@mcp.tool(annotations=DESTRUCTIVE("Export tables"))
 @guarded
 def export_tables(model_id: str, run_id: str | None = None,
                   tables: list[str] | None = None,
                   formats: list[Format] | None = None,
                   folder: str | None = None) -> CallToolResult:
-    """Write tables to files: CSV, text, or one spreadsheet.
+    """Write tables to files: CSV, text, or one spreadsheet.  Files of the
+    same name in the folder are replaced.
 
     `tables`: keys from `list_tables`; omit for the default set (all input
     tables except the all-columns block table, plus every result table
@@ -205,3 +208,93 @@ def export_tables(model_id: str, run_id: str | None = None,
         md = ("**Isolated hierarchy** — " + isolation.get("hierarchy", "")
               + ". Not a whole-model result.\n\n" + md)
     return ok(data, markdown=md)
+
+
+@mcp.tool(annotations=DESTRUCTIVE("Export report"))
+@guarded
+def export_report(run_id: str, path: str | None = None,
+                  sections: list[Literal["diagram", "story", "results",
+                                         "data_tables"]] | None = None,
+                  title: str | None = None) -> CallToolResult:
+    """Write a run's report as one PDF or one self-contained HTML file: the
+    same document as the GUI's File > Export PDF, for a reader who wants the
+    answer, not the tables.
+
+    `sections` (default ['diagram', 'story']): 'story' is the headline, what
+    drives the downtime, the findings, the charts and how to read each
+    measure; 'results' adds every result table (dozens of pages on a large
+    model); 'data_tables' the model's input tables.  The run needs
+    `attribution=True` for the drivers part of the story.
+
+    `path` is inside the workspace and ends in .pdf or .html; default
+    `Reports/<model>_<run_id>.pdf`; a file already there is replaced.
+    Returns {path, sections, bytes}.
+    """
+    context.require_write()
+    from raptor.api.report import ReportError, write_report
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_summary
+    from raptor.api.table_export import safe_stem
+    ws = context.workspace()
+    summary = read_summary(run_dir(ws, run_id), run_id, required=True)
+    chosen = tuple(sections or ("diagram", "story"))
+    if path is not None:
+        path = context.require_relative_path(path, "path")
+    stem = safe_stem(str(summary.get("model_name") or "model"))
+    dest = ws.resolve_output_path(path or f"Reports/{stem}_{run_id}.pdf")
+    for label in ("models", "runs", "renders"):
+        root = (ws.root / label).resolve()
+        if root == dest.resolve() or root in dest.resolve().parents:
+            raise ValueError(f"a report cannot go inside the {label} tree; "
+                             "choose a path under Reports/")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        written = write_report(ws, run_id, dest, title=title, sections=chosen)
+    except ReportError as exc:
+        raise ValueError(str(exc)) from exc
+    size = written.stat().st_size
+    return ok({"path": str(written), "sections": list(chosen), "bytes": size,
+               "resource_links": [f"file://{written}"]},
+              markdown=f"Wrote the report to `{written}` ({size:,} bytes).")
+
+
+@mcp.tool(annotations=EDIT("Replace in table"))
+@guarded
+def replace_in_table(model_id: str, table: str, column: str, find: str,
+                     replace: str, whole: bool = False,
+                     case: bool = True) -> CallToolResult:
+    """Find and replace in one model table column.
+
+    `table` is an input table key that edits model rows:
+    `inputs.blocks_all`, `inputs.nodes`, `inputs.events`,
+    `inputs.hierarchies`, `inputs.spare_pools`, `inputs.resources`,
+    `inputs.triggers`, `inputs.phases` or `inputs.comments`. `column` is a
+    file column name or index. `whole` matches the whole cell; `case` is
+    case-sensitive. Name columns are validated as a manual rename is, and a
+    refused set changes nothing. Returns the old and new value of every
+    changed cell.
+    """
+    context.require_write()
+    from raptor.api import build, tables
+
+    ws = context.workspace()
+    rbd = ws.get(model_id).rbd
+    try:
+        changes = tables.replace_in_table(
+            rbd, table, column, find, replace, whole=whole, case=case)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    for change in changes:
+        change["row"][change["column"]] = change["new"]
+    if changes:
+        build.sync_counts(rbd)
+        ws.save(model_id)
+    data: dict[str, Any] = {
+        "changes": [{key: value for key, value in change.items()
+                     if key != "row"} for change in changes],
+            "count": len(changes), "table": table, "column": column}
+    lines = ["| Row | Column | Old | New |", "|---|---|---|---|"]
+    for change in data["changes"][:50]:
+        lines.append(f"| {change['id']} | {change['column']} | "
+                     f"{change['old']} | {change['new']} |")
+    return ok(data, "\n".join(lines) if changes else "No cell matched.")

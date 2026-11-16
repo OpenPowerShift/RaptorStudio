@@ -58,6 +58,26 @@
    "text": "Add Node",
    "tooltip": "Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3)\n\nUnavailable: open or create a model first"
   },
+  "_advisor_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Advisor findings",
+   "tooltip": "Mark each element the Advisor has something to say about: filled by the worst severity (Red error, Yellow warning, blue advice or note), labelled with how many findings concern it, and its tooltip lists them. Needs no run."
+  },
+  "_advisor_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Advisor",
+   "tooltip": "Show the Advisor \u2014 what looks wrong or unwise in the model, why, and what to do about it"
+  },
   "_align_action": {
    "checkable": false,
    "checked": false,
@@ -244,6 +264,16 @@
    "text": "Text",
    "tooltip": "Click to place a text annotation (double-click to edit)\n\nUnavailable: open or create a model first"
   },
+  "_array_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Array\u2026",
+   "tooltip": "Duplicate the selection in a row or column\n\nUnavailable: open or create a model first"
+  },
   "_auto_layout_action": {
    "checkable": false,
    "checked": false,
@@ -309,6 +339,19 @@
    ],
    "text": "Collapse Selection",
    "tooltip": "Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G)\n\nUnavailable: open or create a model first"
+  },
+  "_command_search_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+P",
+    "Ctrl+K"
+   ],
+   "text": "Run a Command\u2026",
+   "tooltip": "Search every command by name (Ctrl+Shift+P)"
   },
   "_compare_action": {
    "checkable": false,
@@ -416,6 +459,40 @@
    "text": "Domains\u2026",
    "tooltip": "Domain of each node \u2014 which elements' failures can propagate to it\n\nUnavailable: open or create a model first"
   },
+  "_downtime_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Share of downtime",
+   "tooltip": "Colour each block and event by its share of system downtime (Red from \u2154 of the largest share, Yellow from \u2153), print the share under it, mark the cause that dominates it with a letter in the corner, and ring the letter when the runs disagree on the share. Works out the drivers from the event log when the Drivers tab has not."
+  },
+  "_duplicate_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+D"
+   ],
+   "text": "Duplicate",
+   "tooltip": "Duplicate the selected elements in place (Ctrl+D)\n\nUnavailable: open or create a model first"
+  },
+  "_duplicate_parallel_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Alt+D"
+   ],
+   "text": "Duplicate in Parallel",
+   "tooltip": "Copy the selected block in parallel between its neighbours (Ctrl+Alt+D)\n\nUnavailable: open or create a model first"
+  },
   "_explorer_toggle_action": {
    "checkable": true,
    "checked": true,
@@ -427,6 +504,18 @@
    ],
    "text": "Explorer",
    "tooltip": "Explorer (Ctrl+Shift+E)"
+  },
+  "_export_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+E"
+   ],
+   "text": "Export\u2026",
+   "tooltip": "Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)\n\nUnavailable: open or create a model first"
   },
   "_export_library_action": {
    "checkable": false,
@@ -486,7 +575,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Export Tables\u2026",
-   "tooltip": "Write the model's tables (blocks, nodes, links, ... ) and a run's result tables as CSV, text or one spreadsheet with a tab per table\n\nUnavailable: open or create a model first"
+   "tooltip": "Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table\n\nUnavailable: open or create a model first"
   },
   "_export_xlsx_action": {
    "checkable": false,
@@ -648,6 +737,16 @@
    "text": "Failure Effects",
    "tooltip": "Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.\n\nUnavailable: open or create a model first"
   },
+  "_find_replace_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Find and Replace\u2026",
+   "tooltip": "Find and replace in the Data Tables grid (Ctrl+H there)"
+  },
   "_fine_nudge_up_action": {
    "checkable": false,
    "checked": false,
@@ -691,6 +790,16 @@
    "shortcuts": [],
    "text": "Flip Vertical",
    "tooltip": "Mirror the selected items top-to-bottom about the middle of their span (select 2+). Shapes keep their size; only positions reflect.\n\nUnavailable: open or create a model first"
+  },
+  "_focus_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Focus",
+   "tooltip": "Dim everything except the selection (topology stays)"
   },
   "_focus_event_action": {
    "checkable": true,
@@ -814,6 +923,16 @@
    "text": "Animate",
    "tooltip": "Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model."
   },
+  "_lost_capacity_overlay_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Lost capacity",
+   "tooltip": "Colour each element by its share of the lost flow, with the main-cause letter and the uncertainty ring as for Share of downtime, and draw each link into a capacity node as wide as the flow through that node. Needs Capacity analysis and the event log."
+  },
   "_manual_action": {
    "checkable": false,
    "checked": false,
@@ -868,6 +987,36 @@
    "text": "Open",
    "tooltip": "Open an .rbd or .rbds file (Ctrl+O)"
   },
+  "_optimise_crews_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Crews\u2026",
+   "tooltip": "How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.\n\nUnavailable: open or create a model first"
+  },
+  "_optimise_pm_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Maintenance\u2026",
+   "tooltip": "Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.\n\nUnavailable: open or create a model first"
+  },
+  "_optimise_spares_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Spares\u2026",
+   "tooltip": "The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.\n\nUnavailable: open or create a model first"
+  },
   "_paste_action": {
    "checkable": false,
    "checked": false,
@@ -877,6 +1026,18 @@
    "shortcuts": [],
    "text": "Paste",
    "tooltip": "Paste previously copied elements with fresh ids\n\nUnavailable: open or create a model first"
+  },
+  "_paste_data_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+V"
+   ],
+   "text": "Paste Data Only",
+   "tooltip": "Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)\n\nUnavailable: open or create a model first"
   },
   "_pause_action": {
    "checkable": false,
@@ -930,6 +1091,16 @@
    "text": "Triggers\u2026",
    "tooltip": "Triggers \u2014 schedules Preventive Maintenance (PM)\n\nUnavailable: open or create a model first"
   },
+  "_precision_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Trials to Precision\u2026",
+   "tooltip": "How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.\n\nUnavailable: open or create a model first"
+  },
   "_prefs_action": {
    "checkable": false,
    "checked": false,
@@ -954,6 +1125,16 @@
    "text": "Print\u2026",
    "tooltip": "Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P)\n\nUnavailable: open or create a model first"
   },
+  "_quick_add_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Quick Add",
+   "tooltip": "Add an element at the cursor (Space or / on the canvas)"
+  },
   "_quit_action": {
    "checkable": false,
    "checked": false,
@@ -975,6 +1156,16 @@
    "shortcuts": [],
    "text": "Rates\u2026",
    "tooltip": "Rates library \u2014 named, reusable value expressions (e.g. a failure rate derived from km/yr usage) that Failure/Repair Param fields can link to instead of retyping the same derivation on every block\n\nUnavailable: open or create a model first"
+  },
+  "_recommend_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Recommend\u2026",
+   "tooltip": "Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.\n\nUnavailable: open or create a model first"
   },
   "_redo_action": {
    "checkable": false,
@@ -1009,7 +1200,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Availability Plot",
-   "tooltip": "Collect the Availability plot data (the rpt_availability_plot file): the Graphs tab's Per Trial / Interval / Multi-run Ao plots. Streamed to a temp file \u2014 never held in RAM."
+   "tooltip": "Collect the Availability plot data (the rpt_availability_plot file): the Charts tab's availability charts over time (through a run, interval by interval, across all runs). Streamed to a temp file \u2014 never held in RAM."
   },
   "_report_stream_actions[capacity_plot]": {
    "checkable": true,
@@ -1019,7 +1210,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Capacity Plot",
-   "tooltip": "Collect capacity plot data (the rpt_capacity_plot file) for the Graphs tab's Capacity (Flow) plot and the live capacity readouts. Requires Capacity Analysis."
+   "tooltip": "Collect capacity plot data (the rpt_capacity_plot file) for the Charts tab's capacity charts over time and the live capacity readouts. Requires Capacity Analysis."
   },
   "_report_stream_actions[cost_plot]": {
    "checkable": true,
@@ -1185,6 +1376,16 @@
    ],
    "text": "Select All",
    "tooltip": "Select all blocks/nodes/events/hierarchies (Ctrl+A)\n\nUnavailable: open or create a model first"
+  },
+  "_sensitivity_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Sensitivity\u2026",
+   "tooltip": "Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.\n\nUnavailable: open or create a model first"
   },
   "_shortcuts_action": {
    "checkable": false,
@@ -1442,6 +1643,16 @@
    "text": "Spread",
    "tooltip": "Band the ACTIVE colouring by this result set's values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds."
   },
+  "_whatif_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "What If\u2026",
+   "tooltip": "Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.\n\nUnavailable: open or create a model first"
+  },
   "_zoom_hierarchy_action": {
    "checkable": false,
    "checked": false,
@@ -1506,6 +1717,8 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_overlay_action": false,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -1523,12 +1736,14 @@
    "_anno_order_front_action": false,
    "_anno_rect_tool": false,
    "_anno_text_tool": false,
+   "_array_action": false,
    "_auto_layout_action": false,
    "_block_defaults_action": false,
    "_capacity_overlay_action": false,
    "_clear_results_action": false,
    "_close_file_action": false,
    "_collapse_action": false,
+   "_command_search_action": true,
    "_compare_action": false,
    "_connect_tool": false,
    "_copy_action": false,
@@ -1539,7 +1754,11 @@
    "_delete_tool": false,
    "_diff_action": false,
    "_domains_action": false,
+   "_downtime_overlay_action": false,
+   "_duplicate_action": false,
+   "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
@@ -1562,10 +1781,12 @@
    "_fev_repair_action": false,
    "_fev_status_action": false,
    "_fev_view_action": false,
+   "_find_replace_action": true,
    "_fine_nudge_up_action": true,
    "_fit_action": false,
    "_flip_h_action": false,
    "_flip_v_action": false,
+   "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
@@ -1578,21 +1799,29 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": false,
+   "_optimise_pm_action": false,
+   "_optimise_spares_action": false,
    "_paste_action": false,
+   "_paste_data_action": false,
    "_pause_action": false,
    "_phases_action": false,
    "_pool_actions[RESOURCE_DATA]": false,
    "_pool_actions[SPARE_POOL_DATA]": false,
    "_pool_actions[TRIGGERS]": false,
+   "_precision_action": false,
    "_prefs_action": true,
    "_print_action": false,
+   "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": false,
+   "_recommend_action": false,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -1612,6 +1841,7 @@
    "_save_as_action": false,
    "_select_action": true,
    "_select_all_action": false,
+   "_sensitivity_action": false,
    "_shortcuts_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
@@ -1636,6 +1866,7 @@
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": false,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -1648,6 +1879,8 @@
    "_add_event_tool": true,
    "_add_hier_tool": true,
    "_add_node_tool": true,
+   "_advisor_overlay_action": true,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -1665,12 +1898,14 @@
    "_anno_order_front_action": false,
    "_anno_rect_tool": true,
    "_anno_text_tool": true,
+   "_array_action": false,
    "_auto_layout_action": true,
    "_block_defaults_action": true,
    "_capacity_overlay_action": false,
    "_clear_results_action": false,
    "_close_file_action": true,
    "_collapse_action": false,
+   "_command_search_action": true,
    "_compare_action": true,
    "_connect_tool": true,
    "_copy_action": false,
@@ -1681,7 +1916,11 @@
    "_delete_tool": false,
    "_diff_action": true,
    "_domains_action": true,
+   "_downtime_overlay_action": false,
+   "_duplicate_action": false,
+   "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": true,
    "_export_library_action": true,
    "_export_ods_action": true,
    "_export_pdf_action": true,
@@ -1704,10 +1943,12 @@
    "_fev_repair_action": true,
    "_fev_status_action": false,
    "_fev_view_action": true,
+   "_find_replace_action": true,
    "_fine_nudge_up_action": true,
    "_fit_action": true,
    "_flip_h_action": false,
    "_flip_v_action": false,
+   "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
@@ -1720,21 +1961,29 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": true,
+   "_optimise_pm_action": true,
+   "_optimise_spares_action": true,
    "_paste_action": false,
+   "_paste_data_action": false,
    "_pause_action": false,
    "_phases_action": true,
    "_pool_actions[RESOURCE_DATA]": true,
    "_pool_actions[SPARE_POOL_DATA]": true,
    "_pool_actions[TRIGGERS]": true,
+   "_precision_action": true,
    "_prefs_action": true,
    "_print_action": true,
+   "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": true,
+   "_recommend_action": true,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -1754,6 +2003,7 @@
    "_save_as_action": true,
    "_select_action": true,
    "_select_all_action": true,
+   "_sensitivity_action": true,
    "_shortcuts_action": true,
    "_snap_action": true,
    "_spares_overlay_action": false,
@@ -1778,6 +2028,7 @@
    "_validate_action": true,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": true,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -1790,6 +2041,8 @@
    "_add_event_tool": false,
    "_add_hier_tool": false,
    "_add_node_tool": false,
+   "_advisor_overlay_action": false,
+   "_advisor_toggle_action": true,
    "_align_action": false,
    "_analysis_actions[capacityAnalysis]": true,
    "_analysis_actions[costAnalysis]": true,
@@ -1807,12 +2060,14 @@
    "_anno_order_front_action": false,
    "_anno_rect_tool": false,
    "_anno_text_tool": false,
+   "_array_action": false,
    "_auto_layout_action": false,
    "_block_defaults_action": false,
    "_capacity_overlay_action": false,
    "_clear_results_action": false,
    "_close_file_action": false,
    "_collapse_action": false,
+   "_command_search_action": true,
    "_compare_action": false,
    "_connect_tool": false,
    "_copy_action": false,
@@ -1823,7 +2078,11 @@
    "_delete_tool": false,
    "_diff_action": false,
    "_domains_action": false,
+   "_downtime_overlay_action": false,
+   "_duplicate_action": false,
+   "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
+   "_export_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
@@ -1846,10 +2105,12 @@
    "_fev_repair_action": false,
    "_fev_status_action": false,
    "_fev_view_action": false,
+   "_find_replace_action": true,
    "_fine_nudge_up_action": true,
    "_fit_action": false,
    "_flip_h_action": false,
    "_flip_v_action": false,
+   "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
@@ -1862,21 +2123,29 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
    "_mcp_docs_action": true,
    "_new_action": true,
    "_open_action": true,
+   "_optimise_crews_action": false,
+   "_optimise_pm_action": false,
+   "_optimise_spares_action": false,
    "_paste_action": false,
+   "_paste_data_action": false,
    "_pause_action": false,
    "_phases_action": false,
    "_pool_actions[RESOURCE_DATA]": false,
    "_pool_actions[SPARE_POOL_DATA]": false,
    "_pool_actions[TRIGGERS]": false,
+   "_precision_action": false,
    "_prefs_action": true,
    "_print_action": false,
+   "_quick_add_action": true,
    "_quit_action": true,
    "_rates_action": false,
+   "_recommend_action": false,
    "_redo_action": false,
    "_report_issue_action": true,
    "_report_stream_actions[ao_plot]": true,
@@ -1896,6 +2165,7 @@
    "_save_as_action": false,
    "_select_action": true,
    "_select_all_action": false,
+   "_sensitivity_action": false,
    "_shortcuts_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
@@ -1920,6 +2190,7 @@
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
+   "_whatif_action": false,
    "_zoom_hierarchy_action": false,
    "_zoom_in_action": true,
    "_zoom_out_action": true,
@@ -1946,6 +2217,11 @@
        "kind": "action",
        "large": false,
        "text": "Copy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Duplicate"
       },
       {
        "kind": "action",
@@ -1991,6 +2267,11 @@
        "kind": "action",
        "large": true,
        "text": "Add Hierarchy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Quick Add"
       },
       {
        "kind": "action",
@@ -2305,6 +2586,11 @@
        "kind": "action",
        "large": false,
        "text": "Run Settings\u2026"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Trials to Precision\u2026"
       }
      ],
      "title": "Run"
@@ -2344,24 +2630,74 @@
       }
      ],
      "title": "Animation"
+    }
+   ],
+   "title": "Simulate"
+  },
+  {
+   "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "What If\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Recommend\u2026"
+      }
+     ],
+     "title": "What If"
     },
     {
      "items": [
       {
        "kind": "action",
        "large": true,
-       "text": "Sweep\u2026"
+       "text": "Sensitivity\u2026"
       },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Sweep\u2026"
+      }
+     ],
+     "title": "Sensitivity"
+    },
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Spares\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Maintenance\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Crews\u2026"
+      }
+     ],
+     "title": "Optimise"
+    },
+    {
+     "items": [
       {
        "kind": "action",
        "large": true,
        "text": "Compare\u2026"
       }
      ],
-     "title": "Batch"
+     "title": "Compare"
     }
    ],
-   "title": "Simulate"
+   "title": "Analyse"
   },
   {
    "groups": [
@@ -2503,29 +2839,23 @@
     {
      "items": [
       {
-       "kind": "action",
-       "large": true,
-       "text": "Weak Links"
+       "children": [
+        "QFrame",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QComboBox",
+       "kind": "widget",
+       "large": false
       },
       {
-       "kind": "action",
-       "large": false,
-       "text": "Capacity"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Cost"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Spares"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Importance"
+       "children": [],
+       "class": "QLabel",
+       "kind": "widget",
+       "large": false
       }
      ],
      "title": "Show on Canvas"
@@ -2648,6 +2978,11 @@
       {
        "kind": "action",
        "large": false,
+       "text": "Advisor"
+      },
+      {
+       "kind": "action",
+       "large": false,
        "text": "Data Tables"
       },
       {
@@ -2664,6 +2999,11 @@
        "kind": "action",
        "large": true,
        "text": "Dark Theme"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Focus"
       },
       {
        "kind": "action",

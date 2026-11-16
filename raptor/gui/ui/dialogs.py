@@ -92,7 +92,7 @@ def _add_help_button(dlg, win, buttons_lay):
 def export_block_library(win):
     if win._rbd is None:
         return
-    from raptor.gui.ui.block_library import export_library
+    from raptor.core.fileio.block_library import export_library
     rows = win._rbd.sections["BLOCK_DATA"].rows
     if not any(str(r.get("ID", "0")).strip() not in ("0", "") for r in rows):
         msgbox.information(win, "Export Library", "There are no blocks to export.")
@@ -117,7 +117,7 @@ def import_block_library(win):
         "Block libraries (*.rbl *.json)")
     if not path:
         return
-    from raptor.gui.ui.block_library import load_library
+    from raptor.core.fileio.block_library import load_library
     try:
         templates = load_library(path)
     except (ValueError, OSError, json.JSONDecodeError) as e:
@@ -1901,3 +1901,34 @@ def on_mass_edit(win):
     win._statusbar.showMessage(
         "Mass edit applied to " + ", ".join(applied) if applied else
         "Mass edit: nothing was ticked, so nothing changed")
+
+
+def choose_data_groups(win: Any) -> list[str] | None:
+    """The Paste Data Only checklist; None when the user cancels."""
+    from raptor.core.edit.clipboard_plan import DATA_GROUPS
+    dlg = QDialog(win)
+    dlg.setWindowTitle("Paste Data Only")
+    lay = QVBoxLayout(dlg)
+    lay.addWidget(QLabel("Copy the clipboard block's data onto the "
+                         "selected blocks. Name, position, links and "
+                         "dependency are never changed."))
+    boxes: dict[str, QCheckBox] = {}
+    for group in DATA_GROUPS:
+        box = QCheckBox(group)
+        box.setChecked(group in ("Failure", "Repair"))
+        boxes[group] = box
+        lay.addWidget(box)
+    buttons = QHBoxLayout()
+    ok = QPushButton("Paste")
+    cancel = QPushButton("Cancel")
+    ok.setDefault(True)
+    ok.clicked.connect(dlg.accept)
+    cancel.clicked.connect(dlg.reject)
+    buttons.addStretch(1)
+    buttons.addWidget(cancel)
+    buttons.addWidget(ok)
+    lay.addLayout(buttons)
+    if exec_dialog(dlg) != QDialog.DialogCode.Accepted:
+        return None
+    chosen = [group for group, box in boxes.items() if box.isChecked()]
+    return chosen or None

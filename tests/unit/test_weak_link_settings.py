@@ -848,3 +848,24 @@ def test_importance_overlay_bands_relative_to_the_largest(qapp):
     assert glyph == "1"
     v.clear_live_states(keep_result_visuals=False)
     assert v._block_items[5]._result_badge is None
+
+
+def test_cost_and_spares_roll_up_to_the_hierarchies_on_the_level(qapp):
+    """U14: hierarchies stayed uncoloured under the Cost and Spares layers;
+    a hierarchy now shows what its blocks cost in total, and is red when
+    any block inside ran out of spares."""
+    v = DiagramView()
+    v.load_rbd(load_rbd(os.path.join(GOLD, "HierarchyExample", "input.rbd")))
+    shown = [hid for hid in v._hier_items]
+    assert shown
+    every = [int(float(r["ID"])) for r in v._rbd_ref.sections["BLOCK_DATA"].rows
+             if int(float(r.get("ID", 0) or 0))]           # all levels, as a run has
+    inside = {bid: v._level_hier_of("block", bid) for bid in every}
+    hid = next(h for h in shown if h in inside.values())
+    members = [bid for bid, h in inside.items() if h == hid]
+    v.apply_cost_colors({bid: 100.0 for bid in every})
+    tip = v._hier_items[hid].toolTip()
+    assert f"${100.0 * len(members):,.2f}" in tip and f"{len(members)} block(s)" in tip
+    v.apply_spares_colors({bid: (0.1 if bid == members[0] else 0.0) for bid in every})
+    tip = v._hier_items[hid].toolTip()
+    assert f"1 of {len(members)} block(s) inside" in tip and "Red" in tip
