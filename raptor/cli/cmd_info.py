@@ -77,17 +77,27 @@ def add_parser(sub: Any) -> None:
     s.set_defaults(func=set_command)
 
     c = sub.add_parser(
-        "convert", help="convert between .rbd and .rbds",
+        "convert", help="convert between .rbd, .rbds and AWB .awb",
         description="Write IN as OUT in the format OUT's extension names "
-                    "(or --to). Refuses a lossy conversion unless "
-                    "--allow-lossy.")
+                    "(or --to). AWB conversions print a summary of the "
+                    "features the destination cannot represent. Refuses a "
+                    "lossy .rbd conversion unless --allow-lossy.")
     c.add_argument("input", metavar="IN")
     c.add_argument("output", metavar="OUT")
-    c.add_argument("--to", choices=("rbd", "rbds"),
+    c.add_argument("--to", choices=("rbd", "rbds", "awb"),
                    help="format to write (default: OUT's extension)")
     c.add_argument("--allow-lossy", action="store_true",
                    help=".rbds-only content (annotations, experiment "
-                        "settings, rate definitions) is dropped in .rbd")
+                        "settings, rate definitions) is dropped in .rbd; "
+                        "AWB conversions report their losses instead and do "
+                        "not need this switch")
+    c.add_argument("--strict", action="store_true",
+                   help="AWB only: write nothing and exit 4 if the summary "
+                        "reports any feature the destination cannot use")
+    c.add_argument("-f", "--format", choices=("text", "json", "markdown"),
+                   default="text", help="AWB summary format (default text)")
+    c.add_argument("--report", metavar="FILE",
+                   help="AWB only: also write the summary as Markdown to FILE")
     c.set_defaults(func=convert_command)
 
 
@@ -277,7 +287,13 @@ def set_command(args: Any) -> int:
 
 def convert_command(args: Any) -> int:
     src, dest = Path(args.input), Path(args.output)
-    fmt = args.to or ("rbd" if dest.suffix.lower() == ".rbd" else "rbds")
+    if src.suffix.lower() == ".awb":
+        fmt = args.to if args.to in ("rbd", "rbds") else (
+            "rbd" if dest.suffix.lower() == ".rbd" else "rbds")
+        return _convert_from_awb(args, src, dest, fmt)
+    fmt = args.to or _convert_format(src, dest)
+    if fmt == "awb":
+        return _convert_to_awb(args, src, dest)
     if fmt == "rbd" and src.suffix.lower() == ".rbds" and not args.allow_lossy:
         with workspace_for() as ws:
             mid = open_model(ws, args.input)
@@ -298,3 +314,71 @@ def convert_command(args: Any) -> int:
     if res.get("layout_warning"):
         eprint(f"warning: layout: {res['layout_warning']}")
     return X.OK
+
+
+def _convert_format(src: Path, dest: Path) -> str:
+    """The output format named by ``--to`` or the two extensions."""
+    if dest.suffix.lower() == ".awb" or src.suffix.lower() == ".awb":
+        return "awb"
+    return "rbd" if dest.suffix.lower() == ".rbd" else "rbds"
+
+
+def _convert_to_awb(args: Any, src: Path, dest: Path) -> int:
+    from raptor.api import awb as awb_api
+    if dest.suffix.lower() != ".awb":
+        dest = dest.with_suffix(".awb")
+    with workspace_for() as ws:
+        mid = open_model(ws, args.input)
+        rbd = ws.get(mid).rbd
+        report = awb_api.export(rbd, dest, source=args.input, write=False)
+    if args.strict and report.has_losses:
+        _print_awb_report(report, args)
+        raise CliError(
+            "AWB cannot represent every feature in this model; nothing was "
+            "written (drop --strict to proceed and keep the summary)", X.REFUSED)
+    try:
+        awb_api.export(rbd, dest, source=args.input)
+    except Exception as exc:
+        raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
+    _print_awb_report(report, args)
+    eprint(f"wrote {dest}")
+    return X.OK
+
+
+def _convert_from_awb(args: Any, src: Path, dest: Path, fmt: str) -> int:
+    from raptor.api import awb as awb_api
+    if dest.suffix.lower() not in (".rbds", ".rbd"):
+        fmt = "rbds"
+        dest = dest.with_suffix(".rbds")
+    try:
+        rbd, report = awb_api.import_project(src, source=args.input)
+    except Exception as exc:
+        raise CliError(f"cannot read {src}: {exc}", X.USAGE) from exc
+    report.target = str(dest)
+    if args.strict and report.has_losses:
+        _print_awb_report(report, args)
+        raise CliError(
+            "RAPTOR cannot represent every feature in this AWB project; "
+            "nothing was written (drop --strict to proceed)", X.REFUSED)
+    try:
+        with workspace_for() as ws:
+            mid = ws.register_model(rbd, name=dest.stem,
+                                    source=str(src))["model_id"]
+            ws.save_model_as(mid, str(dest), fmt=fmt)
+    except Exception as exc:
+        raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
+    _print_awb_report(report, args)
+    eprint(f"wrote {dest}")
+    return X.OK
+
+
+def _print_awb_report(report: Any, args: Any) -> None:
+    if getattr(args, "report", None):
+        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.report).write_text(report.summary_markdown(), encoding="utf-8")
+    if getattr(args, "format", "text") == "json":
+        emit_json(report.as_dict(), None)
+    elif getattr(args, "format", "text") == "markdown":
+        sys.stdout.write(report.summary_markdown())
+    else:
+        print(report.summary_text())
