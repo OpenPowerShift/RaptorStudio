@@ -12,7 +12,7 @@ _raptor() {
     compare) opts="--analysis --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
     completion) opts="--help" ;;
     config) opts="--help" ;;
-    convert) opts="--allow-lossy --help --to" ;;
+    convert) opts="--allow-lossy --format --help --report --strict --to" ;;
     describe) opts="--element --format --help" ;;
     diff) opts="--all --exit-code --format --help --ignore --match --only" ;;
     doctor) opts="--format --help" ;;

@@ -54,6 +54,9 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
   exactly as before.
+- **Interchange with Availability Workbench.** `raptor convert` reads and writes Isograph AWB 5.0 `.awb` projects and
+  prints a summary of the features either side cannot represent — capacity products, PM tasks, spares, cost models
+  and the rest — so a conversion never loses something silently. See [`docs/AWB_FORMAT.md`](docs/AWB_FORMAT.md).
 - **Documentation that ships with it.** _Break It Before It Breaks_, a 26-chapter tutorial book with a model for each
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
@@ -211,7 +214,7 @@ built-in documentation, which the **Help** ribbon tab also opens:
 - **AI assistant** — the [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), the
   generated [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), and
   the book's MCP chapter.
-- **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format.
+- **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format, and [`docs/AWB_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md) describes the Availability Workbench `.awb` interchange.
 - **Analytical solver** — [`docs/ANALYTICAL.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md) covers the exact static solver: scope, assumptions, CLI and API.
 
 ## IEC 61078
@@ -258,7 +261,7 @@ The docs render with Ruby asciidoctor: `new_docs/tools/render_docs.sh` (see `new
 | `raptor/`               | The application: `core/` engine, `api/`, `cli/`, `gui/`, `mcp/`, `render/`                                                                                        |
 | `tests/`                | `unit/`, `behaviour/`, `integration/` (incl. `sweeps/`), `golden/` (Raptor 7's captured output; large captures gzipped), `fixtures/` (probe models), `ladder/`, `data/` (shared sample models) |
 | `new_docs/`             | User Guide (tutorial book), its models and build tools                                                                                                            |
-| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
+| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [AWB interchange](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
 | `tools/`                | Developer tools the tests and CI run: engine snapshot, coverage, type gate, doc generators                                                                        |
 | `installer/`            | Packaging (PyInstaller, Inno Setup, deb/AppImage)                                                                                                                 |
 | `packaging/`            | `raptor-studio-mcp`, the small PyPI package the MCP Registry lists                                                                                                |

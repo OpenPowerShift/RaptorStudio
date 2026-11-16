@@ -492,6 +492,57 @@ class FileIoMixin(_Base):
             return
         self._open_path(path)
 
+    def _import_awb(self):
+        """File ▸ Import Availability Workbench…: read an AWB project."""
+        if self._refuse_during_run("import an Availability Workbench project"):
+            return
+        path, _ = fdg.getOpenFileName(
+            self, "Import Availability Workbench Project", "",
+            "Availability Workbench projects (*.awb);;All files (*)")
+        if not path:
+            return
+        self._inspector.flush_pending_comment()
+        if not self._confirm_discard_unsaved(closing=True):
+            return
+        from raptor.core.fileio.awb import import_awb
+        try:
+            rbd, report = import_awb(path, source=path)
+        except Exception as exc:  # noqa: BLE001 - show the file, don't crash
+            msgbox.critical(
+                self, "Import Failed",
+                f"Could not read {Path(path).name}:\n\n{exc}")
+            return
+        self._load_into_app(rbd, None)
+        self._show_awb_report("Availability Workbench import",
+                              report, path, wrote=False)
+        self._statusbar.showMessage(
+            f"Imported {Path(path).name}; save it as .rbds to keep it", 10000)
+
+    def _show_awb_report(self, title: str, report: Any, path: str,
+                         *, wrote: bool) -> None:
+        """The conversion summary, with the full Markdown report behind
+        'Show Details' so a long list does not fill the dialog."""
+        from PySide6.QtWidgets import QMessageBox
+        box = QMessageBox(self)
+        box.setWindowTitle(title)
+        if wrote:
+            box.setText(f"Wrote {path}.")
+        else:
+            box.setText(f"Imported {path}.")
+        losses = len(report.not_in_target)
+        if losses:
+            box.setInformativeText(
+                f"{losses} kind(s) of feature have no equivalent in the "
+                "destination. Nothing in the source file was changed; "
+                "the details say what was left out.")
+        else:
+            box.setInformativeText(
+                "Every feature in the source was represented in the "
+                "destination.")
+        box.setDetailedText(report.summary_text())
+        box.setIcon(QMessageBox.Icon.Information)
+        box.exec()
+
     def _write_model(self, path: str) -> bool:
         """Write the model in the format its EXTENSION asks for
         (.rbds JSON vs legacy .rbd). One place so every save path
