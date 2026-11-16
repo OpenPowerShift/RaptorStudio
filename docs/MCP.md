@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **93 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **92**.
+- **94 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **93**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -546,6 +546,13 @@ options; a set that would break a name is refused whole.
 `duplicate_elements` copies a selection with fresh ids and names, and
 `copy_element_data` copies one block's chosen data groups onto others without
 touching names, positions, links or dependencies.
+
+`set_out_of_service` takes blocks, events or hierarchies out of service for
+a what-if without changing their data: `cut` (down for the whole run, its
+path broken), `linked` (never fails) or `in_service`. A hierarchy covers
+everything inside it. Every later run and study uses the state, each result
+carries an "Out of service" warning, and `describe_model` lists what is out.
+It is saved in .rbds only.
 
 `list_part_types`, `apply_part_type`, `save_part_type` and `sync_part_types`
 share an element's data as a named part type: blocks, nodes, events,

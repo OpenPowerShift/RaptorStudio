@@ -12,6 +12,9 @@ copy elements with fresh ids
 .TP
 \fBpaste\-data\fR
 copy block data groups onto blocks
+.TP
+\fBout\-of\-service\fR
+take blocks, events or hierarchies out of service
 .SH RAPTOR EDIT DUPLICATE
 \fBraptor edit duplicate\fR licate [\-h] [\-\-copies N] [\-\-dx T] [\-\-dy T] [\-\-in\-place] [\-f {text,json}] ELEMENT [ELEMENT ...]
 .SS Options
@@ -42,6 +45,20 @@ comma list of blocks
 .TP
 \fB\-\-groups\fR \fINAMES\fR
 comma list (default Failure,Repair); see raptor help set\-paths for group names
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR EDIT OUT\-OF\-SERVICE
+\fBraptor edit out\-of\-service\fR ervice [\-h] [\-\-state {cut,linked,in\-service}] [\-\-in\-place] [\-f {text,json}] [ELEMENT ...]
+.PP
+A what\-if switch that leaves the element's data alone: cut (down for the whole run), linked (never fails) or in\-service (back to normal). A hierarchy covers everything inside it. Saved in .rbds only.
+.SS Options
+.TP
+\fB\-\-state\fR \fI{cut|linked|in\-service}\fR
+cut (default), linked or in\-service
 .TP
 \fB\-\-in\-place\fR
 write the result back to MODEL

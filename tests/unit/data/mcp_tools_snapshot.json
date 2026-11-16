@@ -996,6 +996,18 @@
    "model_id"
   ]
  },
+ "set_out_of_service": {
+  "params": [
+   "elements",
+   "model_id",
+   "state"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "state"
+  ]
+ },
  "simulate": {
   "params": [
    "attribution",

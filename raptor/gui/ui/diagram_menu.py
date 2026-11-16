@@ -152,6 +152,9 @@ class ContextMenuMixin:
                 comment_h.setEnabled(self.has_convertible_comment(
                     "hier", it2._hier_id))
                 hid_menu.addSeparator()
+                from raptor.gui.ui.diagram_out_of_service import add_submenu
+                add_submenu(self, hid_menu, [("hier", int(it2._hier_id))])
+                hid_menu.addSeparator()
                 del_h = hid_menu.addAction("Delete hierarchy")
                 chosen_h = self._exec_menu(hid_menu, event)
                 if chosen_h is copy_h:
@@ -344,6 +347,9 @@ class ContextMenuMixin:
             menu.addSeparator()
             out_act = menu.addAction("Move to parent level")
         self._hier_move_submenu(menu)
+        if kind in ("Block", "Event"):
+            from raptor.gui.ui.diagram_out_of_service import add_submenu, selected_targets
+            add_submenu(self, menu, selected_targets(self))
         menu.addSeparator()
         remove_links_act = None
         if kind != "Link":

@@ -44,9 +44,25 @@ def add_parser(sub: Any) -> None:
     p.add_argument("-f", "--format", choices=("text", "json"), default="text")
     p.set_defaults(func=paste_data_command)
 
+    p = s.add_parser("out-of-service",
+                     help="take blocks, events or hierarchies out of service",
+                     description="A what-if switch that leaves the element's data "
+                                 "alone: cut (down for the whole run), linked "
+                                 "(never fails) or in-service (back to normal). A "
+                                 "hierarchy covers everything inside it. Saved in "
+                                 ".rbds only.")
+    p.add_argument("elements", nargs="*", metavar="ELEMENT",
+                   help="names or Kind:id selectors; none lists what is out of service")
+    p.add_argument("--state", choices=("cut", "linked", "in-service"), default="cut",
+                   help="cut (default), linked or in-service")
+    p.add_argument("--in-place", action="store_true",
+                   help="write the result back to MODEL")
+    p.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    p.set_defaults(func=out_of_service_command)
+
 
 def _missing(args: Any) -> int:
-    raise CliError("use 'raptor edit duplicate|paste-data'", X.USAGE)
+    raise CliError("use 'raptor edit duplicate|paste-data|out-of-service'", X.USAGE)
 
 
 def _save_back(ws: Any, model_id: str, path: str, in_place: bool) -> None:
@@ -100,4 +116,35 @@ def paste_data_command(args: Any) -> int:
     print(f"Copied {', '.join(groups).lower()} data onto "
           f"{result['blocks']} block(s); {result['count']} cell(s) changed"
           + ("" if args.in_place else " in the workspace; pass --in-place"))
+    return X.OK
+
+
+def out_of_service_command(args: Any) -> int:
+    from raptor.api import edit
+    from raptor.api.build import BuildError
+    from raptor.core.fileio.out_of_service import describe
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        if args.elements:
+            if args.in_place and Path(args.model).suffix.lower() == ".rbd":
+                raise CliError("a legacy .rbd cannot store elements out of service; "
+                               "save the model as .rbds first", X.USAGE)
+            try:
+                result = edit.set_out_of_service(
+                    ws, mid, args.elements,
+                    None if args.state == "in-service" else args.state)
+            except (ValueError, KeyError, BuildError) as exc:
+                raise CliError(str(exc), X.USAGE) from exc
+            _save_back(ws, mid, args.model, args.in_place)
+        else:
+            result = {"changed": [], "out_of_service": describe(ws.get(mid).rbd)}
+    if args.format == "json":
+        emit_json(result, None)
+        return X.OK
+    for c in result["changed"]:
+        print(f"{c['kind']} {c['name']}: {c['state']}")
+    outs = result["out_of_service"]
+    print("Out of service: " + (", ".join(f"{o['name']} ({o['state']})" for o in outs)
+                                if outs else "nothing")
+          + ("" if args.in_place or not args.elements else " (in the workspace; pass --in-place)"))
     return X.OK

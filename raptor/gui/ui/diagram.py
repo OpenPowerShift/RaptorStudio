@@ -1237,6 +1237,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 link_item._update_route()
 
         self._refresh_node_badges()
+        from raptor.gui.ui.diagram_out_of_service import apply_marks
+        apply_marks(self)              # U27: cut / linked elements
 
         log.debug("_rebuild_scene: %d blocks, %d nodes, %d events, %d "
                   "hiers, %d links placed -- entering _apply_scene_layout",

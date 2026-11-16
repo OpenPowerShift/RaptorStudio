@@ -1010,6 +1010,35 @@ step. That run measures its own interval. The same rule is `raptor run
 --precision 10%` and `simulate` with `precision` over MCP.
 
 [[whatif]]
+== Out of service: cut or link an element for a what-if
+
+To ask "what if this unit were gone?" or "what if it never gave trouble?"
+without deleting it or retyping its data, right-click a block, an event or
+a hierarchy and choose *Out of Service*:
+
+* *Cut — down for the whole run.* Its path is broken. On the canvas it is
+  dimmed inside a red dashed outline tagged CUT (with Failure Effects View's
+  black diamond), and its links are dashed.
+* *Linked — never fails.* Its path is as good as a wire. It gets a teal
+  dashed outline tagged LINKED (with the white diamond).
+* *In Service* puts it back.
+
+A hierarchy covers everything inside it; an element's own setting wins over
+its hierarchy's. Several selected elements change together, as one undo step.
+The element's data never changes: a run, a study and an analytical result
+see the state, and the results say so ("Out of service: …" in the notes, the
+status bar, the CLI's warnings and MCP's `warnings`). Nodes cannot be taken
+out of service; cut the elements on a path instead.
+
+How it runs: Raptor has no "never fails" distribution, so a linked block runs
+with a Fixed time to failure of 10^15^, and a cut block starts failed with no
+repair (Done from time zero); either way its preventive maintenance,
+dependency and phasing are off. An event is certain to succeed (linked) or
+to fail (cut). The setting is saved in .rbds only; a legacy .rbd has no place
+for it. From the command line: `raptor edit MODEL out-of-service Pump_A
+--state cut --in-place` (no element lists what is out); over MCP:
+`set_out_of_service`.
+
 == What If: compare changes with the model
 
 *Analyse ▸ What If…* compares scenarios with the model. A scenario is a

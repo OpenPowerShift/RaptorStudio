@@ -1518,3 +1518,29 @@ class AdvisorStateCmd(_ViewCmd):
 
     def undo(self):
         self._set(self.before)
+
+
+class OutOfServiceCmd(_ViewCmd):
+    """Take elements out of service, or put them back (U27): swaps the
+    model's `out_of_service` map and redraws the marks. The elements' own
+    data never changes."""
+
+    def __init__(self, view: Any, before: dict, after: dict, label: str):
+        super().__init__(view, label)
+        self.before, self.after = before, after
+
+    needs_rule_check = False           # no input rule reads it
+
+    def _set(self, state: dict) -> None:
+        rbd = getattr(self._v, "_rbd_ref", None)
+        if rbd is not None:
+            rbd.out_of_service = dict(state)
+        from raptor.gui.ui.diagram_out_of_service import apply_marks
+        apply_marks(self._v)
+        self._done()
+
+    def redo(self):
+        self._set(self.after)
+
+    def undo(self):
+        self._set(self.before)

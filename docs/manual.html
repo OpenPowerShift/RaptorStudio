@@ -47,7 +47,8 @@
 <li><a href="#run">The Run panel</a></li>
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
 <li><a href="#precision">Trials to Precision: how many trials are enough</a></li>
-<li><a href="#whatif">What If: compare changes with the model</a></li>
+<li><a href="#whatif">Out of service: cut or link an element for a what-if</a></li>
+<li><a href="#_what_if_compare_changes_with_the_model">What If: compare changes with the model</a></li>
 <li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
 <li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
 <li><a href="#recommend">Recommend: a tested change for each driver</a></li>
@@ -1540,7 +1541,51 @@ step. That run measures its own interval. The same rule is <code>raptor run
 </div>
 </div>
 <div class="sect1">
-<h2 id="whatif">What If: compare changes with the model</h2>
+<h2 id="whatif">Out of service: cut or link an element for a what-if</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To ask "what if this unit were gone?" or "what if it never gave trouble?"
+without deleting it or retyping its data, right-click a block, an event or
+a hierarchy and choose <strong>Out of Service</strong>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Cut — down for the whole run.</strong> Its path is broken. On the canvas it is
+dimmed inside a red dashed outline tagged CUT (with Failure Effects View&#8217;s
+black diamond), and its links are dashed.</p>
+</li>
+<li>
+<p><strong>Linked — never fails.</strong> Its path is as good as a wire. It gets a teal
+dashed outline tagged LINKED (with the white diamond).</p>
+</li>
+<li>
+<p><strong>In Service</strong> puts it back.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A hierarchy covers everything inside it; an element&#8217;s own setting wins over
+its hierarchy&#8217;s. Several selected elements change together, as one undo step.
+The element&#8217;s data never changes: a run, a study and an analytical result
+see the state, and the results say so ("Out of service: …" in the notes, the
+status bar, the CLI&#8217;s warnings and MCP&#8217;s <code>warnings</code>). Nodes cannot be taken
+out of service; cut the elements on a path instead.</p>
+</div>
+<div class="paragraph">
+<p>How it runs: Raptor has no "never fails" distribution, so a linked block runs
+with a Fixed time to failure of 10<sup>15</sup>, and a cut block starts failed with no
+repair (Done from time zero); either way its preventive maintenance,
+dependency and phasing are off. An event is certain to succeed (linked) or
+to fail (cut). The setting is saved in .rbds only; a legacy .rbd has no place
+for it. From the command line: <code>raptor edit MODEL out-of-service Pump_A
+--state cut --in-place</code> (no element lists what is out); over MCP:
+<code>set_out_of_service</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_if_compare_changes_with_the_model">What If: compare changes with the model</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>Analyse ▸ What If…</strong> compares scenarios with the model. A scenario is a

@@ -728,6 +728,9 @@ def run(
     _negative_note = _neg.note(_negative)
     if _negative and not _neg.ignoring(sim_rbd) and _negative_note:
         warnings.append(_negative_note)
+    from raptor.core.fileio.out_of_service import note as _oos_note
+    if (_oos := _oos_note(sim_rbd)):
+        warnings.append(_oos)
     if num_runs is not None and len(report_data) < num_runs:
         warnings.append(
             f"Completed {len(report_data)}/{num_runs} runs (timeout or abort)"

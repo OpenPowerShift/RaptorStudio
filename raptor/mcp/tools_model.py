@@ -581,6 +581,12 @@ def describe_model(model_id: str, detail: Literal["summary", "full"] = "summary"
     if isinstance(system, dict) and system:
         md += "\n\n**System**\n\n" + markdown_table(
             ["setting", "value"], [[k, v] for k, v in system.items()])
+    from raptor.core.fileio.out_of_service import describe as _oos
+    if (outs := _oos(context.workspace().get(model_id).rbd)):
+        result["out_of_service"] = outs
+        md += ("\n\n**Out of service** (set_out_of_service; results use this)\n\n"
+               + markdown_table(["element", "state"],
+                                [[f"{o['kind']} {o['name']}", o["state"]] for o in outs]))
     return ok(result, markdown=md)
 
 
@@ -2348,3 +2354,31 @@ def copy_element_data(model_id: str, source: str, targets: list[str],
         tuple(groups or ("Failure", "Repair")))
     return ok(result, f"Copied data onto {result['blocks']} block(s); "
                       f"{result['count']} cell(s) changed.")
+
+
+@mcp.tool(annotations=ADDITIVE("Take elements out of service"))
+@guarded
+def set_out_of_service(
+    model_id: str,
+    elements: Annotated[list[str], Field(
+        description="Block, event or hierarchy names or Kind:id selectors")],
+    state: Annotated[Literal["cut", "linked", "in_service"], Field(
+        description="cut: down for the whole run (its path is broken); "
+                    "linked: never fails (as good as a wire); in_service: "
+                    "back to normal")],
+) -> CallToolResult:
+    """Take elements out of service for a what-if, without changing their
+    data. A hierarchy covers everything inside it. Every later simulation,
+    study and analytical result uses the state until it is put back; the
+    model's own numbers are untouched. Saved in .rbds (a legacy .rbd has
+    no place for it). describe_model lists what is out of service.
+    Returns {changed: [{kind, id, name, state}], out_of_service: [...]}.
+    """
+    context.check_batch(elements, "elements")
+    context.require_write()
+    from raptor.api import edit
+    result = edit.set_out_of_service(context.workspace(), model_id, elements,
+                                     None if state == "in_service" else state)
+    names = ", ".join(c["name"] for c in result["changed"])
+    return ok(result, f"{names}: {state.replace('_', ' ')}. "
+                      f"{len(result['out_of_service'])} element(s) now out of service.")

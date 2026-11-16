@@ -206,6 +206,9 @@ class _LinkItem(QGraphicsPathItem):
     top -> out the bottom), so a node never enters and leaves on the same
     side. `line()` is the drawn segment between the two ports."""
 
+    #: True when either end is cut (out of service): drawn dashed.
+    _oos_cut = False
+
     def __init__(self, from_item: QGraphicsItem, to_item: QGraphicsItem,
                  link_num: int | None = None, *, defer_route: bool = False):
         super().__init__()
@@ -948,6 +951,8 @@ class _LinkItem(QGraphicsPathItem):
             painter.drawPath(self.path())
             painter.restore()
         pen = self.pen()
+        if self._oos_cut:              # an end is cut (out of service)
+            pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
         painter.setBrush(QBrush())
         painter.drawPath(self.path())

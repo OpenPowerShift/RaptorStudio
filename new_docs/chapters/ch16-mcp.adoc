@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *93 tools* (including the `ping` health check), a set of
+The server exposes *94 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is

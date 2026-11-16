@@ -356,6 +356,7 @@ class RunMixin(_Base):
              cap_lines, cost_lines, units) = result
         except (TypeError, ValueError):
             return False
+        self._note_out_of_service(report_notes)
         self._push_weak_settings()
         result_streams = state.get("streams") or {}
         eor_source = result_streams.get("end_of_run")
@@ -744,6 +745,7 @@ class RunMixin(_Base):
             # simulation.
             self._notify_negative_times(
                 run_metadata.get("negative_draws", []), report_notes)
+            self._note_out_of_service(report_notes)
             if run_metadata.get("hit_safety_bound"):
                 report_notes.append(
                     "Note: the run reached the simulation safety bound "
@@ -906,6 +908,15 @@ class RunMixin(_Base):
             return
         self._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] = f"{value:.6f}"
         self._mark_dirty()
+
+    def _note_out_of_service(self, report_notes: list[str]) -> None:
+        """U27: a result made with elements out of service says so, in the
+        notes and the status bar, so it is not taken for the model as built."""
+        from raptor.core.fileio.out_of_service import note
+        text = note(self._rbd) if self._rbd is not None else ""
+        if text and ("Note: " + text) not in report_notes:
+            report_notes.insert(0, "Note: " + text)
+            self.statusBar().showMessage(text, 15000)
 
     def _notify_negative_times(self, per_run, report_notes: list[str]) -> None:
         """After a batch that drew negative times (clamped to 0.000001): a note in the results and,

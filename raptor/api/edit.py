@@ -155,3 +155,46 @@ def copy_element_data(workspace: Any, model_id: str, source: str,
     return {"changes": [{key: value for key, value in change.items()
                          if key != "row"} for change in changes],
             "count": len(changes), "blocks": len(rows)}
+
+
+_OOS_KIND = {"BLOCK_DATA": "block", "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}
+
+
+def set_out_of_service(workspace: Any, model_id: str, elements: Sequence[str],
+                       state: str | None) -> dict[str, Any]:
+    """Take blocks, events or hierarchies out of service for a what-if,
+    without changing their data: `state` "cut" (down for the whole run,
+    its path broken), "linked" (never fails, as good as a wire) or None
+    (back in service). A hierarchy covers everything inside it. Saved in
+    .rbds only (see `raptor.core.fileio.out_of_service`).
+
+    Returns {changed: [{kind, id, name, state}], out_of_service: [...]},
+    the second the model's whole list after the change."""
+    from raptor.api.build import resolve_element
+    from raptor.core.fileio import out_of_service as oos
+    if state not in (None, "", *oos.STATES):
+        raise ValueError(f"state must be cut, linked or in-service, not {state!r}")
+    rbd = workspace.get(model_id).rbd
+    changed = []
+    for selector in elements:
+        section, row = resolve_element(rbd, selector)
+        if section not in _OOS_KIND and ":" not in str(selector):
+            # A hierarchy's In/Out node can share its name: a bare name
+            # means the block, event or hierarchy of that name.
+            for prefix in ("Hier", "Block", "Event"):
+                try:
+                    section, row = resolve_element(rbd, f"{prefix}:{selector}")
+                    break
+                except Exception:   # noqa: BLE001 -- not that kind; try the next
+                    continue
+        kind = _OOS_KIND.get(section)
+        if kind is None:
+            raise ValueError(f"{selector!r}: only a block, event or hierarchy "
+                             "can be taken out of service")
+        oid = int(float(row.get("ID") or 0))
+        oos.set_state(rbd, kind, oid, state or None)
+        changed.append({"kind": kind, "id": str(oid), "state": state or "in service",
+                        "name": str(row.get({"block": "blockName", "event": "eventName",
+                                             "hier": "hierarchyName"}[kind]) or oid)})
+    workspace.save(model_id)
+    return {"changed": changed, "out_of_service": oos.describe(rbd)}
