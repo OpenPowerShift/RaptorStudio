@@ -17,6 +17,7 @@ import json
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,7 +74,8 @@ class Recorder:
 
 def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     """The scripted tool session. Deterministic, a few seconds."""
-    from raptor.mcp import tools_model, tools_run, tools_metrics, tools_tables, tools_view, tools_svg, tools_analytic  # noqa: F401 (registers the tools)
+    from raptor.mcp.server import import_all_tool_modules
+    import_all_tool_modules()
     from raptor.mcp.server import mcp
     mcp._raptor_args = type("A", (), {"workspace": str(workspace), "read_only": False})()
     mcp._raptor_ws = None
@@ -140,6 +142,21 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("describe_metrics")
     rec.call("describe_metrics", model_id=m1,
              **({"run_id": run} if run else {}))
+    rec.call("list_advisor_rules")
+    rec.call("advise", model_id=m1)
+    rec.call("ignore_finding", model_id=m1, rule="M-STR-002", reason="example")
+    rec.call("ignore_finding", model_id=m1, rule="M-STR-002", restore=True)
+    attributed = rec.call("simulate", model_id=m1, num_runs=3, attribution=True) or {}
+    if attributed.get("run_id"):
+        rec.call("advise", model_id=m1, run_id=attributed["run_id"], min_severity="info",
+                 targets=[{"metric": "system.ao", "op": ">=", "value": 0.5}])
+        rec.call("downtime_drivers", run_id=attributed["run_id"])
+        rec.call("annual_availability", run_id=attributed["run_id"], year_length=250.0, below=0.9)
+        # without `below` the threshold is null: a schema that saw only the
+        # number rejected that answer in a validating client
+        rec.call("annual_availability", run_id=attributed["run_id"], year_length=250.0)
+    if rec.call("apply_fix", model_id=m1, rule="M-EXP-001"):
+        rec.call("undo_last_edit", model_id=m1)
     iso = rec.call("simulate", model_id=m2, num_runs=1,
                    confirm_long_run=True, hierarchy="500path") or {}
     if iso.get("run_id"):
@@ -170,6 +187,102 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("collapse_selection", model_id=m1, selectors=["B1"], name="Sub")   # one link in, one out: a hierarchy takes no more (Raptor 7)
     rec.call("close_model", model_id=m3)
     rec.call("delete_file", path="out.rbds")
+    more(rec, m1, run, attributed.get("run_id"))
+
+
+#: One block with a spare pool, planned maintenance and a repair crew, so
+#: each optimiser has something to search.
+OPT_SPEC = {
+    "blocks": [{"name": "Pump", "fail_dist": "Weibull", "fail_params": [2.0, 100.0, 0.0],
+                "repair_dist": "Fixed", "repair_params": [5, 0, 0],
+                "uses_pm": 1, "pm_freq": 400.0, "pm_dist": "Fixed", "pm_params": [2, 0, 0],
+                "pm_cost": 1.0, "pm_fixed_cost": 10.0, "rep_fixed_cost": 100.0,
+                "spare_pool": "Seals", "sp_type": "Pooled",
+                "resource1_name": "Crew", "num_res": 1, "res1_rep": 1}],
+    "spare_pools": [{"name": "Seals", "stock": 0, "rso": 1, "new_spares": 1,
+                     "arrive_every": 200.0}],
+    "resources": [{"name": "Crew", "num_in": 1}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "End"}],
+    "experiment": {"trials": 2, "termination_type": "TimeSim", "term_condition": 1000.0},
+}
+
+
+def optimisers(rec: Recorder) -> None:
+    opt = (rec.call("build_model", name="opt", spec=OPT_SPEC) or {}).get("model_id")
+    if not opt:
+        return
+    rec.call("optimise_spares", model_id=opt, target=0.5, max_evaluations=2, trials=2)
+    rec.call("optimise_pm", model_id=opt, trials=2)
+    rec.call("optimise_resources", model_id=opt, target=0.5, extra=0, trials=2)
+    rec.call("fit_from_experience", law="weibull", block="P1",
+             quantiles=[{"probability": 0.1, "age": 100}, {"probability": 0.5, "age": 300}])
+
+
+def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) -> None:  # noqa: PLR0915
+    """The tools the main session does not reach: batch edits, library,
+    pools, jobs, scenarios and run outputs. On a model of its own, so the
+    main session's results do not move."""
+    m4 = (rec.call("build_model", name="m4", spec=SIMPLE) or {}).get("model_id")
+    if not m4:
+        return
+    rec.call("export_analytical", model_id=m4, folder="analytic", modes=["availability"])
+    rec.call("add_elements", model_id=m4, elements=[
+        {"kind": "block", "name": "B3", "fail_dist": 4, "fail_params": [100.0, 0.0]},
+        {"kind": "node", "name": "N3", "type": "regular"}])
+    rec.call("connect_many", model_id=m4, links=[{"from": "B3", "to": "N3"}])
+    rec.call("update_elements", model_id=m4, updates=[{"selector": "B3", "patch": {"fail_params": [80.0, 0.0]}}])
+    rec.call("duplicate_elements", model_id=m4, elements=["B3"], copies=1)
+    rec.call("copy_element_data", model_id=m4, source="B1", targets=["B3"], groups=["Failure"])
+    rec.call("set_out_of_service", model_id=m4, elements=["B3"], state="cut")
+    rec.call("set_out_of_service", model_id=m4, elements=["B3"], state="in_service")
+    rec.call("replace_in_table", model_id=m4, table="inputs.blocks_all", column="blockName", find="B3_2", replace="B4")
+    hier = rec.call("add_hierarchy", model_id=m4, name="H4") or {}
+    hid = hier.get("hier_id")
+    if hid is not None:
+        rec.call("move_element", model_id=m4, selector="B4", parent=int(hid))
+    rec.call("delete_elements", model_id=m4, selectors=["B4"])
+    desc = rec.call("describe_model", model_id=m4, detail="full") or {}
+    link = next((ln for ln in desc.get("links", []) if isinstance(ln, dict)), None)
+    if link is not None:
+        rec.call("delete_link", model_id=m4, link_id=str(link.get("id")))
+    rec.call("delete_elements", model_id=m4, selectors=["B3", "N3"])
+    for tool, extra in (("manage_resources", {"num_in": 2}), ("manage_spare_pools", {"stock": 2}),
+                        ("manage_triggers", {})):
+        rec.call(tool, model_id=m4, action="add", name=f"{tool}_x", **extra)
+        rec.call(tool, model_id=m4, action="list")
+    lib = "schema.rbdlib"
+    part = ((rec.call("save_part_type", model_id=m4, element="B1", name="Unit", library_path=lib) or {})
+            .get("part") or {}).get("id")
+    rec.call("list_part_types", library_path=lib)
+    if part:
+        rec.call("apply_part_type", model_id=m4, part=part, elements=["B2"], library_path=lib)
+    rec.call("sync_part_types", model_id=m4, library_path=lib)
+    saved = rec.call("save_assembly", model_id=m4, elements=["B1"], name="Pair", library_path=lib) or {}
+    if saved.get("part"):
+        rec.call("insert_assembly", model_id=m4, part=saved["part"], library_path=lib)
+    job = (rec.call("start_run", model_id=m1, num_runs=2) or {}).get("job_id")
+    if job:
+        end = time.monotonic() + 60
+        while time.monotonic() < end:
+            status = rec.call("run_status", job_id=job) or {}
+            if status.get("state") not in ("queued", "running", "setting_up", "simulating", None):
+                break
+            time.sleep(0.2)
+        rec.call("cancel_run", job_id=job)
+    rec.call("render_diagram", model_id=m1, max_px=200)
+    rec.call("what_if", model_id=m1, changes=["block:B1.fail_params=200,0"], trials=2)
+    rec.call("sensitivity", model_id=m1, top=1, trials=2)
+    if attributed_run:
+        rec.call("recommend_changes", model_id=m1, run_id=attributed_run, top=1, trials=2)
+        rec.call("run_story", run_id=attributed_run)
+    optimisers(rec)
+    if run:
+        rec.call("get_run_results", run_id=run)
+        rec.call("run_chart", run_id=run)
+        rec.call("export_report", run_id=run, path="report.html")
+        rec.call("export_tables", model_id=m1, run_id=run, tables=["results.summary"], formats=["csv"],
+                 folder="tables2")
 
 
 #: Keys whose type depends on the data, so one scripted session cannot see every type: (tool, key) -> types.
@@ -187,6 +300,36 @@ WIDEN: dict[tuple[str, str], list[str]] = {
     ("analytical_analysis", "unavailability"): ["number", "null"],
     ("analytical_analysis", "equation"): ["string", "null"],
     ("single_point_failures", "next_offset"): ["integer", "null"],
+    # a scenario run reproduces the engine's fixed seeds when none is given
+    ("what_if", "seed"): ["integer", "null"],
+    ("sensitivity", "seed"): ["integer", "null"],
+    ("recommend_changes", "seed"): ["integer", "null"],
+    ("optimise_pm", "trials"): ["integer", "null"],
+    ("optimise_resources", "trials"): ["integer", "null"],
+    ("render_diagram", "highlighted"): ["integer", "null"],
+    # a run's summary.json may lack a field an older run did not write
+    ("get_run_results", "model_id"): ["string", "null"],
+    ("get_run_results", "model_name"): ["string", "null"],
+    ("get_run_results", "runs"): ["integer", "null"],
+    ("get_run_results", "units"): ["string", "null"],
+}
+
+#: A background job's snapshot: these fields are null until the job reaches
+#: the state that fills them (set-up, attribution, the finished run, an error).
+for _tool in ("start_run", "run_status", "cancel_run"):
+    WIDEN.update({
+        (_tool, "setup"): ["object", "null"],
+        (_tool, "attributing"): ["object", "null"],
+        (_tool, "percent"): ["number", "null"],
+        (_tool, "wall_seconds"): ["number", "null"],
+        (_tool, "run_id"): ["string", "null"],
+        (_tool, "summary"): ["object", "null"],
+        (_tool, "error"): ["string", "null"],
+    })
+
+#: Keys a tool returns only when asked: never required.
+OPTIONAL: dict[str, set[str]] = {
+    "run_chart": {"svg"},            # only with render_svg
 }
 
 #: Keys that only some element kinds return. `get_element` shares one
@@ -210,7 +353,7 @@ def infer(seen: dict[str, list[dict]]) -> dict[str, dict]:
             "type": "object",
             "properties": {k: {"type": sorted(p["type"]) if len(p["type"]) > 1 else next(iter(p["type"]))}
                            for k, p in sorted(props.items())},
-            "required": sorted(REQUIRED_OVERRIDE.get(name, keys)),
+            "required": sorted(set(REQUIRED_OVERRIDE.get(name, keys)) - OPTIONAL.get(name, set())),
         }
     if "analytical_analysis" in schemas:
         # The tool only returns `hierarchy` for a hierarchy-scoped solve,
@@ -230,7 +373,8 @@ def main() -> int:
         session(record, Path(d))
     schemas = infer(record.seen)
     asyncio.set_event_loop(asyncio.new_event_loop())
-    from raptor.mcp import server, tools_model, tools_run, tools_tables, tools_view, tools_svg  # noqa: F401
+    from raptor.mcp import server  # noqa: F401
+    server.import_all_tool_modules()
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     for n in sorted(names - set(schemas)):
         print(f"no schema: {n} ({record.failed.get(n, 'not driven')})", file=sys.stderr)

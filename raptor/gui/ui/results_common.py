@@ -9,13 +9,14 @@ from PySide6.QtWidgets import QAbstractItemView
 
 from typing import Protocol, cast
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QFrame, QSizePolicy, QScrollArea, QTableWidget, QTableWidgetItem,
 )
 
+from raptor.api.insight import measures
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 
 
@@ -49,61 +50,20 @@ def _cell_parts(val):
     return val, None, False
 
 
-#: Plain-English meanings (Raptor 7 manual, Appendix F "Raptor
-#: Definitions"). Keys match the report rows' own labels.
+#: Plain-English meanings for the labels and acronyms the dock shows.
+#: The definitions come from the one measure registry; this mapping only
+#: says which labels a measure answers to.
+_LABELS = (
+    "Availability", "Conditional reliability", "MTBDE", "MDT",
+    "Reliability", "Conditional_Reliability", "Dependability", "MTBM",
+    "MTBMu", "MTBMs", "MMT", "MMTu", "MMTs", "Green_Percent",
+    "Yellow_Percent", "Red_Percent", "System_Failures",
+    "Component_Failures", "Total Cost",
+)
 GLOSSARY = {
-    "Availability": (
-        "Operational Availability (Ao)\n\nFraction of total time the system "
-        "was at least PARTIALLY working (green + yellow time).\n\n"
-        "Ao = Uptime / Total Time"),
-    "Conditional reliability": (
-        "Conditional Reliability (RC)\n\nOf the missions that STARTED "
-        "with the system up, the fraction completed without a failure."),
-    "MTBDE": (
-        "Mean Time Between Downing Events\n\nAverage working time between "
-        "events that down the system — fully or partially.\n\n"
-        "MTBDE = Uptime / Number of Downing Events"),
-    "MDT": (
-        "Mean Down Time\n\nAverage time the system is FULLY down (red) per "
-        "downing event.\n\nMDT = Downtime / Number of Downing Events"),
-    "Reliability": (
-        "Reliability (R)\n\nFraction of missions completed WITHOUT a system "
-        "failure.\n\nR = Successful Missions / Missions Attempted"),
-    "Conditional_Reliability": (
-        "Conditional Reliability (RC)\n\nOf the missions that STARTED with "
-        "the system up, the fraction completed without a failure."),
-    "Dependability": (
-        "Dependability (Do)\n\nFraction of MISSION time spent at least "
-        "partially working."),
-    "MTBM": (
-        "Mean Time Between Maintenance\n\nAverage working time between ANY "
-        "maintenance event — repairs AND preventive maintenance.\n\n"
-        "MTBM = Uptime / Number of Maintenance Events"),
-    "MTBMu": (
-        "Mean Time Between Maintenance, Unscheduled\n\nAverage working time "
-        "between failures (unscheduled maintenance only)."),
-    "MTBMs": (
-        "Mean Time Between Maintenance, Scheduled\n\nAverage working time "
-        "between preventive-maintenance events."),
-    "MMT": (
-        "Mean Maintenance Time\n\nAverage duration of a maintenance event "
-        "(includes logistics delays and waiting for spares/resources)."),
-    "MMTu": (
-        "Mean Maintenance Time, Unscheduled\n\nAverage duration of a repair."),
-    "MMTs": (
-        "Mean Maintenance Time, Scheduled\n\nAverage duration of preventive "
-        "maintenance."),
-    "Green_Percent": "Percent of time the system was FULLY working.",
-    "Yellow_Percent": "Percent of time the system was DEGRADED (partially working).",
-    "Red_Percent": "Percent of time the system was FULLY DOWN.",
-    "System_Failures": (
-        "Number of System Failures\n\nHow many times the system went fully "
-        "down (a red event) per run."),
-    "Component_Failures": "How many times individual blocks failed per run.",
-    "Total Cost": (
-        "Total Cost\n\nThe run's whole life-cycle cost (blocks + events + "
-        "sparing + resources + system-down cost + lost-flow cost) — the "
-        "Cost tab's Grand Total, one sample per run."),
+    label: measures.explainer_text(measure.id)
+    for label in _LABELS
+    if (measure := measures.for_label(label)) is not None
 }
 
 #: Display labels used by the Advanced table that are not the report's
@@ -244,6 +204,11 @@ def _pct(v: float) -> str:
     if 99.95 < v < 100:
         return "over 99.9%"
     return f"{v:.1f}%"
+
+
+def _pct_short(v: float) -> str:
+    """`_pct` for a legend: "<0.1%" / ">99.9%"."""
+    return _pct(v).replace("under ", "<").replace("over ", ">")
 
 
 class _ReadOnlyTable(QTableWidget):
@@ -471,9 +436,13 @@ class _MetricCard(QFrame):
     """One headline number: acronym, big value, plain-English caption,
     and a min–max range across runs."""
 
+    clicked = Signal(str)
+
     def __init__(self, acronym: str, caption: str, parent=None):
         super().__init__(parent)
         self.setObjectName("MetricCard")
+        self._acronym = acronym
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip(GLOSSARY.get(acronym, acronym))
         lay = QVBoxLayout(self)
         lay.setContentsMargins(SPACING["md"], SPACING["sm"], SPACING["md"], SPACING["sm"])
@@ -486,6 +455,9 @@ class _MetricCard(QFrame):
         lay.addWidget(self._value)
         self._range = QLabel("")
         self._range.setObjectName("MetricRange")
+        # "min … · max … · > rough estimate: not every run gave a value"
+        # is wider than a narrow card
+        self._range.setWordWrap(True)
         self._range.setToolTip(
             "Lowest and highest value observed across the individual runs.")
         lay.addWidget(self._range)
@@ -493,6 +465,11 @@ class _MetricCard(QFrame):
         self._caption.setObjectName("MetricCaption")
         self._caption.setWordWrap(True)
         lay.addWidget(self._caption)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self._acronym)
+        super().mouseReleaseEvent(event)
 
     def set_value(self, text: str, range_text: str = "",
                   censored: bool = False):

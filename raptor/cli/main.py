@@ -15,9 +15,10 @@ PROG = "raptor"
 #: Names accepted as the first argument. Anything else that is not an option
 #: and not an existing file is a usage error ("unknown command").
 COMMANDS = (
-    "gui", "run", "simulate", "validate", "schema", "info", "describe", "get", "set",
+    "gui", "run", "simulate", "validate", "advise", "explain", "schema", "info", "describe", "get", "set",
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
-    "spf", "fev", "step", "extract", "analytic", "mcp", "config",
+    "spf", "fev", "step", "extract", "analytic", "whatif", "sensitivity", "recommend",
+    "optimise", "fit", "library", "edit", "mcp", "config",
     "completion", "doctor", "help",
 )
 
@@ -64,13 +65,39 @@ def build_parser() -> argparse.ArgumentParser:
                         "'none' (same as RAPTOR_DEV_FEATURES)")
     sub = p.add_subparsers(dest="command", metavar="COMMAND")
     _register(sub)
+    _fill_common_help(p)
     return p
+
+
+#: Help for the options many commands share, where a command gives none:
+#: written once so `--help` and the man pages always explain them.
+COMMON_HELP = {
+    "format": "output format (default %(default)s)",
+    "seed": ("salt every random stream (default: the fixed seed "
+             "'raptor run' uses, so the numbers match a plain run)"),
+    "jobs": ("cores to run on (default %(default)s). Any 2 or more give "
+             "the same numbers; they differ, equally validly, from 1"),
+    "trials": "runs per point (default: the model's own)",
+}
+
+
+def _fill_common_help(parser: argparse.ArgumentParser) -> None:
+    for action in parser._actions:                      # noqa: SLF001
+        if action.option_strings and not action.help and action.dest in COMMON_HELP:
+            action.help = COMMON_HELP[action.dest]
+        choices = getattr(action, "choices", None)
+        if isinstance(choices, dict):
+            for child in dict.fromkeys(choices.values()):
+                _fill_common_help(child)
 
 
 def _register(sub: Any) -> None:
     from raptor.cli import (cmd_gui, cmd_info, cmd_misc, cmd_run, cmd_tools,
-                            cmd_mcp, cmd_analytic)
-    for mod in (cmd_gui, cmd_run, cmd_info, cmd_tools, cmd_mcp, cmd_misc,
+                            cmd_mcp, cmd_analytic, cmd_advise, cmd_scenarios,
+                            cmd_optimise, cmd_library, cmd_edit)
+    for mod in (cmd_gui, cmd_run, cmd_info, cmd_advise, cmd_scenarios,
+                cmd_optimise, cmd_library, cmd_edit, cmd_tools, cmd_mcp,
+                cmd_misc,
                 cmd_analytic):
         mod.add_parser(sub)
 
@@ -183,6 +210,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{PROG}: the model cannot be run: {exc}", file=sys.stderr)
         return X.REFUSED
     except Exception as exc:                      # noqa: BLE001
+        from raptor.api.build import AmbiguousName, ElementNotFound
+        if isinstance(exc, (ElementNotFound, AmbiguousName)):
+            # a misspelt or ambiguous name is a bad command line, not a crash
+            print(f"{PROG}: {exc}", file=sys.stderr)
+            return X.USAGE
         if args.verbose >= 2 or args.debug:
             raise
         print(f"{PROG}: error: {exc} (use -vv for the traceback)",

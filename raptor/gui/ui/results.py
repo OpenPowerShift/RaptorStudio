@@ -22,10 +22,12 @@ checked-in models under `tests/data/models/` exercise the result shapes.
 """
 from __future__ import annotations
 
+import html
 import itertools
 import re
 import weakref
 
+from raptor.api import run_needs
 from raptor.api.presentation import probability_text
 from raptor.gui.ui.qtcompat import req
 
@@ -35,8 +37,9 @@ from PySide6.QtWidgets import QAbstractItemView
 from typing import Any, cast
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QStandardItemModel
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
     QPlainTextEdit, QComboBox, QLineEdit, QTreeView, QTreeWidget,
     QTreeWidgetItem,
@@ -55,6 +58,7 @@ from raptor.gui.ui.results_raw_mixin import ResultsRawMixin
 
 from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and callers import from here)
     _mono_font,
+    _pct_short,
     RAW_VALUE_ROLE,
     CENSOR_ROLE,
     _cell_parts,
@@ -81,16 +85,29 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
 )
 
 
+def _pooled_time_between_downings(data) -> float | None:
+    """Working (not fully down) time over all runs / outages over all runs:
+    a rate that stays meaningful when most runs never go down."""
+    from raptor.api.presentation import pooled_outages
+    rate = pooled_outages(data)
+    return rate.between if rate is not None else None
+
+
 class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                   QWidget):
     #: ("block"|"node", element_NAME) -- the user clicked an event-log row.
     #: The log stores names, not IDs; MainWindow resolves the name against
     #: the loaded model to make the canvas selection.
     element_clicked = Signal(str, str)
+    _overview_page: QWidget
+    _cap_lines: Any         # a list of sink lines or a ResultStream
     #: A result set arrived or the dock was cleared (`has_results()` may
     #: have changed). The window uses it to tell the Inspector whether an
     #: edit will cost the user their results.
     contents_changed = Signal()
+    #: a chart or the Drivers tab asked to switch run options on (run_needs
+    #: keys) and run again
+    enable_requested = Signal(list)
     #: User switched Raptor 7 Analysis Type in the Weak Link tab.
     weak_analysis_type_changed = Signal(str)
     #: The metric the Importance tab is measured on changed. The canvas
@@ -132,9 +149,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._build_graphs_tab()
         self._build_raw_tab()
         self._tabs.addTab(self._overview_page, "Overview")
+        from raptor.gui.ui.drivers_page import DriversPage
+        self._drivers_page = DriversPage()
+        self._drivers_page.element_clicked.connect(
+            lambda kind, _id, name: self.element_clicked.emit(kind, name))
+        self._drivers_stale = False
+        self._period_summary: dict | None = None
+        self._drivers_page.enable_requested.connect(self.enable_requested)
+        self._tabs.addTab(self._drivers_page, "Drivers")
+        self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
+        self._charts_page.locate_requested.connect(
+            lambda _kind, name: self.element_clicked.emit("block", name))
+        self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
-        self._tabs.addTab(self._graphs_page, "Graphs")
         self._tabs.addTab(self._raw_page, "Report Text")
         # The whole results dock is sized by the TALLEST page, because a
         # QTabWidget's stacked layout takes the max over its pages -- so a
@@ -162,11 +190,22 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             "padding: 4px 8px; margin: 4px; }")
         self._scope_banner.setVisible(False)
 
+        # The measure explainer sits to the right of the tabs (WP-2.4): it
+        # is non-modal, opens from a metric card or a table row label, and
+        # stays out of the way until asked.
+        from raptor.gui.ui.measure_explainer import MeasureExplainer
+        self._explainer = MeasureExplainer()
+        self._explainer.hide()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._scope_banner)
         layout.addWidget(self._placeholder)
-        layout.addWidget(self._tabs, 1)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.addWidget(self._tabs, 1)
+        body.addWidget(self._explainer)
+        layout.addLayout(body, 1)
         self._tabs.hide()
 
         ThemeManager.instance().on_changed(self._refresh_theme)
@@ -193,8 +232,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # i.e. "after running, I can't reduce the size of the results
         # pane". The page scrolls instead.
         scroll.setMinimumHeight(0)
+        # The page itself keeps its layout's minimum, so a short pane
+        # scrolls it; zeroing that too squeezed the cards to the pane and
+        # cut their text off ("missions completed without a failure /
+        # missions" with "attempted" lost below the card).
         body = QWidget()
-        body.setMinimumHeight(0)
         scroll.setWidget(body)
         outer.addWidget(scroll)
 
@@ -242,6 +284,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # designed height when there is room; the page scrolls when
             # there is not.
             card.setMinimumWidth(172)
+            # never shorter than its text: the page scrolls instead
+            card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+            card.clicked.connect(self._explain_measure)
             self._cards[acronym] = card
             cards.addWidget(card, i // 3, i % 3)
         lay.addLayout(cards)
@@ -343,6 +388,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
         self._mission_gyr_container.setVisible(False)
         lay.addWidget(self._mission_gyr_container)
+
+        # What the key numbers above do not say: whether a stated target
+        # was met run by run, what drives the downtime (one line, the
+        # Drivers tab has the detail) and the Advisor's findings.  The
+        # Qt-free builder is the one the CLI and MCP use.
+        from raptor.gui.ui.story_page import StoryPage
+        self._story_page = StoryPage()
+        self._story_page.element_clicked.connect(
+            lambda kind, oid, name: self.element_clicked.emit(kind, name))
+        self._story_page.measure_clicked.connect(self._explain_measure)
+        self._story_page.drivers_requested.connect(
+            lambda: self._tabs.setCurrentWidget(self._drivers_page))
+        lay.addWidget(self._story_page)
 
         self._runs_table = QTreeWidget()
         self._runs_table.setHeaderLabels(["Run", "Availability", "MTBDE", "MDT",
@@ -449,11 +507,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # A second population replaced the page before the deferred
             # restore ran; there is nothing left to scroll.
             pass
-
-    def _restore_graph_run(self, index: int) -> None:
-        """Keep the Graphs run selector on the run the reader was viewing."""
-        if 0 <= index < self._graph_run.count():
-            self._graph_run.setCurrentIndex(index)
 
     def _restore_raw_view(self, tab_index: int, scroll: int) -> None:
         """Keep the Report Text tab and its scroll position."""
@@ -835,7 +888,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             v.addWidget(table)
             if title == "SUMMARY":
                 self._add_summary_notes(v)
+            table.cellDoubleClicked.connect(
+                lambda _row, column, t=table: self._explain_table_cell(t, column))
             self._detail_tables[title] = table
+        extended = pages.get(section_of("EXTENDED_RESULTS"))
+        if extended is not None:
+            for text in self._extended_notes():
+                note = QLabel(text)
+                note.setObjectName("SectionNote")
+                note.setWordWrap(True)
+                extended.addWidget(note)
         for group, page in order:
             pages[group].addStretch(1)
             # The table shows all its rows; this scroll area handles
@@ -976,6 +1038,29 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         hdr.setWordWrap(True)
         v.addWidget(hdr)
 
+    def _extended_notes(self) -> list[str]:
+        """The Extended results section's own notes (an MTTFF that is a
+        lower bound; criticality shares that need an analysis), which the
+        table parser drops. A missing share says which box to tick."""
+        from raptor.api.run_needs import gui_hint
+        from raptor.core.engine.extended_results import EXTENDED_RESULTS_BANNER
+        lines = [ln.strip() for ln in self._final_lines]
+        if EXTENDED_RESULTS_BANNER not in lines:
+            return []
+        notes = []
+        for line in lines[lines.index(EXTENDED_RESULTS_BANNER):]:
+            if line.startswith("MTTFF:"):
+                notes.append(line)
+            needs = [key for key, phrase in (("weak_link", "need Weak Link analysis"),
+                                             ("cost", "need Cost analysis"))
+                     if phrase in line]
+            if needs:
+                what = " and ".join(
+                    {"weak_link": "%Downtime", "cost": "%Cost"}[k] for k in needs)
+                notes.append(f"{what} in Block criticality {'are' if len(needs) > 1 else 'is'} "
+                             f"blank because the analysis was off. {gui_hint(*needs)}")
+        return notes
+
     def _add_summary_notes(self, v: QVBoxLayout) -> None:
         """The report builder's censoring/sampling notes (dialog labels in
         Raptor 7), under the Summary table,
@@ -1073,9 +1158,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._log_disabled_label = QLabel(
             "No event log is available for this result set — either "
             "Detailed event log was off, or the run stopped before any "
-            "event was recorded.\n\nEnable it in the Run panel ▸ "
-            "Recording (Detailed event log). For long simulations the "
-            "event log may use significant disk space.")
+            "event was recorded.<br><br>"
+            + run_needs.gui_hint("attribution")
+            + " For long simulations the event log may use significant "
+            "disk space.")
         self._log_disabled_label.setWordWrap(True)
         self._log_disabled_label.setVisible(False)
         # Filter-specific empty state: a carried-over filter that matches
@@ -1133,7 +1219,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             cost_lines=list(self._stream_lines(
                 getattr(self, "_cost_lines", None))),
             event_logs=[list(x) if isinstance(x, (list, tuple)) else [str(x)]
-                        for x in self._event_logs])
+                        for x in self._event_logs],
+            attribution=(self._drivers_page.attribution()
+                         if hasattr(self, "_drivers_page") else None),
+            periods=self._period_summary)
 
     def run_info(self, rbd, *, model: str = "", file: str = ""):
         """The run information a saved result carries (Run Info sheet,
@@ -1146,10 +1235,109 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         run_at=getattr(self, "_run_at", None),
                         manifest=getattr(self, "_manifest", None))
 
+    # ---- Drivers (downtime attribution) -----------------------------------
+    #: Above this many event-log lines the attribution waits until the tab
+    #: is opened, so a large run's results appear without the extra pass.
+    DRIVERS_EAGER_LINES = 200_000
+
+    def _on_tab_shown_for_drivers(self, index: int) -> None:
+        if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
+            self._refresh_drivers()
+
+    def _refresh_drivers(self) -> None:
+        """Work out what caused the downtime from this result set's event logs."""
+        self._drivers_stale = False
+        # never export a previous result set's periods with this one
+        self._period_summary = None
+        logs = [log for log in (self._event_logs or []) if log]
+        if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
+            self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
+            return
+        from raptor.api.insight.attribution import attribute_logs
+        experiment = (self._manifest or {}).get("experiment") or {}
+        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
+
+        def show(p) -> None:
+            # a long replay says where it has got to and keeps the window alive
+            if big and (p.done % 10 == 0 or p.done == p.total):
+                self._drivers_page.caption.setText(p.text() + " runs…")
+                QApplication.processEvents()
+
+        cap_runs = None
+        if getattr(self, "_rbd", None) is not None and self._cap_lines:
+            try:
+                from raptor.api.insight.capacity_attribution import capacity_runs
+                cap_runs = capacity_runs(self._rbd, self._cap_lines)
+            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
+                import logging
+                logging.getLogger(__name__).exception("lost-capacity split failed")
+        if big:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            start = float(experiment.get("start_stats") or 0.0)
+            from raptor.api.insight.attribution import model_hierarchies, model_phases
+            rbd = getattr(self, "_rbd", None)
+            attribution = attribute_logs(logs, start, progress=show,
+                                         with_outages=True, capacity=cap_runs,
+                                         phases=model_phases(rbd),
+                                         hierarchies=model_hierarchies(rbd))
+        except Exception:  # noqa: BLE001 - a view must never break showing results
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            self._drivers_page.set_attribution(None)
+            return
+        finally:
+            if big:
+                QApplication.restoreOverrideCursor()
+        attribution["units"] = self._units
+        outages = attribution.pop("outages", None)
+        # the run-to-run state ribbon draws from the outage timeline
+        self._outages = outages
+        self._drivers_page.set_attribution(attribution)
+        self._period_summary = self._yearly(outages)
+        self._drivers_page.set_periods(self._period_summary)
+        self._refresh_story()
+        self._refresh_charts()
+
+    def _yearly(self, outages: dict | None) -> dict | None:
+        """Year-by-year availability (and, with capacity analysis,
+        capacity-weighted availability) when the model's unit is hours;
+        None otherwise.  Built by the same function the API uses."""
+        if not outages or not self._units.lower().startswith("hour"):
+            return None
+        from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
+        from raptor.api.series import parse_capacity_runs
+        attribution = (self._drivers_page.attribution()
+                       if hasattr(self, "_drivers_page") else None) or {}
+        generated = float((attribution.get("capacity") or {}).get("generated") or 0.0)
+        sinks = None
+        if generated > 0:
+            lines = list(self._stream_lines(getattr(self, "_cap_lines", None)))
+            sinks = parse_capacity_runs("\n".join(lines)) if lines else None
+        return period_summary(outages, PeriodSpec(HOURS_PER_YEAR),
+                              capacity_runs=sinks, generated=generated,
+                              rows=True, units=self._units)
+
+    def _schedule_drivers(self) -> None:
+        lines = sum(len(log) for log in (self._event_logs or []))
+        showing = self._tabs.currentWidget() is self._drivers_page
+        if showing or lines <= self.DRIVERS_EAGER_LINES:
+            self._refresh_drivers()
+        else:
+            self._drivers_stale = True
+
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
         self._manifest = None
+        self._rbd = None
+        self._period_summary = None
+        self._outages = None
+        if hasattr(self, "_story_page"):
+            self._story_page.set_story(None)
         self._event_logs = []
+        self._drivers_stale = False
+        self._drivers_page.set_attribution(None)
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1188,14 +1376,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # leaving them here let Save Raw Report export a previous batch
         # from an empty-looking dock (and kept its stream alive).
         self._raw_sources = {}
-        if hasattr(self, "_ao_plot"):
-            self._ao_plot.set_data([])
-            self._ao_plot.set_cap_data([])
-            self._ao_plot.set_convergence_data([])
-            self._graph_run.clear()
-            self._graph_run.setEnabled(False)
-            self._graph_mode.setCurrentIndex(0)
-            self._graph_note.hide()
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_series([], [])
+            self._charts_page.set_inputs()
+            self._charts_page.set_note("")
         self._tabs.hide()
         self._placeholder.show()
         self._refresh_scope_banner()
@@ -1208,6 +1392,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     cost_lines: list[str] | None = None,
                     manifest: dict | None = None,
                     importance: dict | None = None,
+                    rbd=None,
                     progress=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
@@ -1216,6 +1401,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        #: The model as it was run, for features that need its structure
+        #: (the lost-capacity split asks the Failure Effects machinery).
+        self._rbd = rbd
         self._refresh_scope_banner()
         from datetime import datetime
         self._run_at = datetime.now()
@@ -1264,6 +1452,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # The model's own time unit (SYSTEM_DATA "Units" column) -- appended
         # to every TIME quantity shown; percentages and counts never get it.
         self._units = (units or "").strip()
+        self._schedule_drivers()
 
         def stage(label: str, done: int, total: int) -> None:
             if progress is not None:
@@ -1283,7 +1472,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 previous_scroll = current_page.verticalScrollBar().value()
         previous_run = self._run_selector.currentIndex()
         previous_log_scroll = self._log_tree.verticalScrollBar().value()
-        previous_graph_run = self._graph_run.currentIndex()
         previous_raw_tab = self._raw_tabs.currentIndex()
         previous_raw_scroll = 0
         raw_page = self._raw_tabs.widget(previous_raw_tab)
@@ -1299,7 +1487,6 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._restore_details_view(previous_tab, previous_scroll)
         stage("graphs", 4, 6)
         self._update_graphs()
-        self._restore_graph_run(previous_graph_run)
         stage("raw report", 5, 6)
         self._populate_raw(end_of_run_lines, final_results_lines)
         self._restore_raw_view(previous_raw_tab, previous_raw_scroll)
@@ -1454,6 +1641,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                            else ""))
         if m.get("analyses"):
             bits.append("analyses: " + ", ".join(m["analyses"]))
+        if m.get("streams"):
+            # one core and several give different, equally valid numbers
+            bits.append(f"{m['streams']} streams")
         record = m.get("recording") or {}
         if record:
             on = [k for k in ("event_log", "ao_plot", "capacity_plot",
@@ -1473,12 +1663,141 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             tip.append(f"engine: {m['engine_version']}")
         if m.get("seed_strategy"):
             tip.append(f"seeds: {m['seed_strategy']}")
+        if m.get("streams"):
+            from raptor.api.run import streams_note
+            tip.append(streams_note(m))
         lbl.setToolTip("\n".join(tip))
+
+    def _refresh_charts(self) -> None:
+        """Rebuild the Charts tab from the held results (WP-2.5)."""
+        page = getattr(self, "_charts_page", None)
+        if page is None:
+            return
+        try:
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in self._report_data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            if attribution is not None and getattr(self, "_outages", None):
+                attribution = {**attribution, "outages": self._outages}
+            manifest = self._manifest or {}
+            periods = (self._drivers_page.periods()
+                       if hasattr(self, "_drivers_page") else None)
+            logs = [log for log in (self._event_logs or []) if log]
+            drivers = ("ready" if attribution is not None
+                       else "pending" if self._drivers_stale
+                       else "ready" if logs else "unavailable")
+            from raptor.core.engine import weak_metric
+            dependability = (
+                weak_metric.canonical(getattr(self, "_weak_anal_type", ""))
+                == weak_metric.DEPENDABILITY
+                and any(row.get("dependability") is not None for row in per_run))
+            generated = None
+            if getattr(self, "_rbd", None) is not None:
+                try:
+                    from raptor.api.insight.capacity_attribution import flow_generated_of
+                    generated = flow_generated_of(self._rbd) or None
+                except Exception:  # noqa: BLE001 - only a reference line
+                    generated = None
+            page.set_inputs(
+                per_run=per_run, attribution=attribution,
+                importance=getattr(self, "_importance", None),
+                report_data=list(self._report_data), periods=periods,
+                units=self._units,
+                run_id=str(manifest.get("run_id") or ""),
+                drivers=drivers,
+                measure="dependability" if dependability else "availability",
+                generated=generated)
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the charts")
+
+    def highlight_element(self, kind: str, element_id: int) -> None:
+        """Mirror a canvas selection in the Drivers view."""
+        page = getattr(self, "_drivers_page", None)
+        if page is not None:
+            page.highlight(kind, element_id)
+
+    def _explain_table_cell(self, table: QTableWidget, column: int) -> None:
+        """Double-clicking a Final Results row label opens its definition."""
+        if column != 0:
+            return
+        item = table.item(table.currentRow(), 0)
+        if item is not None:
+            self._explain_measure(item.text())
+
+    def _explain_measure(self, label: str) -> None:
+        """Open the non-modal explainer for a card or label (WP-2.4)."""
+        explainer = getattr(self, "_explainer", None)
+        if explainer is None:
+            return
+        ladder = None
+        try:
+            from raptor.api.insight import measures as measure_registry
+            measure = measure_registry.for_label(label)
+        except Exception:  # noqa: BLE001 - an unknown label is not an error
+            measure = None
+        if measure is None:
+            return
+        if measure.id in ("availability", "inherent_availability",
+                          "achieved_availability", "operational_availability",
+                          "mdt", "mmt", "mttr") and self._report_data:
+            try:
+                from raptor.api.insight import measures as measure_registry
+                from raptor.api.run import _rd_to_dict
+                ladder = measure_registry.availability_ladder(
+                    [_rd_to_dict(rd) for rd in self._report_data])
+            except Exception:  # noqa: BLE001 - the definition still shows
+                ladder = None
+        explainer.show_measure(measure.id, ladder=ladder)
+
+    def _refresh_story(self) -> None:
+        """Rebuild the Story from the held results (WP-2.3)."""
+        page = getattr(self, "_story_page", None)
+        if page is None:
+            return
+        data = self._report_data
+        if not data:
+            page.set_story(None)
+            return
+        try:
+            from raptor.api.insight.story import build as build_story
+            from raptor.api.run import _rd_to_dict
+            per_run = [_rd_to_dict(rd) for rd in data]
+            attribution = (self._drivers_page.attribution()
+                           if hasattr(self, "_drivers_page") else None)
+            findings = []
+            if getattr(self, "_rbd", None) is not None:
+                try:
+                    from raptor.api.advisor import advise_run
+                    findings = advise_run(self._rbd, {}, per_run,
+                                          attribution=attribution)
+                except Exception:  # noqa: BLE001 - the Story must still show
+                    findings = []
+            manifest = getattr(self, "_manifest", None) or {}
+            story = build_story(
+                per_run, units=self._units, attribution=attribution,
+                findings=findings,
+                has_phases=any(bool(getattr(rd, "has_phases", False))
+                               for rd in data),
+                cost_on=any(getattr(rd, "cost", None) is not None
+                            for rd in data),
+                model_name=str(manifest.get("model_name") or ""),
+                model_hash=str(manifest.get("model_hash") or ""),
+                run_id=str(manifest.get("run_id")
+                           or manifest.get("digest") or ""))
+            page.set_story(story)
+        except Exception:  # noqa: BLE001 - a view must never break results
+            import logging
+            logging.getLogger(__name__).exception("could not build the Story")
+            page.set_story(None)
 
     def _populate_overview(self):
         self._runs_table.clear()
         self._refresh_manifest_line()
         data = self._report_data
+        self._refresh_story()
+        self._refresh_charts()
         if not data:
             self._summary_sentence.setText(
                 "Run the simulation to see the summary.")
@@ -1618,15 +1937,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             f"working {_pct(g)} of the time, still partially working but "
             f"degraded {_pct(y)}, and completely down {_pct(r)}."
         ]
-        if fails_m and fails_m > 0 and mtbde_m:
+        if fails_m and fails_m > 0:
             # "about 0 times per run" for 1 failure in 50 runs read as
             # "never"; say how rare it is instead.
             how_often = (f"about once every {1 / fails_m:,.0f} runs"
                          if fails_m < 0.95 else
                          f"about {_fmt_count(fails_m)} times per run")
-            parts.append(f"It went fully down {how_often} "
-                         f"— roughly once every {_fmt(mtbde_m)}{time_u} of "
-                         f"working time.")
+            # Pooled over the runs: the MTBDE card's mean is a lower bound
+            # when runs end with no outage, and quoting it here put "once
+            # every 25 runs" beside "once every 8,760 hours" (one run).
+            pooled = _pooled_time_between_downings(data)
+            between = ""
+            if pooled:
+                every = f"{pooled:,.0f}" if pooled >= 100 else _fmt(pooled)
+                between = f" — roughly once every {every}{time_u} of working time"
+            parts.append(f"It went fully down {how_often}{between}.")
         elif fails_m == 0:
             parts.append("It never went fully down in any run.")
         parts.append(time_phrase)
@@ -1704,9 +2029,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             layout.setStretchFactor(seg, max(1, round(frac * 200)))
             seg.setVisible(frac > 0.0005)
         legend_texts = {
-            "green": f"■ Fully working — {g:.1f}%",
-            "yellow": f"■ Degraded — {y:.1f}%",
-            "red": f"■ Fully down — {r:.1f}%",
+            "green": f"■ Fully working — {_pct_short(g)}",
+            "yellow": f"■ Degraded — {_pct_short(y)}",
+            "red": f"■ Fully down — {_pct_short(r)}",
         }
         legend_colours = {"green": colours["operating"],
                           "yellow": colours["degraded"],
@@ -1719,7 +2044,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # contrast for readable text.
             lbl.setText(
                 f"<span style='color:{legend_colours[key]}'>&#9632;</span>"
-                f" {text.split(chr(32), 1)[1]}")
+                f" {html.escape(text.split(chr(32), 1)[1])}")
             # No `background: transparent` here (see _update_status_
             # summary in main_window.py: an unscoped background
             # declaration on a widget also paints the tooltip window
@@ -1863,10 +2188,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """Capacity snapshots received so far during a batch run. The
         engine appends each completed run's capacity snapshot rows to its
         capacity sink; MainWindow forwards the sink (plain list or
-        disk-backed ResultStream) here, so the Graphs tab's Capacity
-        (Flow) plot fills in run-by-run rather than only after the whole
-        batch. The first update for a batch switches the view to the
-        Capacity plot (Raptor 7 shows its capacity display live too);
+        disk-backed ResultStream) here, so the Charts tab's capacity
+        charts fill in run-by-run rather than only after the whole
+        batch. The first update for a batch switches the view to a
+        capacity chart (Raptor 7 shows its capacity display live too);
         later updates only refresh the data. Live refresh pauses past
         `_LIVE_CAP_REFRESH_ROWS` rows, since re-parsing a huge file on
         every progress tick is the memory/CPU blow-up this opt-in design
@@ -1876,39 +2201,33 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._cap_lines = cap_lines
         row_count = getattr(cap_lines, "count", len(cap_lines))
         if row_count > self._LIVE_CAP_REFRESH_ROWS:
-            if not self._graph_note.isVisible():
-                self._graph_note.setText(
-                    "Live plot paused — data large; the full set "
+            if not self._charts_page.note.isVisible():
+                self._charts_page.set_note(
+                    "Live charts paused — the data is large; the full set "
                     "appears when the batch completes")
-                self._graph_note.show()
             return
         self._update_graphs()
         self._placeholder.hide()
         self._tabs.show()
         if not getattr(self, "_live_cap_autoswitch", False):
             self._live_cap_autoswitch = True
-            item = cast(QStandardItemModel,
-                        self._graph_mode.model()).item(3)
-            if item is not None and item.isEnabled():
-                self._graph_mode.setCurrentIndex(3)  # Capacity (Flow)
-                self._tabs.setCurrentWidget(self._graphs_page)
+            self._show_live_chart("capacity")
 
     def update_live_ao(self, ao_lines) -> None:
         """Availability-plot rows received so far during a batch run.
         Mirrors `update_live_capacity`: the engine appends each completed
         run's Ao rows to its sink, and MainWindow forwards them here so
-        the Graphs tab's Ao plot fills in run-by-run rather than only at
+        the Charts tab's availability charts fill in run-by-run rather than only at
         batch end."""
         if not ao_lines or len(ao_lines) == 0:
             return
         self._ao_lines = ao_lines
         row_count = getattr(ao_lines, "count", len(ao_lines))
         if row_count > self._LIVE_CAP_REFRESH_ROWS:
-            if not self._graph_note.isVisible():
-                self._graph_note.setText(
-                    "Live plot paused — data large; the full set "
+            if not self._charts_page.note.isVisible():
+                self._charts_page.set_note(
+                    "Live charts paused — the data is large; the full set "
                     "appears when the batch completes")
-                self._graph_note.show()
             return
         self._update_graphs()
         self._placeholder.hide()
@@ -1918,8 +2237,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if not getattr(self, "_live_ao_autoswitch", False) and \
                 not getattr(self, "_live_cap_autoswitch", False):
             self._live_ao_autoswitch = True
-            self._graph_mode.setCurrentIndex(0)   # "Per Trial Ao"
-            self._tabs.setCurrentWidget(self._graphs_page)
+            self._show_live_chart("availability")
+
+    def _show_live_chart(self, kind: str) -> None:
+        """Bring the chart a running batch is filling in to the front: the
+        across-runs bands once two runs are in, one run before that."""
+        page = self._charts_page
+        for key in (f"{kind}-band", f"{kind}-through-run"):
+            if not page.missing_reason(key) and page.select(key):
+                self._tabs.setCurrentWidget(page)
+                return
 
     # ------------------------------------------------------------------
     # Raw

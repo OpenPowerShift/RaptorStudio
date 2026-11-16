@@ -8,6 +8,7 @@ inside it.  Models are held as ``RbdFile`` objects and autosaved to
 from __future__ import annotations
 
 import hashlib
+import secrets
 import itertools
 import json
 import logging
@@ -380,9 +381,25 @@ class Workspace:
     def _new_id(self, prefix: str = "m") -> str:
         """Generate a short, collision-resistant ID like ``m_7f3a9c21``."""
         h = hashlib.sha256(
-            f"{time.time_ns()}-{prefix}-{os.getpid()}".encode()
+            f"{time.time_ns()}-{prefix}-{os.getpid()}-{secrets.token_hex(8)}".encode()
         ).hexdigest()[:8]
         return f"{prefix}_{h}"
+
+    def _new_model_dir(self) -> tuple[str, Path]:
+        """A fresh model id and its folder, made here and nowhere else.
+
+        Eight hex digits clash about once in 65,000 ids, and the folder was
+        made with ``exist_ok``, so a clash quietly wrote one model into
+        another's folder.  The folder is now made exclusively, and a clash
+        draws again."""
+        while True:
+            model_id = self._new_id("m")
+            model_dir = self.root / "models" / model_id
+            try:
+                model_dir.mkdir(parents=True, exist_ok=False)
+            except FileExistsError:
+                continue
+            return model_id, model_dir
 
     def _lock_for(self, model_id: str) -> threading.RLock:
         """Return the per-model mutation lock, creating it on first use.
@@ -407,9 +424,7 @@ class Workspace:
         """Create a new empty model and return its handle info."""
         check_model_name(name)
         self._check_model_slot()
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         model_path = model_dir / "model.rbds"
         meta_path = model_dir / "meta.json"
 
@@ -492,9 +507,7 @@ class Workspace:
         rbd = self._load_any(str(src))
         summary = self._summarise(rbd)
 
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         # Own a byte-for-byte snapshot. A live reference meant the same
         # model_id silently meant different content after the source was
         # edited (or vanished), and results stopped being reproducible.
@@ -545,9 +558,7 @@ class Workspace:
         size = self._model_bytes(rbd)
         self._check_model_size(size)
         self._check_quota(size)
-        model_id = self._new_id("m")
-        model_dir = self.root / "models" / model_id
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_id, model_dir = self._new_model_dir()
         model_path = model_dir / "model.rbds"
         meta_path = model_dir / "meta.json"
 
@@ -871,6 +882,31 @@ class Workspace:
             raise PathOutsideWorkspace(
                 f"Path {str(path)!r} resolves outside the workspace") from None
 
+    def refuse_managed(self, target: Path) -> None:
+        """Refuse a write into the trees the workspace itself manages.
+
+        Path containment alone allowed a save to clobber
+        models/<id>/model.rbds (including a closed model that is meant to
+        survive a restart), runs/<id>/summary.json or the render cache.
+        """
+        target = Path(target).resolve()
+        for managed, why in (
+                ("models", "refusing to overwrite a model's files: the models tree "
+                           "is managed by the workspace (use a path under Tables/ or "
+                           "another allowed directory)"),
+                ("runs", "refusing to write inside the runs directory; run "
+                         "artefacts are managed by the engine"),
+                ("renders", "refusing to overwrite the render cache; renders are "
+                            "managed by render_diagram")):
+            root = (self.root / managed).resolve()
+            if target == root or root in target.parents:
+                raise WorkspaceError(why)
+
+    def check_quota(self, extra_bytes: int = 0) -> None:
+        """Refuse a write of `extra_bytes` that would take the workspace over
+        its size cap (after evicting old runs)."""
+        self._check_quota(extra_bytes)
+
     # ------------------------------------------------------------------
     # Quotas
     # ------------------------------------------------------------------
@@ -950,26 +986,7 @@ class Workspace:
             raise WorkspaceArgumentError(
                 f"format={fmt!r} needs a .{fmt} path; got {dest.suffix!r}")
         target = dest.resolve()
-        # Do not overwrite any model's own files, or a run's sibling
-        # artefacts. Path containment alone allowed a save to clobber
-        # models/<id>/model.rbds (including a closed model that is meant
-        # to survive a restart) and runs/<id>/summary.json.
-        models_dir = (self.root / "models").resolve()
-        if target == models_dir or models_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to overwrite a model's files: the models tree "
-                "is managed by the workspace (use a path under Tables/ or "
-                "another allowed directory)")
-        runs_dir = (self.root / "runs").resolve()
-        if target == runs_dir or runs_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to write inside the runs directory; run "
-                "artefacts are managed by the engine")
-        renders_dir = (self.root / "renders").resolve()
-        if target == renders_dir or renders_dir in target.parents:
-            raise WorkspaceError(
-                "refusing to overwrite the render cache; renders are "
-                "managed by render_diagram")
+        self.refuse_managed(target)
         with self._lock_for(model_id):
             _sync_counts(handle.rbd)
             export_bytes = self._model_bytes(handle.rbd)
@@ -1232,7 +1249,36 @@ class Workspace:
         return {
             "removed_runs": removed_runs,
             "removed_renders": removed_renders,
+            "removed_scratch": self._sweep_scratch(),
         }
+
+    #: A run's scratch in the workspace root (`raptor.api.run.run`): the
+    #: availability-plot spool and the developer draw logs.  A run removes
+    #: its own, but a killed process cannot.
+    _SCRATCH = (".spool-*", ".simDetails-*", ".mission-*", ".cumtrial-*", ".cumtime-*")
+
+    def _sweep_scratch(self, older_than_s: float = 86400.0) -> int:
+        """Remove run scratch nothing has written to for a day.  Age is the
+        newest write inside a spool folder, so a long run still writing is
+        left alone."""
+        cutoff = time.time() - older_than_s
+        removed = 0
+        for pattern in self._SCRATCH:
+            for path in self.root.glob(pattern):
+                try:
+                    stamps = [path.stat().st_mtime]
+                    if path.is_dir():
+                        stamps += [p.stat().st_mtime for p in path.iterdir()]
+                    if max(stamps) >= cutoff:
+                        continue
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+                    removed += 1
+                except OSError:
+                    continue
+        return removed
 
     # ------------------------------------------------------------------
     # Helpers

@@ -876,3 +876,88 @@ class TestTextFormatting:
     def test_the_report_names_the_model(self):
         assert "Tables for Plant" in format_report_text(
             _sample_tables(), "Plant")
+
+
+def test_attribution_adds_drivers_and_lost_capacity_tables():
+    stat = lambda mean, sem=0.01: {"mean": mean, "sem": sem, "n": 10}  # noqa: E731
+    attribution = {
+        "runs": 10, "units": "hours",
+        "system": {"red_time": stat(10.0), "outages": stat(4.0)},
+        "elements": [{
+            "kind": "block", "id": 1, "name": "Pump",
+            "dtci": stat(0.7), "deci": stat(0.6), "fci": stat(0.5),
+            "red_time": stat(7.0), "main_cause": "repair",
+            "lost_capacity": stat(300.0), "lost_capacity_share": stat(0.6),
+            "lost_capacity_through_dependents": stat(100.0),
+        }],
+        "causes": {"repair": 0.7, "wait_spare": 0.3},
+        "outage_durations": {"count": 40, "p50": 2.0, "p90": 6.0, "max": 9.0},
+        "capacity": {
+            "rule": "proportional", "generated": 100.0,
+            "lost_energy": stat(500.0),
+            "causes": {"repair": stat(400.0), "wait_spare": stat(100.0)},
+            "elements": [{
+                "kind": "block", "id": 1, "name": "Pump",
+                "lost_energy": stat(300.0), "share": stat(0.6),
+                "through_dependents": stat(100.0), "standalone": 50.0,
+            }],
+            "notes": [],
+        },
+    }
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.9}], attribution=attribution))}
+    drivers = tables["results.downtime_drivers"]
+    assert drivers.rows[0][0] == "Pump"
+    assert "Lost capacity (flow x time)" in drivers.headers
+    assert tables["results.downtime_causes"].rows[0][0] == "Hands-on repair"
+    assert tables["results.outage_durations"].rows[0][1] == 2.0
+    lost = tables["results.lost_capacity"]
+    assert lost.rows[0][0] == "Pump" and lost.rows[0][3] == pytest.approx(0.6)
+    assert "proportional" in lost.notes[0]
+    causes = tables["results.lost_capacity_causes"]
+    assert [r[0] for r in causes.rows] == ["Hands-on repair", "Waiting for a spare"]
+    assert [r[3] for r in causes.rows] == pytest.approx([0.8, 0.2])
+
+
+def test_period_tables_by_hand():
+    # One run 0..25 h, periods of 10 h, red 2..3 h: availability 0.9 then 1.0
+    # (period 3 is partial and left out).  Capacity generated 100: period 1
+    # delivers 100 x 4 + 50 x 6 = 700 -> 0.7, period 2 delivers 50 x 2 +
+    # 100 x 8 = 900 -> 0.9.
+    from raptor.api.insight.periods import PeriodSpec, period_summary
+    outages = {"runs": [{"start": 0.0, "end": 25.0, "red": [2.0, 3.0]}]}
+    sink = {"t": [0.0, 4.0, 12.0], "flow": [100.0, 50.0, 100.0]}
+    periods = period_summary(outages, PeriodSpec(10.0), capacity_runs=[sink],
+                             generated=100.0, rows=True, units="hours")
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.96}], periods=periods))}
+    avail = tables["results.period_availability"]
+    assert [r[0] for r in avail.rows] == [1, 2, "All (pooled)"]
+    assert avail.rows[0][2] == pytest.approx(0.9) and avail.rows[1][2] == pytest.approx(1.0)
+    assert avail.rows[2][2] == pytest.approx(0.95)
+    cap = tables["results.period_capacity"]
+    assert [r[2] for r in cap.rows] == pytest.approx([0.7, 0.9, 0.8])
+    assert tables["results.period_runs"].rows == [
+        [1, 1, pytest.approx(0.9), pytest.approx(0.7)],
+        [1, 2, pytest.approx(1.0), pytest.approx(0.9)]]
+
+
+def test_no_periods_means_no_period_tables():
+    keys = {t.key for t in result_tables(ResultsBundle(per_run=[{"availability": 0.9}]))}
+    assert not keys & {"results.period_availability", "results.period_capacity",
+                       "results.period_runs"}
+
+
+def test_phase_downtime_table():
+    stat = lambda mean: {"mean": mean, "sem": 0.1, "n": 2}  # noqa: E731
+    attribution = {"runs": 2, "units": "hours", "elements": [], "causes": {},
+                   "system": {"red_time": stat(12.0), "outages": stat(2.0)},
+                   "phases": [{"name": "Launch", "mission": True, "time": stat(10.0),
+                               "red_time": stat(5.0), "availability": 0.5,
+                               "share_of_downtime": 5 / 12,
+                               "drivers": [{"name": "Pump", "share": 1.0}]}]}
+    tables = {t.key: t for t in result_tables(
+        ResultsBundle(per_run=[{"availability": 0.9}], attribution=attribution))}
+    row = tables["results.phase_downtime"].rows[0]
+    assert row[:2] == ["Launch", "yes"]
+    assert row[5] == pytest.approx(0.5) and row[7:] == ["Pump", 1.0]

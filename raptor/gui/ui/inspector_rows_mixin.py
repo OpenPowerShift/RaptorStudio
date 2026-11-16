@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
 from PySide6.QtWidgets import (
     QWidget, QLayout, QVBoxLayout, QLabel, QGroupBox, QFormLayout, QHBoxLayout, QLineEdit,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QPushButton,
+    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QPushButton, QSizePolicy,
 )
 from raptor.core.engine.diststats import compute_stats
 
@@ -445,7 +445,10 @@ class InspectorRowsMixin(_Base):
                 hl.setSpacing(4)
                 hl.addWidget(edit, 1)
                 rate_btn = QPushButton("📎")
-                rate_btn.setFixedWidth(28)
+                # as wide as the glyph and the button's padding need: a
+                # fixed 28 px cut the clip in half under the theme's padding
+                rate_btn.setSizePolicy(QSizePolicy.Policy.Fixed,
+                                       QSizePolicy.Policy.Fixed)
                 rate_btn.setAccessibleName(
                     f"Use a saved rate or formula for {use} {labels[i]}")
                 rate_btn.setToolTip(

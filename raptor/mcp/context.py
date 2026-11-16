@@ -126,6 +126,45 @@ def whole_number(value: Any, name: str, *, minimum: int | None = None,
     return value
 
 
+def check_study(model_id: str, trials: Any, timeout_s: Any, *,
+                workers: Any = None, variants: int = 1) -> None:
+    """Refuse a study (what-if, sensitivity, an optimiser) whose trials,
+    deadline or size the server would not allow for a single run.
+
+    The effective trial count is `trials`, else the model's own NumRuns, so
+    leaving `trials` out cannot slip past ``--max-runs``; `variants` is the
+    most variants one call may run (each at that trial count)."""
+    import math
+
+    from raptor.api.limits import MAX_TIMEOUT_S, MAX_WORKERS
+    from raptor.api.run import model_num_runs
+    if isinstance(timeout_s, bool) or not isinstance(timeout_s, (int, float)) \
+            or not math.isfinite(timeout_s) or not 0 < timeout_s <= MAX_TIMEOUT_S:
+        raise ValueError(f"timeout_s must be a number of seconds, above 0 and at "
+                         f"most {MAX_TIMEOUT_S:g}")
+    if workers is not None:
+        whole_number(workers, "workers", minimum=1, maximum=MAX_WORKERS)
+    cap = max_runs()
+    if trials is None:
+        effective = model_num_runs(workspace().get(model_id).rbd, strict=True)
+        if effective is None:
+            raise ValueError("the model has no valid NumRuns; pass trials")
+        where = f"the model's NumRuns ({effective})"
+    else:
+        effective = whole_number(trials, "trials", minimum=2)
+        where = f"trials={effective}"
+    if effective > cap:
+        raise ValueError(f"{where} exceeds the server cap of {cap}; lower it or "
+                         "raise the cap")
+    if variants > MAX_STUDY_VARIANTS:
+        raise ValueError(f"this study would run {variants} variants; the most "
+                         f"one call may run is {MAX_STUDY_VARIANTS}")
+
+
+#: Variants (each a full batch of trials) one study call may run.
+MAX_STUDY_VARIANTS = 200
+
+
 def check_batch(items: Any, name: str) -> None:
     """Refuse an oversized bulk-edit list before doing any work."""
     from raptor.api.limits import MAX_BATCH_ITEMS

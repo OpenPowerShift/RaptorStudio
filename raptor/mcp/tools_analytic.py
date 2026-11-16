@@ -8,7 +8,7 @@ from mcp.types import CallToolResult
 
 from raptor.mcp import context
 from raptor.mcp.jobs import run_job
-from raptor.mcp.result import ADDITIVE, READ_ONLY, guarded, markdown_table, ok
+from raptor.mcp.result import DESTRUCTIVE, READ_ONLY, guarded, markdown_table, ok
 from raptor.mcp.server import mcp
 
 
@@ -178,7 +178,7 @@ def _reporter(abort, progress, tool: str):
     return report
 
 
-@mcp.tool(annotations=ADDITIVE("Export analytical result"))
+@mcp.tool(annotations=DESTRUCTIVE("Export analytical result"))
 @guarded
 async def export_analytical(
     model_id: str,

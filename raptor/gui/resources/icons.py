@@ -1192,6 +1192,45 @@ def gauge_icon(colour: str) -> QIcon:
 
 
 
+def share_icon(colour: str) -> QIcon:
+    """Share of downtime layer: a pie with one slice pulled out."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(7, 11, 30, 30)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawPie(13, 5, 30, 30, 0, 90 * 16)
+    return _icon("share", colour, draw)
+
+
+def flow_icon(colour: str) -> QIcon:
+    """Lost capacity layer: a wide flow and a thin one, as the links draw."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 9, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(8, 18, 40, 18)
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(8, 34, 30, 34)
+        p.drawLine(34, 30, 40, 34)
+        p.drawLine(34, 38, 40, 34)
+    return _icon("flow", colour, draw)
+
+
+def recommend_icon(colour: str) -> QIcon:
+    """Recommend: a rising step with a tick, a change that was tested."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                      Qt.PenJoinStyle.RoundJoin))
+        p.drawPolyline([QPointF(6, 40), QPointF(18, 40), QPointF(18, 28),
+                        QPointF(30, 28), QPointF(30, 16), QPointF(42, 16)])
+        p.setPen(QPen(c, 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                      Qt.PenJoinStyle.RoundJoin))
+        p.drawPolyline([QPointF(8, 14), QPointF(14, 20), QPointF(24, 6)])
+    return _icon("recommend", colour, draw)
+
+
 def rank_icon(colour: str) -> QIcon:
     """Importance measures: three ranked bars, tallest first.
 
@@ -1662,6 +1701,20 @@ def svg_icon(colour: str) -> QIcon:
     return _icon("svg", colour, draw)
 
 
+def export_icon(colour: str) -> QIcon:
+    """Export (report, tables or diagram): a page with a folded corner and
+    an arrow leaving it to the right."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawPolyline(QPolygonF([QPointF(24, 42), QPointF(6, 42), QPointF(6, 6),
+                                  QPointF(22, 6), QPointF(30, 14), QPointF(30, 20)]))
+        p.drawPolyline(QPolygonF([QPointF(22, 6), QPointF(22, 14), QPointF(30, 14)]))
+        p.setPen(_pen(c, 3.5))
+        p.drawLine(16, 30, 36, 30)
+        _arrowhead(p, c, QPointF(44, 30), 0, 9)
+    return _icon("export", colour, draw)
+
+
 def export_tables_icon(colour: str) -> QIcon:
     """Export Tables: a small table with an arrow leaving it."""
     def draw(p: QPainter, c: QColor):
@@ -1998,6 +2051,23 @@ def explorer_dock_icon(colour: str) -> QIcon:
     return _icon("explorerdock", colour, draw)
 
 
+def library_dock_icon(colour: str) -> QIcon:
+    """Part Library: three volumes on a shelf, the last one leaning."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(5, 41, 43, 41)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(QRectF(8, 12, 7, 27))
+        p.drawRect(QRectF(17, 8, 7, 31))
+        p.save()
+        p.translate(30, 39)
+        p.rotate(-18)
+        p.drawRect(QRectF(0, -27, 7, 27))
+        p.restore()
+    return _icon("librarydock", colour, draw)
+
+
 def inspector_dock_icon(colour: str) -> QIcon:
     """Inspector: a property sheet -- label and value rows."""
     def draw(p: QPainter, c: QColor):
@@ -2284,3 +2354,236 @@ def compare_icon(colour: str) -> QIcon:
         p.setBrush(c)
         p.drawRect(QRectF(31, 10, 9, 32))
     return _icon("compare", colour, draw)
+
+
+# ---------------------------------------------------------------------------
+# WP-1.5 / 1.6 / 1.7 commands: each has its own glyph (test_ribbon_icons)
+# ---------------------------------------------------------------------------
+
+def quick_add_icon(colour: str) -> QIcon:
+    """A block outline with a plus at its corner: add here, by name."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(6, 14, 26, 20)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(35, 4, 4, 18)
+        p.drawRect(28, 11, 18, 4)
+    return _icon("quick_add", colour, draw)
+
+
+def focus_icon(colour: str) -> QIcon:
+    """Corner brackets round a filled dot: everything else dims."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        for x, y, dx, dy in ((7, 7, 1, 1), (41, 7, -1, 1),
+                             (7, 41, 1, -1), (41, 41, -1, -1)):
+            p.drawLine(x, y, x + 9 * dx, y)
+            p.drawLine(x, y, x, y + 9 * dy)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(17, 17, 14, 14)
+    return _icon("focus", colour, draw)
+
+
+def command_search_icon(colour: str) -> QIcon:
+    """A prompt box with a chevron and a cursor bar: run a command by name."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(5, 10, 38, 28, 4, 4)
+        p.setPen(QPen(c, 3))
+        p.drawPolyline(QPolygonF([QPointF(12, 18), QPointF(19, 24),
+                                  QPointF(12, 30)]))
+        p.drawLine(23, 31, 35, 31)
+    return _icon("command_search", colour, draw)
+
+
+def find_replace_icon(colour: str) -> QIcon:
+    """A small lens and an arrow to the right: find, then replace."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(5, 8, 16, 16)
+        p.drawLine(19, 22, 25, 28)
+        p.drawLine(22, 38, 38, 38)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawPolygon(QPolygonF([QPointF(36, 32), QPointF(44, 38),
+                                 QPointF(36, 44)]))
+        p.drawRect(29, 8, 14, 4)
+        p.drawRect(29, 16, 10, 4)
+    return _icon("find_replace", colour, draw)
+
+
+def duplicate_icon(colour: str) -> QIcon:
+    """A filled block and its outlined twin beside it."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(5, 10, 18, 14)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(23, 24, 19, 14)
+    return _icon("duplicate", colour, draw)
+
+
+def duplicate_parallel_icon(colour: str) -> QIcon:
+    """Two blocks one above the other between a split and a join."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(QPen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawLine(4, 24, 12, 24)
+        p.drawLine(12, 13, 12, 35)
+        p.drawLine(36, 13, 36, 35)
+        p.drawLine(36, 24, 44, 24)
+        p.drawRect(15, 7, 18, 12)
+        p.drawRect(15, 29, 18, 12)
+    return _icon("duplicate_parallel", colour, draw)
+
+
+def array_icon(colour: str) -> QIcon:
+    """A row of three blocks and a second row: copies in a grid."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for row in (10, 28):
+            for col in (5, 19, 33):
+                p.drawRect(col, row, 10, 10)
+    return _icon("array", colour, draw)
+
+
+def paste_data_icon(colour: str) -> QIcon:
+    """A clipboard holding rows of data, not a shape."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(10, 9, 28, 32)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(19, 5, 10, 8)
+        for y in (19, 26, 33):
+            p.drawRect(15, y, 18, 3)
+    return _icon("paste_data", colour, draw)
+
+
+def advisor_layer_icon(colour: str) -> QIcon:
+    """A diagram block with a badge in its corner: the Advisor's findings
+    marked on the elements they concern (not the bulb of the Advisor panel)."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(6, 16, 26, 20)
+        p.drawLine(2, 26, 6, 26)
+        p.drawLine(32, 26, 38, 26)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(28, 4, 16, 16)
+        p.setBrush(QColor("#FFFFFF"))
+        p.drawRect(35, 7, 3, 7)
+        p.drawRect(35, 15, 3, 3)
+    return _icon("advisor_layer", colour, draw)
+
+
+def advisor_icon(colour: str) -> QIcon:
+    """A light bulb: advice, not the Issues check mark (errors that stop a
+    run), which the Advisor toggle used to share."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(12, 5, 24, 24)
+        p.drawLine(19, 29, 19, 35)
+        p.drawLine(29, 29, 29, 35)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(18, 35, 12, 4)
+        p.drawRect(20, 41, 8, 3)
+    return _icon("advisor", colour, draw)
+
+
+def whatif_icon(colour: str) -> QIcon:
+    """What If: one path forking into two, the changed one marked."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(4, 24), QPointF(18, 24))
+        p.drawLine(QPointF(18, 24), QPointF(36, 12))
+        p.drawLine(QPointF(18, 24), QPointF(36, 36))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QPointF(18, 24), 4, 4)
+        p.drawEllipse(QPointF(39, 10), 5, 5)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        _stroke(p, c, 2.5)
+        p.drawEllipse(QPointF(39, 38), 5, 5)
+    return _icon("whatif", colour, draw)
+
+
+def tornado_icon(colour: str) -> QIcon:
+    """Sensitivity: tornado bars, widest at the top, either side of a line."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for y, left, right in ((8, 18, 18), (19, 13, 11), (30, 7, 8), (39, 3, 4)):
+            p.drawRect(QRectF(24 - left, y, left + right, 7))
+        _stroke(p, c, 2)
+        p.drawLine(QPointF(24, 4), QPointF(24, 46))
+    return _icon("tornado", colour, draw)
+
+
+def spares_optimise_icon(colour: str) -> QIcon:
+    """Optimise spares: stacked boxes with a rising arrow."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 2.5)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(4, 30, 14, 12))
+        p.drawRect(QRectF(20, 30, 14, 12))
+        p.drawRect(QRectF(12, 17, 14, 12))
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(40, 40), QPointF(40, 8))
+        p.drawPolyline(QPolygonF([QPointF(34, 14), QPointF(40, 7), QPointF(46, 14)]))
+    return _icon("spares_optimise", colour, draw)
+
+
+def pm_optimise_icon(colour: str) -> QIcon:
+    """Optimise maintenance: a clock face with a tick, the interval tested."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(QPointF(20, 26), 15, 15)
+        p.drawLine(QPointF(20, 26), QPointF(20, 16))
+        p.drawLine(QPointF(20, 26), QPointF(27, 30))
+        _stroke(p, c, 4)
+        p.drawPolyline(QPolygonF([QPointF(32, 10), QPointF(37, 15), QPointF(46, 4)]))
+    return _icon("pm_optimise", colour, draw)
+
+
+def crew_optimise_icon(colour: str) -> QIcon:
+    """Optimise crews: two people and a plus/minus."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for x in (12, 28):
+            p.drawEllipse(QPointF(x, 14), 5.5, 5.5)
+            p.drawRoundedRect(QRectF(x - 8, 22, 16, 16), 5, 5)
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(38, 36), QPointF(46, 36))
+        p.drawLine(QPointF(42, 32), QPointF(42, 40))
+        p.drawLine(QPointF(38, 44), QPointF(46, 44))
+    return _icon("crew_optimise", colour, draw)
+
+
+def precision_icon(colour: str) -> QIcon:
+    """Trials to precision: an estimate with its interval closing in."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawLine(QPointF(8, 24), QPointF(40, 24))
+        for x in (8, 40):
+            p.drawLine(QPointF(x, 16), QPointF(x, 32))
+        p.drawLine(QPointF(14, 38), QPointF(20, 42))
+        p.drawLine(QPointF(34, 38), QPointF(28, 42))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawEllipse(QPointF(24, 24), 5, 5)
+    return _icon("precision", colour, draw)

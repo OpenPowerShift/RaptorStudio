@@ -285,3 +285,34 @@ def test_moving_off_the_target_removes_every_outline(qapp):
                                Qt.MouseButton.NoButton))
     assert view._insert_halos == []
     assert all(h.scene() is None for h in halos)
+
+
+def test_duplicate_in_parallel_adds_nodes_and_needs_one_path(qapp):
+    """U26: duplicating A (after Start, before a block) wired the copy
+    straight into block B, so no join node; and the join's k was set to
+    every path, which behaves like series."""
+    view = _view(build_from_spec(_chain_spec()))
+    a = _block_item(view, "A")
+    a.setSelected(True)
+    ids = view.duplicate_parallel(2)
+    assert len(ids) == 2
+    b_id = next(i for i, blk in view.blocks.items() if blk.name == "B")
+    into_b = [l for l in _links(view) if l[2] == "Block" and l[3] == str(b_id)]
+    assert len(into_b) == 1 and into_b[0][0] == "Node"      # B fed by the join node
+    join = int(into_b[0][1])
+    assert view.nodes[join].good_paths == 1                  # 1 of 3, not 3 of 3
+    copy = view.blocks[ids[0]]
+    assert copy.name != "A" and view.blocks[ids[1]].name not in ("A", copy.name)
+    for oid in ids:                                          # each copy is a branch
+        assert ("Node", str(join)) in {(l[2], l[3]) for l in _links(view)
+                                       if l[0] == "Block" and l[1] == str(oid)}
+    view._stack.undo()
+    assert len(view.blocks) == 2 and len(view.nodes) == 2
+
+
+def test_duplicate_in_parallel_honours_a_chosen_k(qapp):
+    view = _view(build_from_spec(_chain_spec()))
+    _block_item(view, "A").setSelected(True)
+    view.duplicate_parallel(2, 2)
+    join = max(view.nodes)
+    assert view.nodes[join].good_paths == 2

@@ -15,6 +15,7 @@ current value).
 |Paste |Paste previously copied elements with fresh ids |
 |Cut |Copy and delete the selected elements |
 |Copy |Copy the selected elements |
+|Duplicate |Duplicate the selected elements in place (Ctrl+D) |Ctrl+D
 |Select All |Select all blocks/nodes/events/hierarchies (Ctrl+A) |Ctrl+A
 |===
 
@@ -36,6 +37,7 @@ current value).
 |Add Node |Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3) |Ctrl+3
 |Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4) |Ctrl+4
 |Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5) |Ctrl+5
+|Quick Add |Add an element at the cursor (Space or / on the canvas) |
 |Collapse Selection |Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G) |Ctrl+G
 |Delete Selected |Delete selected blocks/nodes (Del) |Del
 |===
@@ -151,6 +153,7 @@ current value).
 |Run |Run the simulation (F5): at full speed on the cores shown beside it, or animated on one core when Animate is on |F5
 |Animate |Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model. |
 |Run Settings… |Open the Run panel — the single editor for trials, termination, analyses and recording |
+|Trials to Precision… |How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run. |
 |Trials |Trials the next run will use. Edit them in the Run panel (Simulate ▸ Run Settings), which owns every run setting. |number, now 1
 |Cores for full-speed runs |A full-speed run splits its trials across this many cores (by default, every core this machine has). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives a different random sequence: statistically the same answer but not bit-identical. |number, every core by default
 |===
@@ -173,12 +176,41 @@ current value).
 |Speed |How fast an animated run is drawn. Applies only while Animate is on |
 |===
 
-==== Batch
+=== Analyse tab
+
+==== What If
 
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
+|What If… |Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step. |
+|Recommend… |Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step. |
+|===
+
+==== Sensitivity
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Sensitivity… |Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies. |
 |Sweep… |Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed. |
+|===
+
+==== Optimise
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Spares… |The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in. |
+|Maintenance… |Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in. |
+|Crews… |How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in. |
+|===
+
+==== Compare
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
 |Compare… |Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed. |
 |===
 
@@ -241,11 +273,7 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
-|Weak Links |Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model's G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel's Analysis section. |
-|Capacity |Colour each capacity node by its average utilization (Green < 70% · Yellow < 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow. |
-|Cost |Colour each block by its total life-cycle cost, relative to the most expensive block (Green < 1/3 · Yellow < 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis. |
-|Spares |Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis. |
-|Importance |Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again. |
+|Choice | |choice, now No canvas overlay
 |===
 
 ==== Bands
@@ -285,6 +313,7 @@ current value).
 |Results |Results |
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
 |Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
+|Advisor |Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
@@ -295,6 +324,7 @@ current value).
 |===
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
+|Focus |Dim everything except the selection (topology stays) |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean
@@ -351,12 +381,8 @@ documentation.
 |===
 |Control |What it does |Shortcut / value
 |Print… |Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P) |Ctrl+P
-|Export PDF… |Save the printable report (diagram + results + weak link) as a PDF file |
-|Export Excel Workbook… |Save the model's tables and the latest run's results as one Excel workbook (.xlsx), set up to read, filter and print |
-|Export OpenDocument Spreadsheet… |Save the model's tables and the latest run's results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications |
-|Export Tables… |Write the model's tables (blocks, nodes, links, ... ) and a run's result tables as CSV, text or one spreadsheet with a tab per table |
-|Export Diagram SVG… |Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution |
-|Save Bitmap |Save the diagram view as a PNG image |
+|Export… |Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E) |Ctrl+E
+|Export Tables… |Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table |
 |Copy View |Copy the current view to the clipboard as a high-resolution PNG |
 |===
 

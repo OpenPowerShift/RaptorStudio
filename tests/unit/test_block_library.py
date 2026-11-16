@@ -11,7 +11,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from raptor.core.fileio.rbd import load_rbd
-from raptor.gui.ui.block_library import export_library, load_library
+from raptor.core.fileio.block_library import export_library, load_library
 from raptor.gui.ui.diagram import DiagramView
 
 REPO = pathlib.Path(__file__).resolve().parents[2]

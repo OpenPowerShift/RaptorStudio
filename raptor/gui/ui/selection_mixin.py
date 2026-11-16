@@ -59,6 +59,9 @@ class SelectionMixin(_Base):
         and the canvas repaint is not queued behind seven tab builders.
         """
         self._queue_inspector_selection("block", block_id)
+        results = getattr(self, "_results", None)
+        if results is not None:
+            results.highlight_element("block", block_id)
 
     def _flush_canvas_block_selection(self) -> None:
         bid = self._pending_block_selection

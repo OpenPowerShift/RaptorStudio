@@ -942,6 +942,8 @@ def _add_aux_sections(rbd: RbdFile, spec: dict[str, Any]) -> None:
                 level=int(p.get("level", 0)),
                 quan=int(p.get("quantity", p.get("quan", 1))),
                 slotime=float(p.get("slo_time", p.get("slotime", 24.0))),
+                spcost=float(p.get("spare_cost", p.get("spcost", 1.0))),
+                emercost=float(p.get("emer_ship_cost", p.get("emercost", 1.0))),
             ))
         _set_cols(sec)
 
@@ -1069,6 +1071,7 @@ _AUX_SPEC_KEYS: dict[str, frozenset[str]] = {
         "name", "pool_name", "rso", "stock", "new_spares", "newsp",
         "arrive_every", "arrive", "eso", "emer_time", "emertime", "slo",
         "level", "quantity", "quan", "slo_time", "slotime",
+        "spare_cost", "spcost", "emer_ship_cost", "emercost",
     }),
     "resources": frozenset({
         "name", "pool_name", "num_in", "numin", "spare_cost", "sparecost",

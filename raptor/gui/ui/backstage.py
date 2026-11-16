@@ -280,6 +280,8 @@ class Backstage(QWidget):
             learn.addWidget(btn)
         learn.addStretch(1)
         lay.addLayout(learn)
+        lay.addSpacing(10)
+        lay.addWidget(self._build_tip_card())
 
         from PySide6.QtWidgets import QCheckBox
         from raptor.gui.ui import settings
@@ -292,6 +294,62 @@ class Backstage(QWidget):
         lay.addWidget(self._show_at_start)
         lay.addStretch(1)
         return page
+
+    def _build_tip_card(self) -> QWidget:
+        """U21: "Did you know?" -- one tip a launch, with Next tip and,
+        when the tip names a command, Show me."""
+        from PySide6.QtWidgets import QFrame
+        from raptor.gui.tips import tip_for_launch
+        card = QFrame()
+        card.setObjectName("BackstageTip")
+        card.setFrameShape(QFrame.Shape.StyledPanel)
+        col = QVBoxLayout(card)
+        col.setContentsMargins(14, 10, 14, 10)
+        head = QLabel("Did you know?")
+        font = head.font()
+        font.setBold(True)
+        head.setFont(font)
+        col.addWidget(head)
+        self._tip_text = QLabel()
+        self._tip_text.setWordWrap(True)
+        self._tip_text.setTextFormat(Qt.TextFormat.PlainText)
+        self._tip_text.setMaximumWidth(720)
+        col.addWidget(self._tip_text)
+        row = QHBoxLayout()
+        self._tip_show = QPushButton("Show me")
+        self._tip_show.clicked.connect(self._run_tip)
+        nxt = QPushButton("Next tip")
+        nxt.clicked.connect(lambda: self._show_tip(self._tip_index + 1))
+        row.addWidget(self._tip_show)
+        row.addWidget(nxt)
+        row.addStretch(1)
+        col.addLayout(row)
+        self._show_tip(tip_for_launch())
+        return card
+
+    def _show_tip(self, index: int) -> None:
+        from raptor.gui.tips import TIPS
+        self._tip_index = index % len(TIPS)
+        tip = TIPS[self._tip_index]
+        shortcut = ""
+        action = None
+        if tip.command and tip.command in self._win._commands.specs:
+            action = self._win._commands.action(tip.command)
+            shortcut = action.shortcut().toString() or ""
+        text = tip.text.replace("{shortcut}", shortcut or "its shortcut")
+        self._tip_text.setText(f"{text}  ({self._tip_index + 1} of {len(TIPS)})")
+        self._tip_show.setVisible(action is not None)
+        self._tip_show.setEnabled(action is not None and action.isEnabled())
+        self._tip_show.setToolTip(
+            "" if action is None else
+            action.toolTip() if action.isEnabled() else
+            f"{action.text().rstrip('…')} needs a model open first")
+
+    def _run_tip(self) -> None:
+        from raptor.gui.tips import TIPS
+        tip = TIPS[self._tip_index]
+        if tip.command:
+            self._run(self._win._commands.action(tip.command))
 
     def _build_new_page(self) -> QWidget:
         from raptor.gui.examples import EXAMPLES, TUTORIALS
@@ -534,6 +592,8 @@ class Backstage(QWidget):
         """Rebuild the recent lists from settings."""
         self._shown_paths = self._win._recent_list()
         self._fill_home_recent()
+        if hasattr(self, "_tip_index"):
+            self._show_tip(self._tip_index)   # Show me follows the model being open
         self._list.clear()
         for path in self._win._recent_list():
             item = QTreeWidgetItem([os.path.basename(path),

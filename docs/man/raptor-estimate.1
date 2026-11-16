@@ -1,6 +1,6 @@
 .TH "RAPTOR-ESTIMATE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-estimate \- Time a short pilot and predict the wall\-clock time for N runs.
+raptor\-estimate \- estimate run time before running
 .SH SYNOPSIS
 \fBraptor estimate\fR [\-h] [\-n N] [\-t T] [\-f {text,json}] MODEL
 .SH DESCRIPTION
@@ -9,12 +9,12 @@ Time a short pilot and predict the wall\-clock time for N runs.
 .SS Options
 .TP
 \fB\-n\fR, \fB\-\-runs\fR \fIN\fR
-
+pilot runs to time (default 100)
 .TP
 \fB\-t\fR, \fB\-\-length\fR \fIT\fR
-
+run length (default: the model's own)
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .SH SEE ALSO
 \fBraptor\fR(1)

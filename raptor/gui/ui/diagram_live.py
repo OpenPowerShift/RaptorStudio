@@ -2,6 +2,7 @@
 colours during a run, weak-link / capacity / cost / spares bands, and the
 live-state cache re-applied on level changes. A mixin of `DiagramView`."""
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.qtcompat import req
 from collections.abc import Callable
@@ -575,6 +576,7 @@ class LiveOverlayMixin:
             # fresh right after, overwriting this clear correctly.
             for item in self._block_items.values():
                 item.set_result_badge(None, None)
+                item.set_result_ring(False)
                 item.set_anal_label(None)
             for node_item in self._node_items.values():
                 node_item.set_capacity_badge(None, None)
@@ -609,7 +611,11 @@ class LiveOverlayMixin:
         """
         self._last_result_visuals = None
         self._weak_colors_on = False
+        self._layer_fractions: dict[Any, float] = {}
+        for link in self._links:
+            link.set_flow_width(None)
         for item in self._block_items.values():
+            item.set_result_ring(False)
             item.set_result_badge(None, None)
             item.set_anal_label(None)
             if hasattr(item, "_live_colour"):
@@ -632,9 +638,12 @@ class LiveOverlayMixin:
                 event_item._live_colour = None
         for hier_item in self._hier_items.values():
             hier_item.set_anal_label(None)
+            hier_item.set_scent(None)
             if hasattr(hier_item, "_live_colour"):
                 hier_item._live_colour = None
         self.retheme()
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)          # back to the selection alone
         self.update()
 
     def _reapply_result_visuals(self: DiagramView) -> None:  # type: ignore[misc]
@@ -667,6 +676,11 @@ class LiveOverlayMixin:
             elif vis["kind"] == "spares":
                 self.apply_spares_colors(vis["exhausted_frac"],
                                          vis["sparing_cost"])
+            elif vis["kind"] == "share":
+                self.apply_share_layer(vis["layer"], vis.get("flow"),
+                                       vis.get("generated"))
+            elif vis["kind"] == "advisor":
+                self.apply_advisor_layer(vis["layer"])
             elif vis["kind"] == "importance":
                 # Missing branch: entering a hierarchy rebuilt the items and
                 # repainted only the four kinds above, so the importance
@@ -855,6 +869,27 @@ class LiveOverlayMixin:
                 f"Cost — {name}: ${cost:,.2f} total life-cycle cost "
                 f"→ {band_name}\n{basis}")
             item.set_result_badge("$", colour)
+        # U14: a hierarchy shows what its blocks cost in total, banded
+        # against the dearest hierarchy on this level (a sum would always
+        # outrank single blocks)
+        totals: dict[int, list[float]] = {}
+        for bid, cost in cost_by_block.items():
+            hid = self._level_hier_of("block", bid)
+            if hid is not None:
+                totals.setdefault(hid, []).append(cost)
+        dearest = max((sum(v) for v in totals.values()), default=0.0)
+        for hid, inside in totals.items():
+            oval = self._hier_items[hid]
+            total = sum(inside)
+            frac = total / dearest if dearest > 0 else 0.0
+            band_name = ("Red" if frac >= 2 / 3 else "Yellow" if frac >= 1 / 3 else "Green")
+            colour = c[f"result_{band_name.lower()}"]
+            name = getattr(self.hiers.get(hid), "name", "") or f"Hierarchy {hid}"
+            oval.set_live_fill(
+                colour,
+                f"Cost — {name}: ${total:,.2f} total life-cycle cost of the "
+                f"{len(inside)} block(s) inside → {band_name}\n(relative to the "
+                f"dearest hierarchy on this level, ${dearest:,.2f})")
 
     def apply_importance_colors(self: DiagramView, values: dict[int, float],  # type: ignore[misc]
                                 *, measure: str = "Birnbaum",
@@ -941,3 +976,253 @@ class LiveOverlayMixin:
                 f"Spares — {name}: {frac * 100:.2f}% of run time "
                 f"spares/life exhausted{cost_txt} → {band}")
             item.set_result_badge("!" if frac > 0.0 else None, colour)
+        # U14: a hierarchy is red when any block inside ran out
+        inside: dict[int, list[int]] = {}
+        for bid in exhausted_frac:
+            hid = self._level_hier_of("block", bid)
+            if hid is not None:
+                inside.setdefault(hid, []).append(bid)
+        for hid, bids in inside.items():
+            short = [bid for bid in bids if exhausted_frac[bid] > 0.0]
+            colour = c["result_red"] if short else c["result_green"]
+            name = getattr(self.hiers.get(hid), "name", "") or f"Hierarchy {hid}"
+            spend = sum(sparing_cost.get(bid, 0.0) for bid in bids)
+            self._hier_items[hid].set_live_fill(
+                colour,
+                f"Spares — {name}: {len(short)} of {len(bids)} block(s) inside "
+                f"had spares or life exhausted"
+                + (f", ${spend:,.2f} sparing cost" if spend else "")
+                + f" → {'Red' if short else 'Green'}")
+
+    def _level_hier_of(self: DiagramView, kind: str, oid: int) -> int | None:  # type: ignore[misc]
+        """The hierarchy oval on this level that holds element (kind, oid)
+        somewhere inside it, or None (on this level, or elsewhere)."""
+        parent = 0
+        if kind == "hier":
+            parent = getattr(self.hiers.get(oid), "parent_id", 0) or 0
+        elif kind in self._LOCATE:
+            section, column, _attr = self._LOCATE[kind]
+            rbd = getattr(self, "_rbd_ref", None)
+            for r in getattr(getattr(rbd, "sections", {}).get(section), "rows", []):
+                try:
+                    if int(float(r.get("ID") or 0)) == oid:
+                        parent = int(float(r.get(column) or 0))
+                        break
+                except (TypeError, ValueError):
+                    continue
+        for _depth in range(16):
+            if not parent:
+                return None
+            if parent in self._hier_items:
+                return parent
+            parent = getattr(self.hiers.get(parent), "parent_id", 0) or 0
+        return None
+
+    def apply_advisor_layer(self: DiagramView, layer: dict[str, Any]) -> None:  # type: ignore[misc]
+        """The Advisor's findings on the diagram (`raptor.api.advisor.canvas.
+        advisor_layer`): each element a finding is about is filled by the
+        worst severity (Red for an error, Yellow for a warning, the accent
+        colour for advice or a note), labelled with a warning sign and how
+        many findings concern it, and its tooltip lists them. A hierarchy
+        holding such elements off this level shows their total."""
+        c = ThemeManager.instance().colour
+        self._last_result_visuals = {"kind": "advisor", "layer": layer}
+        fills = {"error": c["result_red"], "warning": c["result_yellow"],
+                 "advice": c["accent"], "info": c["accent"]}
+        items: dict[str, dict[int, Any]] = {
+            "block": self._block_items, "node": self._node_items,
+            "event": self._event_items, "hier": self._hier_items}
+        rolled: dict[int, list[dict[str, Any]]] = {}
+        for row in layer.get("elements") or []:
+            item = items[row["kind"]].get(int(row["id"])) if row["kind"] in items else None
+            if item is None:
+                hid = self._level_hier_of(row["kind"], int(row["id"]))
+                if hid is not None:
+                    rolled.setdefault(hid, []).append(row)
+                continue
+            lines = "\n".join(f"• {f['severity']}: {f['title']} ({f['rule']})"
+                              for f in row["findings"])
+            item.set_live_fill(
+                fills[row["severity"]],
+                f"{row['name']}: {row['count']} Advisor finding(s)\n{lines}\n"
+                "Open the Advisor (View ▸ Advisor) for the reasons and fixes.")
+            self._layer_fractions[item] = 1.0      # focus keeps what is flagged
+            sign = "⚠" if row["severity"] in ("error", "warning") else "ⓘ"
+            item.set_anal_label(f"{sign} {row['count']}",
+                                f"{row['count']} Advisor finding(s), worst: {row['severity']}")
+            if hasattr(item, "set_result_badge"):
+                item.set_result_badge("!", fills[row["severity"]])
+        from raptor.api.advisor.finding import SEVERITY_RANK
+        for hid, inside in rolled.items():
+            item = self._hier_items.get(hid)
+            if item is None:
+                continue
+            worst = max((r["severity"] for r in inside), key=lambda s: SEVERITY_RANK[s])
+            count = sum(r["count"] for r in inside)
+            if hid in {int(r["id"]) for r in layer.get("elements") or []
+                       if r["kind"] == "hier"}:
+                continue        # its own findings are shown; keep that label
+            self._layer_fractions[item] = 1.0
+            names = ", ".join(r["name"] for r in inside[:8]) + (" …" if len(inside) > 8 else "")
+            item.set_live_fill(
+                fills[worst],
+                f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
+                f"{count} Advisor finding(s) about {len(inside)} element(s) "
+                f"inside it: {names}")
+            item.set_anal_label(f"Σ ⚠ {count}" if SEVERITY_RANK[worst] >= 2 else f"Σ ⓘ {count}",
+                                "Advisor findings inside this hierarchy")
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)
+
+    def apply_share_layer(self: DiagramView, layer: dict[str, Any],  # type: ignore[misc]
+                          flow: dict[int, float] | None = None,
+                          generated: float | None = None) -> None:
+        """A result layer from `raptor.api.insight.canvas.canvas_layer`:
+        each block and event coloured by its share (relative to the
+        largest: Red from two thirds, Yellow from a third, Green below),
+        the share and its ±2 SE range printed under it, the letter of the
+        cause that dominates it in the corner (in that cause's colour), and
+        a dashed ring round the letter when the runs disagree.
+
+        `flow` (capacity node id -> average flow) and `generated` (the
+        flow a fully working system delivers) draw each link into a
+        capacity node as wide as the flow through that node: per-link flow
+        is not recorded, so the width is the node's and the tooltip says
+        so."""
+        from raptor.gui.ui.chart_theme import cause_colour
+        c = ThemeManager.instance().colour
+        self._last_result_visuals = {"kind": "share", "layer": layer,
+                                     "flow": dict(flow or {}),
+                                     "generated": generated}
+        measure = str(layer.get("measure", "share"))
+        bands = {"high": ("Red", c["result_red"]), "mid": ("Yellow", c["result_yellow"]),
+                 "low": ("Green", c["result_green"])}
+        items: dict[str, dict[int, Any]] = {"block": self._block_items,
+                                            "event": self._event_items}
+        parents: dict[tuple[str, int], int] | None = None
+
+        def parent_of(kind: str, oid: int) -> int:
+            # elements off this level are not parsed: read their rows once
+            nonlocal parents
+            if parents is None:
+                parents = {}
+                rbd = getattr(self, "_rbd_ref", None)
+                for k in ("block", "event"):
+                    section, column, _attr = self._LOCATE[k]
+                    for r in getattr(getattr(rbd, "sections", {}).get(section),
+                                     "rows", []):
+                        try:
+                            parents[(k, int(float(r.get("ID") or 0)))] = \
+                                int(float(r.get(column) or 0))
+                        except (TypeError, ValueError):
+                            continue
+            return parents.get((kind, oid), 0)
+
+        rolled: dict[int, float] = {}
+        rolled_names: dict[int, list[str]] = {}
+        rolled_rows: dict[int, list[dict[str, Any]]] = {}
+
+        def hier_on_level(parent: int) -> int | None:
+            # the hierarchy oval on this level that holds `parent`, if any
+            for _depth in range(16):
+                if not parent:
+                    return None
+                if parent in self._hier_items:
+                    return parent
+                parent = getattr(self.hiers.get(parent), "parent_id", 0) or 0
+            return None
+
+        for row in layer.get("elements") or []:
+            kind = str(row.get("kind")).lower()
+            item = items.get(kind, {}).get(int(row["id"]))
+            if item is None:
+                hid = hier_on_level(parent_of(kind, int(row["id"])))
+                if hid is not None:
+                    rolled[hid] = rolled.get(hid, 0.0) + float(row["value"])
+                    rolled_names.setdefault(hid, []).append(row["name"])
+                    rolled_rows.setdefault(hid, []).append(row)
+                continue
+            band, colour = bands[row["band"]]
+            value = float(row["value"])
+            top = float(layer.get("largest") or 0.0)
+            self._layer_fractions[item] = value / top if top > 0 else 0.0
+            spread = (f" (±2 SE {100 * row['low']:.3g} to {pct(row['high'])})"
+                      if row.get("low") is not None else "")
+            mix = ", ".join(f"{k.replace('_', ' ')} {100 * v:.0f} %"
+                            for k, v in sorted((row.get("causes") or {}).items(),
+                                               key=lambda kv: -kv[1]))
+            note = ("\nUncertain: the runs disagree (the range is wider than "
+                    "the share itself); read the colour as rough."
+                    if row.get("uncertain") else "")
+            item.set_live_fill(
+                colour,
+                f"{row['name']}: {measure} {pct(value)}{spread} → {band}\n"
+                f"Main cause: {row.get('cause_label') or 'none recorded'}"
+                + (f" ({mix})" if mix else "")
+                + f"\nBands: Red from ⅔ of the largest share "
+                  f"({pct(float(layer.get('largest') or 0))}), Yellow from ⅓."
+                + note)
+            item.set_anal_label(
+                f"{pct(value)}" + (" ±" if row.get("uncertain") else ""),
+                f"{measure}: {100 * value:.4g} %{spread}")
+            if hasattr(item, "set_result_badge"):
+                item.set_result_badge(row.get("glyph") or None,
+                                      cause_colour(str(row.get("main_cause") or "other")).name())
+                item.set_result_ring(bool(row.get("uncertain")))
+        largest = float(layer.get("largest") or 0.0)
+        pooled = {int(h["id"]): h for h in layer.get("hierarchies") or []}
+        for hid, total in rolled.items():
+            item = self._hier_items[hid]
+            fraction = total / largest if largest > 0 else 0.0
+            self._layer_fractions[item] = fraction
+            band, colour = bands["high" if fraction >= 2 / 3 else
+                                 "mid" if fraction >= 1 / 3 else "low"]
+            inside = rolled_names[hid]
+            own = pooled.get(hid)
+            spread = (f" (±2 SE {100 * own['low']:.3g} to {pct(own['high'])}, "
+                      "pooled over the runs)"
+                      if own is not None and own.get("low") is not None else "")
+            item.set_live_fill(
+                colour,
+                f"{getattr(self.hiers.get(hid), 'name', '') or f'Hierarchy {hid}'}: "
+                f"{measure} {pct(total)}{spread} from the {len(inside)} "
+                f"element(s) inside it → {band}\n"
+                + ", ".join(inside[:8]) + (" …" if len(inside) > 8 else "")
+                + "\nShares add up: each outage counts once, against the "
+                  "element that started it.")
+            item.set_anal_label(f"Σ {pct(total)}",
+                                f"{measure}, summed over the hierarchy's contents")
+            if hasattr(item, "set_scent") and total > 0:
+                # its top three contributors, so the problem can be
+                # followed down a level ("scent", plan 7.6.1)
+                top3 = sorted(rolled_rows[hid], key=lambda r: -float(r["value"]))[:3]
+                parts = [(r["name"], float(r["value"]) / total,
+                          cause_colour(str(r.get("main_cause") or "other")).name())
+                         for r in top3]
+                rest = 1.0 - sum(f for _n, f, _c in parts)
+                item.set_scent(parts, "Inside: " + ", ".join(
+                    f"{n} {pct(f)}" for n, f, _c in parts)
+                    + (f", others {pct(rest)}" if rest > 0.005 else "")
+                    + " of the hierarchy's total; colour = main cause.")
+        if flow and generated:
+            # widths relative to the busiest node, so the paths read apart
+            # even when the system delivers a small part of its full flow
+            busiest = max(flow.values()) or 1.0
+            for link in self._links:
+                node_id = getattr(link._to, "_node_id", None)
+                if node_id is None or node_id not in flow:
+                    link.set_flow_width(
+                        1.0, "No flow recorded for what this link feeds: flow "
+                             "is recorded at capacity nodes.")
+                    continue
+                value = float(flow[node_id])
+                link.set_flow_width(
+                    1.5 + 8.5 * max(0.0, value) / busiest,
+                    f"The node this link feeds carries {value:.4g} on average: "
+                    f"{pct(value / float(generated))} of the {generated:.4g} "
+                    f"a fully working system delivers. Width is relative to "
+                    f"the busiest node ({busiest:.4g}). Flow is recorded per "
+                    f"node, not per link, so every link into a node is drawn "
+                    f"at the node's flow.")
+        if getattr(self, "_focus_mode", False):
+            self.set_focus_mode(True)          # keep the shares that matter

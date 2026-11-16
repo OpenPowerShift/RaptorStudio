@@ -124,11 +124,11 @@ def test_toggle_off_forgets_bands(qapp, w, monkeypatch):
     assert getattr(v, "_last_result_visuals", None) is None
     v.enter_level(23); pe()
     fill = next(iter(v._block_items.values())).brush().color().name()
-    themed_surface = __import__(
+    theme = __import__(
         "raptor.gui.resources.design_tokens",
-        fromlist=["active_colour"]).active_colour()["surface"]
+        fromlist=["active_colour"]).active_colour()
     # restored to themed look, not a band colour
-    assert fill != "#218b61" or themed_surface == "#218b61"
+    assert fill != theme["result_green"].lower()
 
 
 def test_tabs_never_lock_editing(qapp, w):

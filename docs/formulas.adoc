@@ -33,7 +33,13 @@ Final Results "Availability" row reports.
 |Mean Time Between Downing Events (MTBDE)
 |stem:["MTBDE" = "Uptime" / ("number of downing events")]
 |Average stretch of working time between one stoppage and the next.
-Uptime here is Green + Yellow.
+Uptime here is Green + Yellow. Raptor works this out *in each run* and
+then averages the runs, and a run with no outage gives its whole length
+(shown with `>`). So when outages are rare, MTBDE is a floor and reads
+higher than the rate the runs found. The pooled figure, total uptime over
+total outages across every run, is that rate. `raptor run` prints it under
+the table as *Time between outages, pooled*, `simulate` returns it as
+`outages.between` and the report's cover uses it.
 
 |Mean Down Time (MDT)
 |stem:["MDT" = "Downtime" / ("number of downing events")]
@@ -607,6 +613,80 @@ above are the authority. Those measures and their cross-run statistics appear
 in the run's Final Results (Summary and Logistics), which is also where
 Raptor 7 prints them; this page is not duplicated into the application.
 
+[[attribution]]
+== Downtime and lost-capacity attribution
+
+These are observers: they replay the event log and the capacity sink after
+a run, and never change a result. The full definitions and the three
+criticality indices are in the Advisor help (`advisor.html`).
+
+[cols="2,5,3",options="header"]
+|===
+|Measure |Formula |Reads as
+
+|DTCI of element stem:[e]
+|stem:["DTCI"_e = ("Red time in outages"_e) / ("total Red time")]
+|Share of the system's downtime caused by outages that element started.
+Pooled over the runs: the element's Red time summed over every run, over
+the total Red time summed over every run. Its SEM is the delta-method
+standard error of that ratio. (Averaging each run's own share would weigh
+a run with a minute of downtime like a run with a day.)
+
+|DECI of element stem:[e]
+|stem:["DECI"_e = ("outages started by"_e) / ("all system outages")]
+|Share of downing *events* the element started, regardless of how long
+they lasted. Pooled over the runs, like DTCI.
+
+|FCI of element stem:[e]
+|stem:["FCI"_e = ("failure outages started by"_e) / ("all failure outages")]
+|DECI restricted to outages whose initiator failed rather than going into
+planned maintenance.
+
+|Share of lost capacity (proportional)
+|stem:[L(t) = max(0, F_"gen" - F(t))], then
+stem:["lost"_e = sum_t L(t) dot w_e / (sum_j w_j)]
+|At every instant the lost flow is shared among the elements that were
+down, in proportion to their *standalone capacity contribution* stem:[w].
+Shares sum to the engine's own lost flow, every run. Reported pooled over
+the runs, like DTCI: the element's lost energy summed over every run, over
+all lost energy summed over every run, with the delta-method SEM.
+
+|Standalone capacity contribution
+|stem:[w_e = F_"gen" - F("only" e "down")]
+|The flow lost if that element alone were down, from the Failure Effects
+view (no simulation, no random draw). Elements Idle through a dependency
+on a block or an event are charged to the element they depend on. The
+*Of which via dependants* figure is the part of that charge the Idle
+dependants explain: the master's charge scaled by the dependants' own
+contributions over the master's, at most the whole charge. A dependency
+on a node, a hierarchy or the whole system has no element to follow, so
+it is charged to the dependant itself. When nothing was charged this
+way, `raptor explain` says so in a line instead of printing a column of
+zeros.
+
+|Marginal lost capacity
+|stem:[w_e(t) = L(t) - L(t; e "restored")]
+|Answers "what would fixing this one buy?"; overlapping losses are
+counted once per element, so the shares need **not** add up to the whole.
+
+|Lost energy of an element
+|stem:[E_e = integral "lost"_e(t) dif t]
+|Flow × time over the statistics window; the element's share of the
+energy or product not supplied.
+
+|Period availability (a year)
+|stem:[A_p = 1 - ("Red time inside period" p) / ("length of period" p)]
+|Exact slicing of the system's Red intervals, not plot samples. Pooled
+over run-years and reported by year index with P1–P99. The final partial
+period is dropped by default (or pro-rated on request).
+
+|Percentile (nearest rank)
+|stem:[P_k = x_(ceil(k n / 100))]
+|The sorted value's nearest-rank position; stated here because percentiles
+have several definitions. `p_below` is a proportion, so it carries a
+Wilson interval.
+|===
+
 == What a reliability block diagram cannot tell you
 
 * **Independence is assumed unless you model otherwise.** Two
@@ -635,3 +715,33 @@ Raptor 7 prints them; this page is not duplicated into the application.
 <div class="copyright-footer">Copyright © 2026 OpenPowerShift · RAPTOR Studio.<br>
 Original RAPTOR © ARINC / Booz Allen Hamilton, released as open source under the Booz Allen Public License v1.0 — thanks, BAH! New code in this port: Apache License 2.0.</div>
 ++++
+
+[[availability-ladder]]
+== The availability ladder
+
+The same downtime can be counted three ways. The difference between the
+rungs is exactly the delay the next cause adds.
+
+[cols="3,3,5",options="header"]
+|===
+|Rung |Formula |Counts
+
+|Inherent availability stem:[A_i]
+|stem:[1 - ("hands-on repair time") / T]
+|Only the repair itself: a design figure.
+
+|Achieved availability stem:[A_a]
+|stem:[1 - ("repair" + "planned maintenance") / T]
+|Adds planned maintenance: a maintenance-policy figure.
+
+|Operational availability stem:[A_o]
+|stem:["uptime" / T]
+|Adds logistics, waiting for spares and crews, and dependency holds: what
+the plant actually achieved.
+|===
+
+The downtime rungs are the engine's own split
+(stem:["repair" + "PM" + "logistics" + "not repairable" + "other"]), and
+they add to the reported downtime; the measure registry
+(`raptor/api/insight/measures.py`) reads them and the application, the
+report and MCP show the same numbers.

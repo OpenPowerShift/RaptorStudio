@@ -214,6 +214,15 @@ class RbdFile:
     #: "block_labels": "mean"|"spread"|"rate"|"off"}`. Empty = the file
     #: says nothing and the window keeps its current settings.
     view: dict = field(default_factory=dict)
+    #: .rbds-only Advisor state: `{"ignored": [{"rule": "M-DEP-001",
+    #: "target": "block:3" or "" for the whole rule, "reason": str}]}` --
+    #: findings the user has dismissed, with why (see
+    #: `raptor.api.advisor.ignore`). Legacy .rbd has no representation.
+    advisor: dict = field(default_factory=dict)
+    #: .rbds-only what-if switch: `{"block:3": "cut" | "linked", "hier:7": ...}`
+    #: -- elements taken out of service without changing their data (see
+    #: `raptor.core.fileio.out_of_service`). Legacy .rbd has no representation.
+    out_of_service: dict = field(default_factory=dict)
     #: .rbds-only named "Rate" library (reusable expressions with a
     #: human-readable basis, e.g. "0.00015/km failure rate x 20000
     #: km/yr usage" -- entries are {"name": str, "expr": str,

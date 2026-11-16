@@ -103,6 +103,11 @@ class ResultsBundle:
     cost_lines: Sequence[str] = ()
     #: One list of event lines per run.
     event_logs: Sequence[Sequence[str]] = ()
+    #: `attribution.json`, when the run was made with downtime attribution.
+    attribution: dict[str, Any] | None = None
+    #: `raptor.api.insight.periods.period_summary(..., rows=True)`: the
+    #: period-by-period (yearly) results, when the run covers whole periods.
+    periods: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------
@@ -856,16 +861,192 @@ def result_tables(bundle: ResultsBundle) -> list[Table]:
             continue
         seen.add(t.key)
         out.append(t)
-    for extra in (_per_run_table(bundle.per_run),
-                  _capacity_table(bundle.capacity_lines),
-                  _text_table("interim_cost", "Interim Cost Report",
-                              list(bundle.cost_lines)),
-                  _text_table("end_of_run", "End-of-Run Report",
-                              list(bundle.end_of_run_lines)),
-                  _event_log_table([list(x) for x in bundle.event_logs])):
+    extras = [_per_run_table(bundle.per_run),
+              _capacity_table(bundle.capacity_lines),
+              _text_table("interim_cost", "Interim Cost Report",
+                          list(bundle.cost_lines)),
+              _text_table("end_of_run", "End-of-Run Report",
+                          list(bundle.end_of_run_lines)),
+              _event_log_table([list(x) for x in bundle.event_logs])]
+    extras += _attribution_tables(bundle.attribution)
+    extras += _period_tables(bundle.periods)
+    for extra in extras:
         if extra is not None and extra.key not in seen:
             seen.add(extra.key)
             out.append(extra)
+    return out
+
+
+def _attribution_tables(attribution: dict[str, Any] | None) -> list[Table]:
+    """Downtime drivers, causes, outage durations and lost capacity, when the
+    run was made with attribution.  One shape for GUI export, CLI and MCP."""
+    if not attribution:
+        return []
+    units = str(attribution.get("units") or "")
+    out: list[Table] = []
+    elements = attribution.get("elements") or []
+    drivers = sorted(elements, key=lambda e: (-(e["dtci"]["mean"] or 0.0),
+                                              str(e.get("name", ""))))
+    rows = []
+    for row in drivers:
+        if not (row["dtci"]["mean"] or row.get("lost_capacity")):
+            continue
+        lost = row.get("lost_capacity") or {}
+        share = row.get("lost_capacity_share") or {}
+        rows.append([
+            row.get("name", ""), row["dtci"]["mean"], row["dtci"]["sem"],
+            row["deci"]["mean"], row["fci"]["mean"],
+            row["red_time"]["mean"], row.get("main_cause", ""),
+            lost.get("mean"), lost.get("sem"), share.get("mean"),
+            (row.get("lost_capacity_through_dependents") or {}).get("mean"),
+        ])
+    if rows:
+        out.append(Table(
+            "results.downtime_drivers", "Downtime drivers", RESULTS,
+            ["Element", "Share of downtime", "±", "Outages started",
+             "Failures", f"Down time ({units})", "Main cause",
+             "Lost capacity (flow x time)", "±", "Share of lost capacity",
+             "Of which via dependants"],
+            rows, section="Downtime drivers",
+            notes=[f"Attribution by {attribution.get('capacity', {}).get('rule', '')} split."
+                   if attribution.get("capacity") else
+                   "Downtime attribution; capacity attribution was not recorded."],
+            text_cols={0, 6}))
+    causes = attribution.get("causes") or {}
+    red = (attribution.get("system") or {}).get("red_time", {}).get("mean") or 0.0
+    cause_rows = [[cause, share, share * red]
+                  for cause, share in sorted(causes.items(), key=lambda kv: -kv[1])]
+    if cause_rows:
+        from raptor.api.insight.attribution import CAUSE_LABELS
+        out.append(Table(
+            "results.downtime_causes", "Downtime causes", RESULTS,
+            ["Cause", "Share of downtime", f"Down time ({units})"],
+            [[CAUSE_LABELS.get(c, c), s, t] for c, s, t in cause_rows],
+            section="Downtime drivers", text_cols={0}))
+    durations = attribution.get("outage_durations") or {}
+    if durations.get("count"):
+        out.append(Table(
+            "results.outage_durations", "Outage durations", RESULTS,
+            ["Statistic", f"Duration ({units})"],
+            [["P50", durations.get("p50")], ["P90", durations.get("p90")],
+             ["Maximum", durations.get("max")], ["Outages", durations.get("count")]],
+            section="Downtime drivers"))
+    return (out + _phase_downtime_table(attribution)
+            + _capacity_tables(attribution.get("capacity")))
+
+
+def _phase_downtime_table(attribution: dict[str, Any]) -> list[Table]:
+    """Downtime by mission phase (phased models)."""
+    rows = attribution.get("phases") or []
+    if not rows:
+        return []
+    units = str(attribution.get("units") or "")
+    body = []
+    for row in rows:
+        driver = row["drivers"][0] if row.get("drivers") else {}
+        body.append([row["name"], {True: "yes", False: "no"}.get(row.get("mission"), ""),
+                     row["time"]["mean"], row["red_time"]["mean"], row["red_time"]["sem"],
+                     row["availability"], row["share_of_downtime"],
+                     driver.get("name", ""), driver.get("share")])
+    return [Table(
+        "results.phase_downtime", "Downtime by phase", RESULTS,
+        ["Phase", "Mission", f"Time ({units})", f"Down time ({units})", "±",
+         "Availability", "Share of downtime", "Main driver", "Driver's share"],
+        body, section="Downtime drivers",
+        notes=["Time and down time are means per run; availability is pooled "
+               "over runs (1 - down time / time in the phase)."],
+        text_cols={0, 1, 7})]
+
+
+def _capacity_tables(capacity: dict[str, Any] | None) -> list[Table]:
+    """Lost capacity by element and by cause (capacity attribution)."""
+    if not capacity:
+        return []
+    out: list[Table] = []
+    cap_rows = []
+    for row in capacity.get("elements") or []:
+        cap_rows.append([
+            row.get("name", ""), row["lost_energy"]["mean"],
+            row["lost_energy"]["sem"], row["share"]["mean"],
+            row["through_dependents"]["mean"], row.get("standalone"),
+        ])
+    out.append(Table(
+        "results.lost_capacity", "Lost capacity by element", RESULTS,
+        ["Element", "Lost capacity (flow x time)", "±", "Share",
+         "Of which via dependants", "Standalone contribution"],
+        cap_rows, section="Capacity",
+        notes=[f"Lost flow split by {capacity.get('rule', '')}."],
+        text_cols={0}))
+    from raptor.api.insight.attribution import CAUSE_LABELS
+    lost = (capacity.get("lost_energy") or {}).get("mean") or 0.0
+    cause_rows = []
+    for cause, stat in sorted((capacity.get("causes") or {}).items(),
+                              key=lambda kv: -(kv[1].get("mean") or 0.0)):
+        value = stat.get("mean") or 0.0
+        if value <= 0:
+            continue
+        cause_rows.append([CAUSE_LABELS.get(cause, cause), value, stat.get("sem"),
+                           value / lost if lost else None])
+    if cause_rows:
+        out.append(Table(
+            "results.lost_capacity_causes", "Lost capacity by cause", RESULTS,
+            ["Cause", "Lost capacity (flow x time)", "±", "Share"],
+            cause_rows, section="Capacity", text_cols={0}))
+    return out
+
+
+def _period_tables(periods: dict[str, Any] | None) -> list[Table]:
+    """Issue #257: availability (and capacity-weighted availability) period
+    by period -- the summary by period number and pooled, then one row per
+    (run, period) for anyone who wants to do their own statistics."""
+    if not periods or not (periods.get("pooled") or {}).get("n"):
+        return []
+    units = str(periods.get("units") or "")
+    length = periods.get("length")
+    capacity = periods.get("capacity") or {}
+    by_cap = {row["index"]: row for row in capacity.get("by_index") or []}
+    stats = ("mean", "sd", "p1", "p5", "p10", "p50", "p90", "p95", "p99", "min")
+    headers = ["Period", "Runs", "Mean", "SD", "P1", "P5", "P10", "P50", "P90",
+               "P95", "P99", "Min"]
+    if periods.get("threshold") is not None:
+        headers.append("Share below threshold")
+    rows = []
+
+    def line(label: Any, row: dict[str, Any]) -> list[Any]:
+        out = [label, row.get("n")] + [row.get(s) for s in stats]
+        if periods.get("threshold") is not None:
+            out.append(row.get("p_below"))
+        return out
+
+    for row in periods.get("by_index") or []:
+        if row.get("n"):
+            rows.append(line(row["index"], row))
+    rows.append(line("All (pooled)", periods["pooled"]))
+    note = (f"Periods of {length:,.6g} {units}; the incomplete last period of "
+            "each run is left out." if isinstance(length, (int, float)) else "")
+    out = [Table("results.period_availability", "Availability by period", RESULTS,
+                 headers, rows, section="Periods", notes=[note] if note else [],
+                 text_cols={0})]
+    if capacity.get("pooled", {}).get("n"):
+        cap_rows = [line(index, row) for index, row in sorted(by_cap.items())
+                    if row.get("n")]
+        cap_rows.append(line("All (pooled)", capacity["pooled"]))
+        out.append(Table(
+            "results.period_capacity", "Capacity-weighted availability by period",
+            RESULTS, headers, cap_rows, section="Periods",
+            notes=["Energy delivered / (flow generated x period length)."],
+            text_cols={0}))
+    run_rows = periods.get("rows") or []
+    if run_rows:
+        has_cap = any("capacity_weighted" in r for r in run_rows)
+        out.append(Table(
+            "results.period_runs", "Availability by run and period", RESULTS,
+            ["Run", "Period", "Availability"]
+            + (["Capacity-weighted availability"] if has_cap else []),
+            [[r["run"], r["period"], r["availability"]]
+             + ([r.get("capacity_weighted")] if has_cap else [])
+             for r in run_rows],
+            section="Periods"))
     return out
 
 
@@ -928,3 +1109,128 @@ def collect(rbd: Any, bundle: ResultsBundle | None = None,
             f"unknown or unavailable table(s) {missing}; available: "
             f"{sorted(by_key)}")
     return [by_key[k] for k in by_key if k in set(wanted)]
+
+
+# -- find and replace over model tables (WP-1.7) ---------------------------
+
+#: Table key -> the model section whose file rows it shows.
+_TABLE_SECTIONS = {
+    "inputs.blocks_all": "BLOCK_DATA",
+    "inputs.nodes": "NODE_DATA",
+    "inputs.events": "EVENT_DATA",
+    "inputs.hierarchies": "HIERARCHY_DATA",
+    "inputs.spare_pools": "SPARE_POOL_DATA",
+    "inputs.resources": "RESOURCE_DATA",
+    "inputs.triggers": "TRIGGERS",
+    "inputs.phases": "PHASES",
+    "inputs.comments": "COMMENTS",
+}
+_NAME_COLUMNS = {"blockName", "Name", "eventName", "hierarchyName",
+                 "PoolName", "TriggerName", "PhaseName"}
+
+
+def replace_in_table(rbd: Any, table_key: str, column: str, find: str,
+                     replace: str, *, whole: bool = False,
+                     case: bool = True,
+                     row_filter: Any = None) -> list[dict[str, Any]]:
+    """Find and replace one column of a model table.
+
+    `table_key` is an input table key (`inputs.blocks_all`, `inputs.nodes`,
+    ...). `column` is a file column or a header index. `whole` matches the
+    whole cell; `case` is case-sensitive. `row_filter` may be a callable on
+    the row or a collection of row indexes.
+
+    Name columns are validated as a manual rename is: at most 20
+    characters, no whitespace, unique in the section. If any replacement
+    would break that, ValueError names the refused cells and **nothing** is
+    changed. Returns `[{row, id, column, old, new}]`.
+    """
+    section_name = _TABLE_SECTIONS.get(table_key)
+    if section_name is None:
+        raise ValueError(f"{table_key!r} is not an editable model table; "
+                         f"use one of {', '.join(sorted(_TABLE_SECTIONS))}")
+    section = rbd.sections.get(section_name)
+    if section is None:
+        return []
+    column = _resolve_column(section, column)
+    rows = _filter_rows(section.rows, row_filter)
+    changes = []
+    for row in rows:
+        old = str(row.get(column, ""))
+        if not _matches(old, find, whole=whole, case=case):
+            continue
+        new = (str(replace) if whole else
+               old.replace(find, replace) if case
+               else _ireplace(old, find, replace))
+        changes.append({"row": row, "id": row.get("ID", ""),
+                        "column": column, "old": old, "new": new})
+    if column in _NAME_COLUMNS and changes:
+        _check_names(section, changes)
+    return changes
+
+
+def _resolve_column(section: Any, column: Any) -> str:
+    if isinstance(column, int) or (isinstance(column, str)
+                                   and column.isdigit()):
+        index = int(column)
+        if not 0 <= index < len(section.columns):
+            raise ValueError(f"column index {index} is out of range")
+        return str(section.columns[index])
+    if column not in section.columns:
+        raise ValueError(f"this table has no column {column!r}")
+    return str(column)
+
+
+def _filter_rows(rows: list[dict], row_filter: Any) -> list[dict]:
+    if row_filter is None:
+        return list(rows)
+    out = []
+    for index, row in enumerate(rows):
+        allowed = (row_filter(index, row) if callable(row_filter)
+                   else index in row_filter)
+        if allowed:
+            out.append(row)
+    return out
+
+
+def _matches(text: str, find: str, *, whole: bool, case: bool) -> bool:
+    haystack, needle = (str(text), str(find))
+    if not case:
+        haystack, needle = haystack.lower(), needle.lower()
+    return haystack == needle if whole else needle in haystack
+
+
+def _check_names(section: Any, changes: list[dict[str, Any]]) -> None:
+    """Validate a whole rename set before anything is written.
+
+    The final names are checked together, so a swap (A->B, B->A) is allowed
+    and a genuine duplicate is refused by name.
+    """
+    column = changes[0]["column"]
+    new_by_row = {id(change["row"]): change["new"] for change in changes}
+    final = [new_by_row.get(id(row), str(row.get(column, "")))
+             for row in section.rows]
+    refused = []
+    for change in changes:
+        name = str(change["new"])
+        if not name or len(name) > 20 or any(ch.isspace() for ch in name):
+            refused.append({"id": change["id"], "name": name,
+                            "why": "must be 1-20 characters with no spaces"})
+    for name in set(final):
+        if name and final.count(name) > 1:
+            for change in changes:
+                if str(change["new"]) == name:
+                    refused.append({"id": change["id"], "name": name,
+                                    "why": "would duplicate another row"})
+    if refused:
+        raise ValueError(
+            "refusing replacements that would break names: "
+            + "; ".join(f"row {item['id']} -> {item['name']!r} "
+                        f"({item['why']})" for item in refused))
+
+
+def _ireplace(text: str, find: str, replace: str) -> str:
+    """Case-insensitive literal replace, keeping the rest of the text."""
+    import re
+    return re.sub(re.escape(find), lambda _m: replace, text,
+                  flags=re.IGNORECASE)

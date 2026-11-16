@@ -1,0 +1,153 @@
+"""One-at-a-time sensitivity: known swings, paired effects, elasticity."""
+from __future__ import annotations
+
+import pytest
+
+from raptor.api import build
+from raptor.api.scenarios.sensitivity import (
+    Input, default_inputs, tornado,
+)
+from raptor.api.workspace import Workspace
+
+SPEC = {
+    "blocks": [{"name": "Pump", "fail_dist": "Fixed",
+                "fail_params": [100, 0, 0], "repair_dist": "Fixed",
+                "repair_params": [2, 0, 0]}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "Pump"},
+              {"from": "Pump", "to": "End"}],
+    "experiment": {"trials": 5, "termination_type": "TimeSim",
+                   "term_condition": 500.0},
+}
+
+
+def _workspace(tmp_path):
+    ws = Workspace(tmp_path)
+    rbd = build.build_from_spec(SPEC)
+    mid = ws.register_model(rbd, name="m")["model_id"]
+    return ws, mid, rbd
+
+
+def test_default_inputs_offer_life_repair_and_the_stock(tmp_path):
+    _ws, _mid, rbd = _workspace(tmp_path)
+    inputs = default_inputs(rbd)
+    kinds = [item.kind for item in inputs]
+    assert "failure" in kinds and "repair" in kinds
+    assert all("=" in item.low and "=" in item.high for item in inputs)
+    assert [item.name for item in inputs][:2] == ["Pump life", "Pump repair"]
+
+
+def test_a_longer_repair_swings_availability_down(tmp_path):
+    ws, mid, _rbd = _workspace(tmp_path)
+    inputs = [
+        Input("repair", "repair",
+              "block:Pump.repair_params=1,0,0",
+              "block:Pump.repair_params=4,0,0",
+              base_value=2.0, low_value=1.0, high_value=4.0)]
+    result = tornado(ws, mid, inputs, trials=3, seed=2)
+    row = result["inputs"][0]
+    assert row["error"] is None
+    assert row["low"]["effect"] > row["high"]["effect"]
+    assert row["swing"] == pytest.approx(
+        row["low"]["effect"] - row["high"]["effect"])
+    assert row["elasticity"] is not None
+    assert result["base"]["mean"] == pytest.approx(0.984)
+
+
+def test_a_no_op_input_has_exactly_zero_swing(tmp_path):
+    ws, mid, _rbd = _workspace(tmp_path)
+    result = tornado(ws, mid, [
+        Input("same", "repair", "block:Pump.repair_params=2,0,0",
+              "block:Pump.repair_params=2,0,0")], trials=3, seed=1)
+    row = result["inputs"][0]
+    assert row["swing"] == 0
+    assert row["distinguishable"] is False
+
+
+def test_the_same_seed_pairs_every_effect(tmp_path):
+    ws, mid, _rbd = _workspace(tmp_path)
+    first = tornado(ws, mid, [
+        Input("repair", "repair", "block:Pump.repair_params=1,0,0",
+              "block:Pump.repair_params=4,0,0")], trials=4, seed=9)
+    second = tornado(ws, mid, [
+        Input("repair", "repair", "block:Pump.repair_params=1,0,0",
+              "block:Pump.repair_params=4,0,0")], trials=4, seed=9)
+    assert first["inputs"][0]["swing"] == second["inputs"][0]["swing"]
+    assert first["batches"] == 3
+
+
+def test_a_pooled_stock_is_varied_on_the_pool_once():
+    """Two blocks draw from one empty pool: one input, 0 -> 1, on the pool.
+    (It used to read the block row's Stock, 100, and vary the pool at 99 and
+    101, which showed no effect at all.)"""
+    spec = {**SPEC, "blocks": [
+        {**SPEC["blocks"][0], "name": name, "spare_pool": "Seals", "sp_type": "Pooled"}
+        for name in ("Pump", "Fan")],
+        "spare_pools": [{"name": "Seals", "stock": 0, "rso": 1, "new_spares": 1,
+                         "arrive_every": 200.0}],
+        "links": [{"from": "Start", "to": "Pump"}, {"from": "Pump", "to": "Fan"},
+                  {"from": "Fan", "to": "End"}]}
+    stocks = [item for item in default_inputs(build.build_from_spec(spec))
+              if item.kind == "stock"]
+    assert [(s.name, s.low, s.high) for s in stocks] == [
+        ("Seals stock", "pool:Seals.stock=0", "pool:Seals.stock=1")]
+
+
+def test_an_unknown_metric_is_an_error_not_a_blank_table(tmp_path):
+    import pytest
+
+    from raptor.api import build
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.workspace import Workspace
+    spec = {"blocks": [{"name": "A", "fail_params": [100, 0, 0], "repair_params": [5, 0, 0]}],
+            "nodes": [{"name": "Start", "type": 1}, {"name": "End", "type": 3}],
+            "links": [{"from": "Start", "to": "A"}, {"from": "A", "to": "End"}],
+            "experiment": {"trials": 2, "termination_type": "TimeSim", "term_condition": 500}}
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(build.build_from_spec(spec), name="m")["model_id"]
+    inputs = default_inputs(ws.get(mid).rbd, limit=1)
+    with pytest.raises(ValueError, match="bogus.*availability"):
+        tornado(ws, mid, inputs, trials=2, metric="bogus")
+
+
+def test_the_sensitivity_caption_reads_in_the_charts_units():
+    """G12: the caption printed a bare fraction beside a chart in points,
+    and did not say when no swing cleared the noise."""
+    from raptor.api.scenarios.sensitivity import _caption
+    rows = [{"input": {"name": "Pump mean life"}, "swing": 0.0123, "distinguishable": True},
+            {"input": {"name": "Valve repair"}, "swing": 0.002, "distinguishable": False}]
+    text = _caption(rows, "availability", 0.95)
+    assert "1.23 pts" in text and "95 %" in text and "noise" not in text
+    rows[0]["distinguishable"] = False
+    assert "noise" in _caption(rows, "availability", 0.95)
+    assert "(4.5 from a base of 10)" in _caption(
+        [{"input": {"name": "x"}, "swing": 4.5, "distinguishable": True}], "mdt", 10.0)
+
+
+def test_life_and_repair_inputs_have_an_elasticity():
+    """C14: the commonest inputs, a block's life and repair, had no base or
+    end values, so their elasticity was always None."""
+    from raptor.api import build
+    from raptor.api.scenarios.sensitivity import _elasticity, default_inputs
+    inputs = {i.kind: i for i in default_inputs(build.build_from_spec(build.series(1)))}
+    life = inputs["failure"]
+    assert (life.low_value, life.high_value) == (life.base_value * 0.5, life.base_value * 2)
+    assert _elasticity(life, -0.01, 0.005, 0.95) is not None
+    assert inputs["repair"].base_value is not None
+
+
+def test_asking_for_more_inputs_than_the_model_has_is_said(tmp_path):
+    """U13: 11 asked, 10 shown, nothing said."""
+    from pathlib import Path
+
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.workspace import Workspace
+
+    model = Path(__file__).resolve().parents[3] / "new_docs" / "models" / "Water1.rbds"
+    ws = Workspace(tmp_path)
+    mid = ws.open_model(model)["model_id"]
+    inputs = default_inputs(ws.get(mid).rbd, limit=11)
+    assert len(inputs) < 11
+    result = tornado(ws, mid, inputs[:2], trials=4, asked=11)
+    assert "only 2 inputs that can be varied, not 11" in result["note"]
+    assert "only" not in tornado(ws, mid, inputs[:2], trials=4, asked=2)["note"]

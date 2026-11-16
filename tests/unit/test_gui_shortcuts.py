@@ -158,3 +158,33 @@ def test_ctrl_f_goes_to_the_find_box_from_the_canvas(win):
                    Qt.KeyboardModifier.ControlModifier)
     QApplication.processEvents()
     assert win._find_edit.hasFocus() or QApplication.focusWidget() is win._find_edit
+
+
+def test_ctrl_d_fills_down_in_the_tables_and_duplicates_on_the_canvas(win, monkeypatch):
+    """One key, two meanings by focus: neither may swallow the other
+    (an ambiguous Qt shortcut fires nothing at all)."""
+    from PySide6.QtTest import QTest
+    fills, dups = [], []
+    dock = win._data_tables
+    monkeypatch.setattr(dock, "fill_down", lambda: fills.append(1) or True)
+    monkeypatch.setattr(win, "_edit_duplicate", lambda *a: dups.append(1))
+    win._duplicate_action.triggered.disconnect()
+    win._duplicate_action.triggered.connect(lambda *a: win._edit_duplicate())
+    win._duplicate_action.setEnabled(True)
+    dock.parentWidget().show()
+    dock.parentWidget().raise_()
+    win.activateWindow()
+    QTest.qWaitForWindowActive(win, 2000)
+    table = dock._blocks_table
+    table.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(table, Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
+    assert fills == [1] and dups == []
+    canvas = win._diagram_dock.view
+    canvas.setFocus()
+    for item in canvas.scene().items():
+        item.setSelected(True)          # Duplicate is greyed with nothing selected
+    QApplication.processEvents()
+    assert win._duplicate_action.isEnabled()
+    QTest.keyClick(canvas, Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
+    assert fills == [1] and dups == [1]

@@ -1,0 +1,138 @@
+.TH "RAPTOR-OPTIMISE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-optimise \- search spares, maintenance or crew sizes for a target
+.SH SYNOPSIS
+\fBraptor optimise\fR [\-h] WHAT ...
+.SH DESCRIPTION
+Search one kind of decision by simulation with paired trials: spare stock (the cheapest that meets a target), planned maintenance (whether and how often), or crew and tool sizes (the smallest that meets a target). A level meets a target only when its lower confidence bound does. The model file is only changed when \-\-apply is given.
+.SH COMMANDS
+.TP
+\fBspares\fR
+spare stock levels
+.TP
+\fBpm\fR
+is planned maintenance worthwhile, and when
+.TP
+\fBresources\fR
+how many crews or tools are needed
+.SH RAPTOR OPTIMISE SPARES
+\fBraptor optimise spares\fR [\-h] [\-\-target EXPR] [\-\-pools NAMES] [\-\-mode {meet,curve}] [\-\-budget N] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+.SS Options
+.TP
+\fB\-\-target\fR \fIEXPR\fR
+e.g. system.ao>=0.995 (default)
+.TP
+\fB\-\-pools\fR \fINAMES\fR
+comma list of pool names (default: every finite pool)
+.TP
+\fB\-\-mode\fR \fI{meet|curve}\fR
+cheapest that meets (default) or the trade\-off curve
+.TP
+\fB\-\-budget\fR \fIN\fR
+most simulation points to evaluate (default 40)
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+runs per point (default: the model's own)
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
+.TP
+\fB\-\-apply\fR
+write the recommended stocks into the model
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR OPTIMISE PM
+\fBraptor optimise pm\fR [\-h] [\-\-blocks NAMES] [\-\-objective {availability,cost}] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+.SS Options
+.TP
+\fB\-\-blocks\fR \fINAMES\fR
+comma list of block names (default: every block)
+.TP
+\fB\-\-objective\fR \fI{availability|cost}\fR
+what to optimise (default availability)
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+runs per point (default: the model's own)
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
+.TP
+\fB\-\-apply\fR
+write the recommended intervals into the model
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR OPTIMISE RESOURCES
+\fBraptor optimise resources\fR [\-h] [\-\-resources NAMES] [\-\-target EXPR] [\-\-extra N] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+.SS Options
+.TP
+\fB\-\-resources\fR \fINAMES\fR
+comma list of resource names (default: all)
+.TP
+\fB\-\-target\fR \fIEXPR\fR
+e.g. system.ao>=0.995 (default)
+.TP
+\fB\-\-extra\fR \fIN\fR
+sizes above the seed to try (default 3)
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+runs per point (default: the model's own)
+.TP
+\fB\-\-seed\fR \fIN\fR
+salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-progress\fR \fI{auto|bar|json|none}\fR
+progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
+.TP
+\fB\-\-apply\fR
+write the recommended sizes into the model
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH EXAMPLES
+.PP
+The cheapest spare stock whose lower bound meets 99.5 %.
+.RS
+.nf
+\fBraptor optimise spares plant.rbds \-\-target 'system.ao>=0.995'\fR
+.fi
+.RE
+.PP
+Every stock level evaluated, for a trade\-off chart.
+.RS
+.nf
+\fBraptor optimise spares plant.rbds \-\-mode curve \-f json\fR
+.fi
+.RE
+.PP
+Whether planned maintenance pays on two pumps, and how often.
+.RS
+.nf
+\fBraptor optimise pm plant.rbds \-\-blocks 'Pump A,Pump B'\fR
+.fi
+.RE
+.PP
+The smallest crew that meets the target, written into the model.
+.RS
+.nf
+\fBraptor optimise resources plant.rbds \-\-resources Fitters \-\-apply\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)

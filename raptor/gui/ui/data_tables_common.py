@@ -19,7 +19,24 @@ def _fmt_stat(val) -> str:
         return "—"
     if isinstance(val, str):
         return val
-    return f"{val:.4g}"
+    return _sig4(float(val))
+
+
+def _sig4(v: float) -> str:
+    """Four significant figures, written out ("328,500", "0.01234"): a
+    time column read as "3.285e+05" makes the reader do the arithmetic.
+    Only the very large or very small keep an exponent."""
+    import math
+    a = abs(v)
+    if a == 0 or not math.isfinite(v):
+        return f"{v:g}"
+    if not 1e-3 <= a < 1e12:
+        return f"{v:.4g}"
+    decimals = 3 - math.floor(math.log10(a))
+    r = round(v, decimals)
+    if decimals <= 0:
+        return f"{r:,.0f}"
+    return f"{r:,.{decimals}f}".rstrip("0").rstrip(".")
 
 
 #: A grid with more rows than this builds its cell widgets (combos, entry

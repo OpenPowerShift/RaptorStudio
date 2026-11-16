@@ -545,6 +545,13 @@ element positions and annotation geometry stay put between sessions. A
 hand-authored file without it has one derived on open, deterministically,
 from the element positions.
 
+**`advisor`.** Advisor findings the model's owner has dismissed, so they
+stay dismissed for everyone who opens the file and the reason travels with
+the model: `{"ignored": [{"rule": "M-DEP-001", "target": "block:3",
+"reason": "..."}]}`. `target` is the path of the finding's first element
+(`block:3`, `pool:Motors`), or `""` for every finding of the rule. Written
+only when something is ignored.
+
 **`view`.** `.rbds`-only view options, written once for the whole file
 (never per level) so reopening restores the look exactly: `link_routing`
 (`straight`, `angled` or `orthogonal`) and `block_labels` (what a block
