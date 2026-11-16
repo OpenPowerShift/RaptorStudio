@@ -108,6 +108,7 @@ def issues(rbd: RbdFile) -> list[Issue]:
     result.extend(_check_sim_start_types(rbd))
     result.extend(_check_gd_types(rbd))
     result.extend(_check_named_references(rbd))
+    result.extend(_check_pm_spare_unstocked(rbd))
     _check_fail_mean_undefined(rbd, result)
 
     result.extend(_check_duplicate_names(rbd))
@@ -647,6 +648,60 @@ def _check_named_references(rbd: RbdFile) -> list[Issue]:
                 "error", f"Block {bid} '{name}'",
                 f"uses trigger '{trigger}', which is not defined in the "
                 f"triggers table"))
+    return result
+
+
+def _check_pm_spare_unstocked(rbd: RbdFile) -> list[Issue]:
+    """A block whose preventive maintenance needs a spare, but whose spares
+    can never be supplied from stock.
+
+    "PM needs a spare" is easy to leave ticked (it is on in some templates).
+    With a Custom or Pooled supply that holds nothing and gets no new spares,
+    every service finds the supply empty: with emergency ordering the block
+    quietly buys a spare each time, without it the service is skipped or held.
+    Neither is wrong, but it is rarely what was meant, so it is a warning.
+    Infinite and None supplies are never empty, so they are not flagged.
+    """
+    result: list[Issue] = []
+    sec = rbd.sections.get("BLOCK_DATA")
+    if not sec:
+        return result
+    pools_sec = rbd.sections.get("SPARE_POOL_DATA")
+    pools = {r.get("PoolName", ""): r for r in (pools_sec.rows if pools_sec else [])}
+
+    def count(row: dict, col: str) -> float:
+        try:
+            return float(row.get(col) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    for row in sec.rows:
+        try:
+            bid = int(float(row.get("ID", "0")))
+        except (ValueError, TypeError):
+            continue
+        if bid == 0 or not (_truthy(row.get("usesPM", "0"))
+                            and _truthy(row.get("PMSpare", "0"))):
+            continue
+        kind = str(row.get("SpType", "")).strip().lower()
+        if kind == "custom":
+            supply, label = row, "its own spares"
+        elif kind == "pooled" and row.get("SparePoolName", "") in pools:
+            supply = pools[row["SparePoolName"]]
+            label = f"spare pool '{row['SparePoolName']}'"
+        else:
+            continue
+        if count(supply, "Stock") > 0 or count(supply, "NewSp") > 0:
+            continue
+        name = row.get("blockName") or f"Block {bid}"
+        outcome = ("so each service places an emergency order for one"
+                   if _truthy(supply.get("ESO", "0"))
+                   else "so each service is skipped or held waiting for one")
+        result.append(Issue(
+            "warning", f"Block {bid} '{name}'",
+            f"preventive maintenance needs a spare, but {label} hold no stock "
+            f"and receive no new spares, {outcome}. Add stock or new spares, "
+            f"or untick 'PM needs a spare' on this block"))
     return result
 
 
