@@ -94,6 +94,9 @@ def pools_from_model(rbd: Any, names: Sequence[str] | None = None
 
     ctx = ModelContext(rbd)
     wanted = set(names or ())
+    unknown = wanted - {str(pool.get("name") or "") for pool in ctx.pools}
+    if unknown:
+        raise ValueError(f"no spare pool named {', '.join(sorted(map(repr, unknown)))}")
     members = ctx.pool_members
     out: list[PoolSpec] = []
     for pool in ctx.pools:
@@ -267,8 +270,14 @@ def optimise_spares(  # noqa: C901, PLR0912
                                selected)},
         "points": points,
         "recommended": recommended,
-        # PATH=VALUE edits that give the model the recommended stock
-        "changes": list((recommended or {}).get("changes") or []),
+        # PATH=VALUE edits that give the model the recommended stock; a pool
+        # already at it is left out (it used to be "changed" to its own stock)
+        "changes": _assignments(
+            (recommended or {}).get("stocks") or {},
+            [pool for pool in selected
+             if (recommended or {}).get("stocks", {}).get(pool.name,
+                                                          pool.stock)
+             != pool.stock]),
         "evaluations": evaluations,
         "max_evaluations": max_evaluations,
         "costs_default": costs_default,

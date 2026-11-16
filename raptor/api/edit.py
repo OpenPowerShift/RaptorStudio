@@ -133,8 +133,14 @@ def copy_element_data(workspace: Any, model_id: str, source: str,
                       targets: Sequence[str],
                       groups: Sequence[str] = ("Failure", "Repair")
                       ) -> dict[str, Any]:
-    """Copy one block's data groups onto other blocks, one save."""
+    """Copy one block's data groups onto other blocks, one save. An unknown
+    group is refused (it used to copy nothing and report success)."""
     from raptor.api.build import resolve_element
+    from raptor.core.edit.clipboard_plan import DATA_GROUPS
+    unknown = [group for group in groups if group not in DATA_GROUPS]
+    if unknown:
+        raise ValueError(f"unknown data group(s) {', '.join(map(repr, unknown))}; "
+                         f"the groups are {', '.join(DATA_GROUPS)}")
     rbd = workspace.get(model_id).rbd
     section, src = resolve_element(rbd, source)
     if section != "BLOCK_DATA":

@@ -125,6 +125,10 @@ def screen(rbd: Any, blocks: Sequence[str] | None = None,
 
     ctx = ModelContext(rbd)
     wanted = set(blocks or ())
+    unknown = wanted - {str(b.get("name") or b.get("id")) for b in ctx.blocks}
+    if unknown:
+        # a misspelt name used to be dropped and the study ran on nothing
+        raise ValueError(f"no block named {', '.join(sorted(map(repr, unknown)))}")
     out: list[PmAdvice] = []
     for b in ctx.blocks:
         name = str(b.get("name") or b.get("id"))
@@ -197,6 +201,14 @@ def optimise_pm(  # noqa: C901, PLR0912
     if objective not in ("cost", "availability"):
         raise ValueError("objective must be 'cost' or 'availability'")
     rbd = workspace.get(model_id).rbd
+    if objective == "cost" and str(
+            rbd.section("SYSTEM_DATA").rows[0].get("costAnalysis") or "0"
+            ).strip().upper() in ("0", "F", "FALSE", ""):
+        # without cost analysis a run has no Grand Total, so every option
+        # used to come back empty and the study reported nothing screened
+        raise ValueError("the cost objective needs cost analysis: turn it on "
+                         "(raptor set MODEL system.cost=true) or use the "
+                         "availability objective")
     advice = screen(rbd, blocks, objective)
     metric = "grand_total" if objective == "cost" else "availability"
     variants = [{"label": "Base", "assignments": []}]
