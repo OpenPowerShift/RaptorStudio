@@ -72,12 +72,21 @@ def make_tour() -> None:
     frames: list[Image.Image] = []
     durations: list[int] = []
 
-    def grab(caption: str, ms: int = 2600) -> None:
+    def grab(caption: str, ms: int = 2600, dialog=None) -> None:
         app.processEvents()
         image = w.grab().toImage().convertToFormat(QImage.Format.Format_RGB32)
         p = QPainter(image)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        if dialog is not None:
+            # an offscreen dialog is its own window: draw it over the main
+            # window, centred, on a dimmed backdrop, as a user would see it
+            p.fillRect(image.rect(), QColor(0, 0, 0, 90))
+            shot = dialog.grab().toImage()
+            x = (image.width() - shot.width()) // 2
+            y = max(10, (image.height() - shot.height()) // 2 - 30)
+            p.fillRect(x + 6, y + 8, shot.width(), shot.height(), QColor(0, 0, 0, 70))
+            p.drawImage(x, y, shot)
         font = QFont("DejaVu Sans")
         font.setPixelSize(30)
         font.setBold(True)
@@ -97,15 +106,16 @@ def make_tour() -> None:
         durations.append(ms)
         print("frame:", caption)
 
-    # The start page, as a first launch shows it.
+    # The start page, as a first launch shows it (with its "Did you know?" tip).
     w.show_start_page()
-    w._backstage.go_to("New")
-    grab("Start from a blank model or a worked example", 2800)
+    w._backstage.go_to("Home")
+    grab("Start from a blank model or a worked example; a new tip each launch", 2800)
     w._backstage.close_view()
 
-    path = ROOT / "new_docs" / "models" / "HospitalPower.rbds"
+    path = ROOT / "new_docs" / "models" / "WaterTreatment.rbds"
     w._load_into_app(load_rbds(str(path)), str(path))
-    for dock in (w._explorer_dock, w._inspector_dock):
+    side = (w._explorer_dock, w._library_dock, w._inspector_dock, w._advisor_dock)
+    for dock in side:
         dock.hide()
     app.processEvents()
     w._fit_action.trigger()
@@ -115,37 +125,105 @@ def make_tour() -> None:
     app.processEvents()
     w._fit_action.trigger()
     v = w._diagram_dock.view
-    item = next((it for bid, it in v._block_items.items()
-                 if v.blocks[bid].name == "Utility_Grid"), None)
-    if item is not None:
-        item.setSelected(True)
+    # open the Intake hierarchy and select its screen
+    if v.locate_element("block", "Intake_Screen"):
         app.processEvents()
-        grab("Describe how each part fails, is repaired and is spared", 3200)
-        item.setSelected(False)
+        v.scene().clearSelection()
+        for bid, it in v._block_items.items():
+            if v.blocks[bid].name == "Intake_Screen":
+                it.setSelected(True)
+        import time
+        settle = time.monotonic() + 1.0      # the Inspector follows the selection on a timer
+        while time.monotonic() < settle:
+            app.processEvents()
+            time.sleep(0.02)
+        w._fit_action.trigger()
+        grab("Open a hierarchy; describe how each part fails, is repaired and is spared", 3200)
+        v.scene().clearSelection()
+        v.go_home()
+        app.processEvents()
+
+    w._show_advisor()
+    w._refresh_advisor()
+    app.processEvents()
+    w._fit_action.trigger()
+    grab("The Advisor flags likely mistakes as you build, with a fix for each", 3400)
 
     w._run_panel._analysis_checks["weak"].setChecked(True)
     w._run_panel._recording_checks["ao_plot"].setChecked(True)
     w._run_panel._ao_interval.setValue(100.0)
     w._run_panel._ao_interval.editingFinished.emit()
     w._set_exp_field("trials", 500)
+    w._confirm_long_batch = lambda n: True
     w._run_simulation()
-    for dock in (w._explorer_dock, w._inspector_dock):
+    for dock in side:
         dock.hide()
     app.processEvents()
     w._fit_action.trigger()
-    grab("Run hundreds of simulated futures", 3200)
 
     from PySide6.QtWidgets import QTabWidget
     tabs = [t for t in w._results.findChildren(QTabWidget) if t.tabText(0) == "Overview"]
-    if tabs:
-        for name, caption, ms in (("Final Results", "Read the numbers an engineer needs", 3200),
-                                  ("Graphs", "Plot availability over time", 3200)):
-            for i in range(tabs[0].count()):
-                if tabs[0].tabText(i) == name:
-                    tabs[0].setCurrentIndex(i)
-                    app.processEvents()
-                    w._fit_action.trigger()
-                    grab(caption, ms)
+
+    def tab(name: str) -> bool:
+        for i in range(tabs[0].count() if tabs else 0):
+            if tabs[0].tabText(i) == name:
+                tabs[0].setCurrentIndex(i)
+                app.processEvents()
+                w._fit_action.trigger()
+                return True
+        return False
+
+    if tab("Overview"):
+        grab("Run hundreds of simulated futures; the Story says what happened, in words", 3600)
+    if tab("Drivers"):
+        w._results._refresh_drivers()
+        grab("Drivers: which parts cost the most uptime, and how sure that is", 3400)
+    w._downtime_overlay_action.setChecked(True)
+    bottom = [d for d in (w._results_dock, w._run_dock, w._data_tables_dock,
+                          w._live_log_dock) if d.isVisible()]
+    for dock in bottom:
+        dock.hide()
+    app.processEvents()
+    w._fit_action.trigger()
+    grab("Colour the diagram by each part's share of the downtime", 3200)
+    w._downtime_overlay_action.setChecked(False)
+    for dock in bottom:
+        dock.show()
+    w._results_dock.raise_()
+    app.processEvents()
+    if tab("Final Results"):
+        grab("Read the numbers an engineer needs", 2800)
+    if tab("Charts"):
+        grab("Charts of availability, downtime, cost and capacity through the run", 3000)
+
+    def study(dlg) -> None:
+        import time
+        dlg.show()
+        dlg.start()
+        end = time.monotonic() + 300
+        while dlg._job is not None and not dlg._job.done and time.monotonic() < end:
+            app.processEvents()
+            time.sleep(0.05)
+        dlg._poll()
+        app.processEvents()
+
+    dlg = w._open_whatif_dialog()
+    dlg._block.setCurrentText("Intake_Screen")
+    for preset in ("half the repair time", "one more spare"):
+        if dlg._preset.findText(preset) >= 0:
+            dlg._preset.setCurrentText(preset)
+            dlg._add_preset()
+    dlg._trials.setValue(200)
+    study(dlg)
+    grab("What If: try a change on the same random futures, so the gain is real", 3800, dialog=dlg)
+    dlg.hide()
+
+    dlg = w._open_sensitivity_dialog()
+    dlg._top.setValue(8)
+    dlg._trials.setValue(200)
+    study(dlg)
+    grab("Sensitivity: which inputs are worth getting right", 3400, dialog=dlg)
+    dlg.hide()
 
     ThemeManager.instance().set_dark(True)
     app.processEvents()
@@ -185,7 +263,9 @@ def mcp_session() -> list[tuple[str, str, list[str]]]:
     import asyncio
     import tempfile
 
-    from raptor.mcp import tools_model, tools_run, tools_tables, tools_view  # noqa: F401  (registers the tools)
+    from raptor.mcp import (  # noqa: F401  (registers the tools)
+        tools_advisor, tools_model, tools_run, tools_tables, tools_view,
+    )
     from raptor.mcp.server import mcp
 
     mcp._raptor_args = type("A", (), {"workspace": tempfile.mkdtemp(), "read_only": False})()
@@ -201,20 +281,24 @@ def mcp_session() -> list[tuple[str, str, list[str]]]:
     steps.append(('build_model(name="cooling", spec={3 blocks, 4 nodes, 7 links})', "call",
                   [f"model_id {mid}  -  {built['summary']}  -  "
                    f"{'runnable' if built['validation']['runnable'] else 'NOT runnable'}"]))
-    sim = call("simulate", model_id=mid, num_runs=200)
+    sim = call("simulate", model_id=mid, num_runs=200, attribution=True)
     a = sim["summary"]["Availability"]
-    steps.append((f'simulate(model_id="{mid}", num_runs=200)', "call",
+    steps.append((f'simulate(model_id="{mid}", num_runs=200, attribution=true)', "call",
                   [f"{sim['runs']} runs in {sim['wall_seconds']:.1f} s  -  Availability {a['mean']:.4f} "
                    f"(min {a['min']:.3f}, max {a['max']:.3f})  -  MTBDE {sim['summary']['MTBDE']['mean']:.0f} h"]))
     spf = call("single_point_failures", model_id=mid)
     steps.append((f'single_point_failures(model_id="{mid}")', "call",
                   [f"{spf['count']} single point of failure: " + ", ".join(r["name"] for r in spf["spofs"])]))
-    sw = call("sweep_parameter", model_id=mid, selector="Heat_Exchanger", field="fail_params",
-              values=[[4000.0, 0], [8000.0, 0], [16000.0, 0]], num_runs=100)
-    lines = [f"MTBF {int(r['value'][0]):>6} h   Availability {r['Availability']:.4f}   "
-             f"MTBDE {r['MTBDE']:.0f} h" for r in sw["rows"]]
-    steps.append(('sweep_parameter(selector="Heat_Exchanger", field="fail_params", values=[4000, 8000, 16000])',
-                  "call", lines))
+    drivers = call("downtime_drivers", run_id=sim["run_id"], top=2)
+    lines = [f"{e['name']:<15} {100 * e['dtci']['mean']:5.1f} % of the downtime "
+             f"(+/- {100 * e['dtci']['sem']:.1f}), mostly {e.get('main_cause') or '-'}"
+             for e in drivers["elements"][:2]]
+    steps.append((f'downtime_drivers(run_id="{sim["run_id"]}", top=2)', "call", lines))
+    rec = call("recommend_changes", model_id=mid, run_id=sim["run_id"], top=2, trials=200)
+    lines = [f"{r['name']:<49} +{100 * r['gain']['availability']:.2f} pts "
+             f"(+/- {100 * r['gain']['sem']:.2f})  {r['verdict']}"
+             for r in rec["rows"][:3] if r.get("gain")]
+    steps.append((f'recommend_changes(model_id="{mid}", top=2, trials=200)', "call", lines))
     return steps
 
 
@@ -228,12 +312,16 @@ def make_mcp() -> None:
 
     steps = mcp_session()
     avail = float(steps[1][2][0].split("Availability ")[1].split(" ")[0])
-    sweep = steps[3][2]
-    end = (f"Yes: {avail:.4f} over a year, above 99 %. The exchanger is the only single point of failure, and "
-           f"doubling its MTBF moves availability from {sweep[1].split('Availability ')[1].split()[0]} to "
-           f"{sweep[2].split('Availability ')[1].split()[0]}.")
+    top = steps[3][2][0]
+    best = steps[4][2][0] if steps[4][2] else ""
+    share = top.split("%")[0].split()[-1]
+    end = (f"Yes: {avail:.4f} over a year, above 99 %. The heat exchanger is the only single point of failure "
+           f"and causes {share} % of the downtime. The best tested fix is to "
+           f"{best.split(':', 1)[1].split('+')[0].strip() if ':' in best else 'improve it'}: "
+           f"{best.split('pts')[0].split()[-1] if 'pts' in best else ''} availability points, measured on the "
+           f"same random futures as the base, so the gain is real.")
 
-    W, H, PAD, LH, SIZE, COLS = 1100, 640, 24, 24, 16, 108
+    W, H, PAD, LH, SIZE, COLS = 1100, 700, 24, 24, 16, 108
     font = ImageFont.truetype(MONO, SIZE)
     bold = ImageFont.truetype(MONO.replace("Mono", "Mono-Bold"), SIZE)
     cap_font = ImageFont.truetype(FONT.replace("Sans.ttf", "Sans-Bold.ttf"), 20)
@@ -275,7 +363,7 @@ def make_mcp() -> None:
         d.text((W // 2, H - 26), caption, fill=(255, 255, 255), font=cap_font, anchor="mm")
         return image
 
-    cap = "Describe a system in words; the tools build, validate and simulate it"
+    cap = "Describe a system in words; the tools build, simulate and explain it"
     cap_done = "Real tool calls and results from the running server; the narration is scripted"
     frames: list[Image.Image] = []
     dur: list[int] = []

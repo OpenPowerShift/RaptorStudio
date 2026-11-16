@@ -2,14 +2,16 @@
 
 An open-source reliability block diagram (RBD) simulator for Windows, macOS and Linux. Draw a diagram of parts that
 can fail and be repaired, run thousands of simulated futures, and read availability, reliability, maintenance,
-spares and cost numbers like an engineer, then find out **which part to spend money on**.
+spares and cost numbers like an engineer. Then let it tell you **what is driving the downtime, and which fix is worth
+making**, tested before you spend anything.
 
-![RAPTOR Studio: draw a system, simulate it, read the results (animated tour of the application)](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/app-tour.gif)
+![RAPTOR Studio: draw a system, simulate it, see what drives the downtime, test a fix (animated tour of the application)](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/app-tour.gif)
 
 RAPTOR Studio carries on from Raptor 7, the simulator written at ARINC and released as open source by Booz Allen
 Hamilton. Its simulation engine was ported from Raptor 7's own source and checked, event by event, against what Raptor 7
 itself writes, so the numbers are the ones reliability engineers already trust. Models made in Raptor 7 open here.
-Around that engine is a new application, a command line, and an AI-assistant server.
+Around that engine is a new application, a command line, and an AI-assistant server, and every analysis below works
+the same way in all three.
 
 Like Raptor 7, it is released under the Booz Allen Public License (BAPL). Anyone may use, modify and share it, but a
 commercial entity may use it only for its internal business and for services to government and non-profit
@@ -21,27 +23,33 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Numbers you can rely on.** The detailed event logs and report files of hundreds of models captured from Raptor 7
   are reproduced character for character, including its random-number generator. Where Raptor 7 does something
   surprising, the port reproduces it and says so.
-- **It tells you what to fix, not just how you are doing.** Weak-link analysis, single-point-failure lists and
-  **importance measures** (Birnbaum, RAW, RRW and Vesely–Fussell, see below) rank the parts of your system by how much
-  they matter, and colour the diagram to match.
+- **It says why, not just how much.** After a run, the **Story** explains in plain words what took the system down,
+  and **Drivers** ranks every part by its share of the downtime, split by cause (hands-on repair, waiting for a
+  spare, waiting for a crew, planned maintenance) and by mission phase, with its uncertainty.
+- **It tests the fix before you buy it.** **Recommend** tries a change for each part that drives the downtime and
+  measures what each would gain. **What If** compares your own changes. Both run the change on the *same* random
+  futures as the base model, so a small gain is a real one, and they say when the difference is still noise.
+- **It catches mistakes as you build.** The **Advisor** checks the model the way a reviewer would: a backup that
+  depends on the unit it backs up, redundant units maintained at the same time, spares that will run out, a crew
+  that is overloaded. Each finding says why, many come with a fix you can apply in one step, and a finding you
+  ignore keeps your reason with the model.
 - **Built for speed.** Runs split across your processor cores, and the engine, layout, validation and file loading
-  have been tuned so that models with hundreds or thousands of blocks are practical to build, open and run. We expect
-  it to be faster than Raptor 7 on most models, particularly large ones and batches on several cores. `raptor estimate`
-  times a few runs and tells you how long a full batch will take before you start it.
+  have been tuned so that models with hundreds or thousands of blocks are practical to build, open and run.
+  `raptor estimate` times a few runs and tells you how long a full batch will take before you start it, and
+  **Trials to Precision** keeps running until the answer is as tight as you ask.
 - **Runs anywhere.** One installer or `pip install`, on Windows, macOS and Linux.
-- **Scriptable.** Everything the application does is also a command (`raptor run`, `sweep`, `compare`, `diff`,
-  `estimate`, `validate`, `spf`, `fev`, `step`, `extract`, `analytic`, `render` and more) with machine-readable results. It fits in
-  a continuous-integration job, a Jupyter notebook or a shell loop. `raptor run --precision 10%` grows the batch
-  until the interval is tight enough instead of making you guess a run count.
-- **Usable from an AI assistant.** An MCP server with **94 tools** (93 when `--no-render` hides the PNG diagram tool) lets an assistant build, edit, validate, simulate,
-  compare and explain models, run long batches in the background, and draw the diagram. The
-  [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) covers install, client
-  setup, concepts and task recipes; the generated
+- **Scriptable.** Everything the application does is also a command (`raptor run`, `advise`, `explain`, `whatif`,
+  `recommend`, `sensitivity`, `optimise`, `sweep`, `compare`, `diff`, `render` and more) with machine-readable
+  results. It fits in a continuous-integration job, a Jupyter notebook or a shell loop.
+- **Usable from an AI assistant.** An MCP server with **94 tools** (93 when `--no-render` hides the PNG diagram tool)
+  lets an assistant build, edit, validate, simulate, explain and improve models, run long batches in the background,
+  and draw the diagram. The [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md)
+  covers install, client setup, concepts and task recipes; the generated
   [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md) lists every
   tool, parameter and return. The recording below is a real run of those tools (the numbers are the
   engine's; the assistant's narration is scripted):
 
-  ![An assistant builds a cooling-loop model, simulates it, lists its single points of failure and sweeps a parameter through the MCP server](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/mcp-demo.gif)
+  ![An assistant builds a cooling-loop model, simulates it, finds what drives its downtime and recommends a tested fix through the MCP server](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/mcp-demo.gif)
 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
@@ -50,37 +58,57 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
 
-## Which part matters most? Importance measures
+## From "how good is it?" to "what should we do?"
 
-Availability says how good the system is. Importance says **which block to improve**. Switch on **Run ▸ Analysis ▸
-Importance measures** (or `raptor run --importance both`, or `importance` on the MCP `simulate` tool) and RAPTOR Studio
-re-simulates the model with each block in turn made unable to fail, and with it dead, then ranks every block by how
-much the system moves. You get:
+A simulation answers *how available is the system*. The questions an engineer is asked next are *why not more*, *what
+should we change* and *is it worth it*. RAPTOR Studio answers them in order:
 
-- **Birnbaum**, **RAW** (risk achievement worth), **RRW** (risk reduction worth) and **Vesely–Fussell** importance, the
-  IEC 61078 Annex D measures, each with its sampling error so you can tell a real ranking from noise;
-- an **Importance** tab in the results, and a **Show on Canvas** colouring that paints the most influential blocks red
-  and badges each block with its rank;
-- an up-front time estimate that includes the extra batches, so a long analysis never surprises you.
+1. **Check the model.** The **Advisor** (View ▸ Advisor, `raptor advise`, MCP `advise`) lists likely mistakes and
+   unwise choices, each with the element it concerns and, where there is one, a fix you can apply in one step.
+   After a run it also reads the results: downtime spent waiting for spares or crews, planned maintenance that
+   takes the system down, a few bad runs that drive the average.
+2. **See what drives the downtime.** After a run the results open on the **Story**: a few sentences on what
+   happened, with links to the parts it names. **Drivers** ranks every block, event and hierarchy by its share of
+   the system's downtime and of its outages, with the cause of each and an error bar. **Show on Canvas** colours the
+   diagram by that share; with capacity analysis on, it draws the lost flow as the thickness of the links. On the
+   command line `raptor explain` does the same; from an assistant, `simulate` with `attribution` and then
+   `downtime_drivers` or `run_story`.
+3. **Find a fix and prove it.** **Recommend** (`raptor recommend`, MCP `recommend_changes`) tries a targeted change
+   for each top driver, chosen from the cause of its downtime (a faster repair, a longer-lived part, one more spare
+   or crew, maintenance half as often). It runs each against the base on paired random futures and reports the gain
+   with its uncertainty, a verdict (*clearly helps*, *may help; run more trials*), and its cost where the model
+   prices it. **What If** does the same for changes you choose,
+   checks them against requirements such as `system.ao>=0.995`, and applies the one you pick as a single undo step.
+4. **Know which numbers matter.** **Sensitivity** draws a tornado of the inputs that move the answer most, so you
+   know which failure data is worth chasing. **Importance measures** (Birnbaum, RAW, RRW and Vesely–Fussell, the IEC
+   61078 Annex D measures, each with its sampling error) rank blocks by structure.
+5. **Size the support.** The optimisers search for the least **spare stock** that meets a target, whether
+   **planned maintenance** is worthwhile and at what interval, and how many **crews** are enough, and hand back the
+   result as changes you can apply (`raptor optimise spares|pm|resources`, MCP `optimise_*`).
 
-The equations are on the Formulas page, and the tutorial's weak-link chapter works through an example.
+Everything above runs on a copy of the model and changes nothing until you apply it.
 
 ## What is new compared with Raptor 7
 
 |                                      |                                                                                                                                                                                                                                  |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Advisor**                          | Nearly 40 checks a reviewer would make, many with a one-step fix; findings you ignore keep their reason in the model; result-aware checks after a run; badges on the canvas.                                                   |
+| **Downtime attribution**             | Each part's share of the downtime and of the outages, by cause and by mission phase, with error bars; the Story page; the Drivers chart; lost capacity and cost broken down the same way, as charts and treemaps.             |
+| **Recommend and What If**            | Tested changes for the top drivers, and your own scenarios, compared with the base on paired runs; requirements; apply the winner as one undo step.                                                                            |
+| **Sensitivity and optimisers**       | Tornado of the most influential inputs; spare stock, maintenance interval and crew size searches against a target.                                                                                                            |
+| **Trials to Precision**              | Run until the answer is as tight as you ask (`raptor run --precision 10%`), instead of guessing a run count.                                                                                                                  |
+| **Estimate from experience**         | No failure data? Give two or three "by this age, this fraction had failed" judgements and get a fitted life law (`raptor fit`, MCP `fit_from_experience`).                                                                    |
+| **Part library and assemblies**      | Save a block's data as a part type and keep linked blocks in step with it; save a group of elements as an assembly and insert fresh copies (`raptor library`).                                                                |
+| **Out of service**                   | Take a block, event or hierarchy out of service for a what-if (cut: down all run; linked: never fails) without touching its data; every result says so.                                                                       |
 | **Importance measures**              | Rank blocks by Birnbaum, RAW, RRW and Vesely–Fussell importance, with sampling error, a results tab and a canvas overlay.                                                                                                        |
 | **Parallel batches**                 | Runs spread over your cores (`-j N` on the command line); results are reproducible for a given core count, and one core reproduces Raptor 7's own random sequence exactly.                                                        |
-| **Run-time estimate**                | Know how long a batch will take before you start it, in the app, on the command line and from an assistant.                                                                                                                      |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
-| **Parameter sweeps and comparisons** | Vary any field over a list of values, or run two or more models side by side, from the application, the command line or an assistant. **Differences** shows what is different between two models, and runs nothing.              |
-| **AI assistant (MCP)**               | 94 tools (93 with `--no-render`) to build, edit, run, analyse and explain models, over stdio or authenticated HTTP.                                                                                                               |
+| **Sweeps and comparisons**           | Vary any field over a list of values, or run two or more models side by side. **Differences** shows what is different between two models, and runs nothing.                                                                    |
+| **AI assistant (MCP)**               | 94 tools (93 with `--no-render`) to build, edit, run, explain and improve models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
-| **Several models at once**           | Each model opens in its own window with its own undo history and results.                                                                                                                                                         |
-| **Edit while looking at results**    | Results stay on screen while you edit; undo and redo for edits; spread-banded Weak Link, Cost, Capacity, Spares and Importance colourings.                                                                                       |
-| **Block labels and rates**           | Choose what the lines under each block show (mean, standard deviation, rate); keep the derivation of a failure rate in a named, reusable Rate.                                                                                   |
-| **Reports**                          | Results export as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema).                                                                                                                                            |
-| **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips on the commands that have one, and a diagram renderer for documents (`raptor render`).                                                                    |
+| **Faster editing**                   | Command search finds any command by name; Quick Add places an element by typing its kind; Duplicate in Parallel adds a redundant copy with the nodes it needs; several models open at once, each with its own undo history.    |
+| **Charts and reports**               | One Charts view (availability through the run, run-to-run system state you can zoom into, downtime, cost, capacity); presentation-ready export; reports as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema). |
+| **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips, a "Did you know?" tip on the Start page, and a diagram renderer for documents (`raptor render`, with the result layers).                                 |
 | **Safer files**                      | Validation catches the model shapes that crash Raptor 7 on open (a node's declared path count, a stale phase header) before you save them.                                                                                       |
 
 ## Install
@@ -152,16 +180,18 @@ folder is already about 150 characters long. Any one of these avoids it:
 
 ```bash
 raptor validate model.rbd            # errors and warnings
-raptor run model.rbd -n 200 -j 4     # 200 runs on 4 processes, summary on screen
-raptor run model.rbd -n 500 --importance both   # also rank the blocks by importance
-raptor run model.rbd -r events -r end-of-run -o results/   # also write Raptor 7-format report files
-raptor sweep model.rbd --vary "block:Pump A.repair_params[0]=12,24,48" --metric Availability
-raptor diff before.rbds after.rbds   # what changed between two versions
 raptor advise model.rbds             # what looks wrong or unwise, with fixes
+raptor run model.rbd -n 200 -j 4     # 200 runs on 4 processes, summary on screen
+raptor run model.rbds --precision 5%    # keep running until the answer is within 5 %
 raptor explain model.rbds --story    # what drives the downtime, in words
+raptor recommend model.rbds -n 200   # a tested change for each top downtime driver
 raptor whatif model.rbds --change "block:Pump A.repair_params=6,1,0" -n 200   # one change against Base, paired
 raptor sensitivity model.rbds --top 8 -n 100   # which inputs the answer is most sensitive to
 raptor optimise spares model.rbds --target "system.ao>=0.995"   # the least spare stock that meets a target
+raptor run model.rbd -n 500 --importance both   # rank the blocks by importance
+raptor run model.rbd -r events -r end-of-run -o results/   # also write Raptor 7-format report files
+raptor sweep model.rbd --vary "block:Pump A.repair_params[0]=12,24,48" --metric Availability
+raptor diff before.rbds after.rbds   # what changed between two versions
 ```
 
 `raptor help` lists every command and topic.
@@ -204,11 +234,11 @@ The full clause-by-clause table is in [`docs/IEC61078.md`](https://github.com/op
 The engine is tested against files written by Raptor 7 itself, captured while driving it under Wine and, for the
 hardest cases, while following its scheduler with a debugger.
 
-- `tests/golden/` holds over 200 models with Raptor 7's output for each. Their event logs, report files and
+- `tests/golden/` holds over 240 models with Raptor 7's output for each. Their event logs, report files and
   random-draw logs are compared exactly, and a scan of the captured event logs currently finds **none** of the
   recorded runs different.
 - The engine code names the Raptor 7 procedure each part reproduces, and the design of each part is described in [`docs/engine-design/`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc).
-- More than 7,500 automated tests run on every change, including the application's own windows and dialogs and an
+- More than 12,000 automated tests run on every change, including the application's own windows and dialogs and an
   adversarial test of the MCP server.
 
 ## Development
@@ -245,11 +275,12 @@ Directions under consideration — ideas, not commitments, in no fixed order:
 - **Further solution methods.** Fault-tree solvers, minimal cut/tie sets,
   importance of whole hierarchies, and common-cause and dynamic gates. The
   bounded analytical solver for static RBDs is available now.
-- **Richer maintenance and logistics.** Crews, shifts and supply chains that
-  the model can express directly.
-- **Uncertainty in the inputs.** One-at-a-time sensitivity, paired what-ifs
-  and run-to-precision are available now; carrying the uncertainty of the
-  failure data itself through to the answer is not yet.
+- **Richer maintenance and logistics.** Shifts and supply chains that the
+  model can express directly (crew sizing and spare stocking are available
+  now).
+- **Uncertainty in the inputs.** Sensitivity, paired what-ifs, estimates from
+  experience and run-to-precision are available now; carrying the uncertainty
+  of the failure data itself through to the answer is not yet.
 
 ## Licence & credits
 
