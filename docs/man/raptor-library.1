@@ -1,0 +1,154 @@
+.TH "RAPTOR-LIBRARY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-library \- part types and assemblies: list, apply, insert, sync
+.SH SYNOPSIS
+\fBraptor library\fR [\-h] ACTION ...
+.SH DESCRIPTION
+A part type is an element's data without identity or placement; an assembly is a saved group of elements (a hierarchy with its contents, a node with its blocks, events) with its internal links. A library is a plain JSON file of both. Applying a part type writes ordinary columns and records a link; inserting an assembly adds a fresh copy with new ids and free names, so the model stays a normal model. The model file changes only for apply/save/detach/insert.
+.SH COMMANDS
+.TP
+\fBlist\fR
+list the parts in a library
+.TP
+\fBshow\fR
+show one part type
+.TP
+\fBimport\fR
+import a legacy .rbl/.json library
+.TP
+\fBadd\fR
+save a model block as a new part type
+.TP
+\fBinsert\fR
+insert a copy of an assembly into a model
+.TP
+\fBapply\fR
+apply a part type to blocks and link them
+.TP
+\fBsync\fR
+show or apply changed part types
+.TP
+\fBdetach\fR
+drop a block's link, keeping its values
+.SH RAPTOR LIBRARY LIST
+\fBraptor library list\fR [\-h] [\-f {text,json}] FILE
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR LIBRARY SHOW
+\fBraptor library show\fR [\-h] [\-f {text,json}] FILE PART
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR LIBRARY IMPORT
+\fBraptor library import\fR [\-h] [\-\-name N] [\-\-force] FILE SOURCE
+.SS Options
+.TP
+\fB\-\-name\fR \fIN\fR
+name of the new library
+.TP
+\fB\-\-force\fR
+replace an existing library file
+.SH RAPTOR LIBRARY ADD
+\fBraptor library add\fR [\-h] (\-\-block NAME|ID | \-\-assembly NAMES) [\-\-kind {block,node,event,hierarchy,annotation}] [\-\-name N] [\-\-category TEXT] [\-\-source TEXT] [\-\-basis {data,handbook,experience}] FILE MODEL
+.SS Options
+.TP
+\fB\-\-block\fR \fINAME|ID\fR
+the element whose values become a part type
+.TP
+\fB\-\-assembly\fR \fINAMES\fR
+comma list of elements saved as an assembly (a hierarchy brings everything inside it)
+.TP
+\fB\-\-kind\fR \fI{block|node|event|hierarchy|annotation}\fR
+what \-\-block names (default block)
+.TP
+\fB\-\-name\fR \fIN\fR
+part name (default: the element's)
+.TP
+\fB\-\-category\fR \fITEXT\fR
+group the part is listed under
+.TP
+\fB\-\-source\fR \fITEXT\fR
+where the numbers came from: a handbook, a test report, a person
+.TP
+\fB\-\-basis\fR \fI{data|handbook|experience}\fR
+where the numbers came from (judgement is read as experience)
+.SH RAPTOR LIBRARY INSERT
+\fBraptor library insert\fR [\-h] \-\-library FILE \-\-part PART [\-\-at X,Y] [\-\-in\-place] [\-f {text,json}] MODEL
+.SS Options
+.TP
+\fB\-\-library\fR \fIFILE\fR
+the .rbdlib to read
+.TP
+\fB\-\-part\fR \fIPART\fR
+assembly name or id
+.TP
+\fB\-\-at\fR \fIX,Y\fR
+model position of the copy's top\-left (default: right of the model)
+.TP
+\fB\-\-in\-place\fR
+write the change back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR LIBRARY APPLY
+\fBraptor library apply\fR [\-h] \-\-library FILE \-\-part PART \-\-blocks NAMES [\-\-override FIELDS] [\-\-in\-place] MODEL
+.SS Options
+.TP
+\fB\-\-library\fR \fIFILE\fR
+the .rbdlib to read
+.TP
+\fB\-\-part\fR \fIPART\fR
+part type name or id
+.TP
+\fB\-\-blocks\fR \fINAMES\fR
+comma list of block names or ids
+.TP
+\fB\-\-override\fR \fIFIELDS\fR
+comma list of fields to leave as they are
+.TP
+\fB\-\-in\-place\fR
+write the changes back to MODEL
+.SH RAPTOR LIBRARY SYNC
+\fBraptor library sync\fR [\-h] \-\-library FILE [\-\-apply] [\-\-in\-place] [\-f {text,json}] MODEL
+.SS Options
+.TP
+\fB\-\-library\fR \fIFILE\fR
+the .rbdlib to compare with
+.TP
+\fB\-\-apply\fR
+write the pending changes (default: report only)
+.TP
+\fB\-\-in\-place\fR
+with \-\-apply, write back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR LIBRARY DETACH
+\fBraptor library detach\fR [\-h] \-\-block NAME|ID [\-\-in\-place] MODEL
+.SS Options
+.TP
+\fB\-\-block\fR \fINAME|ID\fR
+the linked block
+.TP
+\fB\-\-in\-place\fR
+write the change back to MODEL
+.SH EXAMPLES
+.PP
+Save a hierarchy, with everything inside it, as an assembly.
+.RS
+.nf
+\fBraptor library add parts.rbdlib plant.rbds \-\-assembly "Gen bank" \-\-name "Generator bank"\fR
+.fi
+.RE
+.PP
+Insert a fresh copy of it into a model and save the model.
+.RS
+.nf
+\fBraptor library insert plant.rbds \-\-library parts.rbdlib \-\-part "Generator bank" \-\-at 40,10 \-\-in\-place\fR
+.fi
+.RE
+.SH SEE ALSO
+\fBraptor\fR(1)

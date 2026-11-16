@@ -843,7 +843,7 @@ class RibbonBuilders(_Base):
         # Files & Reports tab): plot/log collection is opt-in. The
         # original writes these files only when ticked and streams them
         # to disk; collecting every plot row in RAM unconditionally lets
-        # a long simulation balloon memory and freeze the Graphs tab.
+        # a long simulation balloon memory and freeze the Charts tab.
         # Off by default like Raptor 7; the Event Log stays on (the
         # Results tab's live view depends on it).
         #
@@ -871,13 +871,14 @@ class RibbonBuilders(_Base):
              "tab. Unchecked: no log collection (faster large batches)."),
             ("ao_plot", "Availability Plot", False,
              "Collect the Availability plot data (the rpt_"
-             "availability_plot file): the Graphs tab's Per Trial / "
-             "Interval / Multi-run Ao plots. Streamed to a temp file — "
-             "never held in RAM."),
+             "availability_plot file): the Charts tab's availability "
+             "charts over time (through a run, interval by interval, "
+             "across all runs). Streamed to a temp file — never held in "
+             "RAM."),
             ("capacity_plot", "Capacity Plot", False,
              "Collect capacity plot data (the rpt_capacity_plot "
-             "file) for the Graphs tab's Capacity (Flow) plot and the "
-             "live capacity readouts. Requires Capacity Analysis."),
+             "file) for the Charts tab's capacity charts over time and "
+             "the live capacity readouts. Requires Capacity Analysis."),
             ("cost_plot", "Cost Plot", False,
              "Collect interim cost data (the rpt_interim_cost "
              "file). Requires Cost Analysis."),
@@ -890,3 +891,53 @@ class RibbonBuilders(_Base):
                 lambda checked, k=key: self._set_recording(k, checked))
             self._report_stream_actions[key] = act
 
+
+    def _build_overlay_control(self, group) -> None:
+        """One "Show on canvas" control for every result overlay (7.6.1)."""
+        combo = QComboBox()
+        combo.setObjectName("CanvasOverlayCombo")
+        self._overlay_combo = combo
+        entries = (
+            ("No canvas overlay", None),
+            ("Share of downtime", "_downtime_overlay_action"),
+            ("Lost capacity", "_lost_capacity_overlay_action"),
+            ("Weak link (own availability)", "_weak_color_action"),
+            ("Capacity", "_capacity_overlay_action"),
+            ("Cost", "_cost_overlay_action"),
+            ("Spares", "_spares_overlay_action"),
+            ("Importance", "_importance_overlay_action"),
+            ("Advisor findings", "_advisor_overlay_action"),
+        )
+        for label, _attr in entries:
+            combo.addItem(label)
+        self._overlay_actions = [attr for _label, attr in entries if attr]
+
+        def choose(index: int) -> None:
+            target = entries[index][1] if 0 <= index < len(entries) else None
+            for attr in self._overlay_actions:
+                action = getattr(self, attr, None)
+                if action is not None and action.isChecked() \
+                        and attr != target:
+                    action.trigger()
+            if target is not None:
+                action = getattr(self, target, None)
+                if action is not None and not action.isChecked():
+                    action.trigger()
+
+        def sync(_on: bool = False) -> None:
+            current = next((index for index, (_label, attr) in
+                            enumerate(entries) if attr and
+                            getattr(self, attr, None) is not None and
+                            getattr(self, attr).isChecked()), 0)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(current)
+            combo.blockSignals(False)
+
+        combo.currentIndexChanged.connect(choose)
+        for attr in self._overlay_actions:
+            action = getattr(self, attr, None)
+            if action is not None:
+                action.toggled.connect(sync)
+        group.add_widget(combo)
+        group.add_widget(QLabel(" "))
+        sync()

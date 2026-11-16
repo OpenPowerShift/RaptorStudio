@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     import raptor.gui.widgets.ribbon
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QUndoCommand
 from PySide6.QtWidgets import QSpinBox
 
 from raptor.core import run_experiment
@@ -117,6 +117,7 @@ class RunExperimentMixin:
         def _sync_analysis_checkboxes(self) -> None: ...
         def _push_weak_settings(self) -> None: ...
         def _model_is_valid(self) -> bool: ...
+        def _run_simulation(self) -> None: ...
         def _validate_model(self, quiet: bool = False) -> Any: ...
         _live_sim_action: QAction
 
@@ -170,9 +171,14 @@ class RunExperimentMixin:
             return float(run_experiment.RUN_DEFAULTS["recording"][key])
 
     def _set_exp_field(self, key: str, value) -> None:
-        """One experiment field (trials, termination, ...) -> the
+        """One experiment field (trials, termination, ...): see
+        `_set_exp_fields`."""
+        self._set_exp_fields({key: value})
+
+    def _set_exp_fields(self, changes: dict) -> None:
+        """Experiment fields (trials, termination, ...) -> the
         experiment, AND into the legacy SYSTEM_DATA columns, as a single
-        undoable macro.
+        undoable step however many fields change.
 
         Both destinations are written because both are read: the engine
         still reads trials/termination/analyses from SYSTEM_DATA (a
@@ -184,24 +190,30 @@ class RunExperimentMixin:
         if self._rbd is None:
             return
         experiment = self._current_experiment()
-        if experiment.get(key) == value:
+        changes = {k: v for k, v in changes.items() if experiment.get(k) != v}
+        if not changes:
             return
         # Mark the writes as run-setting writes BEFORE the first undoable
         # command lands: `_mark_dirty` reads this to avoid invalidating a
         # still-good validity answer (see `_carry_validity_across_run_
         # setting_edit`).
         self._in_run_setting_edit = True
+        v = self._diagram_dock.view
+        old = run_experiment.normalise(self._rbd.experiment)
+        experiment.update(changes)
+        # The experiment itself is part of the undo step, with the legacy
+        # columns below: undoing used to put NumRuns back but leave the
+        # experiment (which the panel and the next run read) at the new
+        # value, so the model contradicted itself.
+        experiment_cmd = _ExperimentCmd(self, old, experiment)
         try:
-            experiment[key] = value
-            self._rbd.experiment = experiment
-
             sec = self._rbd.sections.get("SYSTEM_DATA")
             if not sec or not sec.rows:
+                v._stack.push(experiment_cmd)
                 self._mark_dirty()
                 return
             row = sec.rows[0]
             wanted = dict(run_experiment.to_system_row(experiment))
-            v = self._diagram_dock.view
             # Run settings are NOT structural: the rule gate would
             # deep-copy the whole model and run every link/block rule
             # twice (before and after) to prove that changing a trial
@@ -212,7 +224,7 @@ class RunExperimentMixin:
             # value disables Run rather than being refused here.
             with v._stack.ungated():
                 apply_row_edits(v, "SYSTEM_DATA", 0, row, wanted.items(),
-                                "Run settings")
+                                "Run settings", also=(experiment_cmd,))
             # The ribbon's read-only mirrors and the Inspector both show
             # values that came from this row.
             self._sync_run_mirrors()
@@ -399,6 +411,23 @@ class RunExperimentMixin:
         panel = getattr(self, "_run_panel", None)
         if panel is not None:
             panel.setFocus()
+
+    def _turn_on_and_run(self, keys: list[str]) -> None:
+        """A result's "Turn on … and run": switch the run options it needs
+        on, as one undo step, and run again."""
+        from raptor.api import run_needs
+        if self._rbd is None:
+            return
+        current = self._current_experiment()
+        wanted = run_needs.turn_on(current, keys)
+        changed = {k: wanted[k] for k in ("analyses", "recording", "importance")
+                   if wanted.get(k) != current.get(k)}
+        if changed:
+            label = run_needs.button_text(*keys).removesuffix(" and run")
+            self._set_exp_fields(changed)
+            self._statusbar.showMessage(f"{label}: running again (Edit ▸ Undo "
+                                        "takes the setting back)", 8000)
+        self._run_simulation()
 
     def _on_panel_experiment(self, experiment: dict) -> None:
         """The panel edited something -> the model, through the one
@@ -792,3 +821,23 @@ class RunExperimentMixin:
         self._statusbar.showMessage(
             f"{label} analysis {'enabled' if on else 'disabled'} "
             f"for the NEXT run", 6000)
+
+
+class _ExperimentCmd(QUndoCommand):
+    """The run experiment before and after one Run-settings edit."""
+
+    def __init__(self, win: Any, old: dict, new: dict) -> None:
+        super().__init__("Run settings")
+        self._win, self._old, self._new = win, old, run_experiment.normalise(new)
+
+    def _set(self, experiment: dict) -> None:
+        if self._win._rbd is None:
+            return
+        self._win._rbd.experiment = run_experiment.normalise(experiment)
+        self._win._sync_run_mirrors()
+
+    def redo(self) -> None:
+        self._set(self._new)
+
+    def undo(self) -> None:
+        self._set(self._old)

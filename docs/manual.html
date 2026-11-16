@@ -24,7 +24,9 @@
 </li>
 <li><a href="#block-defaults">Block Defaults</a></li>
 <li><a href="#mass-edit">Mass Edit</a></li>
-<li><a href="#canvas-editing">Building on the canvas</a>
+<li><a href="#experience">Estimate from experience: a law with no data</a></li>
+<li><a href="#part-library">Part Library: part types and assemblies</a></li>
+<li><a href="#_building_on_the_canvas">Building on the canvas</a>
 <ul class="sectlevel2">
 <li><a href="#_copy_cut_and_paste">Copy, cut and paste</a></li>
 <li><a href="#_insert_an_element_on_a_link">Insert an element on a link</a></li>
@@ -44,6 +46,14 @@
 </li>
 <li><a href="#run">The Run panel</a></li>
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
+<li><a href="#precision">Trials to Precision: how many trials are enough</a></li>
+<li><a href="#whatif">Out of service: cut or link an element for a what-if</a></li>
+<li><a href="#_what_if_compare_changes_with_the_model">What If: compare changes with the model</a></li>
+<li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
+<li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
+<li><a href="#recommend">Recommend: a tested change for each driver</a></li>
+<li><a href="#analysis-words">Words the analysis tools use</a></li>
+<li><a href="#target-missed">When the target is not met</a></li>
 <li><a href="#differences">Comparing two models</a></li>
 <li><a href="#several-models">Several models at once</a></li>
 <li><a href="#ai-assistant">AI assistant (MCP)</a></li>
@@ -68,6 +78,7 @@
 <li><a href="#_arrange_tab">Arrange tab</a></li>
 <li><a href="#_data_tab">Data tab</a></li>
 <li><a href="#_simulate_tab">Simulate tab</a></li>
+<li><a href="#_analyse_tab">Analyse tab</a></li>
 <li><a href="#_debug_tab">Debug tab</a></li>
 <li><a href="#_results_tab">Results tab</a></li>
 <li><a href="#_view_tab">View tab</a></li>
@@ -502,7 +513,117 @@ use it on a single kind of thing you genuinely want identically named.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="canvas-editing">Building on the canvas</h2>
+<h2 id="experience">Estimate from experience: a law with no data</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With no failure data, an engineer can still say "one in ten have failed by
+100 hours, half by 300". <strong>Estimate from experience…</strong>, under a block&#8217;s failure
+and repair distributions in the Inspector, turns those answers into a law:
+Weibull for lives that wear out, lognormal for repair times, exponential
+for random failures. Type a share and an age on two or more rows (one is
+enough for an exponential); the fit updates as you type. Two answers fix the
+law exactly; more are a least-squares fit. Answers that contradict each
+other (a larger share at an earlier age) are refused by name. A fit that
+misses an answer by more than a quarter, or answers so close that the law is
+nearly a fixed age, comes with a warning: check the answers before using it.</p>
+</div>
+<div class="paragraph">
+<p>The chart draws the fitted chance of having failed by each age, with your
+answers as dots, so a law that cannot honour them shows it. Below it are
+the parameters, mean, median and what the shape means (a Weibull shape
+above 1 wears out, so planned maintenance can help). <strong>Use as &lt;block&gt;'s
+failure law</strong> writes the law and its parameters into the block as one undo
+step. Opened for a repair law, the dialog asks what share of repairs is
+finished within a time, and the button writes the repair law. The
+same fit is <code>raptor fit --law weibull --quantile 0.1=100 --quantile 0.5=300
+--block NAME</code>, which also prints the <code>raptor set</code> line, and the MCP tool
+<code>fit_from_experience</code>. The fit is only as good as the answers.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="part-library">Part Library: part types and assemblies</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>Part Library</strong> tab beside the Explorer keeps two kinds of entry:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a <strong>part type</strong> is one element&#8217;s data (failure and repair laws, logistics,
+sparing, costs) without its name, position or id. Blocks that use it
+<strong>follow</strong> it: their columns hold the part&#8217;s values, and a link records
+which part and which version. Edit the part and <strong>Sync</strong> shows each
+following block&#8217;s differences, respecting the fields a block overrides;</p>
+</li>
+<li>
+<p>an <strong>assembly</strong> is a saved group of elements (a hierarchy with everything
+inside it, a node with its blocks, events) with the links between them.
+Inserting one adds a fresh copy with new ids and free names.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select one block and choose <strong>Save to Part Library</strong> to keep its data as a
+part type, or several elements to keep them as an assembly. For a part
+type the dialog asks where the numbers came from, kept with the part:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Numbers from</th>
+<th class="tableblock halign-left valign-top">Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Data</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">measured on your own equipment (field or test records)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Handbook</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">a published source such as OREDA or a supplier&#8217;s data sheet</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Experience</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">the team&#8217;s estimate, for example from <strong>Estimate from experience</strong></p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>and the <strong>Source</strong> line says which one (a table, a report, a person). A
+reviewer reads both in the part&#8217;s tooltip. Drag a part onto the canvas, or
+double-click it, to apply it to the selected blocks or insert a copy of an
+assembly; every change is one undo step. Parts saved in the window live in
+the model; a <code>.rbdlib</code> file is a plain JSON library several models can
+share, attached with <strong>Open library…</strong>.</p>
+</div>
+<div class="paragraph">
+<p>The same on the command line and over MCP:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">raptor library add parts.rbdlib model.rbds --block Pump_A --name "Pump, centrifugal" \
+    --basis handbook --source "OREDA 2015 table 4.2"
+raptor library apply model.rbds --library parts.rbdlib --part "Pump, centrifugal" --blocks Pump_B,Pump_C --in-place
+raptor library sync model.rbds --library parts.rbdlib            # show what changed
+raptor library insert model.rbds --library parts.rbdlib --part "Tyre set" --in-place</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>MCP: <code>list_part_types</code>, <code>save_part_type</code> (<code>basis</code>, <code>source</code>),
+<code>apply_part_type</code>, <code>sync_part_types</code>, <code>save_assembly</code> and <code>insert_assembly</code>.
+A library written over MCP must be a <code>.rbdlib</code> file inside the workspace,
+never in its <code>models</code>, <code>runs</code> or <code>renders</code> folders.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_building_on_the_canvas">Building on the canvas</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>The canvas tools are on the <strong>Model</strong> tab: <strong>Select</strong> (Q), <strong>Connect</strong>, and
@@ -796,6 +917,11 @@ Raptor 7 there.</p>
 percentages, availability at a glance.</p>
 </li>
 <li>
+<p><strong>Drivers</strong> — which elements, and which kind of waiting, caused the
+system&#8217;s downtime (and, with Capacity analysis, its lost capacity),
+worked out by replaying the event log (see <code>docs/advisor.adoc</code>).</p>
+</li>
+<li>
 <p><strong>Final Results</strong> — the Final_Results report: Minimum/Mean/Maximum/
 St.Dev/SEM for Availability, MTBDE, MDT, Reliability, plus the
 LOGISTICS, SPARING, COST and CAPACITY sections when enabled.</p>
@@ -806,17 +932,73 @@ LOGISTICS, SPARING, COST and CAPACITY sections when enabled.</p>
 session this tab fills line by line.</p>
 </li>
 <li>
-<p><strong>Graphs</strong> — availability/convergence and capacity plots. A plot mode
-is selectable only when the run collected enough data; otherwise its
-tooltip/empty state says exactly what to tick under Run panel ▸
-Recording (<a href="../new_docs/book.html#ch-trials">Many Trials</a>).
-<strong>Multi-run Ao</strong> auto-fits its Y axis to the observed min/max, so a
-narrow availability band is readable instead of a flat line at 1.0.
-<strong>Y-axis min</strong> is <strong>Auto</strong> at 0; a saved non-zero value is a manual floor
-used by every availability plot. Capacity and Convergence do not use it.
-The single-run <strong>Capacity (Flow)</strong> plot shows the run&#8217;s average flow
-and capacity as horizontal reference lines; <strong>Multi-run Capacity
-(Flow)</strong> shows min/average/max flow and capacity across every run.</p>
+<p><strong>Charts</strong> — every result chart in one place. The list on the left
+groups them by the question they answer: <strong>The answer</strong> (run-to-run
+outcome, chance of reaching a value, availability ladder, has the run
+settled), <strong>Over time</strong> (availability through a run, interval by
+interval and across all runs; capacity through a run and across all
+runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by year</strong>, <strong>Cost</strong> and
+<strong>What matters most</strong>. Click a group heading to fold it. A chart the run
+cannot draw stays in the list, greyed; choosing it names the check box
+to tick and where it is (for example <strong>Detailed event log</strong> under Run
+panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
+Analysis for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
+that ticks it as one undoable step and runs again. When the event log
+is there but the drivers have not been worked out yet, the button works
+them out instead. The Drivers tab has the same button. Over MCP and on
+the command line the same message names <code>simulate(attribution=true)</code>,
+<code>--analysis cost</code> and so on, so the switch is never a guess. The
+run-to-run and chance-of-reaching charts mark the quartiles (dotted
+lines). On <strong>Run-to-run system state</strong>, hovering reads off the run, the
+time, the outage under the pointer (when it started, ended and how long
+it lasted) and how many runs were down at that moment; drag across a
+stretch of time to zoom in, and double-click (or right-click ▸ <strong>Show
+the whole run</strong>) to zoom out. Above the chart are only the
+controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
+for an availability chart over time, <strong>Fold items below</strong> for a
+ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
+into one "N others" row or cell, on screen and in what you save; the
+caption names them), and <strong>Export</strong> (copy, PNG, SVG, PDF, the chart&#8217;s
+data as CSV, and, for a chart over time, every recorded plot row in
+Raptor&#8217;s <code>rpt_*_plot</code> layout). Hover a chart over time to read every
+layer at that moment.</p>
+<div class="paragraph">
+<p>Saved and copied charts are drawn for a page, chosen under <strong>Export ▸
+Page size</strong>: Screen (760 × 400), Slide (16:9), A4 or A3 landscape (the
+default is A4). The PNG (300 dpi), SVG and PDF (vector) show the same
+drawing, made for reports and slides: no label is ever shortened with
+"…". Long names wrap onto more lines, a bigger page gives them more
+room, and a treemap cell too small for its name gets a number and is
+named under the chart. A share and its uncertainty range never pass
+100 %. <code>raptor explain --chart NAME --chart-svg FILE</code> takes the same
+<code>--chart-page</code> and <code>--chart-min-share</code>, and the <code>run_chart</code> tool takes
+<code>page</code> and <code>min_share</code>.
+<strong> <strong>Availability through a run</strong> shows the share of time so far spent
+   fully up (green), degraded (yellow) and down (red); the top of the
+   yellow band is the run&#8217;s availability to date.
+</strong> <strong>Availability interval by interval</strong> is the availability of each
+   recording interval, with the availability to date dashed. A run with
+   more intervals than the chart can show is grouped, keeping the worst
+   interval of each group, so a dip is never smoothed away.
+<strong> <strong>Availability across all runs</strong> draws the mean with two bands: 8 runs
+   in 10, and every run. Where the bands stop narrowing, a longer run no
+   longer changes the answer.
+</strong> <strong>Capacity through a run</strong> draws the flow delivered against the
+   model&#8217;s flow generated; the shaded gap is the capacity lost, the same
+   loss the lost-capacity charts split by element. The capacity plot
+   records only changes, so the last value is held to the end of the run.
+<strong> <strong>Capacity across all runs</strong> draws the mean flow with the same two
+   bands, and the share of the flow generated the runs delivered.
+</strong> <strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
+   saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
+   availability chart over time.</p>
+</div>
+<div class="paragraph">
+<p>+
+The same charts come from the command line (<code>raptor explain MODEL
+--chart NAME</code>, with <code>--chart-run N</code> and <code>--y-floor F</code> for the charts over
+time; <code>--list-charts</code> names them) and from the MCP <code>run_chart</code> tool.</p>
+</div>
 </li>
 <li>
 <p><strong>Report Text</strong> — the report text exactly as produced.</p>
@@ -1018,12 +1200,73 @@ and makes the whole model editable without waiting for the question.</p>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Show on Canvas</strong> — five colourings of the diagram from the last
-run (Weak Links, Capacity, Cost, Spares, Importance); one shows at a
-time, and turning one on clears the others. Each is offered only when
-the run produced its data. A run does not turn one on by itself.</p>
+<p><strong>Show on Canvas</strong> — one list of colourings of the diagram from the
+last run (Share of downtime, Lost capacity, Weak Links, Capacity,
+Cost, Spares, Importance); one shows at a time, and choosing one clears
+the others. Each is offered only when the run produced its data. A run
+does not turn one on by itself.</p>
 <div class="ulist">
 <ul>
+<li>
+<p><strong>Share of downtime</strong> — each block and event by its share of system
+downtime (the Drivers tab&#8217;s numbers, worked out from the event log if
+that tab has not yet), banded against the largest share (Red at
+two-thirds of it or more, Yellow at a third or more). The share is
+printed under the element; the letter in its corner is the cause that
+dominates it, in that cause&#8217;s colour (R hands-on repair, S waiting for
+a spare, P waiting for people or equipment, L logistics delay, M
+planned maintenance, W waiting to start maintenance, H held by another
+element, X not repairable, O other). A dashed ring round the letter,
+and a ± after the share, mean the runs disagree: the ±2 standard-error
+range is wider than the share itself, so read the colour as rough and
+run more trials. A hierarchy shows Σ, the total of everything inside
+it (shares add up, since each outage counts once against the element
+that started it). Hover for the full cause mix and the hierarchy&#8217;s
+own ±2 standard-error range, worked out from its downtime in each run
+(adding up the ranges of the elements inside would overstate it).
+Under the Σ, a thin bar splits the total among the three elements
+inside that contribute most, each coloured by its main cause; hover
+the bar for their names and shares. The SVG drawing shows the same bar.
+<code>raptor explain</code> lists the same roll-up under <strong>By hierarchy</strong>.</p>
+</li>
+<li>
+<p><strong>Lost capacity</strong> — the same, for each element&#8217;s share of the lost
+flow, and each link into a capacity node drawn as wide as the
+average flow through that node (relative to the busiest; links into
+anything else are drawn thin). Flow is recorded per node, not per
+link, so every link into one node has that node&#8217;s width. Needs
+Capacity analysis and the event log.</p>
+</li>
+<li>
+<p><strong>Advisor findings</strong> — marks every block, node, event and hierarchy
+the Advisor has something to say about: filled by the worst severity
+(Red for an error, Yellow for a warning, blue for advice or a note),
+labelled ⚠ or ⓘ with how many findings concern it, and a tooltip
+listing them. A hierarchy shows Σ and the total for what is inside
+it. Needs no run, and follows edits as the Advisor re-checks the
+model. Findings about a setting (a pool, a resource, the experiment)
+have no element to mark and stay in the Advisor panel. Focus keeps
+the marked elements. <code>raptor advise</code> and the MCP tool <code>advise</code> give
+the same findings with their targets.</p>
+<div class="paragraph">
+<p>All three layers can be drawn without the application, as an SVG with a legend:
+<code>raptor render MODEL -o layer.svg --layer downtime-share</code> (or
+<code>lost-capacity</code>) runs the model with attribution and draws it, and the MCP
+tool <code>render_diagram_svg</code> takes <code>layer</code> with a run&#8217;s <code>run_id</code>.
+<code>--layer advisor</code> draws the model&#8217;s findings without a run; add <code>-n N</code>
+to run it as well and include the run&#8217;s findings (in MCP, pass a
+<code>run_id</code>).</p>
+</div>
+<div class="paragraph">
+<p>With either layer on, <strong>View ▸ Focus</strong> keeps the elements that matter: any
+whose share is at least a set fraction of the largest stays at full
+strength, and the rest (with their labels) are dimmed to a quarter, links
+and topology unchanged. A slider beside the overlay name in the status bar
+sets the fraction (a third of the largest, the Yellow band&#8217;s edge, to
+start) and says how many elements it keeps. Selected elements always stay.
+Without a layer, Focus dims everything but the selection.</p>
+</div>
+</li>
 <li>
 <p><strong>Weak Links</strong> — paints every block, node, event and hierarchy by
 its availability, dependability or reliability against the model&#8217;s
@@ -1042,11 +1285,14 @@ flow has no utilization and stays plain.</p>
 <li>
 <p><strong>Cost</strong> — each block by its total life-cycle cost, relative to the
 most expensive block (Red at two-thirds of it or more, Yellow at a
-third or more).</p>
+third or more). A hierarchy is coloured by what all the blocks inside
+it cost together, against the dearest hierarchy on the same level;
+hover for the total.</p>
 </li>
 <li>
 <p><strong>Spares</strong> — a block Red if it ever ran out of spares or reached
-end of life; the share of run time and the sparing cost are on hover.</p>
+end of life; the share of run time and the sparing cost are on hover.
+A hierarchy is Red when any block inside it ran out, and says how many.</p>
 </li>
 <li>
 <p><strong>Importance</strong> — each block by the importance measure the Importance tab
@@ -1247,14 +1493,354 @@ repeat a result exactly, run it the same way: on one core (Animate, or Cores
 multi-core run. A computer with a single core always runs the one-core way.</p>
 </div>
 <div class="paragraph">
+<p>Every result says which way it was run. The run-settings line above the
+results reads <strong>sequential streams</strong> or <strong>parallel streams</strong>, and pointing at it
+gives the command that repeats it. The command line prints the same word in
+its header (<code>HospitalPower: 40 run(s), 0.5s, parallel streams</code>), and the MCP
+<code>simulate</code> result carries <code>streams</code> and <code>seed</code>. The surfaces start from
+different defaults: the command line runs on one core unless you pass <code>-j</code>,
+and the MCP server does the same except for a large model. So a desktop
+result on <strong>Automatic</strong> matches <code>raptor run -j 2</code>, not a plain <code>raptor run</code>.</p>
+</div>
+<div class="paragraph">
 <p><strong>Stop and Pause</strong> work on a multi-core run between slices: Stop keeps the
 trials already finished, Pause starts no new slice until you resume. <strong>Jump</strong>
 (skip one trial) is unavailable on a multi-core run, because trials are run
 in slices; its tooltip says so.</p>
 </div>
 <div class="paragraph">
-<p><strong>Sweep</strong> and <strong>Compare</strong> (Simulate ▸ Batch) always run at full speed on the
-chosen cores, on a copy of the model: the open model is not changed.</p>
+<p>Everything on the <strong>Analyse</strong> tab (What If, Recommend, Sensitivity, Sweep,
+the optimisers and Compare) runs at full speed on the chosen cores, on a
+copy of the model: the open model is not changed until you press <strong>Apply</strong>.
+Each window shows its progress and has <strong>Stop</strong>; <strong>Apply</strong> writes the selected
+change into the model as one undo step (<strong>Edit ▸ Undo</strong> takes it back), and
+<strong>Copy</strong> puts the result on the clipboard as text.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="precision">Trials to Precision: how many trials are enough</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Simulate ▸ Trials to Precision…</strong>, or <strong>Precision…</strong> beside Trials in the Run
+panel, states a precision instead of a trial count. Pick what to watch
+(availability, reliability, delivered fraction, time between outages or
+mean downtime), the precision (the half-width of the confidence interval
+as a share of the watched value), the confidence and a trial limit, and
+press <strong>Run</strong>. The model runs on a copy in growing batches with the same
+seed until the interval is narrow enough; the table lists each pass. For
+availability, reliability and delivered fraction the precision is on the
+part that is lost: 10 % of 0.1 % unavailability, not of 99.9 %
+availability, which any run would meet.</p>
+</div>
+<div class="paragraph">
+<p><strong>Use these trials</strong> sets the next Run to the count reached, as one undo
+step. That run measures its own interval. The same rule is <code>raptor run
+--precision 10%</code> and <code>simulate</code> with <code>precision</code> over MCP.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="whatif">Out of service: cut or link an element for a what-if</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To ask "what if this unit were gone?" or "what if it never gave trouble?"
+without deleting it or retyping its data, right-click a block, an event or
+a hierarchy and choose <strong>Out of Service</strong>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Cut — down for the whole run.</strong> Its path is broken. On the canvas it is
+dimmed inside a red dashed outline tagged CUT (with Failure Effects View&#8217;s
+black diamond), and its links are dashed.</p>
+</li>
+<li>
+<p><strong>Linked — never fails.</strong> Its path is as good as a wire. It gets a teal
+dashed outline tagged LINKED (with the white diamond).</p>
+</li>
+<li>
+<p><strong>In Service</strong> puts it back.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A hierarchy covers everything inside it; an element&#8217;s own setting wins over
+its hierarchy&#8217;s. Several selected elements change together, as one undo step.
+The element&#8217;s data never changes: a run, a study and an analytical result
+see the state, and the results say so ("Out of service: …" in the notes, the
+status bar, the CLI&#8217;s warnings and MCP&#8217;s <code>warnings</code>). Nodes cannot be taken
+out of service; cut the elements on a path instead.</p>
+</div>
+<div class="paragraph">
+<p>How it runs: Raptor has no "never fails" distribution, so a linked block runs
+with a Fixed time to failure of 10<sup>15</sup>, and a cut block starts failed with no
+repair (Done from time zero); either way its preventive maintenance,
+dependency and phasing are off. An event is certain to succeed (linked) or
+to fail (cut). The setting is saved in .rbds only; a legacy .rbd has no place
+for it. From the command line: <code>raptor edit MODEL out-of-service Pump_A
+--state cut --in-place</code> (no element lists what is out); over MCP:
+<code>set_out_of_service</code>. <code>raptor render</code> and MCP <code>render_diagram_svg</code> draw the
+same marks.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_if_compare_changes_with_the_model">What If: compare changes with the model</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Analyse ▸ What If…</strong> compares scenarios with the model. A scenario is a
+name and a list of changes. Each change says what to change and its new
+value, the same text <code>raptor set</code> takes (<code>block:Pump.repair_params=2.5</code>,
+<code>pool:Seals.stock=2</code>, <code>resource:Crew.units=3</code>). Pick a block (the selected
+one is chosen for you) and a ready-made change (half the repair time, lasts
+twice as long, half the delays, one more spare, double the spares, one more
+crew, maintenance twice as often, maintenance half as often, no planned
+maintenance) and press <strong>Add scenario</strong>, or <strong>Add blank</strong> and type the changes,
+separated by <code>;</code>. Hover a column heading for examples. The block list
+can be typed into (part of a name, in any case, finds it), and in a model
+with hierarchies the list beside it limits it to one hierarchy and those
+inside it; Sweep&#8217;s <strong>Change</strong> list works the same way.</p>
+</div>
+<div class="paragraph">
+<p><strong>Run</strong> runs the model (Base) and every scenario with the same seed, so each
+difference is measured trial by trial. The pairing is exact only until the
+change first moves an event: the random streams run on from one trial to
+the next, as in Raptor 7, so it usually removes only a few per cent of the
+noise (the result says how much). The standard error is computed from the
+paired differences, so it is honest either way. Each row shows the scenario&#8217;s
+availability, the paired change against Base with its standard error, the
+chance the scenario is really better, and the change in mean downtime.
+<strong>Apply</strong> writes the selected scenario into the model. The same comparison
+is <code>raptor whatif</code> on the command line and <code>what_if</code> over MCP.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="sensitivity">Sensitivity: which inputs matter</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Analyse ▸ Sensitivity…</strong> moves each input to a low and a high value, one at
+a time, and runs it against the model with paired trials: each block&#8217;s life
+and repair (mean halved and doubled, shape kept), PM intervals, spare stock
+(one unit less and more, on the pool for pooled spares) and crew sizes,
+the largest downtime causes first. The tornado draws each input&#8217;s effect
+either side of the base value, widest swing first, better to the right. The
+light bar is the input at its low value and the dark bar at its high value,
+and each is labelled <strong>low</strong> or <strong>high</strong>: the colour says which end, not whether
+it is good. A hollow bar cannot be told from no effect at this many trials.
+If you ask for more inputs than the model has, the caption says how many
+there are. Click an input and press <strong>Apply
+the better end</strong> to write that value into the model.</p>
+</div>
+<div class="paragraph">
+<p>One at a time shows each input alone: it cannot show two inputs that only
+matter together. The same screen is <code>raptor sensitivity</code> and the MCP tool
+<code>sensitivity</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="optimise">Optimise: spares, maintenance and crews</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The three optimisers search rather than test one change, each with paired
+trials:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Analyse ▸ Spares…</strong> finds the cheapest spare stock that meets an
+availability target with 95 % confidence (its lower bound must reach the
+target), or with <strong>Show the trade-off curve</strong>, every level it evaluated. A
+backorder model proposes the levels; the simulation decides. The chart
+plots availability against holding cost, with each level&#8217;s confidence
+whisker, the target as a dashed line, today&#8217;s stock as a ring and the
+recommendation as the large dot.</p>
+</li>
+<li>
+<p><strong>Analyse ▸ Maintenance…</strong> screens each block (PM pays only for a part that
+wears out, Weibull shape above 1, whose planned job is cheaper than a
+failure; an exponential life never gains from it), then simulates no PM
+and 0.5 to 2 times the formula&#8217;s interval. A change is <strong>worth changing</strong>
+only when its paired gain over no PM exceeds twice its standard error.</p>
+</li>
+<li>
+<p><strong>Analyse ▸ Crews…</strong> simulates each repair crew&#8217;s size from one below the
+offered load to a few above, and recommends the smallest size whose lower
+bound meets the target.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select a row and press <strong>Apply</strong> to write it into the model. The same
+searches are <code>raptor optimise spares|pm|resources</code> (whose <code>--apply</code> writes
+the model file) and the MCP tools <code>optimise_spares</code>, <code>optimise_pm</code> and
+<code>optimise_resources</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="recommend">Recommend: a tested change for each driver</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Analyse ▸ Recommend…</strong> turns the downtime drivers into decisions.
+It runs a copy of the model with attribution, takes the <strong>Top drivers</strong>
+blocks that cause the most system downtime, proposes one change for each
+from the cause behind its outages, and runs every change beside the model
+with the same seed (paired trials):</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>hands-on repair: the repair time halved (the law&#8217;s mean halved, its shape kept);</p>
+</li>
+<li>
+<p>logistics delay: the delays before and after repair halved;</p>
+</li>
+<li>
+<p>waiting for a spare, or never repaired: one more spare;</p>
+</li>
+<li>
+<p>waiting for people or equipment: one more unit of that crew;</p>
+</li>
+<li>
+<p>planned maintenance: the PM interval doubled;</p>
+</li>
+<li>
+<p>the largest driver also gets a part that lasts twice as long.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Each row shows the change, its measured effect, the paired availability
+gain (± its standard error, and the chance it is really better), the
+downtime saved per run and the cost. <strong>Clearly helps</strong> means the gain is
+real (95 % confidence shared across the changes tested together) and
+material (it removes at least 5 % of the downtime); <strong>helps a little</strong> is
+real but smaller. The verdict never weighs cost: a spare or crew shows the
+unit cost stored in the model, and a change the model has no price for
+says so instead of showing zero, so weigh each gain against its cost
+yourself. Hover a row for the exact <code>PATH=VALUE</code> change and why it was tried.</p>
+</div>
+<div class="paragraph">
+<p><strong>Apply</strong> writes the selected change into the model as one undo step
+(<strong>Edit ▸ Undo</strong> takes it back). The other rows were measured against the
+model before that change: run again to test them against the new one.
+<strong>Copy</strong> puts the whole result on the clipboard as text. The same tool is
+<code>raptor recommend</code> on the command line and <code>recommend_changes</code> over MCP.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="analysis-words">Words the analysis tools use</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Paired trials (common random numbers)</dt>
+<dd>
+<p>The model and the changed model are run with the same seed, so trial 7
+of each starts from the same dice. A difference between them then comes
+mostly from the change, not from luck, and fewer trials are needed to
+see it. The pairing loosens once the change moves an event, which is why
+each result says how much noise it removed.</p>
+</dd>
+<dt class="hdlist1">Standard error (SEM)</dt>
+<dd>
+<p>How far a mean from this many trials could be from the true value by
+chance. About two standard errors either side of a result is its 95 %
+range. It falls with the square root of the trials: four times the
+trials halve it.</p>
+</dd>
+<dt class="hdlist1">Confidence interval, lower bound</dt>
+<dd>
+<p>The range the true value lies in with the stated confidence (95 %
+unless you change it). The <strong>lower bound</strong> is its bottom end. Spares and
+Crews recommend a level only when the lower bound reaches the target,
+so a lucky run cannot pass.</p>
+</dd>
+<dt class="hdlist1">Chance it is really better (P(better))</dt>
+<dd>
+<p>From the paired differences: the chance that the change truly raises
+availability rather than only appearing to at this many trials. Near
+50 % means the trials cannot tell; above 97.5 % is about two standard
+errors.</p>
+</dd>
+<dt class="hdlist1">Elasticity</dt>
+<dd>
+<p>In Sensitivity, the percentage change in the result for a 1 % change in
+the input. An elasticity of 0.2 on a repair time means halving the
+repair time moves the result by about 10 %.</p>
+</dd>
+<dt class="hdlist1">Offered load</dt>
+<dd>
+<p>For a crew: the mean number of people busy if there were always enough,
+that is the repair demand per unit time times the mean repair time. A
+crew smaller than its offered load can never keep up, so Crews starts
+one below it.</p>
+</dd>
+<dt class="hdlist1">Age replacement</dt>
+<dd>
+<p>The planned maintenance Maintenance proposes: replace a part when it
+reaches a set age, or when it fails if that comes first. It pays only
+for a part that wears out (Weibull shape above 1).</p>
+</dd>
+<dt class="hdlist1">Backorder model</dt>
+<dd>
+<p>The textbook formula Spares uses to choose which stock levels to
+simulate. It assumes each failure is independent and repair is the same
+every time. The simulation then checks each level against the model&#8217;s
+real behaviour.</p>
+</dd>
+<dt class="hdlist1">Optimistic winner</dt>
+<dd>
+<p>When a search tries many options and keeps the best, the best one&#8217;s
+measured gain is usually a little lucky. Expect a rerun of the
+recommendation to show slightly less. Maintenance says so with its
+result.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="target-missed">When the target is not met</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Spares, Crews and Precision can finish without meeting what you asked
+for. Their result says so and gives the best they found. What to do next
+depends on which limit was hit:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>No level reaches the target</strong> (Spares, Crews): the shortfall is not the
+spares or the crew. Open the Drivers page and look at what causes the
+downtime that is left. Usually it is hands-on repair, a single block
+with no redundancy, or logistics delay. <strong>Analyse ▸ Recommend…</strong> tests a
+change for each.</p>
+</li>
+<li>
+<p><strong>The lower bound is just under the target</strong>: the level may well be good
+enough, but this many trials cannot show it. Run again with more trials
+(Precision tells you how many), or accept a level one step higher.</p>
+</li>
+<li>
+<p><strong>The search stopped at its evaluation limit</strong>: allow more evaluations, or
+start from a narrower range.</p>
+</li>
+<li>
+<p><strong>Precision stopped at its trial limit</strong>: the watched value is too rare
+to pin down in that many trials (a very reliable system fails seldom).
+Raise the limit, relax the precision, or watch a value that happens more
+often, such as mean downtime.</p>
+</li>
+<li>
+<p><strong>The target itself is out of reach</strong>: Sensitivity shows which inputs can
+move the result at all. If none of them moves it far enough, the
+architecture is the limit: add redundancy where the Drivers page points.</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
@@ -1282,7 +1868,7 @@ the Recent list.</p>
 </div>
 <div class="paragraph">
 <p>It compares the models themselves, not their results (for results, run
-them side by side with Simulate ▸ Compare, whose <strong>What&#8217;s different?</strong>
+them side by side with Analyse ▸ Compare, whose <strong>What&#8217;s different?</strong>
 button opens this window for the selected model). Nothing is run.</p>
 </div>
 <div class="paragraph">
@@ -1306,7 +1892,7 @@ writes the list as CSV or Markdown.</p>
 <code>diff_models</code> tool for AI assistants.</p>
 </div>
 <div class="paragraph">
-<p>In Simulate ▸ Compare, the <strong>Add models</strong> button is a menu: choose a file,
+<p>In Analyse ▸ Compare, the <strong>Add models</strong> button is a menu: choose a file,
 or a model open in another window, which is run as it is now, unsaved
 edits included.</p>
 </div>
@@ -1422,29 +2008,31 @@ never held in RAM.</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Event Log</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Each run&#8217;s event log for the Results ▸ Event Log tab (on by
+<td class="tableblock halign-left valign-top"><p class="tableblock">Detailed event log</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Each run&#8217;s event log for the Results ▸ Event Log tab, and everything
+worked out from it: the Drivers tab, the downtime and year-by-year
+charts, the Story&#8217;s drivers and the canvas&#8217;s downtime layer (on by
 default).</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Availability Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Per-Trial / Interval / Multi-run Ao data for the Graphs tab (the
+<td class="tableblock halign-left valign-top"><p class="tableblock">Availability plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The availability charts over time on the Charts tab (the
 availability plot file).</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Flow-vs-capacity data for the Graphs tab&#8217;s Capacity plot and the live
-per-node capacity readouts (capacity plot file). Requires Capacity
-Analysis.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity plot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The capacity charts over time on the Charts tab and the live
+per-node capacity readouts (capacity plot file). Requires the
+<strong>Capacity</strong> analysis.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost Plot</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost rows (interim cost file). Requires Cost Analysis.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Interim cost rows (interim cost file). Requires the <strong>Cost</strong> analysis.</p></td>
 </tr>
 </tbody>
 </table>
 <div class="paragraph">
-<p>Use <strong>the Graphs tab’s Export Data… button</strong> to save a plot&#8217;s rows to a file. If a FailSim/CycleSim run reaches the
+<p>Use <strong>Charts ▸ Export ▸ Save the recorded plot rows</strong> to save a plot&#8217;s rows to a file. If a FailSim/CycleSim run reaches the
 t = 10,000,000 safety bound without meeting its termination condition,
 a warning is shown in the status bar and the Summary notes — the
 numbers then cover only the simulated portion.</p>
@@ -1672,10 +2260,10 @@ tables reflect the model as it is on screen, including edits you have not
 saved. Your format choices are remembered.</p>
 </div>
 <div class="paragraph">
-<p>For one workbook without the dialog, <strong>File ▸ Print and Export ▸ Export
-Excel Workbook…</strong> or <strong>Export OpenDocument Spreadsheet…</strong> asks only where to
-save it, and writes the tables the dialog ticks by default. The Save
-dialog&#8217;s file-type list offers both types either way. The command line
+<p>For one workbook without the dialog, <strong>File ▸ Print and Export ▸ Export…</strong>
+(Ctrl+E) asks only where to save it: pick <strong>Excel workbook</strong> or
+<strong>OpenDocument spreadsheet</strong> as the file type and it writes the tables the
+dialog ticks by default. The command line
 has the same: <code>raptor tables MODEL --run --format xlsx --format ods</code>.</p>
 </div>
 <div class="sect2">
@@ -1812,7 +2400,15 @@ groups the starting examples into <strong>Basics</strong>, <strong>Advanced</str
 exercises.</p>
 </li>
 <li>
-<p>Print… / Export PDF… — a report: a cover with the title block, the run
+<p>Export… (Ctrl+E) — one Save window for everything below except Export
+Tables: the file type you pick (or the name&#8217;s extension, such as
+<code>.xlsx</code>) says what is written: the PDF report, the tables as an Excel
+or OpenDocument workbook, or the diagram as SVG or PNG. The single-type
+commands (Export PDF…, Export Diagram SVG…, Save Bitmap) remain in the
+command palette (Ctrl+Shift+P).</p>
+</li>
+<li>
+<p>Print… / the PDF report — a report: a cover with the title block, the run
 information and the key figures; a contents page; each hierarchy
 level&#8217;s diagram; the model data; the results, grouped as on screen;
 Weak Link analysis; the graph; and, if ticked, the event log and the
@@ -1824,15 +2420,14 @@ Print and Export dialog&#8217;s <strong>Pages across</strong> gives a level at l
 strips. Print sends the same report to the printer.</p>
 </li>
 <li>
-<p>Export Tables… — the model&#8217;s tables and a run&#8217;s results as CSV, text
-or one spreadsheet (see <a href="#export-tables">Exporting tables</a>).</p>
+<p>Export Tables… — choose which tables to write, the model&#8217;s and a run&#8217;s
+results, as CSV, text or one spreadsheet (see <a href="#export-tables">Exporting tables</a>).</p>
 </li>
 <li>
-<p>Export Diagram SVG… — the current hierarchy level as a scalable
-vector file.</p>
+<p>Diagram as SVG — the current hierarchy level as a scalable vector file.</p>
 </li>
 <li>
-<p>Save Bitmap / Copy View — PNG of the diagram, file or clipboard.</p>
+<p>Diagram as PNG / Copy View — PNG of the diagram, file or clipboard.</p>
 </li>
 </ul>
 </div>
@@ -2029,6 +2624,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate the selected elements in place (Ctrl+D)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+D</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Select All</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Select all blocks/nodes/events/hierarchies (Ctrl+A)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+A</p></td>
@@ -2100,6 +2700,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Add Hierarchy</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quick Add</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add an element at the cursor (Space or / on the canvas)</p></td>
+<td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Collapse Selection</p></td>
@@ -2496,6 +3101,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Trials to Precision…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Trials</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Trials the next run will use. Edit them in the Run panel (Simulate ▸ Run Settings), which owns every run setting.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">number, now 1</p></td>
@@ -2566,8 +3176,11 @@ current value).</p>
 </tbody>
 </table>
 </div>
+</div>
+<div class="sect2">
+<h3 id="_analyse_tab">Analyse tab</h3>
 <div class="sect3">
-<h4 id="_batch">Batch</h4>
+<h4 id="_what_if">What If</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 28.5714%;">
@@ -2583,10 +3196,97 @@ current value).</p>
 </thead>
 <tbody>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What If…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compare changes with this model: half a block&#8217;s repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Recommend…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, &#8230;&#8203;) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_sensitivity">Sensitivity</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sensitivity…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which inputs the result is most sensitive to: each block&#8217;s life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Sweep…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run the model once per value of one number&#8201;&#8212;&#8201;a failure or repair parameter, a rate, the k of a k-of-n node&#8201;&#8212;&#8201;and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_optimise">Optimise</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spares…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Maintenance…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Crews…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_compare">Compare</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Compare…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Run several models&#8201;&#8212;&#8201;this one and others from disk&#8201;&#8212;&#8201;with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</p></td>
@@ -2804,29 +3504,9 @@ current value).</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Links</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model&#8217;s G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel&#8217;s Analysis section.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Choice</p></td>
 <td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each capacity node by its average utilization (Green &lt; 70% · Yellow &lt; 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Cost</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its total life-cycle cost, relative to the most expensive block (Green &lt; 1/3 · Yellow &lt; 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Spares</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis.</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Importance</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again.</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now No canvas overlay</p></td>
 </tr>
 </tbody>
 </table>
@@ -2969,6 +3649,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Advisor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Data Tables</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+Shift+D</p></td>
@@ -3000,6 +3685,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Dark Theme</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Toggle light/dark theme</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Focus</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dim everything except the selection (topology stays)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -3186,33 +3876,13 @@ documentation.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+P</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export PDF…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the printable report (diagram + results + weak link) as a PDF file</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export Excel Workbook…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one Excel workbook (.xlsx), set up to read, filter and print</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export OpenDocument Spreadsheet…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the model&#8217;s tables and the latest run&#8217;s results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+E</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export Tables…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Write the model&#8217;s tables (blocks, nodes, links, &#8230;&#8203; ) and a run&#8217;s result tables as CSV, text or one spreadsheet with a tab per table</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Export Diagram SVG…</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save Bitmap</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Save the diagram view as a PNG image</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Choose which tables to write, the model&#8217;s and a run&#8217;s results, as CSV files, text or one spreadsheet with a tab per table</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

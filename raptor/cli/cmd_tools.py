@@ -43,7 +43,8 @@ def add_parser(sub: Any) -> None:
         description="Run each MODEL with the same options and compare "
                     "metric by metric.")
     c.add_argument("models", nargs="+", metavar="MODEL")
-    c.add_argument("--metric", action="append", metavar="NAME")
+    c.add_argument("--metric", action="append", metavar="NAME",
+                   help="compare only this metric (repeatable; default all)")
     c.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text")
     add_run_options(c)
@@ -88,8 +89,10 @@ def add_parser(sub: Any) -> None:
         description="Time a short pilot and predict the wall-clock time for "
                     "N runs.")
     e.add_argument("model", metavar="MODEL")
-    e.add_argument("-n", "--runs", type=int, default=100, metavar="N")
-    e.add_argument("-t", "--length", type=float, metavar="T")
+    e.add_argument("-n", "--runs", type=int, default=100, metavar="N",
+                   help="pilot runs to time (default 100)")
+    e.add_argument("-t", "--length", type=float, metavar="T",
+                   help="run length (default: the model's own)")
     e.add_argument("-f", "--format", choices=("text", "json"), default="text")
     e.set_defaults(func=estimate_command)
 
@@ -99,7 +102,8 @@ def add_parser(sub: Any) -> None:
                     "--workspace DIR' (the run id is in the JSON output and "
                     "on stderr).")
     rp.add_argument("run_id", metavar="RUN-ID")
-    rp.add_argument("--workspace", required=True, metavar="DIR")
+    rp.add_argument("--workspace", required=True, metavar="DIR",
+                    help="the workspace the run was kept in (raptor run --workspace)")
     rp.add_argument("-r", "--report", default="final",
                     metavar="NAME", help="final, end-of-run, events, ao-plot, "
                                          "capacity-plot, interim-cost "
@@ -116,6 +120,16 @@ def add_parser(sub: Any) -> None:
     r.add_argument("model", metavar="MODEL")
     r.add_argument("--run", action="store_true",
                    help="run the model first and include result tables")
+    r.add_argument("--drivers", action="store_true",
+                   help="with --run: also work out what caused each outage and "
+                        "who lost the capacity, adding the downtime-driver, "
+                        "lost-capacity and year-by-year tables (needs the "
+                        "model's event log recording)")
+    r.add_argument("--capacity-rule", default="proportional",
+                   choices=("proportional", "marginal", "first_failed"),
+                   help="with --drivers: how lost flow is shared among the "
+                        "elements down at once (default proportional, which "
+                        "sums to the engine's own lost flow)")
     r.add_argument("--table", action="append", metavar="KEY",
                    help="a table key (see --list); repeatable")
     r.add_argument("--list", action="store_true", dest="list_tables",
@@ -126,6 +140,19 @@ def add_parser(sub: Any) -> None:
                    help="output format(s); default csv")
     r.add_argument("-o", "--output", metavar="DIR",
                    help="folder (default ./Tables beside the model)")
+    r.add_argument("--find", metavar="TEXT",
+                   help="with --column/--replace: change matching cells "
+                        "instead of exporting")
+    r.add_argument("--replace", metavar="TEXT", default="",
+                   help="replacement text for --find")
+    r.add_argument("--column", metavar="COLUMN",
+                   help="file column name or index for --find")
+    r.add_argument("--whole", action="store_true",
+                   help="match the whole cell, not a substring")
+    r.add_argument("--case-sensitive", action="store_true",
+                   help="match case (default insensitive)")
+    r.add_argument("--in-place", action="store_true",
+                   help="write replacements back to MODEL")
     add_run_options(r)
     r.set_defaults(func=tables_command)
 
@@ -135,16 +162,40 @@ def add_parser(sub: Any) -> None:
                     "or, when FILE ends in .svg, to a plain SVG drawing "
                     "(no Qt needed).")
     d.add_argument("model", metavar="MODEL")
-    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg")
+    d.add_argument("-o", "--output", required=True, metavar="FILE.png|FILE.svg",
+                   help="the image to write; the extension picks the format")
     d.add_argument("--level", type=int, default=0,
                    help="hierarchy id to draw (0 = top level)")
     d.add_argument("--highlight", action="append", default=[],
-                   metavar="SELECTOR")
+                   metavar="SELECTOR",
+                   help="draw this element highlighted: a name, an id or Kind:id (repeatable)")
     d.add_argument("--zoom-to", action="append", default=[],
-                   metavar="SELECTOR")
-    d.add_argument("--theme", choices=("light", "dark"), default="light")
-    d.add_argument("--max-px", type=int, default=1600)
-    d.add_argument("--no-annotations", action="store_true")
+                   metavar="SELECTOR",
+                   help="frame a close-up on these elements of the drawn level (repeatable)")
+    d.add_argument("--theme", choices=("light", "dark"), default="light",
+                   help="colours (default light)")
+    d.add_argument("--max-px", type=int, default=1600,
+                   help="longest side of a PNG in pixels (default 1600)")
+    d.add_argument("--no-annotations", action="store_true",
+                   help="leave out text boxes and other annotations")
+    d.add_argument("--layer", choices=("downtime-share", "lost-capacity", "advisor"),
+                   help="SVG only: run the model with attribution and draw "
+                        "each element's share of downtime (or of lost flow) "
+                        "on the diagram, as the application's Show on "
+                        "canvas layers do; 'advisor' marks what `raptor "
+                        "advise` finds, without a run unless -n is given")
+    d.add_argument("-n", "--trials", type=int, metavar="N",
+                   help="with --layer: runs to simulate (default: the model's own); "
+                        "with --layer advisor, also run and add the run's findings")
+    d.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+                   help="with --layer: cores to run on")
+    d.add_argument("--seed", type=int, metavar="N",
+                   help="with --layer: salt every random stream, as raptor "
+                        "explain --seed, so the layer matches its numbers")
+    d.add_argument("--capacity-rule", default="proportional",
+                   choices=("proportional", "marginal", "first_failed"),
+                   help="with --layer lost-capacity: how lost flow is shared "
+                        "among the elements down at once (default proportional)")
     d.set_defaults(func=render_command)
 
     sp = sub.add_parser(
@@ -168,7 +219,8 @@ def add_parser(sub: Any) -> None:
                     "what crosses its boundary. The saved .rbd is an ordinary "
                     "model file.")
     ex.add_argument("model", metavar="MODEL")
-    ex.add_argument("--hierarchy", required=True, metavar="NAME|ID")
+    ex.add_argument("--hierarchy", required=True, metavar="NAME|ID",
+                    help="the hierarchy to save on its own")
     ex.add_argument("-o", "--output", metavar="FILE",
                     help="write the extract here (.rbd or .rbds)")
     ex.add_argument("--report-hazards", action="store_true",
@@ -530,13 +582,18 @@ def tables_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         rbd = ws.get(mid).rbd
+        if args.find is not None:
+            return _replace_command(ws, mid, args)
         bundle = None
         if args.run:
             apply_run_options(ws, mid, args)
             require_runnable(ws, mid)
             res = api_run(ws, mid, workers=args.jobs,
                           timeout_s=parse_duration(args.timeout),
-                          confirm_long_run=True, seed=args.seed)
+                          confirm_long_run=True, seed=args.seed,
+                          attribution=bool(getattr(args, "drivers", False)),
+                          capacity_rule=getattr(args, "capacity_rule",
+                                                "proportional"))
             bundle = run_tables.bundle_from_run(ws, res.run_id)
         if args.list_tables:
             for info in tables.catalogue(rbd, bundle):
@@ -569,14 +626,46 @@ def tables_command(args: Any) -> int:
     return X.OK
 
 
+def _render_layer(args: Any) -> tuple[dict, dict | None]:
+    """Run MODEL with attribution in a throwaway workspace; its layer."""
+    from raptor.api.insight.canvas import run_layer
+    from raptor.api.run import run
+    from raptor.cli.common import workspace_for
+    with workspace_for() as ws:
+        mid = open_model(ws, args.model)
+        if args.layer == "advisor":
+            from raptor.api.advisor.canvas import workspace_advisor_layer
+            run_id = None
+            if args.trials:
+                run_id = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
+                             attribution=True, confirm_long_run=True, seed=args.seed,
+                             capacity_rule=args.capacity_rule,
+                             progress=lambda done, total:
+                             eprint(f"[{done}/{total or '?'}] runs")).run_id
+            return workspace_advisor_layer(ws, mid, run_id), None
+        result = run(ws, mid, num_runs=args.trials, workers=max(1, args.jobs),
+                     attribution=True, confirm_long_run=True, seed=args.seed,
+                     capacity_rule=args.capacity_rule,
+                     progress=lambda done, total:
+                     eprint(f"[{done}/{total or '?'}] runs"))
+        try:
+            return run_layer(ws, result.run_id, args.layer)
+        except ValueError as exc:
+            raise CliError(str(exc), X.REFUSED) from exc
+
+
 def render_command(args: Any) -> int:
     from raptor.api import render as api_render
+    if args.layer and not str(args.output).lower().endswith(".svg"):
+        raise CliError("--layer draws an SVG: give an output FILE.svg", X.USAGE)
     if str(args.output).lower().endswith(".svg"):
+        layer, flow = (_render_layer(args) if args.layer else (None, None))
         try:
             path, _meta = api_render.render_svg_file(
                 args.model, args.output, level=args.level,
                 highlight=args.highlight or None, zoom_to=args.zoom_to or None,
-                theme=args.theme, include_annotations=not args.no_annotations)
+                theme=args.theme, include_annotations=not args.no_annotations,
+                layer=layer, flow=flow)
         except (api_render.RenderError, ValueError, OSError) as exc:
             raise CliError(str(exc), X.RUNTIME) from exc
         eprint(f"wrote {path}")
@@ -734,4 +823,34 @@ def step_command(args: Any) -> int:
                     print("    | " + " ".join(ln.split()))
         except stepping.StepError as exc:
             raise CliError(str(exc), X.USAGE) from exc
+    return X.OK
+
+
+def _replace_command(ws: Any, model_id: str, args: Any) -> int:
+    """`raptor tables ... --find/--replace`: replace in a model table."""
+    from raptor.api import tables
+    if not args.column:
+        raise CliError("--find needs --column", X.USAGE)
+    if not args.table:
+        raise CliError("--find needs --table (e.g. inputs.blocks_all)",
+                       X.USAGE)
+    try:
+        changes = tables.replace_in_table(
+            ws.get(model_id).rbd, args.table[0], args.column, args.find,
+            args.replace, whole=args.whole, case=args.case_sensitive)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    for change in changes:
+        change["row"][change["column"]] = change["new"]
+    if changes:
+        from raptor.api import build
+        build.sync_counts(ws.get(model_id).rbd)
+        if args.in_place:
+            source = Path(args.model)
+            fmt = "rbd" if source.suffix.lower() == ".rbd" else "rbds"
+            temp = source.with_name(source.stem + ".raptor-tmp" + source.suffix)
+            res = ws.save_model_as(model_id, str(temp), fmt=fmt)
+            Path(res["path"]).replace(source)
+    print(f"{len(changes)} cell(s) changed"
+          + ("" if args.in_place else " in the workspace; pass --in-place"))
     return X.OK

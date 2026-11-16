@@ -7,6 +7,7 @@ itself.  Output discipline (row caps, ``resource_link``s, image caps) is
 enforced here.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 import os
@@ -227,9 +228,24 @@ async def simulate(  # noqa: PLR0912, PLR0915
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
+    precision: dict | None = None,
     ctx: Context | None = None,
 ) -> CallToolResult:
     """Run a simulation and return structured results.
+
+    `attribution=True` also works out which element caused each system
+    outage and why (repair, waiting for a spare, waiting for a crew,
+    logistics, maintenance); read it with `downtime_drivers(run_id)` and
+    `advise(model_id, run_id)`. The results themselves are unchanged. It
+    keeps the event log in memory for the batch, so leave it off for very
+    large runs. Not available with `hierarchy`.
+
+    `capacity_rule` (with attribution on a capacity-analysis model) shares
+    the lost flow among the elements that were down: `proportional` sums to
+    the engine's own lost flow, `marginal` answers "what would fixing this
+    one buy?" (shares need not add up), `first_failed` is for comparison.
 
     `availability_plot` / `interim_cost`: record the availability-over-time
     plot (needed by `get_timeseries(series="availability")`) or the interim
@@ -255,6 +271,10 @@ async def simulate(  # noqa: PLR0912, PLR0915
     (Mean_Flow / FlowGenerated: the delivered fraction, where Availability
     only means some flow got through) and Lost_Flow.  `caveats` is the model-validation subset
     of `warnings` (surfaced separately so a client can show them first).
+    `outages` is {outages, runs, up_time, between, few}: working time per
+    system outage pooled over every run. MTBDE averages each run's own
+    figure, and a run with no outage gives its whole length, so with rare
+    outages quote `between` (and say "rough" when `few`) rather than MTBDE.
     The Markdown body is a table with units in the headers.
 
     The model is **validated first**; structural errors are returned with
@@ -264,14 +284,28 @@ async def simulate(  # noqa: PLR0912, PLR0915
     bit-identical to a sequential batch.  Leave `workers` out and a large
     model (500+ blocks, events and nodes) run 20+ times uses several cores
     (half the machine's, at most 8); the result reports the `workers` used
-    and `workers_auto`. Pass `workers=1` for the sequential numbers. This is
-    a server default only: the desktop app and the command line are unchanged.
+    and `workers_auto`. Pass `workers=1` for the sequential numbers.
+    `streams` says which the numbers are ("sequential" or "parallel",
+    the same for any worker count above one) and `seed` the salt used: the
+    two together reproduce a result on any surface (the desktop app's
+    Cores box, `raptor run -j`).
 
     `seed` (optional, non-negative) re-rolls the batch reproducibly;
     leaving it unset keeps the engine's fixed seeds, under which the same
     model and run count always return byte-identical numbers.  If a run is
     cut short by `timeout_s`, `runs` is below the requested count and
     `truncated` is true -- do not read a truncated batch as complete.
+
+    `precision` runs in growing batches until the watched metric is
+    precise enough, instead of a fixed count: `{relative: 0.1, metric:
+    "system.ao", on: "auto" | "unavailability" | "value", confidence:
+    0.95, min_trials: 50, max_trials: 20000, batch: 50}`. `on` "auto" (the
+    default) watches 1 - value for a probability (system.ao, system.r,
+    system.capacity) and the value for a time (system.mtbde, system.mdt).
+    The result carries a `precision` object with the reached interval
+    (`watched` names what `mean` is; `value` is the metric itself), the
+    target, the trial count and the pass history; `relative` is a fraction
+    (0.1 = 10 %).
 
     Capacity: delivered flow is limited by link `nom_flow`/`max_flow`
     caps, and those caps only bind on links entering a node whose
@@ -336,6 +370,32 @@ async def simulate(  # noqa: PLR0912, PLR0915
         handle.rbd.experiment = _rx.normalise(experiment)
 
     def _go(abort, progress):
+        if precision is not None:
+            if hierarchy is not None:
+                raise ValueError(
+                    "precision and hierarchy cannot be combined yet")
+            from raptor.api.scenarios import Precision, run_to_precision
+            try:
+                wanted = Precision(**precision)
+                wanted.field()
+            except TypeError as exc:
+                raise ValueError(f"bad precision object: {exc}") from exc
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
+            if wanted.max_trials > cap:
+                raise ValueError(
+                    f"precision.max_trials={wanted.max_trials} exceeds the "
+                    f"server cap of {cap}; lower it or raise the cap")
+            outcome = run_to_precision(
+                ws, model_id, wanted, workers=workers, seed=seed,
+                progress=lambda done, _total, _text: progress(done, _total),
+                abort=abort, timeout_s=timeout_s,
+                confirm_long_run=confirm_long_run, collect_events=collect_events,
+                availability_plot=availability_plot, interim_cost=interim_cost,
+                attribution=attribution, capacity_rule=capacity_rule)
+            result = outcome.result
+            result.precision = outcome.to_dict()
+            return result
         kwargs = dict(
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
@@ -349,15 +409,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
                                     treatments=treatments, **kwargs)
             except isolate.IsolationError as exc:
                 raise ValueError(str(exc)) from exc
-        return api_run(ws, model_id, **kwargs)
+        return api_run(ws, model_id, attribution=attribution,
+                       capacity_rule=capacity_rule, **kwargs)
 
     result = await run_job(ctx, _go, label="Simulating")
     warnings = list(result.warnings) + validation_warnings
     # `requested` must come from the caller or the model's own configured
     # run count -- falling back to `result.num_runs` would make the
     # truncation check vacuous whenever `num_runs` is omitted.
-    requested = effective_runs
-    truncated = requested is not None and result.num_runs < requested
+    requested = (result.num_runs if precision is not None else effective_runs)
+    truncated = (False if precision is not None
+                 else requested is not None and result.num_runs < requested)
     data = {
         "run_id": result.run_id,
         "model_id": result.model_id,
@@ -384,11 +446,20 @@ async def simulate(  # noqa: PLR0912, PLR0915
         "caveats": validation_warnings,
         "workers": workers,
         "workers_auto": workers_auto,
+        "streams": getattr(result, "streams", "sequential"),
+        "seed": getattr(result, "seed", 0),
     }
     if getattr(result, "isolation", None):
         data["isolation"] = result.isolation
     if getattr(result, "importance", None):
         data["importance"] = result.importance
+    if getattr(result, "precision", None):
+        data["precision"] = result.precision
+    from raptor.api.presentation import pooled_outages
+    rate = pooled_outages(result.per_run)
+    if rate is not None:
+        # MTBDE is a mean of per-run figures (a floor when outages are rare)
+        data["outages"] = rate.to_dict()
     md = summary_table(
         result,
         display_unit=getattr(handle.rbd, "display_unit", None),
@@ -396,14 +467,17 @@ async def simulate(  # noqa: PLR0912, PLR0915
     )
     if getattr(result, "isolation", None):
         md = f"**{result.isolation['banner']}**\n\n" + md
+    if rate is not None:
+        md += "\n\n" + rate.sentence(data["units"])
     if "Capacity_Weighted_Availability" in data["summary"]:
         md += ("\n\nCapacity analysis: `Availability` counts any flow reaching "
                "the end; `Capacity_Weighted_Availability` (Mean_Flow / "
                "FlowGenerated) is the delivered fraction, and `Lost_Flow` the "
                "flow not delivered.")
+    from raptor.api.run import streams_note
     if workers_auto:
-        md += (f"\n\nRan on {workers} cores (chosen for a large model; pass "
-               "`workers=1` for the sequential numbers).")
+        md += f"\n\nRan on {workers} cores (chosen for a large model)."
+    md += "\n\n" + streams_note(data)
     if truncated:
         md = (f"**Partial batch: only {result.num_runs} of {requested} runs "
               f"completed** (timeout or abort) -- these estimates are noisier "
@@ -438,8 +512,14 @@ def start_run(
     seed: int | None = None,
     availability_plot: bool | None = None,
     interim_cost: bool | None = None,
+    attribution: bool = False,
+    capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
+
+    `attribution=True` also records what caused the downtime, as in
+    `simulate`; read it with `downtime_drivers` once the job is done.
+    `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 
     Same arguments as `simulate`, minus the hierarchy/isolation and
     importance options. Use this for batches that outlive one tool call (a
@@ -487,13 +567,16 @@ def start_run(
 
     workers, workers_auto = resolve_workers(workers, handle.rbd, effective_runs)
 
-    def work(abort, progress, setup_progress):
+    def work(abort, progress, setup_progress, insight_progress):
         return api_run(ws, model_id, num_runs=effective_runs,
                        run_length=run_length, workers=workers,
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
+                       insight_progress=insight_progress,
                        availability_plot=availability_plot,
+                       attribution=attribution,
+                       capacity_rule=capacity_rule,
                        interim_cost=interim_cost)
 
     job = async_runs.start(work, model_id=model_id, total=effective_runs)
@@ -518,7 +601,8 @@ def run_status(job_id: str) -> CallToolResult:
     adds what a running job is doing: `setting_up` while a large model is
     prepared (`setup` then has `{stage, done, total, percent}`; it can take
     minutes before the first replication, and `completed_runs` stays 0), then
-    `simulating`. Small models skip straight to `simulating` and `setup` is
+    `simulating`, then with attribution `attributing` (`attributing` has
+    `{label, done, total}`). Small models skip straight to `simulating` and `setup` is
     null. `run_id` is set once the
     batch has produced a run, and `summary` then carries the mean of each
     metric. Jobs are in-process only -- after a server restart the run is
@@ -537,6 +621,9 @@ def run_status(job_id: str) -> CallToolResult:
     if data["phase"] == "setting_up" and data["setup"]:
         s = data["setup"]
         md += f"; setting up: {s['stage']} {s['done']}/{s['total']}"
+    if data["phase"] == "attributing" and data["attributing"]:
+        a = data["attributing"]
+        md += f"; {a['label'].lower()}: {a['done']}/{a['total']}"
     if data["run_id"]:
         md += f", run `{data['run_id']}`"
     if data["error"]:
@@ -564,7 +651,8 @@ def cancel_run(job_id: str) -> CallToolResult:
 
 @mcp.tool(annotations=READ_ONLY("Run results"))
 @guarded
-def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
+def get_run_results(run_id: str, top: int = 10,
+                    per_run_detail: bool = False) -> CallToolResult:
     """One completed run as a single assessable bundle.
 
     Reads what the run wrote: the metric means and per-replication figures,
@@ -573,7 +661,10 @@ def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
     `export_tables` (with the same `run_id`) when you need a whole table or
     a workbook.
 
-    `top` caps the weak-link list (1..100).
+    `top` caps the weak-link list (1..100). `per_run` carries each
+    replication's system figures; `per_run_detail=True` adds the nested
+    per-element data, which on a large model is megabytes (use `get_table`
+    with `results.per_run` to page it instead).
     """
     from raptor.api.run import get_report as _report, run_dir
     from raptor.api.run_tables import read_per_run, read_summary
@@ -592,6 +683,11 @@ def get_run_results(run_id: str, top: int = 10) -> CallToolResult:
         if isinstance(values, dict) and values.get("mean") is not None
     }
     per_run = read_per_run(runs_dir, run_id) or []
+    if not per_run_detail:
+        # the nested per-element lists made this 2 MB for a 500-block model
+        # with 20 runs, beside a 700-character text answer
+        per_run = [{k: v for k, v in row.items()
+                    if not isinstance(v, (list, dict))} for row in per_run]
 
     capacity: dict[str, Any] = {}
     path = runs_dir / "final_results.txt"
@@ -948,7 +1044,9 @@ def get_timeseries(
     (default 100).
 
     Returns {t, values, runs_included, decimated_from, envelope?} plus a
-    short Markdown preview.  No image is ever returned.
+    short Markdown preview.  No image is ever returned.  For 'capacity',
+    `values` is the flow and `capacity` the system capacity, null where
+    nothing limits the flow (Raptor's 999,999,999), with `capacity_note`.
     """
     ws = context.workspace()
     from raptor.api.limits import MAX_TIMESERIES_POINTS
@@ -1015,3 +1113,224 @@ def extract_hierarchy(
                "isolation": record.to_dict()},
               markdown=f"**{record.banner}**\n\nNew model `{info['model_id']}`.\n\n"
                        + record.text())
+
+
+@mcp.tool(annotations=ADDITIVE("What-if"))
+@guarded
+async def what_if(
+    model_id: str,
+    changes: list[str],
+    name: str = "Scenario",
+    trials: int | None = None,
+    seed: int | None = None,
+    precision: dict | None = None,
+    requirements: list[dict] | None = None,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """Compare a changed model with Base using paired trials.
+
+    `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g.
+    `["block:Pump.repair_params=8,0,0"]`. Base and the scenario run with the
+    same seed, so trial *i* is paired; the result reports each metric's
+    scenario value, the paired difference with its standard error, the
+    chance the scenario is better, and how much variance pairing cut (often
+    little: the random streams run on between trials, so trials stay in step
+    only until the change first moves an event; the standard error is from
+    the paired differences, so it is honest either way). The
+    open model is never modified.
+
+    `trials` sets the fixed count; `precision` (`{relative: 0.1,
+    min_trials: 50, max_trials: 20000}`) sizes Base first with
+    run-to-precision. `requirements` are `{metric, op, value, label}` rows
+    judged for Base and the scenario. Long runs report progress and can be
+    cancelled by the client.
+    """
+    ws = context.workspace()
+    cap = context.max_runs()
+    context.check_batch(changes, "changes")
+    if precision is None:
+        context.check_study(model_id, trials, timeout_s, workers=workers)
+    else:
+        _validate_run_args(timeout_s, None, workers)
+    wanted = None
+    if precision is not None:
+        from raptor.api.scenarios.stopping import Precision
+        try:
+            wanted = Precision(**precision)
+            wanted.field()
+        except TypeError as exc:
+            raise ValueError(f"bad precision object: {exc}") from exc
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        if wanted.max_trials > cap:
+            raise ValueError(
+                f"precision.max_trials={wanted.max_trials} exceeds the server "
+                f"cap of {cap}")
+    from raptor.api.scenarios import Scenario, compare
+
+    def work(abort, progress):
+        return compare(
+            ws, model_id, [Scenario(name=name, changes=tuple(changes))],
+            trials=trials, precision=wanted, workers=max(1, workers or 1),
+            seed=seed, timeout_s=timeout_s, requirements=requirements,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    comparison = await run_job(ctx, work, label="Comparing scenario")
+    failed = comparison.rows[0].get("error") if comparison.rows else None
+    if failed:
+        # an error, not a success whose text says nothing ran: a pipeline
+        # checking is_error took a bad change for a finished comparison
+        raise ValueError(f"The scenario did not run: {failed}")
+    data = comparison.to_dict()
+    data["caption"] = comparison.caption
+    return ok(data, _what_if_markdown(comparison))
+
+
+@mcp.tool(annotations=ADDITIVE("Recommend changes"))
+@guarded
+async def recommend_changes(
+    model_id: str,
+    run_id: str | None = None,
+    top: int = 3,
+    trials: int | None = None,
+    seed: int | None = None,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    min_gain: float | None = None,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """Propose and test one change for each top downtime driver.
+
+    Finds the `top` blocks causing the most system downtime (from `run_id`,
+    a stored run made with `attribution=True`, or else from a Base run with
+    attribution made first), proposes a fixed-step lever from the cause that
+    dominates each one's outages (halve the repair time or the logistics
+    delays, one more spare, one more crew, maintenance half as often, a part
+    that lasts twice as long), and tests every change against Base with
+    paired trials. Each row gives the PATH=VALUE change (apply it with
+    `update_element`/`manage_spare_pools`/`manage_resources`, or `raptor
+    set`), the paired availability gain with its standard error and chance
+    of being better, the downtime avoided per run, the unit cost the model
+    holds (null when it holds none), what is left to weigh, and a verdict of
+    what was MEASURED: "clearly helps" (a real gain, at a confidence shared
+    across all the changes tested, that removes at least 5 % of Base's
+    downtime or `min_gain` availability, a fraction), "helps a little" (real
+    but smaller), "may help; run more trials", "no measurable gain" or
+    "makes it worse". No verdict weighs cost: never present one as advice to
+    spend money. `bars` gives the confidence and minimum gain used. The open
+    model is never modified. Long runs report progress and can be cancelled.
+    """
+    ws = context.workspace()
+    context.check_study(model_id, trials, timeout_s, workers=workers)
+    if not 1 <= top <= 20:
+        raise ValueError("top must be between 1 and 20")
+    if min_gain is not None and not 0 <= min_gain <= 1:
+        raise ValueError("min_gain is an availability fraction, 0 to 1 (0.001 = 0.1 points)")
+    from raptor.api.scenarios.recommend import recommend, text_lines
+
+    def work(abort, progress):
+        return recommend(
+            ws, model_id, run_id=run_id, top=top, trials=trials, seed=seed,
+            workers=max(1, workers or 1), timeout_s=timeout_s, min_gain=min_gain,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort)
+
+    result = await run_job(ctx, work, label="Testing changes")
+    return ok(result.to_dict(), "\n".join(text_lines(result)))
+
+
+def _what_if_markdown(comparison: Any) -> str:
+    row = comparison.rows[0] if comparison.rows else {}
+    if row.get("error"):
+        return f"The scenario did not run: {row['error']}"
+    lines = ["| Metric | Base | Scenario | Change | P(better) |",
+             "|---|---|---|---|---|"]
+    for key in ("availability", "reliability", "mtbde", "mdt",
+                "capacity_weighted_availability", "lost_flow"):
+        metric = (row.get("metrics") or {}).get(key)
+        if not metric or (metric.get("value") or {}).get("mean") is None:
+            continue
+        fraction = metric.get("fraction")
+        base = (metric.get("base") or {}).get("mean")
+        value = (metric.get("value") or {}).get("mean")
+        delta = (metric.get("delta") or {}).get("mean")
+        sem = (metric.get("delta") or {}).get("sem")
+        fmt = ((lambda v: f"{100 * v:.5g} %") if fraction
+               else (lambda v: f"{v:,.6g}"))
+        if delta is None:
+            continue
+        change = (f"{100 * delta:+.3g} pts" if fraction
+                  else f"{delta:+,.6g}")
+        if sem:
+            change += (f" ± {100 * sem:.3g}" if fraction else f" ± {sem:.3g}")
+        chance = metric.get("p_better")
+        tail = ("—" if chance is None else f"{pct(chance)}")
+        lines.append(f"| {metric['label']} | {fmt(base)} | {fmt(value)} | "
+                     f"{change} | {tail} |")
+    lines.append("")
+    lines.append(comparison.caption)
+    cut = (comparison.variance_reduction or {}).get("availability")
+    if cut is not None:
+        lines.append(f"Pairing cut the variance by {pct(cut)}.")
+    return "\n".join(lines)
+
+
+@mcp.tool(annotations=ADDITIVE("Sensitivity"))
+@guarded
+async def sensitivity(
+    model_id: str,
+    top: int = 10,
+    trials: int | None = None,
+    metric: str = "availability",
+    seed: int | None = None,
+    workers: int | None = None,
+    timeout_s: float = 1800.0,
+    ctx: Context | None = None,
+) -> CallToolResult:
+    """One-at-a-time tornado: which inputs the answer is most sensitive to.
+
+    Builds up to `top` candidate inputs from the model (block life and
+    repair means, PM intervals, finite spare stock, crew counts), varies each
+    at a low and a high value, and runs every variant with Base's seed. The
+    result gives each input's paired effect at both ends with its standard
+    error, the swing, a base-point elasticity where the input is continuous,
+    and whether the swing is distinguishable from no effect at this run
+    count. This is a screening view: it shows each input alone and cannot
+    show interactions.
+    """
+    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+
+    ws = context.workspace()
+    context.whole_number(top, "top", minimum=1, maximum=60)
+    context.check_study(model_id, trials, timeout_s, workers=workers,
+                        variants=2 * top + 1)
+    inputs = default_inputs(ws.get(model_id).rbd, limit=top)
+    if not inputs:
+        raise ValueError("no input could be varied in this model")
+
+    def work(abort, progress):
+        return tornado(
+            ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
+            workers=max(1, workers or 1), timeout_s=timeout_s,
+            progress=lambda done, total, label: progress(done, total, label),
+            abort=abort, asked=top)
+
+    data = await run_job(ctx, work, label="Screening inputs")
+    lines = ["| Input | Swing | Low | High | Distinguishable |",
+             "|---|---|---|---|---|"]
+    for row in data["inputs"]:
+        swing = ("—" if row["swing"] is None else f"{row['swing']:.4g}")
+        low = ("—" if row["low"]["effect"] is None
+               else f"{row['low']['effect']:+.4g}")
+        high = ("—" if row["high"]["effect"] is None
+                else f"{row['high']['effect']:+.4g}")
+        flag = "yes" if row["distinguishable"] else "no"
+        lines.append(f"| {row['input']['name']} | {swing} | {low} | "
+                     f"{high} | {flag} |")
+    lines.append("")
+    lines.append(data["caption"])
+    lines.append(data["note"])
+    return ok(data, "\n".join(lines))

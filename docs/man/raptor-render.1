@@ -1,32 +1,47 @@
 .TH "RAPTOR-RENDER" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-render \- Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
+raptor\-render \- draw the diagram to PNG or SVG
 .SH SYNOPSIS
-\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] MODEL
+\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] [\-\-layer {downtime\-share,lost\-capacity,advisor}] [\-n N] [\-j N] [\-\-seed N] [\-\-capacity\-rule {proportional,marginal,first_failed}] MODEL
 .SH DESCRIPTION
 Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH OPTIONS
 .SS Options
 .TP
 \fB\-o\fR, \fB\-\-output\fR \fIFILE.png|FILE.svg\fR
-
+the image to write; the extension picks the format
 .TP
 \fB\-\-level\fR \fILEVEL\fR
 hierarchy id to draw (0 = top level)
 .TP
 \fB\-\-highlight\fR \fISELECTOR\fR
-
+draw this element highlighted: a name, an id or Kind:id (repeatable)
 .TP
 \fB\-\-zoom\-to\fR \fISELECTOR\fR
-
+frame a close\-up on these elements of the drawn level (repeatable)
 .TP
 \fB\-\-theme\fR \fI{light|dark}\fR
-
+colours (default light)
 .TP
 \fB\-\-max\-px\fR \fIMAX_PX\fR
-
+longest side of a PNG in pixels (default 1600)
 .TP
 \fB\-\-no\-annotations\fR
-
+leave out text boxes and other annotations
+.TP
+\fB\-\-layer\fR \fI{downtime\-share|lost\-capacity|advisor}\fR
+SVG only: run the model with attribution and draw each element's share of downtime (or of lost flow) on the diagram, as the application's Show on canvas layers do; 'advisor' marks what `raptor advise` finds, without a run unless \-n is given
+.TP
+\fB\-n\fR, \fB\-\-trials\fR \fIN\fR
+with \-\-layer: runs to simulate (default: the model's own); with \-\-layer advisor, also run and add the run's findings
+.TP
+\fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
+with \-\-layer: cores to run on
+.TP
+\fB\-\-seed\fR \fIN\fR
+with \-\-layer: salt every random stream, as raptor explain \-\-seed, so the layer matches its numbers
+.TP
+\fB\-\-capacity\-rule\fR \fI{proportional|marginal|first_failed}\fR
+with \-\-layer lost\-capacity: how lost flow is shared among the elements down at once (default proportional)
 .SH SEE ALSO
 \fBraptor\fR(1)

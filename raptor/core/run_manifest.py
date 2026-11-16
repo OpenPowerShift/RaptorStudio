@@ -146,3 +146,12 @@ def manifest_digest(manifest: dict) -> str:
     blob = json.dumps(manifest, sort_keys=True, separators=(",", ":"),
                       default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
+
+
+def manifest_with_streams(run_metadata: dict) -> dict | None:
+    """The run manifest plus which random streams the engine used (it is
+    known only once the batch has run)."""
+    manifest = run_metadata.get("manifest")
+    if manifest is None:
+        return None
+    return {**manifest, "streams": run_metadata.get("streams", "sequential")}

@@ -5,6 +5,13 @@ name: GUI coverage
 # GUI modules (main_window, diagram, results, inspector, data_tables).
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to measure (raptor.gui, or raptor for everything)"
+        default: raptor.gui
+      markers:
+        description: "pytest -m expression choosing the tests"
+        default: "gui and not slow and not fidelity and not long"
   push:
     branches: [refactor/gui-split]
 
@@ -31,9 +38,11 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           RAPTOR_TEST_SHARD: ${{ matrix.shard }}/4
           COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
+          PACKAGE: ${{ inputs.package || 'raptor.gui' }}
+          MARKERS: ${{ inputs.markers || 'gui and not slow and not fidelity and not long' }}
         run: >-
-          pytest -q -n auto -p no:cacheprovider -m "gui and not slow and not fidelity and not long"
-          --cov=raptor.gui --cov-branch --cov-report=
+          pytest -q -n auto -p no:cacheprovider -m "$MARKERS"
+          --cov="$PACKAGE" --cov-branch --cov-report=
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -56,11 +65,14 @@ jobs:
           pattern: gui-cov-*
           merge-multiple: true
       - name: Combine and report
+        env:
+          PACKAGE: ${{ inputs.package || 'raptor.gui' }}
         run: |
+          include="$(echo "$PACKAGE" | tr . /)/*"
           coverage combine .coverage.shard*
-          coverage report --include='raptor/gui/*' --sort=cover | tee gui-coverage.txt
-          coverage json --include='raptor/gui/*' -o gui-coverage.json
-          coverage html --include='raptor/gui/*' -d gui-coverage-html
+          coverage report --include="$include" --sort=cover | tee gui-coverage.txt
+          coverage json --include="$include" -o gui-coverage.json
+          coverage html --include="$include" -d gui-coverage-html
       - uses: actions/upload-artifact@v7
         with:
           name: gui-coverage

@@ -67,10 +67,11 @@ def add_parser(sub: Any) -> None:
                     "written.")
     s.add_argument("model", metavar="MODEL")
     s.add_argument("assignments", nargs="*", metavar="PATH=VALUE")
-    s.add_argument("--set-file", metavar="FILE")
+    s.add_argument("--set-file", metavar="FILE",
+                   help="more PATH=VALUE lines from a file, one per line")
     out = s.add_mutually_exclusive_group()
-    out.add_argument("-o", "--output", metavar="OUT")
-    out.add_argument("--in-place", action="store_true")
+    out.add_argument("-o", "--output", metavar="OUT", help="save to a new file")
+    out.add_argument("--in-place", action="store_true", help="overwrite MODEL")
     s.add_argument("--backup", action="store_true",
                    help="with --in-place, keep MODEL.bak")
     s.set_defaults(func=set_command)
@@ -82,7 +83,8 @@ def add_parser(sub: Any) -> None:
                     "--allow-lossy.")
     c.add_argument("input", metavar="IN")
     c.add_argument("output", metavar="OUT")
-    c.add_argument("--to", choices=("rbd", "rbds"))
+    c.add_argument("--to", choices=("rbd", "rbds"),
+                   help="format to write (default: OUT's extension)")
     c.add_argument("--allow-lossy", action="store_true",
                    help=".rbds-only content (annotations, experiment "
                         "settings, rate definitions) is dropped in .rbd")

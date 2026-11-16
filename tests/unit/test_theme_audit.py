@@ -159,3 +159,199 @@ def test_file_dialog_nav_buttons_use_theme_tinted_icons(qapp):
         assert not got.isNull()
         assert got.pixmap(18, 18).toImage() == want_icon.pixmap(18, 18).toImage(), \
             f"{name} must use the theme-tinted icon, not the platform default"
+
+
+# ---- WCAG contrast of the coloured tokens, chart fills and inks ----------
+
+_PANELS = ("surface", "canvas", "group_header", "input_bg")
+#: Tokens the GUI also draws TEXT in (links, the red ">" censoring marker,
+#: diff rows, relationship labels): 4.5:1 on every panel background.
+_TEXT_TOKENS = ("text", "muted", "accent", "warn", "result_green",
+                "result_red", "relationship")
+#: Tokens drawn as marks only (bars, dots, lines, icons): 3:1 (WCAG 1.4.11).
+#: `border` is a decorative gridline / frame and exempt.
+_MARK_TOKENS = ("stop", "go", "result_yellow")
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_coloured_text_tokens_meet_aa(theme):
+    P = LIGHT_COLOUR if theme == "light" else DARK_COLOUR
+    low = [(k, bg, round(_ratio(P[k], P[bg]), 2))
+           for k in _TEXT_TOKENS for bg in _PANELS
+           if _ratio(P[k], P[bg]) < 4.5]
+    assert not low, low
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_mark_tokens_meet_non_text_contrast(theme):
+    P = LIGHT_COLOUR if theme == "light" else DARK_COLOUR
+    low = [(k, bg, round(_ratio(P[k], P[bg]), 2))
+           for k in _MARK_TOKENS + _TEXT_TOKENS for bg in _PANELS
+           if _ratio(P[k], P[bg]) < 3.0]
+    assert not low, low
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_accent_fill_ink(theme):
+    """Accent-filled buttons draw their label in the surface colour."""
+    P = LIGHT_COLOUR if theme == "light" else DARK_COLOUR
+    assert _ratio(P["surface"], P["accent"]) >= 4.5
+    from raptor.gui.resources.design_tokens import _build_stylesheet
+    css = _build_stylesheet(P)
+    for selector in ("QPushButton:default {", "#RibbonFileButton:hover {"):
+        block = css[css.index(selector):]
+        block = block[:block.index("}")]
+        assert f"color: {P['surface']}" in block, selector
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_chart_cause_fills_and_inks(qapp, theme):
+    """Every cause / cost-group fill is a 3:1 mark on the chart surface and
+    the label ink chosen for it is 4.5:1 on the fill."""
+    from PySide6.QtGui import QColor
+    from raptor.gui.ui import chart_theme
+    P = LIGHT_COLOUR if theme == "light" else DARK_COLOUR
+    low = []
+    for cause, (light, dark) in chart_theme._COLOURS.items():
+        fill = light if theme == "light" else dark
+        if _ratio(fill, P["surface"]) < 3.0:
+            low.append((cause, "fill", round(_ratio(fill, P["surface"]), 2)))
+        ink = chart_theme.ink_on(QColor(fill)).name()
+        if _ratio(ink, fill) < 4.5:
+            low.append((cause, "ink", ink, round(_ratio(ink, fill), 2)))
+    assert not low, low
+
+
+def test_svg_chart_colours_and_inks():
+    from raptor.render import charts_svg as sv
+    low = []
+    for cause, fill in sv.CAUSE_COLOURS.items():
+        if _ratio(fill, "#ffffff") < 3.0:
+            low.append((cause, "fill"))
+        if _ratio(sv._ink_on(fill), fill) < 4.5:
+            low.append((cause, "ink", sv._ink_on(fill)))
+    for name in ("INK", "MUTED", "ACCENT", "UP", "DOWN"):
+        if _ratio(getattr(sv, name), "#ffffff") < 4.5:
+            low.append(name)
+    assert not low, low
+
+
+def test_ink_on_picks_the_higher_contrast_ink(qapp):
+    """It used to test against pure black and then draw #111111, putting
+    4.1:1 text on mid greys such as #6B7785."""
+    from PySide6.QtGui import QColor
+    from raptor.gui.ui.chart_theme import ink_on
+    from raptor.render.charts_svg import _ink_on
+    assert ink_on(QColor("#6B7785")).name() == "#ffffff"
+    assert _ink_on("#6B7785") == "#ffffff"
+    assert ink_on(QColor("#F2B84B")).name() == "#111111"
+
+
+def test_first_light_set_dark_still_applies_the_palette(monkeypatch):
+    """Light is the starting state, so a light launch's `set_dark(False)`
+    used to return early and leave the app on the platform palette."""
+    from raptor.gui.resources.design_tokens import ThemeManager
+    tm = ThemeManager()
+    calls = []
+
+    def fake_apply():
+        calls.append(tm.is_dark)
+        tm._applied = True
+    monkeypatch.setattr(tm, "_apply", fake_apply)
+    tm.set_dark(False)
+    tm.set_dark(False)
+    assert calls == [False]
+
+
+def test_links_take_the_new_palette_after_a_theme_switch():
+    """A rich-text label under the app style sheet keeps the link colour
+    of the moment its text was set; `_relink_labels` (run by every theme
+    apply) re-sets it, or a switch to dark left dark-blue links on the dark
+    surface.  In a subprocess: it switches the app-wide theme."""
+    import subprocess
+    import sys
+    code = f"""
+import os, sys
+sys.path.insert(0, {str(REPO)!r})
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+from PySide6.QtWidgets import QApplication, QLabel
+app = QApplication([])
+from raptor.gui.resources.design_tokens import (
+    DARK_COLOUR, LIGHT_COLOUR, ThemeManager)
+tm = ThemeManager.instance()
+tm.set_dark(False)
+label = QLabel('<a href="x">LINKLINKLINK</a>')
+label.resize(140, 24); label.show(); app.processEvents()
+def colours():
+    img = label.grab().toImage()
+    return {{img.pixelColor(x, y).name() for x in range(140) for y in range(24)}}
+assert LIGHT_COLOUR["accent"].lower() in colours(), colours()
+tm.set_dark(True); app.processEvents()
+assert DARK_COLOUR["accent"].lower() in colours(), colours()
+print("LINKS_OK", flush=True)
+os._exit(0)
+"""
+    proc = subprocess.run([sys.executable, "-c", code],
+                          capture_output=True, text=True, timeout=120)
+    assert "LINKS_OK" in proc.stdout, f"{proc.stdout}\n{proc.stderr[-800:]}"
+
+
+def test_no_pseudo_state_changes_a_font(qapp):
+    """Qt sizes a widget from its plain font, so a bolder or larger font
+    under :default, :selected, :checked or :hover is drawn in a box sized
+    for the smaller one and is cut off ("Jse for Intake_Screer")."""
+    import re
+    from raptor.gui.resources.design_tokens import ThemeManager
+    for dark in (False, True):
+        ThemeManager.instance().set_dark(dark)
+        sheet = qapp.styleSheet()
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", sheet):
+            states = re.findall(r":(default|selected|checked|hover|pressed|focus|on)\b",
+                                selector)
+            if states and "::" not in selector:
+                assert "font" not in body, selector.strip()
+    ThemeManager.instance().set_dark(False)
+
+
+def test_a_default_buttons_label_fits(qapp):
+    from PySide6.QtWidgets import QDialog, QHBoxLayout, QPushButton
+    from raptor.gui.resources.design_tokens import ThemeManager
+    ThemeManager.instance().set_dark(True)
+    dlg = QDialog()
+    lay = QHBoxLayout(dlg)
+    btn = QPushButton("Use for Intake_Screen")
+    btn.setDefault(True)
+    lay.addWidget(btn)
+    lay.addStretch(1)
+    dlg.show()
+    qapp.processEvents()
+    room = btn.contentsRect().width()
+    assert btn.fontMetrics().horizontalAdvance(btn.text()) < room
+    dlg.close()
+    ThemeManager.instance().set_dark(False)
+
+
+def test_a_disabled_default_button_does_not_look_ready(qapp):
+    from PySide6.QtGui import QColor
+    from PySide6.QtWidgets import QDialog, QHBoxLayout, QPushButton
+    from raptor.gui.resources.design_tokens import ThemeManager, active_colour
+    for dark in (False, True):
+        ThemeManager.instance().set_dark(dark)
+        dlg = QDialog()
+        lay = QHBoxLayout(dlg)
+        on, off = QPushButton("Run"), QPushButton("Run")
+        for btn in (on, off):
+            btn.setDefault(True)
+            lay.addWidget(btn)
+        off.setEnabled(False)
+        dlg.show()
+        qapp.processEvents()
+        accent = QColor(active_colour()["accent"])
+
+        def middle(btn):
+            image = btn.grab().toImage()
+            return image.pixelColor(image.width() // 2, 3)
+        assert middle(on) == accent
+        assert middle(off) != accent
+        dlg.close()
+    ThemeManager.instance().set_dark(False)

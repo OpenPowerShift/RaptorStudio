@@ -5,7 +5,7 @@ events) on several fixtures and both levels, the golden records the paste
 buffer after copying and every `AddCmd` two consecutive pastes push (the
 real command runs, so the second paste sees the ids the first took).
 Captured from the ORIGINAL implementation before the row planning moved into
-the Qt-free `raptor.gui.clipboard_plan`. Regenerate on purpose with
+the Qt-free `raptor.core.edit.clipboard_plan`. Regenerate on purpose with
 `python tests/unit/test_clipboard_characterization.py --write`.
 """
 from __future__ import annotations

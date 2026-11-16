@@ -43,6 +43,16 @@ in the *xref:../docs/formulas.html[Formulas quick reference]*. Press
 kbd:[F1] in the app to jump to the manual section for whatever panel
 you are using.
 
+TIP: Every word the book uses in a special sense (trial, DTCI, MTBDE,
+SEM and the rest) is in the <<appendix-glossary>>.
+
+The chapters show the desktop application, but nothing in them needs it.
+Chapters <<ch-first-model,1>>, <<ch-redundancy,2>>, <<ch-trials,6>> and
+<<ch-weaklink,13>> add a *From the command line* box: the same model and
+measures through `raptor`, run from the `new_docs` folder. The later
+chapters on the Advisor, MCP and downtime drivers give both.
+`raptor help` lists the commands and `raptor help run` explains one.
+
 [NOTE]
 ====
 Your simulation numbers will not match the book digit for digit. The
@@ -76,8 +86,8 @@ image::app-first-look.png[The RAPTOR Studio main window]
 The blue **File** button, left of the tabs, brings the start page back:
 New (a blank model, or any example as a new, unsaved copy), a searchable
 list of your recent files, Open, Save, Save As and Close, and a *Print
-and Export* page (Print, Export PDF, Export Tables, Export Diagram SVG,
-Save Bitmap, Copy View). Press Esc to go back to the model.
+and Export* page (Print; Export, one Save window for the PDF report, a
+workbook, SVG or PNG; Export Tables; Copy View). Press Esc to go back to the model.
 
 The *New* page offers a blank model and every example: the *Basics*,
 one idea each from this guide, and the *Advanced* ones — a hospital's

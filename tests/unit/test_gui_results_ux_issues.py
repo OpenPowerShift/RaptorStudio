@@ -97,91 +97,88 @@ def _demo_table(dock: ResultsDock, n: int = 30):
 
 # --------------------------------------------------------------- #199 Y-min
 
-@pytest.mark.parametrize("mode,enabled", [
-    (0, True),   # Per Trial Ao
-    (1, True),   # Interval Ao
-    (2, True),   # Multi-run Ao
-    (3, False),  # Capacity (Flow)
-    (4, False),  # Multi-run Capacity (Flow)
-    (5, False),  # Availability Convergence
+#: Two runs of the availability plot: time, Ao, green, yellow, red, interval.
+_AO_LINES = [
+    "SimulationTime Ao Green Yellow Red Interval",
+    "10 0.9991 0.9991 0 0.0009 0.9991", "20 0.9992 0.9992 0 0.0008 0.9993",
+    "20 0.9992 0.9992 0 0.0008",
+    "", "*" * 30 + "End_of_Run_1" + "*" * 30, "",
+    "10 0.9994 0.9994 0 0.0006 0.9994", "20 0.9995 0.9995 0 0.0005 0.9996",
+    "20 0.9995 0.9995 0 0.0005",
+    "", "*" * 30 + "End_of_Run_2" + "*" * 30, "",
+]
+
+
+def _dock_with_plot():
+    dock = ResultsDock()
+    dock._ao_lines = list(_AO_LINES)
+    dock._update_graphs()
+    return dock
+
+
+@pytest.mark.parametrize("key,shown", [
+    ("availability-through-run", True),
+    ("interval-availability", True),
+    ("availability-band", True),
+    ("convergence", False),
 ])
-def test_y_axis_control_is_honest_for_every_graph_mode(qapp, mode, enabled):
-    dock = ResultsDock()
-    dock._graph_mode.setCurrentIndex(mode)
-    assert dock._y_axis_btn.isEnabled() is enabled
-    tip = dock._y_axis_btn.toolTip()
-    if enabled:
-        assert "Auto" in dock._y_axis_btn.text()
-        assert "graphYmin" in tip and "0.999999" in tip
-    else:
-        assert dock._y_axis_btn.text() == "Y-axis min: n/a"
-        assert ("capacity" in tip.lower()
-                or "convergence" in tip.lower())
+def test_the_axis_floor_control_appears_only_where_it_applies(qapp, key, shown):
+    dock = _dock_with_plot()
+    dock._charts_page.set_inputs(per_run=[{"availability": 0.999},
+                                          {"availability": 0.9995}])
+    page = dock._charts_page
+    assert page.select(key)
+    assert page.floor_button.isVisibleTo(page) is shown
+    if shown:
+        assert page.floor_button.text() == "Axis from: auto"
+        assert "0.999999" in page.floor_button.toolTip()
 
 
-def test_y_axis_dialog_round_trip_and_range(qapp, monkeypatch):
-    dock = ResultsDock()
+def test_axis_floor_dialog_round_trip_and_range(qapp, monkeypatch):
+    dock = _dock_with_plot()
     calls: dict[str, object] = {}
 
     def fake_get_double(parent, title, label, value, minimum, maximum,
                         decimals):
-        calls.update(title=title, minimum=minimum, maximum=maximum,
-                     decimals=decimals)
+        calls.update(minimum=minimum, maximum=maximum, decimals=decimals)
         return 0.25, True
 
     monkeypatch.setattr(QInputDialog, "getDouble",
                         staticmethod(fake_get_double))
     seen: list[float] = []
     dock.y_axis_min_changed.connect(seen.append)
-    dock._y_axis_btn.click()
+    page = dock._charts_page
+    page.select("availability-band")
+    page.floor_button.click()
 
-    assert calls == {"title": "Set Y-Axis", "minimum": 0.0,
-                     "maximum": 0.999999, "decimals": 6}
-    assert dock._ao_plot.y_min == 0.25
+    assert calls == {"minimum": 0.0, "maximum": 0.999999, "decimals": 6}
+    assert dock.y_axis_min == 0.25
     assert seen == [0.25]
-    assert dock._y_axis_btn.text() == "Y-axis min: 0.2500"
+    assert page.floor_button.text() == "Axis from: 0.25"
+    assert page.selected_spec().provenance["y_range"] == [0.25, 1.0]
 
 
-def test_y_axis_dialog_cancel_changes_nothing(qapp, monkeypatch):
-    dock = ResultsDock()
+def test_axis_floor_dialog_cancel_changes_nothing(qapp, monkeypatch):
+    dock = _dock_with_plot()
     dock.set_y_axis_min(0.4)
     monkeypatch.setattr(QInputDialog, "getDouble",
                         staticmethod(lambda *a, **k: (0.8, False)))
     seen: list[float] = []
     dock.y_axis_min_changed.connect(seen.append)
-    dock._y_axis_btn.click()
-    assert dock._ao_plot.y_min == 0.4 and seen == []
+    dock._charts_page.select("availability-band")
+    dock._charts_page.floor_button.click()
+    assert dock.y_axis_min == 0.4 and seen == []
 
 
-def test_multi_run_manual_floor_is_not_masked_by_auto_fit(qapp):
-    from raptor.gui.ui.plots import AoPlotWidget
-    plot = AoPlotWidget()
-    plot.set_data([
-        {"t": [0, 1], "ao": [0.9991, 0.9992], "g": [1, 1],
-         "y": [0, 0], "r": [0, 0], "iv": [None, None]},
-        {"t": [0, 1], "ao": [0.9994, 0.9995], "g": [1, 1],
-         "y": [0, 0], "r": [0, 0], "iv": [None, None]},
-    ])
-    plot.set_mode(AoPlotWidget.MULTI_RUN)
-    low, high = plot._y_bounds()
-    assert 0.9990 < low < 0.9992 and 0.9994 < high < 1.0
-    plot.set_y_min(0.5)
-    assert plot._y_bounds() == (0.5, 1.0)
-    plot.set_y_min(0.999)
-    assert plot._y_bounds() == (0.999, 1.0)
-    plot.set_y_min(0.0)
-    assert plot._y_bounds()[0] < 0.9992       # back to Auto
-
-
-def test_convergence_ignores_graph_ymin_while_control_is_disabled(qapp):
-    from raptor.gui.ui.plots import AoPlotWidget
-    plot = AoPlotWidget()
-    plot.set_convergence_data([(1, 0.92), (2, 0.94), (3, 0.95)])
-    plot.set_mode(AoPlotWidget.CONVERGENCE)
-    plot.set_y_min(0.5)
-    assert plot._y_bounds() == (0.0, 1.0)
-    plot.set_y_min(0.999)
-    assert plot._y_bounds() == (0.0, 1.0)
+def test_a_manual_floor_wins_over_the_fitted_axis(qapp):
+    from raptor.api.insight import timecharts
+    from raptor.api.series import parse_ao_runs
+    runs = parse_ao_runs("\n".join(_AO_LINES))
+    fitted = timecharts.availability_band(runs).provenance["y_range"]
+    assert 0.99 <= fitted[0] < 0.9991 and fitted[1] == 1.0
+    for floor in (0.5, 0.999):
+        assert timecharts.availability_band(
+            runs, y_floor=floor).provenance["y_range"] == [floor, 1.0]
 
 
 # -------------------------------------------------------- #205 table actions

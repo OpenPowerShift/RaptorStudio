@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QImage, QPainter
@@ -126,24 +127,32 @@ def render_diagrams(win, folder: Path, tiles: int = 1) -> list[Figure]:
 
 
 def _render_graph(win, folder: Path) -> list[Figure]:
-    """The plot on the Graphs tab, drawn at a fixed page-friendly size
-    rather than whatever size the dock happens to be."""
-    plot = getattr(win._results, "_ao_plot", None)
-    if plot is None:
+    """The chart over time the reader is looking at (or the first one the
+    run recorded), drawn at a fixed page-friendly size."""
+    page = getattr(win._results, "_charts_page", None)
+    if page is None:
         return []
-    old = plot.size()
-    try:
-        plot.resize(1800, 800)
-        QApplication.processEvents()
-        pm = plot.grab()
-    finally:
-        plot.resize(old)
+    from raptor.api.insight.timecharts import TIME_CHARTS
+    key = page.selected_key() or ""
+    if key not in TIME_CHARTS or page.missing_reason(key):
+        key = next((k for k in ("availability-band", "availability-through-run",
+                                "capacity-band", "capacity-through-run")
+                    if not page.missing_reason(k)), "")
+    if not key:
+        return []
+    spec = page._time_spec(key)
+    if spec is None:
+        return []
+    from raptor.gui.ui.chart_widget import ChartWidget
+    widget = ChartWidget()
+    widget.resize(1800, 800)
+    widget.set_spec(spec)
+    pm = widget.grab()
+    widget.deleteLater()
     if pm.isNull() or pm.width() <= 1:
         return []
     pm.save(str(folder / "graph.png"))
-    mode = getattr(win._results, "_graph_mode", None)
-    title = mode.currentText() if mode is not None else "Graph"
-    return [Figure(title, "graph.png")]
+    return [Figure(spec.title, "graph.png")]
 
 
 def _event_log(win) -> Table | None:
@@ -164,6 +173,29 @@ def _raw_blocks(win) -> list[TextBlock]:
             for title, lines, total in collect_raw_report_sections(win)]
 
 
+def _insight(win) -> Any:
+    """The Story, charts and checks from the results already on screen."""
+    res = win._results
+    story = (res._story_page.story()
+             if hasattr(res, "_story_page") else None)
+    if story is None or not getattr(res, "_report_data", None):
+        return None
+    from raptor.api.insight import report_section
+    from raptor.api.run import _rd_to_dict
+    per_run = [_rd_to_dict(rd) for rd in res._report_data]
+    attribution = (res._drivers_page.attribution()
+                   if hasattr(res, "_drivers_page") else None)
+    specs = (list(res._charts_page._specs.values())
+             if hasattr(res, "_charts_page") else None)
+    try:
+        return report_section.from_parts(
+            story, per_run, attribution=attribution, charts_in=specs)
+    except Exception:  # noqa: BLE001 - the report must still print
+        import logging
+        logging.getLogger(__name__).exception("could not build the report story")
+        return None
+
+
 def _add_results(content: ReportContent, win, opts: dict,
                  folder: Path) -> None:
     """The parts of the report that need a run."""
@@ -175,7 +207,13 @@ def _add_results(content: ReportContent, win, opts: dict,
         t for t in tables if t.section and (
             opts.get("weak") if t.section == "Weak link"
             else opts.get("results"))]
+    # The cover's key figures, whether or not the result tables are printed.
+    content.summary = next((t for t in tables if t.key == "results.summary"), None)
+    from raptor.api.presentation import pooled_outages
+    content.outage_rate = pooled_outages(getattr(res, "_report_data", None))
     content.notes = list(getattr(res, "_notes", []) or [])
+    if opts.get("story", True):
+        content.insight = _insight(win)
     if opts.get("results"):
         content.per_run = next((t for t in tables
                                 if t.key == "results.per_run"), None)

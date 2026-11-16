@@ -7,13 +7,17 @@ dot all vanished in the dark theme. The stylesheet has to supply each glyph
 as an `image: url(...)`, so this module paints them in the theme's colours
 and writes them as small PNGs the stylesheet can point at.
 
-Files are keyed by colour, so a theme switch gets new files, and they live
-in one per-process temp folder that is removed at exit.
+Files are keyed by colour, so a theme switch gets new files. They live in
+one folder in the user's cache, named after a hash of this module, that every
+launch reuses: a folder per process was removed only on a clean exit, so a
+crash, a kill or a test run's hard exit left one behind each time (over two
+thousand in one tester's /tmp). A change to the drawing code changes the hash
+and so the folder.
 """
 from __future__ import annotations
 
-import atexit
-import shutil
+import hashlib
+import os
 import tempfile
 from pathlib import Path
 
@@ -29,8 +33,16 @@ _dir: Path | None = None
 def _folder() -> Path:
     global _dir
     if _dir is None:
-        _dir = Path(tempfile.mkdtemp(prefix="raptor-studio-qss-"))
-        atexit.register(shutil.rmtree, _dir, True)
+        from PySide6.QtCore import QStandardPaths
+        stamp = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:10]
+        cache = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.GenericCacheLocation)
+        try:
+            folder = Path(cache or tempfile.gettempdir()) / "raptor-studio" / f"qss-{stamp}"
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            folder = Path(tempfile.mkdtemp(prefix="raptor-studio-qss-"))
+        _dir = folder
     return _dir
 
 
@@ -43,7 +55,11 @@ def _write(name: str, colour: str, draw, w: int = _PX, h: int = _PX) -> str:
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         draw(p, QColor(colour), w, h)
         p.end()
-        image.save(str(path))
+        # Written aside and renamed, so two windows starting at once never
+        # read a half-written image.
+        part = path.with_name(f"{path.stem}.{os.getpid()}.part.png")
+        image.save(str(part))
+        os.replace(part, path)
     # Qt stylesheets want forward slashes, also on Windows.
     return path.as_posix()
 

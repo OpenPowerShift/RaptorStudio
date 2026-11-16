@@ -305,6 +305,9 @@ class FileIoMixin(_Base):
         # unchecks the ribbon button.
         self._diagram_dock.view.tool_mode = "select"
         self._rbd = rbd
+        refresh_library = getattr(self, "_refresh_library_dock", None)
+        if refresh_library is not None:
+            QTimer.singleShot(0, refresh_library)
         # a stepped session belongs to the previous model -- stepping
         # after an Open must never touch the old engine context
         self._invalidate_step_session()

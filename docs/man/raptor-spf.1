@@ -1,6 +1,6 @@
 .TH "RAPTOR-SPF" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-spf \- List the elements whose failure alone takes the system down.
+raptor\-spf \- write the Single Point Failure file
 .SH SYNOPSIS
 \fBraptor spf\fR [\-h] [\-o FILE] [\-f {text,json}] [\-\-criticality] MODEL
 .SH DESCRIPTION
@@ -12,7 +12,7 @@ List the elements whose failure alone takes the system down.
 write the legacy\-format text file to FILE
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
-
+output format (default text)
 .TP
 \fB\-\-criticality\fR
 add the criticality column to the file (a developer option)

@@ -1,0 +1,69 @@
+.TH "RAPTOR-EDIT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-edit \- duplicate elements or copy a block's data
+.SH SYNOPSIS
+\fBraptor edit\fR [\-h] MODEL ACTION ...
+.SH DESCRIPTION
+Structural edits shared with the canvas: duplicate a selection with fresh ids and names, or copy one block's data groups onto others. The model file changes only when the in\-place flag is given.
+.SH COMMANDS
+.TP
+\fBduplicate\fR
+copy elements with fresh ids
+.TP
+\fBpaste\-data\fR
+copy block data groups onto blocks
+.TP
+\fBout\-of\-service\fR
+take blocks, events or hierarchies out of service
+.SH RAPTOR EDIT DUPLICATE
+\fBraptor edit duplicate\fR licate [\-h] [\-\-copies N] [\-\-dx T] [\-\-dy T] [\-\-in\-place] [\-f {text,json}] ELEMENT [ELEMENT ...]
+.SS Options
+.TP
+\fB\-\-copies\fR \fIN\fR
+how many copies (default 1)
+.TP
+\fB\-\-dx\fR \fIT\fR
+each copy's offset to the right, in diagram units (default 40)
+.TP
+\fB\-\-dy\fR \fIT\fR
+each copy's offset downward (default 40)
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR EDIT PASTE\-DATA
+\fBraptor edit paste\-data\fR e\-data [\-h] \-\-source BLOCK \-\-targets NAMES [\-\-groups NAMES] [\-\-in\-place] [\-f {text,json}]
+.SS Options
+.TP
+\fB\-\-source\fR \fIBLOCK\fR
+the block to copy from
+.TP
+\fB\-\-targets\fR \fINAMES\fR
+comma list of blocks
+.TP
+\fB\-\-groups\fR \fINAMES\fR
+comma list (default Failure,Repair); see raptor help set\-paths for group names
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR EDIT OUT\-OF\-SERVICE
+\fBraptor edit out\-of\-service\fR ervice [\-h] [\-\-state {cut,linked,in\-service}] [\-\-in\-place] [\-f {text,json}] [ELEMENT ...]
+.PP
+A what\-if switch that leaves the element's data alone: cut (down for the whole run), linked (never fails) or in\-service (back to normal). A hierarchy covers everything inside it. Saved in .rbds only.
+.SS Options
+.TP
+\fB\-\-state\fR \fI{cut|linked|in\-service}\fR
+cut (default), linked or in\-service
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH SEE ALSO
+\fBraptor\fR(1)

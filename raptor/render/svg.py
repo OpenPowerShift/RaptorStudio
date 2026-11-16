@@ -7,9 +7,23 @@ hierarchies, links and annotations, at the positions the GUI uses (the shared
 `view_transform` and the GUI's element sizes). It is a sketch for checking
 layout and connections, not a copy of the canvas: no fonts are measured, long
 names are shortened (the full name is in each element's `<title>`), and no
-state colours or badges are drawn.
+state colours are drawn.
+
+A *result layer* (`raptor.api.insight.canvas.canvas_layer`: share of downtime
+or of lost capacity) draws what the canvas's Show on canvas layers draw:
+each block and event filled by its band (relative to the largest share), its
+share printed under it, the letter of its main cause in the corner, a dashed
+ring when the runs disagree, each hierarchy oval with the sum of what is
+inside it, links into capacity nodes as wide as the node's mean flow, and a
+legend saying how to read it.
+
+The Advisor layer (`raptor.api.advisor.canvas.advisor_layer`) is drawn the
+same way: each element a finding is about filled by its worst severity, the
+number of findings under it, the findings in its `<title>`, and each
+hierarchy oval with the count of what is flagged inside it.
 """
 from __future__ import annotations
+from raptor.api.insight.axes import pct
 
 import math
 from dataclasses import dataclass
@@ -35,6 +49,18 @@ _THEMES = {
              "hier": "#24313F", "link": "#8FA3B5", "highlight": "#FF922B",
              "start": "#2FB344", "end": "#E03131"},
 }
+
+#: Band fills of a result layer (Red / Yellow / Green relative to the largest
+#: share), light enough that the dark text on them stays readable.
+_BANDS = {
+    "light": {"high": "#FFC9C9", "mid": "#FFE8A3", "low": "#C8F0D0"},
+    "dark": {"high": "#6B2424", "mid": "#5E4C14", "low": "#1F4D2B"},
+}
+
+#: The band an Advisor finding of each severity is filled with; advice and
+#: notes take the "note" fill.
+_SEVERITY_BAND = {"error": "high", "warning": "mid", "advice": "note", "info": "note"}
+_NOTE_FILL = {"light": "#D0E4FF", "dark": "#1E3A5F"}
 
 _NODE_LABEL = {1: "S", 3: "E", 4: "HI", 5: "HO"}
 _LINE_DASH = {"dash": "8 4", "dot": "2 3", "dash-dot": "8 3 2 3", "dash-dot-dot": "8 3 2 3 2 3"}
@@ -224,10 +250,49 @@ def _routed(src: _Shape, dst: _Shape, boxes: list[tuple[float, float, float, flo
     return router.route(p0, out_side, p3, in_side, boxes, hint)
 
 
+#: Same colours as the canvas (`gui/ui/diagram_out_of_service.py`).
+_OOS_COLOURS = {"cut": "#c62828", "linked": "#00897b"}
+
+
+def _oos_states(rbd: Any) -> dict[tuple[str, int], str]:
+    from raptor.core.fileio import out_of_service as oos
+    blocks, events = oos.effective(rbd)
+    out = {("block", k): v for k, v in blocks.items()}
+    out.update({("event", k): v for k, v in events.items()})
+    out.update({("hier", k): v for k, v in oos.hierarchies(rbd).items()})
+    return out
+
+
+def _out_of_service_svg(rbd: Any, shapes: list[_Shape]) -> list[str]:
+    """U27: a cut element inside a red dashed outline tagged CUT, a linked
+    one in teal tagged LINKED, as the canvas draws them."""
+    states = _oos_states(rbd)
+    marked = [(s, states[(s.kind, s.id)]) for s in shapes if (s.kind, s.id) in states]
+    if not marked:
+        return []
+    out = ['<g class="out-of-service">']
+    for s, state in marked:
+        x0, y0, x1, y1 = s.bounds()
+        colour = _OOS_COLOURS[state]
+        dim = (f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{y1 - y0:.1f}" '
+               f'fill="#ffffff" fill-opacity="0.55"/>' if state == "cut" else "")
+        out.append(f'<g id="oos-{s.kind}-{s.id}"><title>{escape(s.name)}: out of service, '
+                   f'{state}</title>{dim}<rect x="{x0 - 5:.1f}" y="{y0 - 5:.1f}" '
+                   f'width="{x1 - x0 + 10:.1f}" height="{y1 - y0 + 10:.1f}" rx="6" fill="none" '
+                   f'stroke="{colour}" stroke-width="2" stroke-dasharray="6 4"/>'
+                   f'<text x="{x1 + 5:.1f}" y="{y0 - 8:.1f}" text-anchor="end" font-size="9" '
+                   f'font-weight="bold" fill="{colour}">{state.upper()}</text></g>')
+    out.append("</g>")
+    return out
+
+
 def _links_svg(links: list[_Link], shapes: list[_Shape],
-               routing: str, c: dict[str, str]) -> tuple[list[str], int]:
+               routing: str, c: dict[str, str],
+               widths: dict[int, float] | None = None,
+               cut: set[tuple[str, int]] | None = None) -> tuple[list[str], int]:
     """The SVG for every link, and how many were drawn routed (not as a
-    straight line)."""
+    straight line). `widths` (capacity node id -> stroke width) draws each
+    link into such a node at that width, and every other link thin."""
     router = Router(per_route_s=0.05, total_s=3.0, window_s=1e9)
     fans_out: dict[int, list[_Shape]] = {}
     fans_in: dict[int, list[_Shape]] = {}
@@ -241,6 +306,14 @@ def _links_svg(links: list[_Link], shapes: list[_Shape],
     out: list[str] = []
     routed = 0
     for src, dst, pts in links:
+        if widths is None:
+            stroke = 'stroke-width="1.5" marker-end="url(#arrow)"'
+        else:
+            width = widths.get(dst.id, 1.0) if dst.kind == "node" else 1.0
+            # a fixed-size arrowhead: the default one grows with the stroke
+            stroke = f'stroke-width="{width:.2f}" marker-end="url(#arrow-fixed)"'
+        if cut and ((src.kind, src.id) in cut or (dst.kind, dst.id) in cut):
+            stroke += ' stroke-dasharray="6 4"'       # an end is out of service (cut)
         if pts:
             # Pinned by routing points (a band hand-over): straight segments
             # from the sides facing the first and last point.
@@ -248,7 +321,7 @@ def _links_svg(links: list[_Link], shapes: list[_Shape],
             b = dst.port(*pts[-1])
             path = " ".join(f"{x:.1f},{y:.1f}" for x, y in [a, *pts, b])
             out.append(f'<polyline points="{path}" fill="none" stroke="{c["link"]}" '
-                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+                       f'{stroke}/>')
             routed += 1
             continue
         route = (_routed(src, dst, boxes, router, routing,
@@ -257,19 +330,21 @@ def _links_svg(links: list[_Link], shapes: list[_Shape],
         if route is not None:
             routed += 1
             out.append(f'<path d="{path_d(route)}" fill="none" stroke="{c["link"]}" '
-                       f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+                       f'{stroke}/>')
             continue
         ax, ay = src.port(dst.cx, dst.cy)
         bx, by = dst.port(src.cx, src.cy)
         out.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" stroke="{c["link"]}" '
-                   f'stroke-width="1.5" marker-end="url(#arrow)"/>')
+                   f'{stroke}/>')
     return out, routed
 
 
 def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
                zoom_to: list[Any] | None = None, margin: float = 12.0, theme: str = "light",
                include_annotations: bool = True,
-               routing: str = "straight") -> tuple[str, dict[str, Any]]:
+               routing: str = "straight",
+               layer: dict[str, Any] | None = None,
+               flow: dict[int, float] | None = None) -> tuple[str, dict[str, Any]]:
     """Draw one level of `rbd` as SVG. Returns `(svg_text, meta)`.
 
     `level` is 0 for the top level or a hierarchy id, as for the PNG
@@ -278,15 +353,12 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
     "angled" (short stubs, then a straight run) or "orthogonal" (right
     angles only, round the other elements; a link that cannot be routed
     within the time budget stays straight). Coordinates are the GUI's scene
-    pixels, so annotation positions match the canvas."""
-    if theme not in _THEMES:
-        raise SvgRenderError(f"theme must be 'light' or 'dark', got {theme!r}")
-    if level not in _levels(rbd):
-        raise SvgRenderError(f"level {level} is not 0 or a hierarchy id; available: {_levels(rbd)}")
-    if not math.isfinite(float(margin)) or margin < 0:
-        raise SvgRenderError(f"margin must be a finite value >= 0, got {margin}")
-    if routing not in ROUTING_MODES:
-        raise SvgRenderError(f"routing must be one of {ROUTING_MODES}, got {routing!r}")
+    pixels, so annotation positions match the canvas.
+
+    `layer` is a result layer from `raptor.api.insight.canvas.canvas_layer`;
+    `flow` (capacity node id -> mean flow) widens the links into capacity
+    nodes. Both are optional and change nothing else in the drawing."""
+    _check(rbd, level=level, margin=margin, theme=theme, routing=routing)
     c = _THEMES[theme]
     vt = view_transform.ensure(rbd)
     shapes = _shapes(rbd, level, vt)
@@ -299,21 +371,44 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
 
     x0, y0, w, h = _frame([s.bounds() for s in (zoomed or shapes)]
                           + ([] if zoomed else [_anno_bounds(a) for a in annos]), margin)
+    painted: dict[tuple[str, int], dict[str, Any]] = {}
+    rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
+    legend: list[str] = []
+    advisor = layer is not None and layer.get("layer") == "advisor"
+    if layer is not None:
+        painted, rolled = _layer_marks(rbd, layer, by_key)
+        legend = (_advisor_legend(layer, w) if advisor
+                  else _legend_lines(layer, bool(flow), w))
+        h += 16.0 * len(legend) + 10.0
 
+    widths = _flow_widths(flow) if layer is not None and flow and not advisor else None
+    # the fixed-size arrow is only for links drawn by flow, so a plain
+    # diagram carries just the one marker
+    fixed = (f'<marker id="arrow-fixed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" '
+             f'markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">'
+             f'<path d="M0,0 L10,5 L0,10 z" fill="{c["link"]}"/></marker>') if widths else ""
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0:.1f} {y0:.1f} {w:.1f} {h:.1f}" '
            f'width="{w:.0f}" height="{h:.0f}" font-family="sans-serif">',
            f'<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" '
            f'markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" '
-           f'fill="{c["link"]}"/></marker></defs>',
+           f'fill="{c["link"]}"/></marker>{fixed}</defs>',
            f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{c["bg"]}"/>']
     out.append('<g class="links">')
-    link_svg, routed = _links_svg(links, shapes, routing, c)
+    link_svg, routed = _links_svg(links, shapes, routing, c, widths,
+                                  {key for key, v in _oos_states(rbd).items() if v == "cut"})
     out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
-    for s in shapes:
-        out.append(_shape_svg(s, c))
+    bands = {**_BANDS[theme], "note": _NOTE_FILL[theme]}
+    out.extend(_elements_svg(shapes, painted, rolled, layer, c, bands))
     out.append("</g>")
+    out.extend(out_of_service := _out_of_service_svg(rbd, shapes))
+    if advisor:
+        out.extend(_advisor_svg(shapes, painted, rolled, legend, c, (x0 + margin, y0 + h - 12)))
+    elif layer is not None:
+        pooled = {int(row["id"]): row for row in layer.get("hierarchies") or []}
+        out.extend(_layer_svg(shapes, painted, rolled, legend, c,
+                              (x0 + margin, y0 + h - 12), pooled))
     if lit:
         out.append('<g class="highlights">')
         for s in lit:
@@ -335,8 +430,277 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links), "routing": routing,
         "links_routed": routed,
         "annotations_drawn": len(annos), "highlighted": [s.name or f"{s.kind}:{s.id}" for s in lit],
+        **({"out_of_service": sum(1 for line in out_of_service if line.startswith("<g id="))}
+           if out_of_service else {}),
     }
+    if layer is not None:
+        meta["layer"] = _layer_meta(layer, advisor, len(painted), len(rolled), bool(widths))
     return "\n".join(out) + "\n", meta
+
+
+def _layer_meta(layer: dict[str, Any], advisor: bool, marked: int, rolled: int,
+                by_flow: bool) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "name": layer.get("layer"),
+        "measure": layer.get("measure") or ("Advisor findings" if advisor else None),
+        "elements_marked": marked, "hierarchies_rolled_up": rolled, "links_by_flow": by_flow}
+    if advisor:
+        meta["findings"] = int(layer.get("findings") or 0)
+        meta["off_canvas"] = int(layer.get("off_canvas") or 0)
+    return meta
+
+
+def _check(rbd: Any, *, level: int, margin: float, theme: str, routing: str) -> None:
+    if theme not in _THEMES:
+        raise SvgRenderError(f"theme must be 'light' or 'dark', got {theme!r}")
+    if level not in _levels(rbd):
+        raise SvgRenderError(f"level {level} is not 0 or a hierarchy id; available: {_levels(rbd)}")
+    if not math.isfinite(float(margin)) or margin < 0:
+        raise SvgRenderError(f"margin must be a finite value >= 0, got {margin}")
+    if routing not in ROUTING_MODES:
+        raise SvgRenderError(f"routing must be one of {ROUTING_MODES}, got {routing!r}")
+
+
+def _elements_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
+                  rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], layer: dict[str, Any] | None,
+                  c: dict[str, str], bands: dict[str, str]) -> list[str]:
+    """Every element, filled by its band where a result layer marks it."""
+    out = []
+    advisor = layer is not None and layer.get("layer") == "advisor"
+    for s in shapes:
+        mark = painted.get((s.kind, s.id))
+        if mark is not None:
+            band = _SEVERITY_BAND[mark["severity"]] if advisor else mark["band"]
+            out.append(_shape_svg(s, {**c, "fill": bands[band], "hier": bands[band]}))
+        elif s.kind == "hier" and s.id in rolled:
+            band = (_SEVERITY_BAND[_worst(rolled[s.id][2])] if advisor
+                    else _band_of(rolled[s.id][0], layer))
+            out.append(_shape_svg(s, {**c, "hier": bands[band]}))
+        else:
+            out.append(_shape_svg(s, c))
+    return out
+
+
+def _layer_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
+               rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], legend: list[str],
+               c: dict[str, str], legend_at: tuple[float, float],
+               pooled: dict[int, dict[str, Any]] | None = None) -> list[str]:
+    """The marks, the hierarchy totals and the legend (its last line at `legend_at`)."""
+    out = ['<g class="result-layer">']
+    for s in shapes:
+        mark = painted.get((s.kind, s.id))
+        if mark is not None:
+            out.append(_mark_svg(s, mark, c))
+        elif s.kind == "hier" and s.id in rolled:
+            total, count, inside = rolled[s.id]
+            own = (pooled or {}).get(s.id)
+            spread = (f"; ±2 SE {100 * own['low']:.3g} to {pct(own['high'])}, pooled over the runs"
+                      if own is not None and own.get("low") is not None else "")
+            out.append(f'<text x="{s.cx:.1f}" y="{s.cy + HIER_H / 2 + 12:.1f}" font-size="10" '
+                       f'font-weight="bold" fill="{c["text"]}" text-anchor="middle">'
+                       f'<title>{escape(f"{count} element(s) inside{spread}")}</title>'
+                       f'Σ {pct(total)}</text>')
+            out.extend(_scent_svg(s, inside, total, c))
+    x, bottom = legend_at
+    for i, line in enumerate(legend):
+        out.append(f'<text x="{x:.1f}" y="{bottom - 16 * (len(legend) - 1 - i):.1f}" '
+                   f'font-size="11" fill="{c["text"]}">{escape(line)}</text>')
+    out.append("</g>")
+    return out
+
+
+#: Width of the bar of a hierarchy's top contributors, as on the canvas.
+SCENT_W = 72.0
+
+
+def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
+               c: dict[str, str]) -> list[str]:
+    """Under a hierarchy's Σ, a small bar of its top three contributors,
+    each as wide as its part of the total and coloured by its main cause,
+    so a problem can be followed down a level (plan 7.6.1)."""
+    from raptor.render.charts_svg import CAUSE_COLOURS
+    if total <= 0 or not inside:
+        return []
+    top3 = sorted(inside, key=lambda r: -float(r.get("value") or 0.0))[:3]
+    x0, y = s.cx - SCENT_W / 2, s.cy + HIER_H / 2 + 16
+    words = ", ".join(f"{r.get('name')} {pct(float(r.get('value') or 0.0) / total)}"
+                      for r in top3)
+    out = [f'<g class="scent"><title>{escape(f"Inside: {words} of the total; colour = main cause")}</title>',
+           f'<rect x="{x0:.1f}" y="{y:.1f}" width="{SCENT_W:.1f}" height="5" fill="{c["link"]}" '
+           'fill-opacity="0.25"/>']
+    x = x0
+    for r in top3:
+        width = SCENT_W * min(1.0, max(0.0, float(r.get("value") or 0.0) / total))
+        colour = CAUSE_COLOURS.get(str(r.get("main_cause") or "other"), CAUSE_COLOURS["other"])
+        out.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="5" fill="{colour}"/>')
+        x += width
+    out.append("</g>")
+    return out
+
+
+def _worst(rows: list[dict[str, Any]]) -> str:
+    from raptor.api.advisor.finding import SEVERITY_RANK
+    return max((str(r["severity"]) for r in rows), key=lambda v: SEVERITY_RANK[v])
+
+
+def _advisor_svg(shapes: list[_Shape], painted: dict[tuple[str, int], dict[str, Any]],
+                 rolled: dict[int, tuple[float, int, list[dict[str, Any]]]], legend: list[str],
+                 c: dict[str, str], legend_at: tuple[float, float]) -> list[str]:
+    """The Advisor's marks: under each flagged element a warning sign (or a
+    note sign for advice) and how many findings concern it, with the
+    findings in its title; under a hierarchy the count of what is flagged
+    inside it; then the legend."""
+    out = ['<g class="result-layer advisor-layer">']
+    for s in shapes:
+        row = painted.get((s.kind, s.id))
+        rows = [row] if row is not None else (rolled[s.id][2] if s.kind == "hier" and s.id in rolled
+                                              else [])
+        if not rows:
+            continue
+        worst = _worst(rows)
+        count = sum(int(r.get("count") or 0) for r in rows)
+        sign = "⚠" if worst in ("error", "warning") else "ⓘ"
+        if row is not None:
+            title = f"{row.get('name')}: {count} Advisor finding(s)\n" + "\n".join(
+                f"• {f['severity']}: {f['title']} ({f['rule']})" for f in row.get("findings") or [])
+            label = f"{sign} {count}"
+        else:
+            title = (f"{count} Advisor finding(s) about {len(rows)} element(s) inside; worst: {worst}\n"
+                     + "\n".join(f"• {r.get('name')}: {r.get('count')}" for r in rows[:8]))
+            label = f"Σ {sign} {count}"
+        _hw, hh = s.half
+        y = (s.cy + HIER_H / 2 + 12 if s.kind == "hier"
+             else s.cy + hh + (24 if s.kind in ("event", "node") else 11))
+        out.append(f'<g class="mark"><title>{escape(title)}</title>'
+                   f'<text x="{s.cx:.1f}" y="{y:.1f}" font-size="10" font-weight="bold" '
+                   f'fill="{c["text"]}" text-anchor="middle">{escape(label)}</text></g>')
+    x, bottom = legend_at
+    for i, line in enumerate(legend):
+        out.append(f'<text x="{x:.1f}" y="{bottom - 16 * (len(legend) - 1 - i):.1f}" '
+                   f'font-size="11" fill="{c["text"]}">{escape(line)}</text>')
+    out.append("</g>")
+    return out
+
+
+def _advisor_legend(layer: dict[str, Any], width: float) -> list[str]:
+    off = int(layer.get("off_canvas") or 0)
+    text = ("Advisor findings: red = an error, yellow = a warning, blue = advice or a note; "
+            "⚠ n / ⓘ n = how many findings concern the element (hover for them). "
+            "Σ = what is flagged inside a hierarchy.")
+    if off:
+        text += (f" {off} finding(s) about settings rather than elements (pools, crews, "
+                 "the run) are not drawn: see the Advisor's full list.")
+    return _wrap(text, width)
+
+
+def _band_of(value: float, layer: dict[str, Any] | None) -> str:
+    largest = float((layer or {}).get("largest") or 0.0)
+    fraction = value / largest if largest > 0 else 0.0
+    return "high" if fraction >= 2 / 3 else "mid" if fraction >= 1 / 3 else "low"
+
+
+def _layer_marks(rbd: Any, layer: dict[str, Any], by_key: dict[tuple[str, int], _Shape]
+                 ) -> tuple[dict[tuple[str, int], dict[str, Any]],
+                            dict[int, tuple[float, int, list[dict[str, Any]]]]]:
+    """The layer's rows on this level, and each hierarchy oval on this level
+    with the sum of the rows inside it (at any depth)."""
+    parents: dict[tuple[str, int], int] = {}
+    for row in _rows(rbd, "BLOCK_DATA"):
+        b = block_from_row(row)
+        parents[("block", b.id)] = b.parent_id
+    for row in _rows(rbd, "EVENT_DATA"):
+        e = event_from_row(row)
+        parents[("event", e.id)] = e.parent_id
+    for row in _rows(rbd, "NODE_DATA"):
+        n = node_from_row(row)
+        parents[("node", n.id)] = n.parent_id
+    hier_parent = {h.id: h.parent_id for h in (hier_from_row(r) for r in _rows(rbd, "HIERARCHY_DATA"))}
+    for hid, parent in hier_parent.items():
+        parents[("hier", hid)] = parent
+    painted: dict[tuple[str, int], dict[str, Any]] = {}
+    rolled: dict[int, tuple[float, int, list[dict[str, Any]]]] = {}
+    for row in layer.get("elements") or []:
+        key = (str(row.get("kind")).lower(), int(row["id"]))
+        if key in by_key:
+            painted[key] = row
+            continue
+        parent = parents.get(key, 0)
+        for _depth in range(16):           # the oval on this level holding it
+            if not parent or ("hier", parent) in by_key:
+                break
+            parent = hier_parent.get(parent, 0)
+        if parent and ("hier", parent) in by_key:
+            total, count, rows = rolled.get(parent, (0.0, 0, []))
+            rolled[parent] = (total + float(row.get("value") or 0.0), count + 1, [*rows, row])
+    return painted, rolled
+
+
+def _flow_widths(flow: dict[int, float]) -> dict[int, float]:
+    """Stroke widths relative to the busiest node, as the canvas draws them."""
+    busiest = max(flow.values(), default=0.0) or 1.0
+    return {int(nid): 1.5 + 8.5 * max(0.0, float(value)) / busiest
+            for nid, value in flow.items()}
+
+
+def _legend_lines(layer: dict[str, Any], flow: bool, width: float) -> list[str]:
+    from raptor.api.insight.canvas import CAUSE_GLYPHS
+    from raptor.api.insight.attribution import CAUSE_LABELS
+    largest = 100 * float(layer.get("largest") or 0.0)
+    measure = str(layer.get("measure") or "share")
+    lines = [f"Colour: {measure}, red from 2/3 of the largest ({largest:.3g} %), "
+             "yellow from 1/3, green below. Σ = the elements inside a hierarchy.",
+             "Letter: main cause (" + ", ".join(
+                 f"{glyph} {CAUSE_LABELS.get(cause, cause).lower()}"
+                 for cause, glyph in CAUSE_GLYPHS.items()) + "). "
+             "Dashed ring and ±: the runs disagree; read it as rough."]
+    if flow:
+        lines.append("Link width: mean flow through the capacity node it feeds, "
+                     "relative to the busiest node (flow is recorded per node, not per link).")
+    return [part for line in lines for part in _wrap(line, width)]
+
+
+def _wrap(line: str, width: float) -> list[str]:
+    """`line` wrapped to the drawing's width (about 6 px a character at 11 px)."""
+    out: list[str] = []
+    per_line = max(40, int(width / 6.2))
+    current = ""
+    for word in line.split(" "):
+        if current and len(current) + 1 + len(word) > per_line:
+            out.append(current)
+            current = word
+        else:
+            current = f"{current} {word}".strip()
+    out.append(current)
+    return out
+
+
+def _mark_svg(s: _Shape, row: dict[str, Any], c: dict[str, str]) -> str:
+    """The share under the element, the cause letter in its corner and the
+    dashed ring of an uncertain share."""
+    from raptor.render.charts_svg import CAUSE_COLOURS
+    hw, hh = s.half
+    value = 100 * float(row.get("value") or 0.0)
+    label = f"{value:.3g} %" + (" ±" if row.get("uncertain") else "")
+    spread = (f" (±2 SE {100 * row['low']:.3g} to {pct(row['high'])})"
+              if row.get("low") is not None and row.get("high") is not None else "")
+    title = escape(f"{row.get('name')}: {value:.4g} %{spread}; main cause "
+                   f"{row.get('cause_label') or 'none recorded'}")
+    y = s.cy + hh + (24 if s.kind == "event" else 11)
+    out = [f'<g class="mark"><title>{title}</title>'
+           f'<text x="{s.cx:.1f}" y="{y:.1f}" font-size="10" font-weight="bold" '
+           f'fill="{c["text"]}" text-anchor="middle">{escape(label)}</text>']
+    glyph = str(row.get("glyph") or "")
+    if glyph:
+        bx, by = s.cx + hw - 1, s.cy - hh + 1
+        colour = CAUSE_COLOURS.get(str(row.get("main_cause") or "other"), CAUSE_COLOURS["other"])
+        if row.get("uncertain"):
+            out.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="10.5" fill="none" '
+                       f'stroke="{c["text"]}" stroke-width="1.2" stroke-dasharray="3 2"/>')
+        out.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="7" fill="{colour}"/>'
+                   f'<text x="{bx:.1f}" y="{by:.1f}" font-size="9" font-weight="bold" fill="#FFFFFF" '
+                   f'text-anchor="middle" dominant-baseline="central">{escape(glyph)}</text>')
+    out.append("</g>")
+    return "".join(out)
 
 
 def _title(s: _Shape) -> str:

@@ -46,7 +46,32 @@ class ExportMixin(_Base):
         _results: raptor.gui.ui.results.ResultsDock
         _statusbar: PySide6.QtWidgets.QStatusBar
 
-    def _export_pdf(self):
+    #: The one Export window's file types (U22): the label, the handler, and
+    #: the extension. Export Tables (pick which tables) keeps its own window.
+    EXPORT_TYPES: tuple[tuple[str, str, str], ...] = (
+        ("PDF report (*.pdf)", "_export_pdf", ".pdf"),
+        ("Excel workbook of the tables (*.xlsx)", "_export_workbook_xlsx", ".xlsx"),
+        ("OpenDocument spreadsheet of the tables (*.ods)", "_export_workbook_ods", ".ods"),
+        ("Diagram as SVG (*.svg)", "_export_diagram_svg", ".svg"),
+        ("Diagram as PNG (*.png)", "_export_bitmap", ".png"),
+    )
+
+    def _export_any(self) -> None:
+        """File ▸ Export…: one save window; the file type chosen (or the
+        name's extension) says what is written."""
+        if self._rbd is None:
+            return
+        stem = Path(self._current_file).stem if self._current_file else "model"
+        filters = ";;".join(label for label, _h, _e in self.EXPORT_TYPES)
+        path, chosen = fdg.getSaveFileName(self, "Export", stem + ".pdf", filters)
+        if not path:
+            return
+        handler, ext = export_choice(self.EXPORT_TYPES, path, chosen)
+        if not path.lower().endswith(ext):
+            path += ext
+        getattr(self, handler)(path=path)
+
+    def _export_pdf(self, path: str | None = None):
         if self._rbd is None:
             return
         from raptor.gui.ui.printing import _prompt_export_options
@@ -58,8 +83,9 @@ class ExportMixin(_Base):
             return
         default = (Path(self._current_file).stem + ".pdf"
                    if self._current_file else "report.pdf")
-        path, _ = fdg.getSaveFileName(
-            self, "Export PDF", default, "PDF files (*.pdf)")
+        if path is None:
+            path, _ = fdg.getSaveFileName(
+                self, "Export PDF", default, "PDF files (*.pdf)")
         if not path:
             return
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -89,15 +115,15 @@ class ExportMixin(_Base):
         from raptor.gui.ui.tables_dialog import open_export_tables_dialog
         open_export_tables_dialog(self)
 
-    def _export_workbook_xlsx(self):
+    def _export_workbook_xlsx(self, path: str | None = None):
         """File > Export Excel Workbook...: one .xlsx of the default tables."""
-        self._export_workbook(".xlsx")
+        self._export_workbook(".xlsx", path)
 
-    def _export_workbook_ods(self):
+    def _export_workbook_ods(self, path: str | None = None):
         """File > Export OpenDocument Spreadsheet...: the same as .ods."""
-        self._export_workbook(".ods")
+        self._export_workbook(".ods", path)
 
-    def _export_workbook(self, ext: str):
+    def _export_workbook(self, ext: str, path: str | None = None):
         """The model's tables and the latest run's result tables (the Export
         Tables dialog's default choice) as ONE workbook, after a Save dialog.
         The file-type list offers both types, starting on `ext`."""
@@ -112,9 +138,10 @@ class ExportMixin(_Base):
         start = (str(Path(model_path).parent) if model_path
                  else os.getcwd())
         default = os.path.join(start, f"{safe_stem(name)}_tables{ext}")
-        path = fdg.ask_spreadsheet_path(
-            self, "Export Excel Workbook" if ext == ".xlsx"
-            else "Export OpenDocument Spreadsheet", default)
+        if path is None:
+            path = fdg.ask_spreadsheet_path(
+                self, "Export Excel Workbook" if ext == ".xlsx"
+                else "Export OpenDocument Spreadsheet", default)
         if not path:
             return
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -133,7 +160,7 @@ class ExportMixin(_Base):
             QApplication.restoreOverrideCursor()
         self._statusbar.showMessage(f"Saved {written}", 8000)
 
-    def _export_diagram_svg(self):
+    def _export_diagram_svg(self, path: str | None = None):
         """Export the CURRENTLY DISPLAYED hierarchy level as a scalable
         vector file -- reuses the exact same content-rect measurement
         and QPainter render call the PDF report uses for its diagram
@@ -147,8 +174,9 @@ class ExportMixin(_Base):
         from PySide6.QtSvg import QSvgGenerator
         default = (Path(self._current_file).stem + ".svg"
                   if self._current_file else "diagram.svg")
-        path, _ = fdg.getSaveFileName(
-            self, "Export Diagram SVG", default, "SVG files (*.svg)")
+        if path is None:
+            path, _ = fdg.getSaveFileName(
+                self, "Export Diagram SVG", default, "SVG files (*.svg)")
         if not path:
             return
         v = self._diagram_dock.view
@@ -225,18 +253,19 @@ class ExportMixin(_Base):
             self._diagram_dock.view, rect,
             scale=(scale or self._BITMAP_SCALE))
 
-    def _export_bitmap(self):
+    def _export_bitmap(self, path: str | None = None):
         if self._rbd is None:
             return
-        dlg = QFileDialog(self, "Save Diagram as PNG")
-        dlg.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-        fdg.theme_file_dialog(dlg)
-        dlg.setNameFilter("PNG Images (*.png)")
-        dlg.selectFile("diagram.png")
-        if not dlg.exec() or not dlg.selectedFiles():
-            return
-        path = dlg.selectedFiles()[0]
+        if path is None:
+            dlg = QFileDialog(self, "Save Diagram as PNG")
+            dlg.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+            fdg.theme_file_dialog(dlg)
+            dlg.setNameFilter("PNG Images (*.png)")
+            dlg.selectFile("diagram.png")
+            if not dlg.exec() or not dlg.selectedFiles():
+                return
+            path = dlg.selectedFiles()[0]
         if not path:
             return
         # Full model rect (content), supersampled — never the
@@ -263,3 +292,18 @@ class ExportMixin(_Base):
         QApplication.clipboard().setPixmap(pm)
         self._statusbar.showMessage(
             f"Copied view to clipboard ({pm.width()}×{pm.height()} px)")
+
+
+def export_choice(types: tuple[tuple[str, str, str], ...], path: str,
+                  chosen: str) -> tuple[str, str]:
+    """(handler, extension) for a name typed in the Export window: the
+    name's own extension wins (typing report.xlsx means a workbook), else
+    the file type picked in the list, else the first type."""
+    lower = path.lower()
+    for _label, handler, ext in types:
+        if lower.endswith(ext):
+            return handler, ext
+    for label, handler, ext in types:
+        if label == chosen:
+            return handler, ext
+    return types[0][1], types[0][2]

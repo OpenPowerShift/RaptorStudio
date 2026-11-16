@@ -1,0 +1,257 @@
+"""MCP tools for the Advisor and downtime drivers, and their parity with the API."""
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+
+pytest.importorskip("mcp")
+
+SPEC = {
+    "experiment": {"trials": 30, "termination_type": "TimeSim", "term_condition": 3000},
+    "blocks": [{"name": "Pump", "fail_dist": 4, "fail_params": [300.0, 0.0],
+                "repair_dist": 7, "repair_params": [10.0, 3.0]},
+               {"name": "Spare", "fail_dist": 4, "fail_params": [300.0, 0.0],
+                "repair_dist": 7, "repair_params": [10.0, 3.0],
+                "dep_type": "RBDBlock", "dep_num": 1, "dep_idle": 100}],
+    "nodes": [{"name": "Start", "type": 1}, {"name": "S", "type": 2, "k": 1},
+              {"name": "J", "type": 2, "k": 1}, {"name": "End", "type": 3}],
+    "links": [{"from": "Start", "to": "S"}, {"from": "S", "to": "Pump"},
+              {"from": "S", "to": "Spare"}, {"from": "Pump", "to": "J"},
+              {"from": "Spare", "to": "J"}, {"from": "J", "to": "End"}],
+}
+
+
+@pytest.fixture
+def server(tmp_path):
+    from raptor.mcp import server as srv
+    from raptor.mcp import tools_advisor, tools_model, tools_run  # noqa: F401
+    srv.mcp._raptor_args = type("A", (), {"workspace": str(tmp_path), "read_only": False})()
+    srv.mcp._raptor_ws = None
+    yield srv
+    srv.mcp._raptor_ws = None
+
+
+def call(server, tool, /, **args):
+    result = asyncio.run(server.mcp.call_tool(tool, args))
+    return result
+
+
+def ok(result):
+    text = " ".join(c.text for c in result.content if getattr(c, "type", "") == "text")
+    assert not result.is_error, text
+    return result.structured_content
+
+
+@pytest.fixture
+def model(server):
+    return ok(call(server, "build_model", name="m", spec=SPEC, validate_model=False))["model_id"]
+
+
+def test_advise_matches_the_api(server, model):
+    from raptor.api.advisor import advise_model
+    from raptor.mcp import context
+    data = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
+    api = [f.to_dict() for f in advise_model(context.workspace().get(model).rbd)]
+    assert data["findings"] == api
+    assert "M-STR-002" in {f["rule"] for f in data["findings"]}
+    assert data["counts"]["warning"] >= 1 and data["truncated"] is False
+
+
+def test_advise_filters_and_truncates(server, model):
+    data = ok(call(server, "advise", model_id=model, only=["M-STR"], min_severity="info"))
+    assert {f["rule"] for f in data["findings"]} == {"M-STR-002"}
+    data = ok(call(server, "advise", model_id=model, min_severity="info", limit=1))
+    assert data["shown"] == 1 and data["truncated"] is True
+
+
+def test_apply_fix_then_undo(server, model):
+    done = ok(call(server, "apply_fix", model_id=model, rule="M-STR-002"))
+    assert done["applied"] == ["block:2.dep_type=None", "block:2.dep_num=0"] and done["remaining"] == 0
+    assert "M-STR-002" not in {f["rule"] for f in ok(call(server, "advise", model_id=model))["findings"]}
+    ok(call(server, "undo_last_edit", model_id=model))
+    assert "M-STR-002" in {f["rule"] for f in ok(call(server, "advise", model_id=model))["findings"]}
+
+
+def test_apply_fix_says_what_to_do_when_it_cannot(server, model):
+    missing = call(server, "apply_fix", model_id=model, rule="M-RES-001")
+    assert missing.is_error and "call advise" in missing.content[0].text
+    tool_only = call(server, "apply_fix", model_id=model, rule="M-SPR-001")
+    assert tool_only.is_error
+
+
+def test_drivers_need_attribution_and_match_the_api(server, model):
+    plain = ok(call(server, "simulate", model_id=model, seed=4))
+    refused = call(server, "downtime_drivers", run_id=plain["run_id"])
+    assert refused.is_error and "attribution" in refused.content[0].text
+
+    run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    assert run["summary"] == plain["summary"]            # attribution changes no result
+    data = ok(call(server, "downtime_drivers", run_id=run["run_id"], top=1, detail="full"))
+    from raptor.api.insight import drivers
+    from raptor.mcp import context
+    api = drivers.read(context.workspace(), run["run_id"])
+    assert data["system"] == api["system"] and data["causes"] == api["causes"]
+    assert len(data["elements"]) == 1 and data["caption"] == drivers.caption(api)
+
+    # the default is the summary: mean, sem and n, six figures, same numbers
+    brief = ok(call(server, "downtime_drivers", run_id=run["run_id"], top=1))
+    assert brief["elements"][0]["dtci"] == drivers.compact(data["elements"][0]["dtci"])
+    assert set(brief["elements"][0]["dtci"]) == {"mean", "sem", "n"}
+    assert brief["elements"][0]["dtci"]["mean"] == pytest.approx(
+        data["elements"][0]["dtci"]["mean"], rel=1e-5)
+    assert len(brief.get("sequences") or []) <= 1
+    assert brief["caption"] == data["caption"]
+    with pytest.raises(Exception, match="summary"):       # refused by the input schema
+        call(server, "downtime_drivers", run_id=run["run_id"], detail="all")
+
+    advised = ok(call(server, "advise", model_id=model, run_id=run["run_id"], min_severity="info",
+                      limit=200, targets=[{"metric": "system.ao", "op": ">=", "value": 0.2}]))
+    rules = {f["rule"] for f in advised["findings"]}
+    assert {"R-DRV-001", "R-REQ-001", "M-STR-002"} <= rules
+
+
+def test_rules_listing(server):
+    rules = ok(call(server, "list_advisor_rules"))["rules"]
+    assert {"model", "run"} == {r["phase"] for r in rules}
+    assert all(r["id"] and r["title"] for r in rules)
+
+
+def test_annual_availability_matches_the_api(server, model):
+    from raptor.api.insight import drivers
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    data = ok(call(server, "annual_availability", run_id=run["run_id"], year_length=500.0,
+                   below=0.5))
+    api = drivers.periods(context.workspace(), run["run_id"], 500.0, below=0.5)
+    assert data == api
+    assert data["pooled"]["n"] == 30 * 6 and "p_below" in data["pooled"]
+
+
+def test_run_story_returns_the_same_numbers_as_the_api(server, model):
+    from raptor.api.insight.story import from_run
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    data = ok(call(server, "run_story", run_id=run["run_id"]))
+    api = from_run(context.workspace(), run["run_id"]).to_dict()
+    assert data["headline"] == api["headline"]
+    assert data["drivers"] == api["drivers"]
+    assert data["numbers"] == api["numbers"]
+    assert data["provenance"]["run_id"] == run["run_id"]
+
+
+def test_run_story_matches_the_api_and_needs_no_attribution(server, model):
+    from raptor.api.insight.story import from_run
+    from raptor.mcp import context
+    plain = ok(call(server, "simulate", model_id=model, seed=4))
+    data = ok(call(server, "run_story", run_id=plain["run_id"]))
+    api = from_run(context.workspace(), plain["run_id"])
+    assert data["headline"]["field"] == "availability"
+    assert data["headline"]["value"] == pytest.approx(api.headline.value)
+    assert data["dots"] == api.dots
+    assert data["provenance"]["runs"] == api.provenance["runs"]
+    with_attr = ok(call(server, "simulate", model_id=model, seed=4, attribution=True))
+    story = ok(call(server, "run_story", run_id=with_attr["run_id"]))
+    assert story["drivers_available"] is True and story["drivers"]
+
+
+def test_run_chart_matches_the_api_and_renders_svg(server, model):
+    from raptor.api.insight import charts
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import read_per_run
+    from raptor.mcp import context
+
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    result = call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto")
+    data = ok(result)
+    assert "svg" not in data            # the figure only on request
+    text = " ".join(c.text for c in result.content)
+    top = data["series"][0]
+    assert f"{top['name']}:" in text    # the numbers are in the text too
+    data = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="downtime-pareto", render_svg=True))
+    ws = context.workspace()
+    per_run = read_per_run(run_dir(ws, run["run_id"]), run["run_id"]) or []
+    from raptor.api.insight import drivers
+    expected = charts.chart_named(
+        "downtime-pareto", per_run=per_run,
+        attribution=drivers.read(ws, run["run_id"]))
+    assert data["series"] == expected.to_dict()["series"]
+    assert data["svg"].startswith("<svg")
+    plain = ok(call(server, "run_chart", run_id=run["run_id"],
+                    chart="trial-outcome", render_svg=False))
+    assert "svg" not in plain and plain["kind"] == "dot_plot"
+    a3 = ok(call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
+                 page="a3", min_share=0.5, render_svg=True))
+    assert "width='420mm'" in a3["svg"]
+    assert a3["provenance"].get("folded_below", 0.5) == 0.5
+    bad = call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto",
+               page="letter")
+    assert bad.is_error
+
+
+def test_run_chart_draws_a_chart_over_time(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5, availability_plot=True))
+    data = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="availability-through-run", run=2, y_floor=0.5,
+                   render_svg=True))
+    assert data["kind"] == "timeline" and data["title"] == "Availability through run 2"
+    assert data["provenance"]["y_range"] == [0.5, 1.0]
+    assert data["svg"].startswith("<svg")
+    missing = call(server, "run_chart", run_id=run["run_id"], chart="capacity-band")
+    assert missing.is_error
+    assert "capacity plot" in " ".join(c.text for c in missing.content)
+
+
+def test_ignore_finding_hides_it_from_advise_and_restores(server, model):
+    from raptor.mcp import context
+    first = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
+    hit = next(f for f in first["findings"] if f["rule"] == "M-STR-002")
+    target = hit["targets"][0]["path"].split(".", 1)[0]
+    data = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                   target=target, reason="cold standby by design"))
+    (entry,) = data["ignored"]
+    assert data["changed"] and {k: entry[k] for k in ("rule", "target", "reason")} == {
+        "rule": "M-STR-002", "target": target, "reason": "cold standby by design"}
+    # by name and rule title, as the desktop app lists it
+    assert entry["subject"].startswith("Block ") and entry["title"]
+    after = ok(call(server, "advise", model_id=model, min_severity="info", limit=200))
+    assert "M-STR-002" not in {f["rule"] for f in after["findings"]}
+    assert after["ignored"] == data["ignored"]
+    # the file keeps only what was decided; titles and names are worked out
+    assert context.workspace().get(model).rbd.advisor["ignored"] == [
+        {k: entry[k] for k in ("rule", "target", "reason")}]
+    back = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                   target=target, restore=True))
+    assert back == {"model_id": model, "ignored": [], "changed": True}
+    again = ok(call(server, "ignore_finding", model_id=model, rule="M-STR-002",
+                    target=target, restore=True))
+    assert again["changed"] is False
+
+
+@pytest.mark.parametrize("args", [
+    {"rule": "NOT-A-RULE"},
+    {"rule": "M-STR-002", "reason": "x" * 501},
+    {"rule": "M-STR-002", "target": "b" * 201},
+])
+def test_ignore_finding_refuses_bad_input(server, model, args):
+    assert call(server, "ignore_finding", model_id=model, **args).is_error
+
+
+def test_ignore_finding_is_refused_read_only(server, model):
+    server.mcp._raptor_args.read_only = True
+    try:
+        assert call(server, "ignore_finding", model_id=model, rule="M-STR-002").is_error
+    finally:
+        server.mcp._raptor_args.read_only = False
+
+
+def test_a_missing_option_names_the_switch_and_importance_draws(server, model):
+    plain = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1))
+    refused = call(server, "downtime_drivers", run_id=plain["run_id"])
+    assert refused.is_error and "simulate(attribution=true)" in refused.content[0].text
+    quadrant = call(server, "run_chart", run_id=plain["run_id"], chart="importance-quadrant")
+    assert quadrant.is_error and 'simulate(importance="both")' in quadrant.content[0].text
+    run = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1, importance="both"))
+    data = ok(call(server, "run_chart", run_id=run["run_id"], chart="importance-quadrant"))
+    assert data["kind"] == "quadrant" and data["title"] == "Importance on availability"

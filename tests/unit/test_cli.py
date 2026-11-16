@@ -184,6 +184,18 @@ def test_json_path_dash_writes_to_stdout_only_once(capsys):
     assert json.loads(out)["schema"] == "raptor-results/1"
 
 
+def test_precision_reports_its_interval_in_json_and_watches_a_time_as_itself(capsys):
+    code, out, err = run_cli(capsys, "run", MOTOR, "--precision", "20%",
+                             "--precision-metric", "system.mdt", "--min-trials", "10",
+                             "--max-trials", "40", "--precision-batch", "10",
+                             "--seed", "2", "-f", "json")
+    assert code == 0
+    precision = json.loads(out)["precision"]
+    assert precision["on"] == "value" and precision["watched"] == "mdt"
+    assert precision["mean"] == pytest.approx(precision["value"]) and precision["mean"] > 0
+    assert "precision:" in err and "mdt" in err and "1 - " not in err
+
+
 # --- run options -----------------------------------------------------------
 
 def test_set_changes_the_run_but_not_the_file(capsys):

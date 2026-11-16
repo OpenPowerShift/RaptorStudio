@@ -1,6 +1,6 @@
 .TH "RAPTOR-SET" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-set \- Apply each PATH=VALUE to MODEL and save. Writes to \-o OUT, or with \-\-in\-place to MODEL itself (a .bak copy is kept with \-\-backup). Without either, nothing is written.
+raptor\-set \- change model fields and save the model
 .SH SYNOPSIS
 \fBraptor set\fR [\-h] [\-\-set\-file FILE] [\-o OUT | \-\-in\-place] [\-\-backup] MODEL [PATH=VALUE ...]
 .SH DESCRIPTION
@@ -9,13 +9,13 @@ Apply each PATH=VALUE to MODEL and save. Writes to \-o OUT, or with \-\-in\-plac
 .SS Options
 .TP
 \fB\-\-set\-file\fR \fIFILE\fR
-
+more PATH=VALUE lines from a file, one per line
 .TP
 \fB\-o\fR, \fB\-\-output\fR \fIOUT\fR
-
+save to a new file
 .TP
 \fB\-\-in\-place\fR
-
+overwrite MODEL
 .TP
 \fB\-\-backup\fR
 with \-\-in\-place, keep MODEL.bak

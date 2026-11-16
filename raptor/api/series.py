@@ -2,11 +2,9 @@
 
 Parses the availability-over-time and capacity-over-time text outputs
 into ``{t: list[float], values: list[float]}`` and decimates to N
-points.  This module is the Qt-free owner of both sink formats: it used
-to be written locally rather than importing
-``raptor/gui/ui/plots.py`` (which pulls in Qt), and the GUI kept its own
-second copy of the same parsers as a result.  The GUI now adapts these
-run dicts instead.
+points.  This module is the one owner of both sink formats: the charts
+over time (`raptor.api.insight.timecharts`), the MCP timeseries tool and
+the GUI's Charts tab all parse through it.
 
 The engine availability-plot format (``*_ao_sink`` rows) is::
 
@@ -82,7 +80,7 @@ def parse_ao_runs(text: str) -> list[dict[str, Any]]:
 
     The remaining columns of the same row are kept alongside it as
     ``green``/``yellow``/``red``/``interval``, so a consumer that paints
-    the Green/Yellow/Red bands (the Graphs tab) does not have to parse the
+    the Green/Yellow/Red bands (the availability chart over time) does not have to parse the
     row a second time.  A column the row does not carry -- the run-end row
     has no ``Interval`` -- is ``None``, and so is one that does not parse
     as a number: the availability series is unaffected either way, because

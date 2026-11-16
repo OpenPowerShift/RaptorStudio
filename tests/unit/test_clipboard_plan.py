@@ -7,7 +7,7 @@ from pathlib import Path
 
 from raptor.core.fileio.rbd import load_rbd
 from raptor.core.fileio.typed import hier_from_row
-from raptor.gui.clipboard_plan import count_elements, plan_copy, plan_paste
+from raptor.core.edit.clipboard_plan import count_elements, plan_copy, plan_paste
 
 GOLD = Path(__file__).resolve().parents[1] / "golden"
 
@@ -35,7 +35,7 @@ def _live(rbd, hiers):
 
 
 def test_modules_need_no_qt():
-    code = ("import sys, raptor.gui.clipboard_plan;"
+    code = ("import sys, raptor.core.edit.clipboard_plan;"
             "sys.exit(any(m.startswith('PySide') for m in sys.modules))")
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 
@@ -110,7 +110,7 @@ def test_pasted_links_join_the_pasted_elements_at_the_pasted_level():
 
 
 def test_a_copy_includes_hierarchies_nested_in_it_and_their_links():
-    from raptor.gui.clipboard_plan import subtree_hiers
+    from raptor.core.edit.clipboard_plan import subtree_hiers
     rbd, hiers = _model("NestedHierarchyCost")
     outer = next(i for i, h in hiers.items() if not h.parent_id)
     inner = {i for i, h in hiers.items() if h.parent_id == outer}

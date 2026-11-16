@@ -46,7 +46,8 @@ def add_parser(sub: Any) -> None:
                         "after --at")
     p.add_argument("--importance", action="store_true", default=True,
                    help="exact Birnbaum/RAW/RRW/VF/criticality (default on)")
-    p.add_argument("--no-importance", action="store_false", dest="importance")
+    p.add_argument("--no-importance", action="store_false", dest="importance",
+                   help="skip the importance measures (faster on a large model)")
     p.add_argument("--equation", action="store_true",
                    help="print the path-product equation")
     p.add_argument("--ignore-repairs", action="store_true",

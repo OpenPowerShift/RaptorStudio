@@ -228,8 +228,11 @@ def test_display_unit_controls_headers_and_computed_means(qapp):
     bid = sorted(v.blocks)[0]
     b = v.blocks[bid]
     mean = compute_stats(b.fail_distro, list(b.fail_values))[0]
-    expected = f"{native_to_display(mean, 'minutes', 'days'):.4g}"
-    assert t.item(0, 13).text() == expected
+    from raptor.gui.ui.data_tables_common import _fmt_stat
+    shown = native_to_display(mean, 'minutes', 'days')
+    assert t.item(0, 13).text() == _fmt_stat(shown)
+    from raptor.gui.ui.table_export import RAW_VALUE_ROLE
+    assert t.item(0, 13).data(RAW_VALUE_ROLE) == pytest.approx(shown)
     w._dirty = False
     w.close()
 
@@ -722,5 +725,32 @@ def test_hidden_data_tables_are_populated_only_when_shown(qapp):
     qapp.processEvents()
     assert not dt._refresh_pending
     assert dt._blocks_table.rowCount() == n
+    w._dirty = False
+    w.close()
+
+
+def test_a_drop_down_column_fits_its_longest_choice(qapp):
+    """'None (unrepairable)' was cut to 'None (unrepai': a drop-down column
+    is as wide as its longest choice, not just its header."""
+    from PySide6.QtWidgets import QComboBox
+    w = MainWindow()
+    w._load_into_app(load_rbd(os.path.join(REPO, "tests/golden/CS_Probe/input.rbd")), None)
+    w.resize(1024, 700)
+    w.show()
+    for _ in range(20):
+        qapp.processEvents()
+    dt = w._data_tables
+    table = dt._blocks_table
+    dt._realize_all(table)
+    dt._ensure_header_widths(table)
+    checked = 0
+    for col in range(table.columnCount()):
+        combo = table.cellWidget(0, col) if table.rowCount() else None
+        if isinstance(combo, QComboBox) and combo.count():
+            longest = max(combo.fontMetrics().horizontalAdvance(combo.itemText(i))
+                          for i in range(combo.count()))
+            assert table.columnWidth(col) >= longest + 44, table.horizontalHeaderItem(col).text()
+            checked += 1
+    assert checked, "the blocks grid has drop-down columns"
     w._dirty = False
     w.close()

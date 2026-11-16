@@ -27,6 +27,20 @@ OFF_RIBBON = {
     # On the quick-access bar beside the tabs (always visible), with
     # Ctrl+Z / Ctrl+Y; the Home tab that also held them was merged away.
     "home.undo", "home.redo",
+    # Shortcut/dialog first: Ctrl+Shift+P / Ctrl+K and the grid's Ctrl+H.
+    "view.command_search", "data.find_replace",
+    # The canvas menu's Duplicate submenu and shortcuts (Ctrl+Alt+D,
+    # Ctrl+Shift+V); on the ribbon they pushed Build off a 1280 px window.
+    "home.duplicate_parallel", "home.array", "home.paste_data",
+    # Results overlays, driven by the one "Show on canvas" combo.
+    "results.weak_color", "results.capacity_overlay", "results.cost_overlay",
+    "results.spares_overlay", "results.importance_overlay",
+    "results.downtime_overlay", "results.lost_capacity_overlay",
+    "results.advisor_overlay",
+    # U22: the File view's one Export… writes each of these by file type;
+    # the single-type commands stay for the palette and shortcuts.
+    "file.export_pdf", "file.export_xlsx", "file.export_ods",
+    "file.export_svg", "file.export_png",
 }
 
 #: Attributes of MainWindow that handlers may start from.
@@ -106,7 +120,7 @@ def test_every_predicate_used_is_defined_and_explained():
 def test_the_layout_has_the_expected_tabs():
     # File is not a tab: the File button opens the full-page File view.
     assert [p.title for p in LAYOUT] == [
-        "Model", "Arrange", "Data", "Simulate", "Debug",
+        "Model", "Arrange", "Data", "Simulate", "Analyse", "Debug",
         "Results", "View", "Help"]
 
 
