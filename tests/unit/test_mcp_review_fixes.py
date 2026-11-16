@@ -16,14 +16,20 @@ GOLDEN = REPO / "tests" / "golden"
 
 
 def _tools() -> dict:
-    from raptor.mcp import (  # noqa: F401
-        server, tools_advisor, tools_library, tools_metrics, tools_model, tools_optimise,
-        tools_run, tools_tables,
-    )
-    try:
-        from raptor.mcp import tools_view  # noqa: F401
-    except ImportError:
-        pass
+    # every tools_* module, so the registry is whole however the tests are
+    # ordered (a fixed list missed tools_analytic, so export_analytical was
+    # found only when an earlier test had imported it)
+    import importlib
+    import pkgutil
+
+    import raptor.mcp
+    from raptor.mcp import server
+    for info in pkgutil.iter_modules(raptor.mcp.__path__):
+        if info.name.startswith("tools_"):
+            try:
+                importlib.import_module(f"raptor.mcp.{info.name}")
+            except ImportError:            # an optional extra not installed
+                pass
     return {t.name: t for t in asyncio.run(server.mcp.list_tools())}
 
 
