@@ -1701,6 +1701,20 @@ def svg_icon(colour: str) -> QIcon:
     return _icon("svg", colour, draw)
 
 
+def export_icon(colour: str) -> QIcon:
+    """Export (report, tables or diagram): a page with a folded corner and
+    an arrow leaving it to the right."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawPolyline(QPolygonF([QPointF(24, 42), QPointF(6, 42), QPointF(6, 6),
+                                  QPointF(22, 6), QPointF(30, 14), QPointF(30, 20)]))
+        p.drawPolyline(QPolygonF([QPointF(22, 6), QPointF(22, 14), QPointF(30, 14)]))
+        p.setPen(_pen(c, 3.5))
+        p.drawLine(16, 30, 36, 30)
+        _arrowhead(p, c, QPointF(44, 30), 0, 9)
+    return _icon("export", colour, draw)
+
+
 def export_tables_icon(colour: str) -> QIcon:
     """Export Tables: a small table with an arrow leaving it."""
     def draw(p: QPainter, c: QColor):

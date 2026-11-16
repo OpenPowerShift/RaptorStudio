@@ -98,7 +98,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="file.export",
         attr="_export_action",
         text="Export\u2026",
-        icon="export_tables_icon:text",
+        icon="export_icon:text",
         tooltip=(
             "Save the report, the tables or the diagram: one window, pick the "
             "file type (PDF, Excel, OpenDocument, SVG or PNG)"),
