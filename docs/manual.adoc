@@ -1037,7 +1037,8 @@ dependency and phasing are off. An event is certain to succeed (linked) or
 to fail (cut). The setting is saved in .rbds only; a legacy .rbd has no place
 for it. From the command line: `raptor edit MODEL out-of-service Pump_A
 --state cut --in-place` (no element lists what is out); over MCP:
-`set_out_of_service`.
+`set_out_of_service`. `raptor render` and MCP `render_diagram_svg` draw the
+same marks.
 
 == What If: compare changes with the model
 

@@ -116,3 +116,15 @@ def test_canvas_marks_cut_and_linked_and_undo_puts_them_back(rbd):
     assert not any(link._oos_cut for link in v._links)
     assert "CUT" not in v._block_items[att].toolTip()
     assert not set_states(v, [("node", 1)], "cut")          # nodes cannot
+
+
+def test_the_svg_marks_them_too(rbd):
+    from raptor.render.svg import render_svg
+    oos.set_state(rbd, "block", _id(rbd, "Attitude"), "cut")
+    oos.set_state(rbd, "block", _id(rbd, "HighGain"), "linked")
+    svg, meta = render_svg(rbd)
+    assert meta["out_of_service"] == 2
+    assert f'id="oos-block-{_id(rbd, "Attitude")}"' in svg and ">CUT<" in svg and ">LINKED<" in svg
+    assert svg.count('stroke-dasharray="6 4"') >= 2 + 2      # two outlines, Attitude's two links
+    plain, meta = render_svg(load_rbd(str(GOLD / "HierarchyExample" / "input.rbd")))
+    assert "out_of_service" not in meta and "oos-" not in plain

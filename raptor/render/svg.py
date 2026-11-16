@@ -250,9 +250,46 @@ def _routed(src: _Shape, dst: _Shape, boxes: list[tuple[float, float, float, flo
     return router.route(p0, out_side, p3, in_side, boxes, hint)
 
 
+#: Same colours as the canvas (`gui/ui/diagram_out_of_service.py`).
+_OOS_COLOURS = {"cut": "#c62828", "linked": "#00897b"}
+
+
+def _oos_states(rbd: Any) -> dict[tuple[str, int], str]:
+    from raptor.core.fileio import out_of_service as oos
+    blocks, events = oos.effective(rbd)
+    out = {("block", k): v for k, v in blocks.items()}
+    out.update({("event", k): v for k, v in events.items()})
+    out.update({("hier", k): v for k, v in oos.hierarchies(rbd).items()})
+    return out
+
+
+def _out_of_service_svg(rbd: Any, shapes: list[_Shape]) -> list[str]:
+    """U27: a cut element inside a red dashed outline tagged CUT, a linked
+    one in teal tagged LINKED, as the canvas draws them."""
+    states = _oos_states(rbd)
+    marked = [(s, states[(s.kind, s.id)]) for s in shapes if (s.kind, s.id) in states]
+    if not marked:
+        return []
+    out = ['<g class="out-of-service">']
+    for s, state in marked:
+        x0, y0, x1, y1 = s.bounds()
+        colour = _OOS_COLOURS[state]
+        dim = (f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{y1 - y0:.1f}" '
+               f'fill="#ffffff" fill-opacity="0.55"/>' if state == "cut" else "")
+        out.append(f'<g id="oos-{s.kind}-{s.id}"><title>{escape(s.name)}: out of service, '
+                   f'{state}</title>{dim}<rect x="{x0 - 5:.1f}" y="{y0 - 5:.1f}" '
+                   f'width="{x1 - x0 + 10:.1f}" height="{y1 - y0 + 10:.1f}" rx="6" fill="none" '
+                   f'stroke="{colour}" stroke-width="2" stroke-dasharray="6 4"/>'
+                   f'<text x="{x1 + 5:.1f}" y="{y0 - 8:.1f}" text-anchor="end" font-size="9" '
+                   f'font-weight="bold" fill="{colour}">{state.upper()}</text></g>')
+    out.append("</g>")
+    return out
+
+
 def _links_svg(links: list[_Link], shapes: list[_Shape],
                routing: str, c: dict[str, str],
-               widths: dict[int, float] | None = None) -> tuple[list[str], int]:
+               widths: dict[int, float] | None = None,
+               cut: set[tuple[str, int]] | None = None) -> tuple[list[str], int]:
     """The SVG for every link, and how many were drawn routed (not as a
     straight line). `widths` (capacity node id -> stroke width) draws each
     link into such a node at that width, and every other link thin."""
@@ -275,6 +312,8 @@ def _links_svg(links: list[_Link], shapes: list[_Shape],
             width = widths.get(dst.id, 1.0) if dst.kind == "node" else 1.0
             # a fixed-size arrowhead: the default one grows with the stroke
             stroke = f'stroke-width="{width:.2f}" marker-end="url(#arrow-fixed)"'
+        if cut and ((src.kind, src.id) in cut or (dst.kind, dst.id) in cut):
+            stroke += ' stroke-dasharray="6 4"'       # an end is out of service (cut)
         if pts:
             # Pinned by routing points (a band hand-over): straight segments
             # from the sides facing the first and last point.
@@ -355,13 +394,15 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
            f'fill="{c["link"]}"/></marker>{fixed}</defs>',
            f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{c["bg"]}"/>']
     out.append('<g class="links">')
-    link_svg, routed = _links_svg(links, shapes, routing, c, widths)
+    link_svg, routed = _links_svg(links, shapes, routing, c, widths,
+                                  {key for key, v in _oos_states(rbd).items() if v == "cut"})
     out.extend(link_svg)
     out.append("</g>")
     out.append('<g class="elements">')
     bands = {**_BANDS[theme], "note": _NOTE_FILL[theme]}
     out.extend(_elements_svg(shapes, painted, rolled, layer, c, bands))
     out.append("</g>")
+    out.extend(out_of_service := _out_of_service_svg(rbd, shapes))
     if advisor:
         out.extend(_advisor_svg(shapes, painted, rolled, legend, c, (x0 + margin, y0 + h - 12)))
     elif layer is not None:
@@ -389,6 +430,8 @@ def render_svg(rbd: Any, *, level: int = 0, highlight: list[Any] | None = None,
         "elements_drawn": len(shapes), "elements_in_view": in_view, "links_drawn": len(links), "routing": routing,
         "links_routed": routed,
         "annotations_drawn": len(annos), "highlighted": [s.name or f"{s.kind}:{s.id}" for s in lit],
+        **({"out_of_service": sum(1 for line in out_of_service if line.startswith("<g id="))}
+           if out_of_service else {}),
     }
     if layer is not None:
         meta["layer"] = _layer_meta(layer, advisor, len(painted), len(rolled), bool(widths))

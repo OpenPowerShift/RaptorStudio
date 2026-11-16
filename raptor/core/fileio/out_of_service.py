@@ -163,3 +163,26 @@ def note(rbd: Any) -> str:
     more = f" and {len(outs) - 6} more" if len(outs) > 6 else ""
     return (f"Out of service: {listed}{more}. These results are for that what-if, "
             "not the model as built; put them back in service to compare.")
+
+
+def hierarchies(rbd: Any) -> dict[int, str]:
+    """{hierarchy id: state}, a hierarchy inside a cut/linked one included."""
+    own = {int(k[5:]): v for k, v in states(rbd).items() if k.startswith("hier:")}
+    if not own:
+        return {}
+    parents = {}
+    for row in rbd.sections["HIERARCHY_DATA"].rows:
+        try:
+            parents[int(float(row.get("ID") or 0))] = int(float(row.get("Parent") or 0))
+        except (TypeError, ValueError):
+            continue
+    out = {}
+    for hid in parents:
+        current, seen = hid, set()
+        while current and current not in seen:
+            if current in own:
+                out[hid] = own[current]
+                break
+            seen.add(current)
+            current = parents.get(current, 0)
+    return out

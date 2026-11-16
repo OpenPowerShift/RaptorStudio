@@ -73,29 +73,6 @@ def _mark(item: QGraphicsItem, state: str | None) -> None:
     item.setToolTip((tip + "\n\n" if tip else "") + TIPS[state])
 
 
-def hierarchy_states(rbd: Any) -> dict[int, str]:
-    """{hierarchy id: state}, a hierarchy inside a cut/linked one included."""
-    own = {int(k[5:]): v for k, v in oos.states(rbd).items() if k.startswith("hier:")}
-    if not own:
-        return {}
-    parents = {}
-    for row in rbd.sections["HIERARCHY_DATA"].rows:
-        try:
-            parents[int(float(row.get("ID") or 0))] = int(float(row.get("Parent") or 0))
-        except (TypeError, ValueError):
-            continue
-    out = {}
-    for hid in parents:
-        current, seen = hid, set()
-        while current and current not in seen:
-            if current in own:
-                out[hid] = own[current]
-                break
-            seen.add(current)
-            current = parents.get(current, 0)
-    return out
-
-
 def apply_marks(view: Any) -> None:
     """Mark every out-of-service element on the level `view` shows, and
     dash the links of the cut ones."""
@@ -103,7 +80,7 @@ def apply_marks(view: Any) -> None:
     if rbd is None:
         return
     blocks, events = oos.effective(rbd)
-    hiers = hierarchy_states(rbd)
+    hiers = oos.hierarchies(rbd)
     cut_items = set()
     for items, states in ((getattr(view, "_block_items", {}), blocks),
                           (getattr(view, "_event_items", {}), events),
