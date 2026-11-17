@@ -94,6 +94,9 @@ DEFAULTS: dict[str, Any] = {
     # Off: a run goes at full speed on several cores. Animate is the
     # one-core run you watch.
     "execution/default_animate": False,
+    # results/ -- the Overview cards say what each number was in the run
+    # before (see `raptor.gui.ui.result_change`).
+    "results/show_change": True,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,

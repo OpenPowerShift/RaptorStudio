@@ -461,6 +461,13 @@ class _MetricCard(QFrame):
         self._range.setToolTip(
             "Lowest and highest value observed across the individual runs.")
         lay.addWidget(self._range)
+        # What it was in the run before (see `result_change`); hidden
+        # until there is a run before to compare with.
+        self._change = QLabel("")
+        self._change.setObjectName("MetricChange")
+        self._change.setWordWrap(True)
+        self._change.setVisible(False)
+        lay.addWidget(self._change)
         self._caption = QLabel(caption)
         self._caption.setObjectName("MetricCaption")
         self._caption.setWordWrap(True)
@@ -494,6 +501,24 @@ class _MetricCard(QFrame):
             self._value.setText(text)
             self._value.setToolTip("")
         self._range.setText(range_text)
+
+    def set_change(self, text: str = "", verdict: str = "same",
+                   tooltip: str = "") -> None:
+        """The line under the value saying what it was in the run before.
+        Coloured only when the change is bigger than chance; "" hides it."""
+        self._change.setVisible(bool(text))
+        self._change.setText(text)
+        self._change.setToolTip(tooltip)
+        c = active_colour()
+        colour = {"better": c.get("operating"),
+                  "worse": c.get("failed")}.get(verdict, c.get("muted"))
+        weight = 600 if verdict in ("better", "worse") else 400
+        self._change.setStyleSheet(
+            f"QLabel {{ color: {colour}; font-size: 11px; "
+            f"font-weight: {weight}; background: transparent; }}")
+
+    def change_text(self) -> str:
+        return "" if self._change.isHidden() else self._change.text()
 
     def set_title(self, acronym: str, caption: str | None = None) -> None:
         """Retitle the card (and its tooltip/glossary lookup) -- the
