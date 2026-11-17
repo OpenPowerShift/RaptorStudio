@@ -43,8 +43,9 @@ TIPS: tuple[Tip, ...] = (
         "view.advisor_toggle"),
     Tip("Right-click a block ▸ Duplicate ▸ Duplicate in Parallel adds a "
         "redundant copy, with the split and join nodes it needs."),
-    Tip("Quick Add ({shortcut}) places a block, node or event by typing its "
-        "kind, without the ribbon.", "model.quick_add"),
+    Tip("Select a block and press Space: Quick Add repeats it in series, or "
+        "in parallel as 1 of 2, 2 of 3 or 1 of 3, wired in where it is.",
+        "model.quick_add"),
     Tip("Extract Hierarchy saves one hierarchy as a model of its own, to "
         "check that part on its own.", "sim.extract_hierarchy"),
     Tip("Compare two result sets side by side, or two models with Diff, to see "

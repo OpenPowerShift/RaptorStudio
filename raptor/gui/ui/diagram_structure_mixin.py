@@ -1330,7 +1330,8 @@ class StructureMixin(_Base):
                 return dict(row), index
         return None
 
-    def _insert_on_link_steps(self, kind: str, link, info, axis) -> int:
+    def _insert_on_link_steps(self, kind: str, link, info, axis,
+                              make=None) -> int:
         """The undoable steps of a series insert, without a macro: create
         the element, move it and the downstream subgraph, and split the
         link. Shared by `insert_element_on_link` and the parallel insert,
@@ -1341,7 +1342,8 @@ class StructureMixin(_Base):
         old_row, old_index = found
         upstream, downstream, dropped = self._plan_grip_split(link)
         provisional = self._provisional_insert_center(link)
-        oid = self._create_inserted_element(kind, provisional)
+        oid = (make or (lambda at: self._create_inserted_element(
+            kind, at)))(provisional)
         item = self._item_for_insert_kind(kind, oid)
         if item is None:
             raise RuntimeError("the new element was not created")
@@ -1650,58 +1652,6 @@ class StructureMixin(_Base):
         from raptor.core.edit.clipboard_plan import next_free_name
         return next_free_name(existing, stem)
 
-    def add_series(self, count: int, x: float, y: float) -> list[int]:
-        """`count` blocks linked in a row; one undo macro."""
-        if count < 1:
-            return []
-        ids: list[int] = []
-        self._stack.beginMacro(f"Add series of {count}")
-        try:
-            head = self.add_node("In", x, y)
-            for index in range(count):
-                ids.append(self.add_block(
-                    self._unique_block_name(f"Block {index + 1}"),
-                    x + (index + 1) * (BLOCK_W + 20.0), y))
-            tail = self.add_node("Out", x + (count + 1) * (BLOCK_W + 20.0), y)
-            self.connect_elements("Node", head, "Block", ids[0])
-            for left, right in itertools.pairwise(ids):
-                self.connect_elements("Block", left, "Block", right)
-            self.connect_elements("Block", ids[-1], "Node", tail)
-        finally:
-            self._stack.endMacro()
-        return ids
-
-    def add_parallel(self, count: int, k: int, x: float,
-                     y: float) -> list[int]:
-        """A split node, `count` blocks stacked one above another, and a
-        join node needing `k` of them."""
-        if count < 1:
-            return []
-        k = max(1, min(int(k), count))
-        ids: list[int] = []
-        step = BLOCK_W + 20.0
-        rise = BLOCK_H + 30.0
-        self._stack.beginMacro(f"Add {k} of {count} in parallel")
-        try:
-            split = self.add_node("Split", x, y)
-            for index in range(count):
-                # side by side they read as a series chain
-                ids.append(self.add_block(
-                    self._unique_block_name(f"Block {index + 1}"),
-                    x + step, y + (index - (count - 1) / 2.0) * rise))
-            join = self.add_node("Join", x + 2 * step, y)
-            self.connect_elements("Node", split, "Block", ids[0])
-            for block_id in ids[1:]:
-                self.connect_elements("Node", split, "Block", block_id)
-            for block_id in ids:
-                self.connect_elements("Block", block_id, "Node", join)
-            old = self.nodes[join].good_paths if join in self.nodes else -1
-            self._stack.push(ParamsCmd(self, "node k", join, old, k))
-        finally:
-            self._stack.endMacro()
-        return ids
-
-
     def _rewire_link(self, link: Any, endpoint: tuple[str, int],
                      side: str) -> None:
         """Delete one link and reconnect its `side` end to `endpoint`."""
@@ -1725,6 +1675,64 @@ class StructureMixin(_Base):
         else:
             self.connect_elements(other[0], other[1],
                                   endpoint[0], endpoint[1])
+
+    def duplicate_series(self, copies: int = 1) -> list[int]:
+        """Add `copies` copies of the one selected block in series after
+        it, each inserted on the link out of the one before (as Insert on
+        Link does, moving what is downstream along). The block needs a link
+        out. One undo macro; the last copy is left selected."""
+        if copies < 1 or self._rbd_ref is None:
+            return []
+        selected = [bid for bid, item in self._block_items.items()
+                    if item.isSelected() and bid != 0]
+        if len(selected) != 1:
+            _view_status(self, "Repeat in Series needs exactly one "
+                              "selected block")
+            return []
+        bid = selected[0]
+        block = self.blocks[bid]
+        row = next((r for r in self._rbd_ref.section("BLOCK_DATA").rows
+                    if _safe_int(r.get("ID")) == bid), None)
+        if row is None:
+            return []
+        info = ("block", "Block", "Block")
+        _into, out_of = self._item_links(self._block_items[bid])
+        if len(out_of) != 1:
+            _view_status(self, "Repeat in Series: connect the block with "
+                              "one link out first")
+            return []
+        refusal = self._link_insert_refusal(out_of[0], info)
+        if refusal:
+            _view_status(self, f"Cannot repeat in series: {refusal}")
+            return []
+        self._clear_link_insert_hover()
+        ids: list[int] = []
+        last = bid
+        self._stack.beginMacro(f"Add {copies} in series")
+        try:
+            for _index in range(copies):
+                # the links are rebuilt by each insert: look again
+                _into, out_of = self._item_links(self._block_items[last])
+                if len(out_of) != 1:
+                    break
+                axis = self._link_flow_axis(out_of[0])
+                if axis is None:
+                    break
+                clone = dict(row)
+                clone["blockName"] = self._unique_block_name(block.name)
+
+                def make(at: QPointF, clone: dict = clone) -> int:
+                    return self.add_block_from_template(
+                        clone, at_model=self.scene_to_model(at))
+                last = self._insert_on_link_steps(
+                    "block", out_of[0], info, axis, make=make)
+                ids.append(last)
+        finally:
+            self._stack.endMacro()
+        if ids and last in self._block_items:
+            self._scene.clearSelection()
+            self._block_items[last].setSelected(True)
+        return ids
 
     def duplicate_parallel(self, copies: int = 1, k: int | None = None
                            ) -> list[int]:

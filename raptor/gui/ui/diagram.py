@@ -3021,7 +3021,15 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         from raptor.gui.ui.quick_add import QuickAdd
         local = self.viewport().mapFromGlobal(QCursor.pos())
         if not self.viewport().rect().contains(local):
-            local = self.viewport().rect().center()
+            # From the ribbon: open under the selected block (its patterns
+            # are what the popup offers), not over it at the centre.
+            chosen = [item for bid, item in self._block_items.items()
+                      if bid != 0 and item.isSelected()]
+            if len(chosen) == 1:
+                rect = chosen[0].sceneBoundingRect()
+                local = self.mapFromScene(rect.left(), rect.bottom() + 8.0)
+            if not self.viewport().rect().contains(local):
+                local = self.viewport().rect().center()
         scene = (at_scene if at_scene is not None
                  else self.mapToScene(local))
         global_pos = self.viewport().mapToGlobal(local)

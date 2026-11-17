@@ -37,7 +37,7 @@ current value).
 |Add Node |Click the canvas to place a new Regular node, or click a link to insert it in series (Ctrl+3) |Ctrl+3
 |Add Event |Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+4) |Ctrl+4
 |Add Hierarchy |Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel (Ctrl+5) |Ctrl+5
-|Quick Add |Add an element at the cursor (Space or / on the canvas) |
+|Quick Add |Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas) |
 |Collapse Selection |Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval (Ctrl+G) |Ctrl+G
 |Delete Selected |Delete selected blocks/nodes (Del) |Del
 |===
