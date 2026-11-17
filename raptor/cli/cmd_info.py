@@ -339,28 +339,33 @@ def _convert_to_awb(args: Any, src: Path, dest: Path) -> int:
         mid = open_model(ws, args.input)
         rbd = ws.get(mid).rbd
         actions: list[str] = []
+        norm: Path | None = None
         if getattr(args, "normalize_out", None):
             rbd, actions = awb_api.normalize(rbd)
             norm = Path(args.normalize_out)
             if norm.suffix.lower() not in (".rbds", ".rbd"):
                 norm = norm.with_suffix(".rbds")
+        report = awb_api.export(rbd, dest, source=args.input, write=False,
+                                sidecar=not args.no_sidecar)
+        report.notes.extend(f"normalized: {a}" for a in actions)
+        # Refuse or preview BEFORE anything is written, the reduced model
+        # included: "nothing was written" must be true.
+        if args.strict and report.has_losses:
+            _print_awb_report(report, args)
+            raise CliError(
+                "AWB cannot represent every feature in this model; nothing "
+                "was written (drop --strict to proceed and keep the summary)",
+                X.REFUSED)
+        if args.dry_run:
+            _print_awb_report(report, args)
+            eprint("dry run: nothing written")
+            return X.OK
+        if norm is not None:
             nmid = ws.register_model(rbd, name=norm.stem,
                                      source=str(src))["model_id"]
             ws.save_model_as(nmid, str(norm), fmt=(
                 "rbd" if norm.suffix.lower() == ".rbd" else "rbds"))
             eprint(f"wrote normalized model {norm}")
-        report = awb_api.export(rbd, dest, source=args.input, write=False,
-                                sidecar=not args.no_sidecar)
-        report.notes.extend(f"normalized: {a}" for a in actions)
-    if args.strict and report.has_losses:
-        _print_awb_report(report, args)
-        raise CliError(
-            "AWB cannot represent every feature in this model; nothing was "
-            "written (drop --strict to proceed and keep the summary)", X.REFUSED)
-    if args.dry_run:
-        _print_awb_report(report, args)
-        eprint("dry run: nothing written")
-        return X.OK
     try:
         written_report = awb_api.export(rbd, dest, source=args.input,
                                         sidecar=not args.no_sidecar)

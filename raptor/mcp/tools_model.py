@@ -246,8 +246,9 @@ def export_awb(model_id: str, path: str, dry_run: bool = False,
     """Write the model as an Isograph Availability Workbench .awb project.
 
     The report names substituted, partially mapped and dropped features.
-    `dry_run=true` writes nothing. `sidecar=true` also writes a
-    `<name>.awb.raptor.json` beside the file with RAPTOR-only metadata.
+    `dry_run=true` writes nothing, not even `normalize_out`.
+    `sidecar=true` also writes a `<name>.awb.raptor.json` beside the file
+    with RAPTOR-only metadata.
     `normalize_out` writes a reduced RAPTOR model carrying only what the AWB
     file represents; that reduced copy is what gets exported.
     """
@@ -261,13 +262,16 @@ def export_awb(model_id: str, path: str, dry_run: bool = False,
     norm_path = None
     if normalize_out:
         norm_path = ws.resolve_output_path(
-            normalize_out, allow_extra=context.allowed_write_dirs())
+            context.require_relative_path(normalize_out, "normalize_out"),
+            allow_extra=context.allowed_write_dirs())
         rbd, actions = awb_api.normalize(rbd)
-        awb_api.save_normalized(rbd, norm_path)
     report = awb_api.export(rbd, dest, source=model_id, write=False,
                             sidecar=sidecar)
     report.notes.extend(f"normalized: {a}" for a in actions)
     if not dry_run:
+        # Only now, so a dry run writes nothing, the reduced model included.
+        if norm_path is not None:
+            awb_api.save_normalized(rbd, norm_path)
         written = awb_api.export(rbd, dest, source=model_id, sidecar=sidecar)
         report.sidecar = written.sidecar
     payload = report.as_dict() | {

@@ -555,3 +555,19 @@ class TestAwbInterchange:
         imported = _sc(import_awb("parity.awb"))
         assert imported["model_id"].startswith("m")
         assert imported["report"]["direction"] == "awb-to-rbds"
+
+    def test_dry_run_does_not_write_the_reduced_model(self, tmp_path):
+        """#288: normalize_out was written before the dry-run check."""
+        from raptor.mcp.server import mcp
+        mcp._raptor_args = type("A", (), {
+            "workspace": str(tmp_path), "allow_write": [],
+            "allow_read": []})()
+        mcp._raptor_ws = None
+        from raptor.mcp.tools_model import create_model, export_awb
+        model_id = _sc(create_model("AWBDry", template="blank"))["model_id"]
+        _sc(export_awb(model_id, "dry.awb", dry_run=True,
+                       normalize_out="reduced.rbds"))
+        assert not (tmp_path / "reduced.rbds").exists()
+        assert not (tmp_path / "dry.awb").exists()
+        _sc(export_awb(model_id, "real.awb", normalize_out="reduced.rbds"))
+        assert (tmp_path / "reduced.rbds").exists()

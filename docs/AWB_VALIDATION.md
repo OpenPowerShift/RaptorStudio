@@ -31,8 +31,14 @@ and no dependency/spares/PM/phase/capacity data.
 | `Toaster_Weibull` | 0.85782 | 0.8546 | -0.322 | 0.89 |
 
 Every difference is within **0.6 percentage points** and within **1.3
-combined standard errors**.  There is no systematic AWB bias in this
-sample: the small differences are consistent with Monte Carlo noise.
+combined standard errors**, so no single model shows a significant
+difference.  However, all five non-zero differences have AWB **lower**
+than RAPTOR.  If the differences were pure noise, that would happen about
+one time in 16 (two-sided sign test, p ≈ 0.06).  This is not significant,
+but it is not evidence of "no bias" either: a small systematic difference
+(for example in how the first repair or the end of the lifetime is
+counted) cannot be ruled out with five models.  A larger paired
+comparison would settle it.
 
 ### Method
 

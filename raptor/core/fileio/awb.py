@@ -297,44 +297,43 @@ def read_awb(path: str | Path) -> dict[str, AwbTable]:  # noqa: C901, PLR0912
         raise AwbFormatError("not an AWB project (file is too short)")
     count, pos = struct.unpack_from("<I", data, 0)[0], 4
     tables: dict[str, AwbTable] = {}
+    name = ""
     try:
         for _ in range(count):
+            name = ""
             name, pos = _read_string(data, pos)
             if not name:
                 raise AwbFormatError("empty table name")
             ncols, pos = _read_int32(data, pos)
             if ncols < 0 or ncols > 100_000:
-                raise AwbFormatError(f"bad column count in table {name!r}")
+                raise AwbFormatError(f"bad column count {ncols}")
             columns: list[tuple[str, int]] = []
             for _ in range(ncols):
                 col, pos = _read_string(data, pos)
                 kind, pos = _read_int32(data, pos)
                 if kind not in (_T_STR, _T_INT, _T_DOUBLE, _T_BOOL):
                     raise AwbFormatError(
-                        f"unknown column type {kind} in {name}.{col}")
+                        f"unknown column type {kind} in column {col!r}")
                 columns.append((col, kind))
             nrows, pos = _read_int32(data, pos)
-            if nrows < 0 or nrows > 10_000_000:
-                raise AwbFormatError(f"bad row count in table {name!r}")
+            # Every value takes at least one byte, so the rows must fit in
+            # what is left: a short file cannot claim millions of rows.
+            if (nrows < 0 or (nrows and not ncols)
+                    or nrows * ncols > len(data) - pos):
+                raise AwbFormatError(f"bad row count {nrows}")
+            if name in tables:
+                raise AwbFormatError("table appears twice")
             rows: list[dict[str, Any]] = []
             for _ in range(nrows):
-                row: dict[str, Any] = {}
-                for col, kind in columns:
-                    if kind == _T_STR:
-                        row[col], pos = _read_string(data, pos)
-                    elif kind == _T_INT:
-                        row[col], pos = _read_int32(data, pos)
-                    elif kind == _T_DOUBLE:
-                        row[col], pos = _read_double(data, pos)
-                    else:
-                        if pos >= len(data):
-                            raise AwbFormatError("truncated bool in AWB table")
-                        row[col] = data[pos]
-                        pos += 1
+                row, pos = _read_row(data, pos, columns)
                 rows.append(row)
             tables[name] = AwbTable(name, columns, rows)
+    except AwbFormatError as exc:
+        where = f"table {name!r}, " if name else ""
+        raise AwbFormatError(f"{exc} ({where}byte {pos})") from None
     except (struct.error, IndexError) as exc:
-        raise AwbFormatError("truncated AWB table store") from exc
+        raise AwbFormatError(
+            f"truncated AWB table store (byte {pos})") from exc
     if pos != len(data):
         # Trailing bytes are harmless in some writers, but a mismatch is
         # useful evidence that we read the file wrongly.
@@ -343,6 +342,24 @@ def read_awb(path: str | Path) -> dict[str, AwbTable]:  # noqa: C901, PLR0912
     if "Project" not in tables:
         raise AwbFormatError("AWB project has no Project table")
     return tables
+
+
+def _read_row(data: bytes, pos: int,
+              columns: list[tuple[str, int]]) -> tuple[dict[str, Any], int]:
+    row: dict[str, Any] = {}
+    for col, kind in columns:
+        if kind == _T_STR:
+            row[col], pos = _read_string(data, pos)
+        elif kind == _T_INT:
+            row[col], pos = _read_int32(data, pos)
+        elif kind == _T_DOUBLE:
+            row[col], pos = _read_double(data, pos)
+        else:
+            if pos >= len(data):
+                raise AwbFormatError("truncated bool in AWB table")
+            row[col] = data[pos]
+            pos += 1
+    return row, pos
 
 
 def _read_int32(data: bytes, pos: int) -> tuple[int, int]:
@@ -403,6 +420,15 @@ _AWB_PHASED_TRI = 9
 
 #: RAPTOR distribution codes (raptor.core.fileio.rbdlib).
 _R_EXPO, _R_LOGNORM, _R_NORM, _R_WEIBULL, _R_NONE, _R_FIXED = 4, 7, 8, 15, 18, 19
+
+#: Block fields that attach to an AWB failure model (PM, spares, labour).
+#: Blocks share a failure model only when these match as well as the laws.
+_FM_SHARED_FIELDS = (
+    "usesPM", "PMFreq", "Dist", "Param1#3", "Param2#3", "Param3#3",
+    "PMRefresh", "PMSpare", "#Res1pmRep",
+    "SpType", "SparePoolName", "Quan", "Stock", "NewSp", "ArriveEvery",
+    "EmerTime", "SpCost",
+    "NumRes", "Resource1Name", "#Res1Rep")
 
 #: An essentially infinite MTTF, used for a block AWB says never fails.
 _NEVER = 9.0e8
@@ -868,9 +894,10 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
     repair_simplified: dict[str, int] = {}
     no_repair = 0
     no_failure = 0
+    exp_location = 0
 
     def failure_model(block: dict[str, Any]) -> int:  # noqa: C901, PLR0912, PLR0915
-        nonlocal no_repair, no_failure
+        nonlocal no_repair, no_failure, exp_location
         awb_std = 0.0
         fdist = _int(block.get("FDist"), _R_EXPO)
         fparams = [_num(block.get("FParam1")), _num(block.get("FParam2")),
@@ -878,8 +905,16 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         rdist = _int(block.get("RDist"), _R_FIXED)
         rparams = [_num(block.get("RParam1")), _num(block.get("RParam2")),
                    _num(block.get("RParam3"))]
+        # PM, spares and labour hang off the AWB failure model, so two
+        # blocks may share one only when those match too: otherwise the
+        # shared model would carry both blocks' spares and lose one PM.
         key = (fdist, tuple(round(x, 9) for x in fparams), rdist,
-               tuple(round(x, 9) for x in rparams))
+               tuple(round(x, 9) for x in rparams),
+               tuple(_text(block.get(k)) for k in _FM_SHARED_FIELDS),
+               # A custom stock belongs to its block: never share it.
+               _text(block.get("ID"))
+               if _text(block.get("SpType"), "Infinite")
+               not in ("", "None", "Infinite", "Pooled") else "")
         if key in fm_by_key:
             return fm_by_key[key]
         fm_i = len(fm_rows)
@@ -892,8 +927,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         if fdist == _R_EXPO:
             mttf = max(1e-9, fparams[0])
             if fparams[1] not in (0.0,):
-                dist_simplified["exponential location ignored"] = \
-                    dist_simplified.get("exponential location ignored", 0) + 1
+                exp_location += 1
         elif fdist == _R_WEIBULL:
             awb_dist = _AWB_WEIBULL
             beta, eta, gamma = fparams[0], fparams[1], fparams[2]
@@ -923,7 +957,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         gamma *= factor
         row = _row(
             "FailureModels", Id=fm_id,
-            Description=f"Shared failure model for {name}" if not fm_rows else name,
+            Description=f"Failure model for {name}",
             Type=-1, DataLinkCause=-1, FmMttf=mttf,
             FmDistribution=awb_dist, FmWeibullSet=-1,
             FmStd=awb_std, FmEta1=eta, FmBeta1=beta, FmGamma1=gamma,
@@ -983,8 +1017,14 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
                 row_of_hier[hid] = i
     for hid, hpage in hpages.items():
         hpage.page = row_of_hier[hid]
-        hpage.parent = (0 if hpage.parent_id in ("", "0")
-                        else hpages[hpage.parent_id].page)
+    orphans = 0
+    for hid, hpage in hpages.items():
+        owner = hpages.get(hpage.parent_id)
+        if hpage.parent_id not in ("", "0") and (owner is None
+                                                 or hpage.parent_id == hid):
+            orphans += 1        # a parent that is missing, or itself
+            owner = None
+        hpage.parent = 0 if owner is None else owner.page
         hpages[hid] = hpage
         hrows[hid]["Page"] = hpage.parent
 
@@ -1106,8 +1146,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         if fm_idx is None:
             continue
         if fm_idx in pm_task_by_fm:
-            pm_lossy += 1
-            continue
+            continue        # a block sharing this model: same PM, written once
         pm_freq = _num(b.get("PMFreq"), 100.0)
         if pm_freq <= 0:
             pm_lossy += 1
@@ -1179,11 +1218,12 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
                   _num(pool.get("EmerTime"), 24.0) * factor,
                   _num(pool.get("SpCost"), 1.0))
 
+    spared_fms: set[int] = set()
     for b in blocks:
         bid = _text(b.get("ID"))
         fm_idx = fm_index_for_block.get(bid)
-        if fm_idx is None:
-            continue
+        if fm_idx is None or fm_idx in spared_fms:
+            continue        # a shared model's spares are written once
         sp_type = _text(b.get("SpType"), "Infinite")
         if sp_type in ("", "None", "Infinite"):
             continue
@@ -1205,6 +1245,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
                 _num(b.get("EmerTime"), 24.0) * factor,
                 _num(b.get("SpCost"), 1.0))
         qty = max(1, _int(b.get("Quan"), 1))
+        spared_fms.add(fm_idx)
         corr_spare_rows.append(_row(
             "FailureModelCorrTaskSpares", FailureModel=fm_idx, SubIndex=0,
             Spare=spare_i, Quantity=qty, ExternalReference=""))
@@ -1231,11 +1272,13 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             ScheduledCalloutCost=max(0.0, _num(res.get("FixedPerUse"), 1.0)),
             CorrectiveLogisticDelay=0.0,
             NoAvailable=max(1, _int(res.get("NumIn"), 1)), Guid=_guid()))
+    staffed_fms: set[int] = set()
     for b in blocks:
         bid = _text(b.get("ID"))
         fm_idx = fm_index_for_block.get(bid)
-        if fm_idx is None or _int(b.get("NumRes"), 0) <= 0:
-            continue
+        if (fm_idx is None or fm_idx in staffed_fms
+                or _int(b.get("NumRes"), 0) <= 0):
+            continue        # a shared model's labour is written once
         name = _text(b.get("Resource1Name"), "None")
         if name not in labor_index:
             report.warnings.append(
@@ -1244,6 +1287,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             continue
         task_duration = float(task_rows[fm_idx].get("TaskDuration", 0.0))
         qty = max(1, _int(b.get("#Res1Rep"), 1))
+        staffed_fms.add(fm_idx)
         corr_labor_rows.append(_row(
             "FailureModelCorrTaskLabor", FailureModel=fm_idx, SubIndex=0,
             Labor=labor_index[name], ActiveTime=task_duration,
@@ -1386,6 +1430,10 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
                 f"RAPTOR-only metadata preserved in {side_path.name}; "
                 "import it beside the .awb to restore it")
 
+    if orphans:
+        report.warnings.append(
+            f"{orphans} hierarchy(ies) named a parent hierarchy that is not "
+            "in the model; they were placed on the top page")
     report.counts.update(blocks=len(blocks), nodes=len(nodes),
                          hierarchies=len(hierarchies), links=len(conn_rows),
                          failure_models=len(fm_rows))
@@ -1407,6 +1455,11 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             report.add("repair distribution simplified to a fixed duration",
                        count, f"{label} -> AWB task duration = its mean",
                        kind="substituted")
+    if exp_location:
+        report.add("exponential failure location (delay) dropped",
+                   exp_location,
+                   "AWB's exponential has no location; the mean time to "
+                   "failure is written without it", kind="partial")
     if no_repair:
         report.add("no-repair blocks", no_repair,
                    "exported with NonMaintainable=1 and a zero-duration task",

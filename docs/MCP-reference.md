@@ -259,8 +259,9 @@ allow-write directories, same containment `save_model_as` enforces.
 Write the model as an Isograph Availability Workbench .awb project.
 
 The report names substituted, partially mapped and dropped features.
-`dry_run=true` writes nothing. `sidecar=true` also writes a
-`<name>.awb.raptor.json` beside the file with RAPTOR-only metadata.
+`dry_run=true` writes nothing, not even `normalize_out`.
+`sidecar=true` also writes a `<name>.awb.raptor.json` beside the file
+with RAPTOR-only metadata.
 `normalize_out` writes a reduced RAPTOR model carrying only what the AWB
 file represents; that reduced copy is what gets exported.
 
@@ -277,7 +278,7 @@ file represents; that reduced copy is what gets exported.
 Parameter notes:
 
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `normalize_out` — `normalize_out` writes a reduced RAPTOR model carrying only what the AWB file represents; that reduced copy is what gets exported.
+- `normalize_out` — `dry_run=true` writes nothing, not even `normalize_out`.
 
 **Returns**
 
