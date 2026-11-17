@@ -877,24 +877,35 @@ class StructureMixin(_Base):
                 selected, inner, entries, pins=set(), sizes=sizes,
                 scale=REFERENCE_SCALE, direction=direction,
                 max_columns=max_columns, spacing=spacing)
-        old_pts = []
-        for key in selected:
-            centre = _LinkItem._true_centre(members[key])
-            old_pts.append(self._vt.to_model(centre.x(), centre.y()))
-        old_x = [p[0] for p in old_pts]
-        old_y = [p[1] for p in old_pts]
+        # The layout is in units of REFERENCE_SCALE pixels, and it is
+        # placed on the canvas at that scale, as offsets from a fixed
+        # point. Converting it with the view's own transform squeezed it
+        # wherever the canvas draws at another scale: the full Auto Layout
+        # gets away with that because it re-derives the transform after,
+        # but this one keeps it, and on a Blank model (8 px per unit, not
+        # 64) Duplicate in Parallel overlapped its copies and put the split
+        # and join nodes on top of the blocks.
+        old_pts = [_LinkItem._true_centre(members[key]) for key in selected]
+        old_x = [p.x() for p in old_pts]
+        old_y = [p.y() for p in old_pts]
         new_x = [p[0] for p in new_pos.values()]
         new_y = [p[1] for p in new_pos.values()]
-        dx = (min(old_x) + max(old_x)) / 2.0 - (min(new_x) + max(new_x)) / 2.0
-        dy = (min(old_y) + max(old_y)) / 2.0 - (min(new_y) + max(new_y)) / 2.0
+        ref_sx = (min(old_x) + max(old_x)) / 2.0
+        ref_sy = (min(old_y) + max(old_y)) / 2.0
+        ref_mx = (min(new_x) + max(new_x)) / 2.0
+        ref_my = (min(new_y) + max(new_y)) / 2.0
         if anchor is not None and anchor in new_pos:
             # Keep one element exactly where it was instead of the group's
             # centre (insert-in-parallel pins its split node, so the link
             # into the group stays straight).
             centre = _LinkItem._true_centre(members[anchor])
-            ax, ay = self._vt.to_model(centre.x(), centre.y())
-            dx = ax - new_pos[anchor][0]
-            dy = ay - new_pos[anchor][1]
+            ref_sx, ref_sy = centre.x(), centre.y()
+            ref_mx, ref_my = new_pos[anchor]
+
+        def to_scene(mx: float, my: float) -> tuple[float, float]:
+            # model y grows up the page, scene y down it
+            return (ref_sx + (mx - ref_mx) * REFERENCE_SCALE,
+                    ref_sy - (my - ref_my) * REFERENCE_SCALE)
 
         before = self._layout_state()
         self._loading = True
@@ -903,7 +914,7 @@ class StructureMixin(_Base):
         try:
             for key, (mx, my) in new_pos.items():
                 item = members[key]
-                sx, sy = self._vt.to_scene(mx + dx, my + dy)
+                sx, sy = to_scene(mx, my)
                 if isinstance(item, _BlockItem):
                     item.setPos(sx - BLOCK_W / 2, sy - BLOCK_H / 2)
                 else:
