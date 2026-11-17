@@ -1359,6 +1359,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
         self._run_panel.precision_requested.connect(self._open_precision_dialog)
+        self._run_panel.set_run_action(self._run_action)
         self._run_panel.scope_changed.connect(self._on_run_scope_changed)
         self._sync_cores_box()
         self._run_dock.setMinimumHeight(120)

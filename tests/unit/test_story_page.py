@@ -91,7 +91,7 @@ def test_without_attribution_says_how_to_get_it(qapp):
     page = StoryPage()
     try:
         page.set_story(_story(attribution=False))
-        assert "Event Log" in page.drivers_caption.text()
+        assert "Detailed event log" in page.drivers_caption.text()
     finally:
         page.deleteLater()
 

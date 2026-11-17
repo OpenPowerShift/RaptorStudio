@@ -1200,6 +1200,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """A result set is on screen (as opposed to the placeholder)."""
         return bool(self._report_data or self._event_logs)
 
+    def ran_without_event_log(self) -> bool:
+        """The results on screen were made with Detailed event log off
+        (from the run's own record, not the panel as it is now)."""
+        if not self.has_results():
+            return False
+        record = (self._manifest or {}).get("recording") or {}
+        return "event_log" in record and not record["event_log"]
+
     def results_bundle(self, model_name: str = "", units: str = ""):
         """The result set on screen, as the plain bundle the table export
         (and the MCP server) builds its result tables from. None when no

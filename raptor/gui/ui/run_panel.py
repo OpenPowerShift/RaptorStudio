@@ -41,12 +41,13 @@ from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDockWidget,
     QDoubleSpinBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
     QLabel, QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
-    QTabBar, QVBoxLayout, QWidget,
+    QTabBar, QToolButton, QVBoxLayout, QWidget,
 )
 
 from raptor.core import run_experiment as rx
 from raptor.core.model import SystemConfig
 from raptor.gui.resources.design_tokens import SPACING, active_colour
+from raptor.gui.widgets.tidy_spin import TidySpinBox
 
 
 class RunPanel(QWidget):
@@ -91,7 +92,7 @@ class RunPanel(QWidget):
         self._flow_generated = 0
         self._system_red_cost = 0.0
         self._lost_flow_unit_cost = 0.0
-        self._system_rows_visible: tuple[bool, bool] | None = None
+        self._system_rows_visible: tuple[bool, bool, bool] | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(SPACING["sm"], SPACING["sm"],
@@ -107,7 +108,22 @@ class RunPanel(QWidget):
         self._readiness.setObjectName("RunReadiness")
         self._readiness.setWordWrap(True)
         self._readiness.setAccessibleName("Run readiness")
-        outer.addWidget(self._readiness)
+        # The Run button sits on the readiness line: a new user set the
+        # trials here and then had to find Run on another ribbon tab (or
+        # know F5). It is the ribbon's own action (`set_run_action`), so it
+        # is enabled, disabled and explained in one place.
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.addWidget(self._readiness, 1)
+        self._run_button = QToolButton()
+        self._run_button.setObjectName("RunPanelRun")
+        self._run_button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._run_button.setAutoRaise(False)     # a button, not a link
+        self._run_button.setMinimumWidth(96)
+        self._run_button.setVisible(False)
+        top.addWidget(self._run_button, 0, Qt.AlignmentFlag.AlignTop)
+        outer.addLayout(top)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -386,7 +402,7 @@ class RunPanel(QWidget):
             lambda _i: self._on_term_type())
         form.addRow("Stop at:", self._term_type)
 
-        self._term_value = QDoubleSpinBox()
+        self._term_value = TidySpinBox()
         self._term_value.setDecimals(6)
         self._term_value.setRange(0.0, 1e15)
         self._term_value.setToolTip("The run length, in the unit named")
@@ -403,7 +419,7 @@ class RunPanel(QWidget):
         self._term_label.setObjectName("SectionNote")
         form.addRow(self._term_label, self._term_value)
 
-        self._start_stats = QDoubleSpinBox()
+        self._start_stats = TidySpinBox()
         self._start_stats.setDecimals(6)
         self._start_stats.setRange(0.0, 1e15)
         self._start_stats.setToolTip(
@@ -513,7 +529,7 @@ class RunPanel(QWidget):
     def _cost_field(self, name: str, value: float, on_commit,
                     tooltip: str) -> QDoubleSpinBox:
         """A compact cost field with the dialog's old numeric range."""
-        spin = QDoubleSpinBox()
+        spin = TidySpinBox()
         spin.setDecimals(6)
         spin.setRange(-1e15, 1e15)
         spin.setValue(float(value))
@@ -654,7 +670,7 @@ class RunPanel(QWidget):
             self._recording_notes[key] = note
 
         iv = QFormLayout()
-        self._ao_interval = QDoubleSpinBox()
+        self._ao_interval = TidySpinBox()
         self._ao_interval.setDecimals(3)
         self._ao_interval.setRange(0.001, 1e6)
         self._ao_interval.setToolTip(
@@ -664,7 +680,7 @@ class RunPanel(QWidget):
             self._on_ao_interval)
         iv.addRow("Ao sample every:", self._ao_interval)
 
-        self._cost_interval = QDoubleSpinBox()
+        self._cost_interval = TidySpinBox()
         self._cost_interval.setDecimals(3)
         self._cost_interval.setRange(0.001, 1e9)
         self._cost_interval.setToolTip(
@@ -761,7 +777,7 @@ class RunPanel(QWidget):
         self._step_count.setAccessibleName("Events per multi-step")
         form.addRow("Multi-step events:", self._step_count)
 
-        self._run_to = QDoubleSpinBox()
+        self._run_to = TidySpinBox()
         self._run_to.setDecimals(3)
         self._run_to.setRange(0.0, 1e12)
         self._run_to.setValue(100.0)
@@ -1041,6 +1057,11 @@ class RunPanel(QWidget):
         self._cores.setToolTip(tip)
         self._cores_note.setText(why)
         self._cores_note.setVisible(bool(why))
+
+    def set_run_action(self, action) -> None:
+        """Show `action` (the ribbon's Run) as this panel's Run button."""
+        self._run_button.setDefaultAction(action)
+        self._run_button.setVisible(True)
 
     def set_readiness(self, ok: bool, message: str, detail: str = "",
                       link=None) -> None:
@@ -1357,15 +1378,17 @@ class RunPanel(QWidget):
         # capacity analysis distributes; the lost-flow cost only has a
         # meaning when both capacity and cost are tracked. Hide rows
         # rather than disable them: an irrelevant number is still a
-        # misleading one. The red cost stays visible -- it applies to
-        # any run that accumulates cost, including a cost-only run.
-        lost_cost_on = ("capacity" in experiment["analyses"]
-                        and "cost" in experiment["analyses"])
+        # misleading one. The red cost goes with Cost: it prices failed
+        # time, and with Cost off nothing is priced (a new user met
+        # "System red cost 13300" on a model with no costs at all).
+        cost_on = "cost" in experiment["analyses"]
+        lost_cost_on = "capacity" in experiment["analyses"] and cost_on
         flow_on = "capacity" in experiment["analyses"]
-        visible = (lost_cost_on, flow_on)
+        visible = (lost_cost_on, flow_on, cost_on)
         if visible != self._system_rows_visible:
             self._system_rows_visible = visible
             self._system_form.setRowVisible(0, flow_on)
+            self._system_form.setRowVisible(1, cost_on)
             self._system_form.setRowVisible(2, lost_cost_on)
             # Hiding a row changes the panel's preferred height, and the
             # dock caps itself to that height.
