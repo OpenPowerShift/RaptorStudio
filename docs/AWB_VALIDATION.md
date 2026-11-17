@@ -21,24 +21,42 @@ Six examples use only features the converter carries without loss:
 blocks, nodes, links, exponential/Weibull/fixed failure laws, no repair,
 and no dependency/spares/PM/phase/capacity data.
 
-| Example | RAPTOR mean availability | AWB mean availability | Difference (pp) | Difference / combined σ |
-|---|---:|---:|---:|---:|
-| `Drone1` | 0.85610 | 0.8545 | -0.160 | 0.48 |
-| `Espresso1` | 0.71912 | 0.7138 | -0.532 | 1.28 |
-| `Lantern1` | 0.69339 | 0.6933 | -0.009 | 0.02 |
-| `Toaster_Expo` | 0.75374 | 0.7499 | -0.384 | 0.81 |
-| `Toaster_Fixed` | 1.00000 | 1.0000 | 0.000 | 0.00 |
-| `Toaster_Weibull` | 0.85782 | 0.8546 | -0.322 | 0.89 |
+| Example | Exact | RAPTOR | AWB | RAPTOR − exact (pp) | AWB − exact (pp) |
+|---|---:|---:|---:|---:|---:|
+| `Drone1` | 0.85367 | 0.85610 | 0.8545 | +0.243 | +0.083 |
+| `Espresso1` | 0.71450 | 0.71912 | 0.7138 | +0.462 | −0.070 |
+| `Lantern1` | 0.69253 | 0.69339 | 0.6933 | +0.086 | +0.077 |
+| `Toaster_Expo` | 0.75198 | 0.75374 | 0.7499 | +0.176 | −0.208 |
+| `Toaster_Fixed` | 1.00000 | 1.00000 | 1.0000 | 0.000 | 0.000 |
+| `Toaster_Weibull` | 0.85731 | 0.85782 | 0.8546 | +0.051 | −0.271 |
 
-Every difference is within **0.6 percentage points** and within **1.3
-combined standard errors**, so no single model shows a significant
-difference.  However, all five non-zero differences have AWB **lower**
-than RAPTOR.  If the differences were pure noise, that would happen about
-one time in 16 (two-sided sign test, p ≈ 0.06).  This is not significant,
-but it is not evidence of "no bias" either: a small systematic difference
-(for example in how the first repair or the end of the lifetime is
-counted) cannot be ruled out with five models.  A larger paired
-comparison would settle it.
+None of these examples repairs a block, so the exact mean availability
+is (1/T)∫₀ᵀ R_sys(t) dt, computed by numerical integration of each
+system's reliability function.  With 10,000 trials the standard error of
+each program's estimate is about 0.3 percentage points.  Both programs are
+within about 1.5 standard errors of the exact value on every example.
+Neither shows a bias.
+
+**Why RAPTOR was above AWB every time.**  It looks systematic, but it is
+not.  RAPTOR's default random streams come from Raptor's fixed seed table,
+so every example draws the same random numbers.  Their errors are
+therefore correlated, and five same-sign differences are not five
+independent pieces of evidence.  Run again with `--seed`, the sign
+changes.  For example, at 50,000 trials `Toaster_Expo` gave z = +0.82,
++1.05, +0.56 and −0.65 against the exact value for seeds 11, 22, 33 and
+44.  At 100,000 trials with the default seeds, all five examples came out
+slightly **below** exact.
+
+**Repairable blocks** were checked against an independent simulator and,
+for exponential failure and repair, the exact formula.  The cases were:
+
+* single blocks with exponential, Weibull and normal failure, and fixed,
+  exponential and lognormal repair;
+* two blocks in series;
+* two blocks in parallel.
+
+RAPTOR agreed in every case, within 1.8 standard errors at 50,000 trials.
+AWB itself has not yet been compared on a repairable model.
 
 ### Method
 
@@ -53,7 +71,7 @@ For each model:
 * AWB availability is `1 - mean unavailability`;
 * the AWB standard error is estimated from the time-weighted downtime:
   `std total downtime / (sqrt(10000) * lifetime)`;
-* the combined σ is the root sum of the RAPTOR and AWB standard errors.
+* the exact value integrates the system reliability function over the lifetime (no repair, so no simulation is needed).
 
 AWB shows the mean unavailability to four decimal places, so the AWB
 availability carries about ±0.00005 of display rounding on top of its
