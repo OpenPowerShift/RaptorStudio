@@ -1380,6 +1380,23 @@ phases — so changing the trial count for a convergence sweep does not
 retroactively invalidate results already on screen, while changing a
 failure distribution does.
 
+[[change-from-last-run]]
+=== What changed since the last run
+
+Run, change something, and run again: each headline card on the
+Overview (Availability, Reliability, MTBDE, MDT, System Failures) then
+says what it was before, for example *was 0.912 · up 0.051*. The line
+is green when the change is for the better and red when it is for the
+worse, but only when the difference is bigger than the run-to-run
+spread (95 %). A smaller difference reads *no clear change* in grey:
+the random draws alone move the numbers that much, so it may not be
+your edit at all. More trials narrow the spread.
+
+The comparison is with the run before on the same model; opening
+another model or changing the run scope starts afresh. To see only the
+latest run, untick Preferences ▸ Working ▸ Results ▸ *Compare with the
+previous run*; the cards change as soon as you press OK.
+
 [[stepping]]
 == Debug tab: stepping debugger
 
