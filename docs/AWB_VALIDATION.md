@@ -86,12 +86,14 @@ comparison.
 `raptor convert ... --normalize-out` reduced CarCare0's lognormal repair
 to its fixed mean and wrote both files.  At 1000 trials:
 
-| | RAPTOR | AWB |
-|---|---:|---:|
-| Availability | 0.990345 | 0.9904 |
+| Example | RAPTOR | AWB | Difference (pp) |
+|---|---:|---:|---:|
+| CarCare0 | 0.990345 | 0.9904 | 0.0055 |
+| Van1 (2 hierarchies) | 0.986632 | 0.9869 | 0.026 |
 
-Difference **0.0055 percentage points**, excellent agreement.  This
-validates the normalization pathway for repair-law-only differences.
+Both are within display precision.  This validates the normalization
+pathway for repair-law-only differences, including a model with nested
+hierarchies.
 
 ### Feature smoke test (Stage 1/2)
 

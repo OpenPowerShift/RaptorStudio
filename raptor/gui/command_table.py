@@ -148,6 +148,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_preview_awb",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.export_awb_normalized",
+        attr="_export_awb_normalized_action",
+        text="Export Reduced AWB Model…",
+        icon="awb_normalize_icon:text",
+        tooltip=(
+            "Save a matched pair: a reduced RAPTOR model and the .awb it "
+            "represents, for a fair engine-to-engine comparison"),
+        handler="_export_awb_normalized",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_tables",
         attr="_export_tables_action",
         text="Export Tables\u2026",
@@ -1455,8 +1465,8 @@ BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.
     ("Print and Export", ("file.print", "file.export", "file.export_awb",
-                          "file.preview_awb", "file.export_tables",
-                          "file.copy_view")),
+                          "file.preview_awb", "file.export_awb_normalized",
+                          "file.export_tables", "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after

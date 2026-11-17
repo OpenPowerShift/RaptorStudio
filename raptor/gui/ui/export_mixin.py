@@ -161,6 +161,42 @@ class ExportMixin(_Base):
         """File ▸ Check Availability Workbench export…: report only."""
         self._export_awb(dry_run=True)
 
+    def _export_awb_normalized(self):
+        """File ▸ Export Reduced AWB Model…: matched RAPTOR + AWB pair."""
+        if self._rbd is None:
+            return
+        stem = Path(self._current_file).stem if self._current_file else "model"
+        path, _ = fdg.getSaveFileName(
+            self, "Save Reduced RAPTOR Model", stem + ".awb.rbds",
+            "RAPTOR Studio models (*.rbds)")
+        if not path:
+            return
+        norm = Path(path if str(path).lower().endswith(".rbds")
+                    else path + ".rbds")
+        awb = norm.with_name(norm.name[:-5] + ".awb")
+        from raptor.api import awb as awb_api
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self._export_in_progress = True
+        try:
+            self._diagram_dock.view.write_back_to_rbd(self._rbd)
+            reduced, actions = awb_api.normalize(req(self._rbd))
+            awb_api.save_normalized(reduced, norm)
+            report = awb_api.export(reduced, awb,
+                                    source=self._current_file or "")
+        except Exception as exc:  # noqa: BLE001
+            msgbox.critical(self, "Export Failed",
+                            f"Could not write the reduced AWB pair:\n\n{exc}")
+            self._statusbar.showMessage("AWB normalized export failed", 8000)
+            return
+        finally:
+            self._export_in_progress = False
+            QApplication.restoreOverrideCursor()
+        report.notes.extend(f"normalized: {a}" for a in actions)
+        show = getattr(self, "_show_awb_report", None)
+        if show is not None:
+            show("Reduced AWB model export", report, str(awb), wrote=True)
+        self._statusbar.showMessage(f"Reduced AWB pair saved: {awb.name}", 8000)
+
     def _export_workbook_xlsx(self, path: str | None = None):
         """File > Export Excel Workbook...: one .xlsx of the default tables."""
         self._export_workbook(".xlsx", path)

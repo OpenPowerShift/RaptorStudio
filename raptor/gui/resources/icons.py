@@ -1425,6 +1425,21 @@ def awb_preview_icon(colour: str) -> QIcon:
     return _icon("awbpreview", colour, draw)
 
 
+def awb_normalize_icon(colour: str) -> QIcon:
+    """Reduced AWB pair: two documents with a balancing arrow."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(5, 5, 18, 30)
+        p.drawRect(25, 13, 18, 30)
+        p.setPen(QPen(c, 2))
+        p.drawLine(12, 13, 16, 13)
+        p.drawLine(12, 20, 16, 20)
+        p.drawLine(32, 21, 36, 21)
+        p.drawLine(32, 28, 36, 28)
+    return _icon("awbnormalize", colour, draw)
+
+
 def clear_results_icon(colour: str) -> QIcon:
     """Clear Results: table swept by a diagonal wipe."""
     def draw(p: QPainter, c: QColor):
