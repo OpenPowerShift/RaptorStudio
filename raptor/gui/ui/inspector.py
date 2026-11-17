@@ -354,8 +354,12 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         self._tabs = QTabWidget()
         # Tab persistence: keep the same tab open when switching between
         # elements. `_populating` guards against programmatic
-        # setCurrentIndex overwriting the user's choice.
-        self._user_tab_index = 0
+        # setCurrentIndex overwriting the user's choice. Until the user
+        # picks a tab, a block opens on Failure: its life and repair time
+        # are what a new user came to change, not its name and position.
+        # Every other kind opens on its first tab. None = not chosen yet.
+        self._user_tab_index: int | None = None
+        self._tab_kind = ""
         self._populating = False
         #: Builders for tabs a lazy block selection has not built yet.
         #: They capture the selected BLOCK, so they MUST be dropped as soon
@@ -388,6 +392,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         self._tabs.addTab(self._scroll_deps, "⇢ Deps")
         self._tabs.addTab(self._scroll_costs, "⏣ Costs")
         self._configure_tabs("block")
+        self._user_tab_index = None     # adding the first tab "chose" it
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -454,6 +459,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
             # one queued for a shared tab slot (Capacity/Standby reuse the
             # block Failure/Repair widgets).
             self._deferred_tabs.clear()
+        self._tab_kind = kind
         cfg = self._TAB_KIND_CONFIG[kind]
         for i in range(self._tabs.count()):
             visible = i in cfg
@@ -546,8 +552,10 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         the remembered index is out of range or hidden for this kind
         (e.g. the user was on Node's Capacity tab and then selected a
         Hierarchy, which doesn't have one)."""
-        idx = min(getattr(self, "_user_tab_index", 0),
-                  max(self._tabs.count() - 1, 0))
+        chosen = getattr(self, "_user_tab_index", None)
+        if chosen is None:
+            chosen = 1 if getattr(self, "_tab_kind", "") == "block" else 0
+        idx = min(chosen, max(self._tabs.count() - 1, 0))
         if not self._tabs.isTabVisible(idx):
             idx = next((i for i in range(self._tabs.count())
                        if self._tabs.isTabVisible(i)), 0)

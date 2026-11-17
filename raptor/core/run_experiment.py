@@ -192,9 +192,12 @@ def stats_start_tooltip(experiment: dict) -> str:
 PROFILES: dict[str, dict] = {
     "quick_check": {
         "label": "Quick check",
-        "hint": "A handful of trials — is the model running at all?",
+        "hint": "100 trials: a first estimate in seconds",
         "overrides": {
-            "trials": 10,
+            # 100, not 10: ten trials of a typical model give too few
+            # system failures to time, so a new user's first run met an
+            # Advisor warning about the default itself.
+            "trials": 100,
             "termination_type": "TimeSim",
             "term_condition": 1000.0,
             "start_stats": 0.0,

@@ -85,6 +85,21 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
 )
 
 
+def _how_often_down(per_run: float) -> str:
+    """How often the system went fully down, from the mean count per run.
+
+    "about 0 times per run" for 1 failure in 50 runs read as "never", so a
+    rare one says how rare ("about once every 50 runs") -- but only when
+    that rounds to 2 or more: 0.7 a run read "about once every 1 runs"."""
+    every_n = round(1 / per_run)
+    if every_n >= 2:
+        return f"about once every {every_n:,} runs"
+    count = _fmt_count(per_run)
+    if count == "1":
+        return "about once per run"
+    return f"about {count} times per run"
+
+
 def _pooled_time_between_downings(data) -> float | None:
     """Working (not fully down) time over all runs / outages over all runs:
     a rate that stays meaningful when most runs never go down."""
@@ -2014,11 +2029,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             f"degraded {_pct(y)}, and completely down {_pct(r)}."
         ]
         if fails_m and fails_m > 0:
-            # "about 0 times per run" for 1 failure in 50 runs read as
-            # "never"; say how rare it is instead.
-            how_often = (f"about once every {1 / fails_m:,.0f} runs"
-                         if fails_m < 0.95 else
-                         f"about {_fmt_count(fails_m)} times per run")
+            how_often = _how_often_down(fails_m)
             # Pooled over the runs: the MTBDE card's mean is a lower bound
             # when runs end with no outage, and quoting it here put "once
             # every 25 runs" beside "once every 8,760 hours" (one run).

@@ -398,6 +398,9 @@ class RunMixin(_Base):
             return True
         if horizon <= 0:
             return True
+        from raptor.gui.ui import ask_again
+        if not ask_again.should_ask("confirm/long_run"):
+            return True
         # Importance measures are extra batches after the baseline; the
         # time until completion includes them, so the guard must too.
         importance_batches = 0
@@ -482,8 +485,11 @@ class RunMixin(_Base):
         run_btn = box.addButton("Run", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(run_btn)
+        again = ask_again.add_box(box, "Don't warn me about long runs")
         box.exec()
         if box.clickedButton() is run_btn:
+            if again.isChecked():
+                ask_again.stop_asking("confirm/long_run")
             return True
         self._statusbar.showMessage("Run cancelled — nothing was started", 5000)
         return False

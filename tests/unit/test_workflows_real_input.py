@@ -142,6 +142,8 @@ def test_rename_in_the_inspector_then_the_issues_say_the_new_name(win):
     v.set_block_dist(bid, "F", 16)              # Empirical, no points:
     v.set_block_fail_params(bid, [])            # an issue naming the block
     _click_item(v, v._block_items[bid])
+    win._inspector._tabs.setCurrentIndex(0)          # General (a block
+    QApplication.processEvents()                     # opens on Failure)
     name = _line_edit(win, "Boiler")
     name.setFocus()
     name.selectAll()

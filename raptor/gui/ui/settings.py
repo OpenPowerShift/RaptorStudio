@@ -94,6 +94,10 @@ DEFAULTS: dict[str, Any] = {
     # Off: a run goes at full speed on several cores. Animate is the
     # one-core run you watch.
     "execution/default_animate": False,
+    # confirm/ -- the confirmations a "Don't ask again" box can switch
+    # off (see `raptor.gui.ui.ask_again`). True = ask.
+    "confirm/results_on_screen": True,
+    "confirm/long_run": True,
     # results/ -- the Overview cards say what each number was in the run
     # before (see `raptor.gui.ui.result_change`).
     "results/show_change": True,
