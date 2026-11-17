@@ -64,8 +64,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="awb_import_icon:text",
         tooltip=(
             "Open an Isograph Availability Workbench 5.0 .awb project as a "
-            "RAPTOR model; the summary lists what AWB features RAPTOR cannot "
-            "represent"),
+            "new RAPTOR model; the summary lists what AWB features RAPTOR "
+            "cannot represent"),
         handler="_import_awb",
         enabled_when="not_running"),
     CommandSpec(
