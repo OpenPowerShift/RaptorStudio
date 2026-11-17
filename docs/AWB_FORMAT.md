@@ -323,6 +323,11 @@ The format and mapping were checked against AWB 5.0.0.0 under Wine:
    multi-link hierarchy items produce RAPTOR layout warnings).
 5. The imported Example1 model was exported again and re-imported with the
    same element and link counts.
+6. The six tutorial examples that AWB can represent exactly were simulated
+   in both programs at 10,000 replications; every availability difference
+   was within 0.53 percentage points and 1.3 combined standard errors.  The
+   full example sweep and the models that are only partly representable are
+   in [`AWB_VALIDATION.md`](AWB_VALIDATION.md).
 
 AWB demonstration mode was used for opening and simulation.  It does not
 allow Save or Export, which is why the writer constructs the file directly
