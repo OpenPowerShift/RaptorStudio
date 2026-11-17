@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg
 from raptor.cli.cmd_run import add_study_progress, study_progress
 from raptor.cli.exitcodes import CliError
 
@@ -53,7 +53,7 @@ def add_parser(sub: Any) -> None:
                    help="most simulation points to evaluate (default 40)")
     p.add_argument("-n", "--trials", type=int, metavar="N",
                    help="runs per point (default: the model's own)")
-    p.add_argument("--seed", type=int, default=None, metavar="N")
+    p.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
     p.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
     add_study_progress(p)
     p.add_argument("--apply", action="store_true",
@@ -70,7 +70,7 @@ def add_parser(sub: Any) -> None:
                    help="what to optimise (default availability)")
     m.add_argument("-n", "--trials", type=int, metavar="N",
                    help="runs per point (default: the model's own)")
-    m.add_argument("--seed", type=int, default=None, metavar="N")
+    m.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
     m.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
     add_study_progress(m)
     m.add_argument("--apply", action="store_true",
@@ -87,7 +87,7 @@ def add_parser(sub: Any) -> None:
     r.add_argument("--extra", type=int, default=3, metavar="N",
                    help="sizes above the seed to try (default 3)")
     r.add_argument("-n", "--trials", type=int, metavar="N")
-    r.add_argument("--seed", type=int, default=None, metavar="N")
+    r.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
     r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
     add_study_progress(r)
     r.add_argument("--apply", action="store_true",

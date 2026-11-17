@@ -341,7 +341,19 @@ class RunExperimentMixin:
             settings.remove(f"reports/{key}")
         settings.set_value("experiments/recording_migrated", True)
 
-    def _build_run_manifest(self, rbd=None, isolation=None) -> dict:
+    def _resolve_run_seed(self) -> int:
+        """The seed the run starting now uses (#292): 0 for Raptor 7's
+        fixed table. A New run draws one here, once, on the GUI thread;
+        the panel keeps it so Seed ▸ Number can repeat that run."""
+        seed = run_experiment.resolve_seed(self._current_experiment())
+        self._last_run_seed = seed
+        panel = getattr(self, "_run_panel", None)
+        if seed and panel is not None:
+            panel.last_seed = seed
+        return seed
+
+    def _build_run_manifest(self, rbd=None, isolation=None,
+                            seed: int = 0) -> dict:
         """Freeze what this run is, for the results to carry.
 
         Built on the calling thread, once, before the engine starts. It
@@ -362,7 +374,7 @@ class RunExperimentMixin:
                 model, self._current_experiment(),
                 profile=self._run_panel_profile()
                 if getattr(self, "_run_panel", None) else "",
-                engine_version=_engine_version())
+                engine_version=_engine_version(), seed=seed)
             if isolation is not None:
                 m["isolation"] = isolation.to_dict()
                 m["model_name"] = (
@@ -548,6 +560,9 @@ class RunExperimentMixin:
         # pressing Run could therefore run without the analysis (observed
         # as `mode: none` with the box visibly ticked).
         experiment["importance"] = current.get("importance", "none")
+        # The seed has no SYSTEM_DATA column either (#292).
+        experiment["seed_mode"] = current.get("seed_mode", "fixed")
+        experiment["seed"] = current.get("seed", 0)
         # A plot whose analysis is off cannot be collected. The modal path
         # used to carry its tick over unconditionally, leaving a checked
         # plot that produced nothing.

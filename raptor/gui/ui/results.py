@@ -1713,6 +1713,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if m.get("streams"):
             # one core and several give different, equally valid numbers
             bits.append(f"{m['streams']} streams")
+        if m.get("seed"):
+            bits.append(f"seed {m['seed']}")
         record = m.get("recording") or {}
         if record:
             on = [k for k in ("event_log", "ao_plot", "capacity_plot",

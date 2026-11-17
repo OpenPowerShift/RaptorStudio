@@ -48,6 +48,12 @@
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
 <li><a href="#precision">Trials to Precision: how many trials are enough</a></li>
 <li><a href="#whatif">Out of service: cut or link an element for a what-if</a></li>
+<li><a href="#seeds-and-streams">Random seeds and streams</a>
+<ul class="sectlevel2">
+<li><a href="#_the_seed_run_panel_more_options_seed">The seed (Run panel ▸ More options ▸ Seed)</a></li>
+<li><a href="#_separate_streams_for_each_block_model_random_streams">Separate streams for each block (Model ▸ Random Streams)</a></li>
+</ul>
+</li>
 <li><a href="#_what_if_compare_changes_with_the_model">What If: compare changes with the model</a></li>
 <li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
 <li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
@@ -1407,11 +1413,14 @@ chose. <strong>Stop at</strong> is one row: <strong>Stop at [Time] after [1000] 
 word after the number follows the choice (hours, system failures or
 phase cycles). Then <strong>Statistics from</strong>.</p>
 <p class="tableblock"><strong>More options</strong> holds <strong>Model scope</strong> (the whole model, or one
-hierarchy run on its own — see <a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a>) and
-<strong>Cores</strong>. It starts closed and remembers whether you left it open, but
-its heading always says both values (<strong>More options: Whole model · 8
-cores</strong>), and choosing a hierarchy opens it. While Animate is on the run
-uses one core, and the heading and the top line say <strong>1 core (Animate)</strong>.</p></td>
+hierarchy run on its own — see <a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a>), <strong>Cores</strong> and
+<strong>Seed</strong>. It starts closed and remembers whether you left it open, but
+its heading always says the scope and cores (<strong>More options: Whole model
+· 8 cores</strong>), plus the seed when it is not the default, and choosing a
+hierarchy opens it. While Animate is on the run uses one core, and the
+heading and the top line say <strong>1 core (Animate)</strong>. <strong>Seed</strong> chooses the
+random numbers: <strong>Raptor 7 (fixed)</strong>, <strong>New each run</strong> or <strong>Number</strong> — see
+<a href="#seeds-and-streams">Random seeds and streams</a>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Results to calculate</p></td>
@@ -1611,6 +1620,99 @@ for it. From the command line: <code>raptor edit MODEL out-of-service Pump_A
 --state cut --in-place</code> (no element lists what is out); over MCP:
 <code>set_out_of_service</code>. <code>raptor render</code> and MCP <code>render_diagram_svg</code> draw the
 same marks.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="seeds-and-streams">Random seeds and streams</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_the_seed_run_panel_more_options_seed">The seed (Run panel ▸ More options ▸ Seed)</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Setting</th>
+<th class="tableblock halign-left valign-top">What a run does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor 7 (fixed)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The default. Uses Raptor 7&#8217;s seed table: every run of
+the same model gives the same numbers, and they match Raptor 7.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New each run</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Draws a fresh seed every time you press <strong>Run</strong>, so each
+result is an independent sample. The seed is shown in the ready line
+and in the results' run-settings line.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Uses the seed you type, saved with the model. The same number
+repeats a run exactly.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Repeating a New run.</strong> Choose <strong>Number</strong> straight after the run: the box
+fills in the seed that run used.</p>
+</li>
+<li>
+<p><strong>Two fixed-seed runs are one experiment.</strong> Re-running on the fixed seed
+gives the same draws, so it tells you nothing about how stable a
+result is. Use <strong>New each run</strong> for that.</p>
+</li>
+<li>
+<p><strong>Studies.</strong> What If, Sensitivity, Recommend, the optimisers and the
+Importance measures use the same setting, with one seed for the whole
+study, so the base and every variant are compared on the same draws.</p>
+</li>
+<li>
+<p><strong>The CLI and the AI Assistant give the same numbers.</strong> Point at the
+results' run-settings line for the exact command. Seed <strong>N</strong> on one core
+is <code>raptor run --seed N -j 1</code> (MCP <code>seed=N, workers=1</code>); on two or
+more cores it is <code>-j 2</code> (<code>workers=2</code>), whatever the core count. Without
+<code>--seed</code> they use a <strong>Number</strong> seed saved in the model, otherwise the
+fixed table. <code>raptor run --seed new</code> draws a fresh seed and reports it.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_separate_streams_for_each_block_model_random_streams">Separate streams for each block (Model ▸ Random Streams)</h3>
+<div class="paragraph">
+<p>By default every block draws its failure and repair times from one
+shared stream, as in Raptor 7. That is sound, but a change to one block
+shifts the draws of every block after it, which adds noise when you
+compare two versions of a model.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Separate Streams for All Blocks</strong> gives every block a failure stream and a repair stream of
+its own, as one step that <strong>Undo</strong> reverses. Blocks that already have
+separate streams keep them.</p>
+</li>
+<li>
+<p><strong>Separate Streams for New Blocks</strong> is a toggle, remembered between sessions: while it is on,
+each block you add, paste or duplicate gets separate streams.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Raptor 7 has 110 independent streams and the System streams use 11, so
+there are 49 pairs. From the 50th block the pairs are reused, least-used
+first, and the status bar says how many blocks share one. Sharing a pair
+is still sound, and better than every block sharing one stream. A model
+with separate streams no longer matches Raptor 7&#8217;s numbers.</p>
+</div>
 </div>
 </div>
 </div>
@@ -2944,6 +3046,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Analytical…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Random Streams</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run&#8217;s seed is on the Run panel</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>

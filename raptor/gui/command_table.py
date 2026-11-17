@@ -338,6 +338,31 @@ COMMANDS: tuple[CommandSpec, ...] = (
         kwargs=(("quiet", False),),
         shortcut="F7",
         enabled_when="model_open"),
+    CommandSpec(
+        id="model.own_streams",
+        attr="_own_streams_action",
+        text="Separate Streams for All Blocks",
+        icon="spread_icon:accent",
+        tooltip=(
+            "Give every block its own failure and repair random streams, so "
+            "a change to one block does not shift the others' draws. After "
+            "49 blocks the streams are reused from the start. Results then "
+            "no longer match Raptor 7's. Undoable"),
+        handler="_give_blocks_own_streams",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="model.own_streams_new",
+        attr="_own_streams_new_action",
+        text="Separate Streams for New Blocks",
+        icon="block_icon:accent",
+        tooltip=(
+            "When on, each block you add, paste or duplicate gets its own "
+            "failure and repair random streams instead of the shared one "
+            "(reused from the start after 49 blocks). Remembered"),
+        handler="_set_own_streams_for_new_blocks",
+        on="toggled",
+        checkable=True,
+        enabled_when="model_open"),
     # ---- Model -------------------------------------------------------
     CommandSpec(
         id="model.import_rbd",
@@ -1499,8 +1524,11 @@ LAYOUT: tuple[Page, ...] = (
                        # the large ones Quick Add left a gap
                        Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
+       # Random Streams is one menu button (#292): a group of its own made
+       # the Model tab too wide to fit at 1280 px.
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
-                       Btn("results.analytical", True)), priority=4),
+                       Btn("results.analytical", True),
+                       Custom("_build_streams_button")), priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
        Group("Annotate", (Btn("arrange.anno_text", True),

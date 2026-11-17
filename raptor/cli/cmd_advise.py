@@ -6,7 +6,7 @@ import sys
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg
 from raptor.cli.exitcodes import CliError
 from raptor.core.run_experiment import IMPORTANCE_MODES
 
@@ -76,7 +76,7 @@ def add_parser(sub: Any) -> None:
     e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
                    help="worker processes (default 1; more is reproducible but "
                         "gives different numbers from -j 1)")
-    e.add_argument("--seed", type=int, metavar="N")
+    e.add_argument("--seed", type=seed_arg, metavar="N|new")
     e.add_argument("--analysis", metavar="LIST",
                    help="weak,cost,capacity for this run (replaces the model's "
                         "setting; the file is untouched): the cost and lost-capacity "

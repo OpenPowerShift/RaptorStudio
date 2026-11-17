@@ -375,6 +375,14 @@ def run(
             "The run length must be between 0.000001 and "
             "999,999,999.999999.")
     handle = workspace.get(model_id)
+    if seed is None:
+        # A seed saved with the model (Run panel ▸ Seed ▸ Number, #292).
+        # "New each run" is not honoured here: a study calls this once per
+        # variant, and a fresh seed each time would unpair them.
+        from raptor.core import run_experiment as _rx
+        saved = _rx.normalise(getattr(handle.rbd, "experiment", None) or {})
+        if saved["seed_mode"] == "number" and saved["seed"]:
+            seed = int(saved["seed"])
 
     # Work on a copy only when overriding, so the live model is untouched.
     sim_rbd = copy.deepcopy(handle.rbd) if run_length is not None else handle.rbd
@@ -1447,9 +1455,12 @@ def streams_note(summary: dict) -> str:
     result that does not say which it was cannot be reproduced."""
     seed = int(summary.get("seed") or 0)
     salt = f" --seed {seed}" if seed else ""
+    mcp_salt = f", seed={seed}" if seed else ""
+    gui_salt = f", Seed ▸ Number {seed}" if seed else ""
     if summary.get("streams") == "parallel":
         return ("Random streams: parallel (any 2 or more cores give these "
-                f"numbers; repeat with `raptor run -j 2{salt}`, MCP workers=2, "
-                "or Cores 2+ in the GUI).")
+                f"numbers; repeat with `raptor run -j 2{salt}`, MCP "
+                f"workers=2{mcp_salt}, or Cores 2+{gui_salt} in the GUI).")
     return ("Random streams: sequential, as Raptor 7 draws them (repeat with "
-            f"`raptor run -j 1{salt}`, MCP workers=1, or Cores 1 in the GUI).")
+            f"`raptor run -j 1{salt}`, MCP workers=1{mcp_salt}, or Cores "
+            f"1{gui_salt} in the GUI).")

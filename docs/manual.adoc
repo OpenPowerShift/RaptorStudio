@@ -902,11 +902,14 @@ word after the number follows the choice (hours, system failures or
 phase cycles). Then **Statistics from**.
 
 **More options** holds **Model scope** (the whole model, or one
-hierarchy run on its own — see <<extract-hierarchy>>) and
-**Cores**. It starts closed and remembers whether you left it open, but
-its heading always says both values (*More options: Whole model · 8
-cores*), and choosing a hierarchy opens it. While Animate is on the run
-uses one core, and the heading and the top line say *1 core (Animate)*.
+hierarchy run on its own — see <<extract-hierarchy>>), **Cores** and
+**Seed**. It starts closed and remembers whether you left it open, but
+its heading always says the scope and cores (*More options: Whole model
+· 8 cores*), plus the seed when it is not the default, and choosing a
+hierarchy opens it. While Animate is on the run uses one core, and the
+heading and the top line say *1 core (Animate)*. **Seed** chooses the
+random numbers: *Raptor 7 (fixed)*, *New each run* or *Number* — see
+<<seeds-and-streams>>.
 
 |Results to calculate
 |Weak Link, Cost, Capacity and Importance measures. Point at one for
@@ -1061,6 +1064,57 @@ for it. From the command line: `raptor edit MODEL out-of-service Pump_A
 --state cut --in-place` (no element lists what is out); over MCP:
 `set_out_of_service`. `raptor render` and MCP `render_diagram_svg` draw the
 same marks.
+
+[[seeds-and-streams]]
+== Random seeds and streams
+
+=== The seed (Run panel ▸ More options ▸ Seed)
+
+[cols="1,3",options="header"]
+|===
+|Setting |What a run does
+|Raptor 7 (fixed) |The default. Uses Raptor 7's seed table: every run of
+the same model gives the same numbers, and they match Raptor 7.
+|New each run |Draws a fresh seed every time you press *Run*, so each
+result is an independent sample. The seed is shown in the ready line
+and in the results' run-settings line.
+|Number |Uses the seed you type, saved with the model. The same number
+repeats a run exactly.
+|===
+
+* *Repeating a New run.* Choose *Number* straight after the run: the box
+  fills in the seed that run used.
+* *Two fixed-seed runs are one experiment.* Re-running on the fixed seed
+  gives the same draws, so it tells you nothing about how stable a
+  result is. Use *New each run* for that.
+* *Studies.* What If, Sensitivity, Recommend, the optimisers and the
+  Importance measures use the same setting, with one seed for the whole
+  study, so the base and every variant are compared on the same draws.
+* *The CLI and the AI Assistant give the same numbers.* Point at the
+  results' run-settings line for the exact command. Seed *N* on one core
+  is `raptor run --seed N -j 1` (MCP `seed=N, workers=1`); on two or
+  more cores it is `-j 2` (`workers=2`), whatever the core count. Without
+  `--seed` they use a *Number* seed saved in the model, otherwise the
+  fixed table. `raptor run --seed new` draws a fresh seed and reports it.
+
+=== Separate streams for each block (Model ▸ Random Streams)
+
+By default every block draws its failure and repair times from one
+shared stream, as in Raptor 7. That is sound, but a change to one block
+shifts the draws of every block after it, which adds noise when you
+compare two versions of a model.
+
+* *Separate Streams for All Blocks* gives every block a failure stream and a repair stream of
+  its own, as one step that *Undo* reverses. Blocks that already have
+  separate streams keep them.
+* *Separate Streams for New Blocks* is a toggle, remembered between sessions: while it is on,
+  each block you add, paste or duplicate gets separate streams.
+
+Raptor 7 has 110 independent streams and the System streams use 11, so
+there are 49 pairs. From the 50th block the pairs are reused, least-used
+first, and the status bar says how many blocks share one. Sharing a pair
+is still sound, and better than every block sharing one stream. A model
+with separate streams no longer matches Raptor 7's numbers.
 
 == What If: compare changes with the model
 

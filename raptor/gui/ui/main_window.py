@@ -28,6 +28,7 @@ from raptor.gui.ui.background_run_mixin import BackgroundRunMixin
 from raptor.gui.ui.overlay_mixin import OverlayMixin
 from raptor.gui.ui.status_summary_mixin import StatusSummaryMixin
 from raptor.gui.ui.autosave_mixin import AutosaveMixin
+from raptor.gui.ui.own_streams_mixin import OwnStreamsMixin
 from raptor.gui.ui.advisor_mixin import AdvisorMixin
 from raptor.gui.ui.run_progress_mixin import RunProgressMixin
 from raptor.gui.ui.file_io_mixin import FileIoMixin
@@ -183,7 +184,7 @@ _TERMINATION_CHOICES = [
 class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixin, SelectionMixin, FindZoomMixin, RecentFilesMixin, ExportMixin, HelpMixin, RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin,
                  ValidationMixin, DockLayoutMixin, StepMixin, FileIoMixin,
                  RunProgressMixin, AutosaveMixin, StatusSummaryMixin, OverlayMixin,
-                 BackgroundRunMixin, AdvisorMixin, QMainWindow):
+                 BackgroundRunMixin, AdvisorMixin, OwnStreamsMixin, QMainWindow):
     """The application shell.
 
     `RunExperimentMixin` supplies every read and write of the run
@@ -604,6 +605,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 _act.setIcon(getattr(icons, _icon_fn)(c["accent"]))
         self._fev_log_action.setIcon(icons.log_icon(c["text"]))
         self._align_action.setIcon(icons.align_hcenter_icon(c["accent"]))
+        self._streams_menu_action.setIcon(icons.spread_icon(c["accent"]))
         for icon_fn, act in self._align_menu_actions:
             act.setIcon(getattr(icons, icon_fn)(c["accent"]))
         # The docks' own title-bar Float / Close buttons.
@@ -1347,6 +1349,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results_dock.raise_()
         self._setup_dock_toggle(self._run_toggle_action, self._run_dock)
         self._run_panel.experiment_changed.connect(self._on_panel_experiment)
+        self._init_own_streams_toggle()
         self._run_panel.system_config_changed.connect(
             self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)

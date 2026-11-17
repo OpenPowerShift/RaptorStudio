@@ -3403,6 +3403,76 @@ noise, sometimes none. The comparison is still fair, and its standard
 error is computed from the paired differences, so it does not flatter
 the result; What If reports how much the pairing actually cut.</p>
 </div>
+<div class="sect3">
+<h4 id="_choosing_the_seed">8.4.1. Choosing the seed</h4>
+<div class="paragraph">
+<p>The <strong>Seed</strong> box under <strong>More options</strong> in the Run panel picks the dice:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Setting</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What it does</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor 7 (fixed)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The default: Raptor 7&#8217;s own seed table. The same model
+always gives the same numbers, and they match Raptor 7.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New each run</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A fresh seed every time you press <strong>Run</strong>. Use it to see
+how much a result moves between honest re-rolls.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A seed you choose, saved with the model. The same number
+repeats the run exactly.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The seed used is in the ready line ("seed 1234") and in the results'
+run-settings line. After a <strong>New each run</strong> run, choosing <strong>Number</strong> fills in
+the seed that run used, so a result you like can be repeated.</p>
+</div>
+<div class="paragraph">
+<p>Two runs on the fixed seed are <strong>not</strong> two independent experiments: they
+are the same experiment twice. To check that a result is stable, re-run
+it with <strong>New each run</strong> and see how far it moves. What If, Sensitivity,
+Recommend and the optimisers use the same setting, with one seed for the
+whole study, so the base and every variant stay paired.</p>
+</div>
+<div class="paragraph">
+<p>The command line and the AI Assistant can repeat a GUI result exactly:
+<code>raptor run --seed 1234 -j 1</code> matches seed 1234 on one core, and <code>-j 2</code>
+matches it on any number of cores (MCP: <code>seed=1234</code>, <code>workers=1</code> or
+<code>2</code>). Point at the results' run-settings line to see the command for
+that run.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_giving_each_block_its_own_streams">8.4.2. Giving each block its own streams</h4>
+<div class="paragraph">
+<p>By default every block draws from one shared stream, as in Raptor 7.
+That is statistically sound, but a change to one block shifts the draws
+of every block after it, which adds noise to a comparison.
+<strong>Model ▸ Random Streams ▸ Separate Streams for All Blocks</strong> gives every
+block its own failure and repair streams in one step (<strong>Undo</strong> puts them
+back). <strong>Separate Streams for New Blocks</strong> does the same for each block you add, paste or duplicate from then on; Raptor
+Studio remembers the setting.</p>
+</div>
+<div class="paragraph">
+<p>There are 49 pairs of streams. From the 50th block the pairs are reused,
+least-used first, and the status bar says how many blocks share one —
+still sound, and better than one stream for everything. A model with its
+own streams no longer reproduces Raptor 7&#8217;s numbers.</p>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_watching_the_wobble_shrink">8.5. Watching the wobble shrink</h3>

@@ -239,6 +239,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: button when the view does the latter -- without it the button
     #: stayed lit and the next click placed another shape.
     tool_mode_changed = Signal(str)
+    #: New blocks that were given a stream pair another block already
+    #: uses, because all 49 were taken (Separate Streams, #292).
+    streams_reused = Signal(int)
+    #: Model ▸ Random Streams ▸ Separate Streams for New Blocks; read by
+    #: `AddCmd`.
+    own_streams_for_new_blocks = False
     #: (kind, props | None) -- the saved "style for new <Kind>s" changed.
     #: `None` means the default was cleared. MainWindow persists it (it
     #: owns QSettings); the view only holds and applies it.

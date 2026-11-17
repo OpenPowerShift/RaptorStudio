@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
-from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work, trials_box
+from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
 
 def _pct(value: float | None) -> str:
@@ -197,10 +197,11 @@ class SparesDialog(AnalysisDialog):
         mode, target = self._mode.currentData(), self._target.value() / 100
         budget, trials, workers = self._budget.value(), self._trials.value(), cores.chosen()
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.spares import optimise_spares
             return optimise_spares(ws, mid, mode=mode, target=target,
-                                   max_evaluations=budget, trials=trials, seed=None,
+                                   max_evaluations=budget, trials=trials, seed=seed,
                                    workers=workers, timeout_s=24 * 3600.0,
                                    progress=progress, abort=abort)
         return work
@@ -288,9 +289,10 @@ class PmDialog(AnalysisDialog):
         objective, trials, workers = (self._objective.currentData(), self._trials.value(),
                                       cores.chosen())
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.pm import optimise_pm
-            return optimise_pm(ws, mid, objective=objective, trials=trials, seed=None,
+            return optimise_pm(ws, mid, objective=objective, trials=trials, seed=seed,
                                workers=workers, timeout_s=24 * 3600.0,
                                progress=progress, abort=abort)
         return work
@@ -386,10 +388,11 @@ class CrewsDialog(AnalysisDialog):
         target, extra = self._target.value() / 100, self._extra.value()
         trials, workers = self._trials.value(), cores.chosen()
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.optimise.resources import optimise_resources
             return optimise_resources(ws, mid, target=target, extra=extra, trials=trials,
-                                      seed=None, workers=workers, timeout_s=24 * 3600.0,
+                                      seed=seed, workers=workers, timeout_s=24 * 3600.0,
                                       progress=progress, abort=abort)
         return work
 

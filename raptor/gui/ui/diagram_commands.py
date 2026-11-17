@@ -405,6 +405,25 @@ class LayoutCmd(_ViewCmd):
         self._done()
 
 
+def _give_own_streams(view, rows: list[dict]) -> None:
+    """Separate Streams for New Blocks (#292): new block rows draw from
+    streams of their own, chosen ONCE here so redo and undo replay the
+    same numbers. A pasted or duplicated block is new too: keeping its
+    source's stream would give it the very same draws. After 49 blocks
+    the least-used pairs are reused (`own_streams.assign`)."""
+    from raptor.core.edit import own_streams
+    from raptor.gui.ui.own_streams_mixin import sys_streams_of
+    used = [int(s) for b in getattr(view, "blocks", {}).values()
+            for s in (b.fail_stream, b.repair_stream)]
+    used += [int(e.fail_stream) for e in getattr(view, "events", {}).values()]
+    pairs, reused = own_streams.assign(
+        len(rows), used, sys_streams_of(getattr(view, "_rbd_ref", None)))
+    for row, (fail, repair) in zip(rows, pairs, strict=False):
+        row["FStream"], row["RStream"] = str(fail), str(repair)
+    if reused:
+        view.streams_reused.emit(reused)
+
+
 class AddCmd(_ViewCmd):
     """Element creation: re-inserts / removes its cloned file rows."""
 
@@ -413,6 +432,9 @@ class AddCmd(_ViewCmd):
         self.kind = kind
         self.rows = [dict(r) for r in rows]
         self.ids = None
+        if kind == "block" and getattr(view, "own_streams_for_new_blocks",
+                                       False):
+            _give_own_streams(view, self.rows)
 
     def redo(self):
         id_col = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui import cores
+from raptor.gui.ui.analysis_dialog import study_seed
 
 COLUMNS = ("Change", "Measured effect", "Availability gain", "Downtime a run", "Cost")
 
@@ -28,8 +29,10 @@ class RecommendJob:
     """Runs `recommend` in a thread; the dialog polls it. Plain data only."""
 
     def __init__(self, rbd: Any, *, top: int, trials: int, workers: int,
-                 min_gain: float | None = None) -> None:
+                 min_gain: float | None = None,
+                 seed: int | None = None) -> None:
         self._rbd = rbd
+        self.seed = seed
         self.min_gain = min_gain
         self.top, self.trials, self.workers = top, trials, workers
         self.result: Any = None
@@ -61,7 +64,7 @@ class RecommendJob:
             ws = Workspace(self._tmp.name)
             mid = ws.register_model(self._rbd, name="recommend")["model_id"]
             self.result = recommend(
-                ws, mid, top=self.top, trials=self.trials, seed=None,
+                ws, mid, top=self.top, trials=self.trials, seed=self.seed,
                 workers=self.workers, timeout_s=24 * 3600.0, min_gain=self.min_gain,
                 progress=self._progress, abort=self.abort)
         except Exception as exc:                          # noqa: BLE001
@@ -239,7 +242,8 @@ class RecommendDialog(QDialog):
         self._job = RecommendJob(_model_copy(self._win), top=self._top.value(),
                                  trials=self._trials.value(), workers=cores.chosen(),
                                  min_gain=(self._min_gain.value() / 100
-                                           if self._min_gain.value() > 0 else None))
+                                           if self._min_gain.value() > 0 else None),
+                                 seed=study_seed(self._win))
         self.table.setRowCount(0)
         self.caption.setText("Finding the downtime drivers…")
         self._progress.setRange(0, 0)

@@ -56,6 +56,52 @@ noise, sometimes none. The comparison is still fair, and its standard
 error is computed from the paired differences, so it does not flatter
 the result; What If reports how much the pairing actually cut.
 
+==== Choosing the seed
+
+The *Seed* box under *More options* in the Run panel picks the dice:
+
+[cols="1,3"]
+|===
+|Setting |What it does
+|Raptor 7 (fixed) |The default: Raptor 7's own seed table. The same model
+always gives the same numbers, and they match Raptor 7.
+|New each run |A fresh seed every time you press *Run*. Use it to see
+how much a result moves between honest re-rolls.
+|Number |A seed you choose, saved with the model. The same number
+repeats the run exactly.
+|===
+
+The seed used is in the ready line ("seed 1234") and in the results'
+run-settings line. After a *New each run* run, choosing *Number* fills in
+the seed that run used, so a result you like can be repeated.
+
+Two runs on the fixed seed are *not* two independent experiments: they
+are the same experiment twice. To check that a result is stable, re-run
+it with *New each run* and see how far it moves. What If, Sensitivity,
+Recommend and the optimisers use the same setting, with one seed for the
+whole study, so the base and every variant stay paired.
+
+The command line and the AI Assistant can repeat a GUI result exactly:
+`raptor run --seed 1234 -j 1` matches seed 1234 on one core, and `-j 2`
+matches it on any number of cores (MCP: `seed=1234`, `workers=1` or
+`2`). Point at the results' run-settings line to see the command for
+that run.
+
+==== Giving each block its own streams
+
+By default every block draws from one shared stream, as in Raptor 7.
+That is statistically sound, but a change to one block shifts the draws
+of every block after it, which adds noise to a comparison.
+*Model ▸ Random Streams ▸ Separate Streams for All Blocks* gives every
+block its own failure and repair streams in one step (*Undo* puts them
+back). *Separate Streams for New Blocks* does the same for each block you add, paste or duplicate from then on; Raptor
+Studio remembers the setting.
+
+There are 49 pairs of streams. From the 50th block the pairs are reused,
+least-used first, and the status bar says how many blocks share one —
+still sound, and better than one stream for everything. A model with its
+own streams no longer reproduces Raptor 7's numbers.
+
 === Watching the wobble shrink
 
 Run `Lantern1.rbds` with these run counts: 10, then 50, then 200, then

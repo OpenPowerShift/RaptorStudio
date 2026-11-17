@@ -104,6 +104,9 @@ DEFAULTS: dict[str, Any] = {
     # run_panel/ -- whether the Run panel's More options (Model scope,
     # Cores) are open. Closed: its heading still names both.
     "run_panel/more_options": False,
+    # model/ -- a block added while this is on gets its own random streams
+    # (Model ▸ Random Streams ▸ Own Streams for New Blocks, #292).
+    "model/own_streams_new_blocks": False,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,

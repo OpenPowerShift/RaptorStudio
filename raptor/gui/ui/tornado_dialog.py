@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
-from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work, trials_box
+from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
 METRICS = (("availability", "Availability", True), ("mdt", "Mean downtime", False),
            ("mtbde", "Time between outages", False),
@@ -181,9 +181,10 @@ class TornadoDialog(AnalysisDialog):
         asked = self._top.value()
         metric, trials, workers = self._metric.currentData(), self._trials.value(), cores.chosen()
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios.sensitivity import tornado
-            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=None,
+            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=seed,
                            workers=workers, timeout_s=24 * 3600.0,
                            progress=progress, abort=abort, asked=asked)
         return work

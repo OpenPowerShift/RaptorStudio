@@ -582,6 +582,13 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
                                     **(meta or {})}}
     system, experiment = _emit_system(rbd)
     doc["system"] = system
+    # The seed is written only when it is not Raptor 7's fixed table, so a
+    # model that never touched it saves exactly as before (#292).
+    if experiment.get("seed_mode") == "fixed":
+        experiment.pop("seed_mode", None)
+        experiment.pop("seed", None)
+    elif experiment.get("seed_mode") == "new":
+        experiment.pop("seed", None)
     doc["experiment"] = experiment
 
     # The ID-0 rows are the defaults a new element starts from (Raptor 7's

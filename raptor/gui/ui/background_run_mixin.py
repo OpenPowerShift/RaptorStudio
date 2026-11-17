@@ -59,7 +59,8 @@ class BackgroundRunMixin(_Base):
         _bg_poll: PySide6.QtCore.QTimer
         _bg_state: dict
         _bg_thread: Any
-        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ...) -> dict: ...
+        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ..., seed: int = ...) -> dict: ...
+        def _resolve_run_seed(self) -> int: ...
         def _checked_overlay_state(self) -> dict[str, bool]: ...
         def _clear_run_eta(self) -> None: ...
         _current_file: str | None
@@ -141,7 +142,9 @@ class BackgroundRunMixin(_Base):
         if bg_model is None:
             return
         self._last_run_model = bg_model
-        main_manifest = self._build_run_manifest(bg_model, isolation)
+        run_seed = self._resolve_run_seed()
+        main_manifest = self._build_run_manifest(bg_model, isolation,
+                                                 seed=run_seed)
         # Plain-data snapshots for the worker: QAction/QSettings reads
         # must stay on this thread.
         report_choices = self._report_choices()
@@ -345,6 +348,7 @@ class BackgroundRunMixin(_Base):
                         "ao_interval"),
                     cost_plot_interval=self._effective_run_interval(
                         "cost_interval"),
+                    seed=run_seed or None,
                     keep_partial_logs=True)
                 state["result"] = (logs, eor, fin, report_data,
                                    report_notes, ao_lines, cap_lines,
@@ -376,6 +380,8 @@ class BackgroundRunMixin(_Base):
                         state["importance"] = _imp.analyse(
                             bg_model, report_data, mode=_mode,
                             runs=len(report_data), workers=workers,
+                            # the baseline's seed: variants stay paired
+                            seed=run_seed or None,
                             # `stop_check`, not `stop_ev.is_set`: Pause is
                             # checked between variants (and blocks there),
                             # so a paused run neither advances nor spins to

@@ -126,7 +126,7 @@ def model_content_hash(rbd: RbdFile, *,
 
 
 def build_manifest(rbd: RbdFile, experiment: dict, *, profile: str = "",
-                   engine_version: str = "") -> dict:
+                   engine_version: str = "", seed: int = 0) -> dict:
     """Freeze everything needed to describe (and reproduce) a run.
 
     Called ONCE at run start, before the engine is handed anything, so
@@ -137,7 +137,7 @@ def build_manifest(rbd: RbdFile, experiment: dict, *, profile: str = "",
         model_hash=model_content_hash(rbd),
         model_name=rbd.file_name or "(unnamed)",
         engine_version=engine_version,
-        profile=profile)
+        profile=profile, seed=seed)
 
 
 def manifest_digest(manifest: dict) -> str:

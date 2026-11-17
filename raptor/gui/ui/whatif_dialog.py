@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui import cores
-from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work, trials_box
+from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
 RESULT_COLUMNS = ("Scenario", "Availability", "Change vs Base", "Chance better",
                   "Mean downtime change")
@@ -232,9 +232,10 @@ class WhatIfDialog(AnalysisDialog):
                     "block:Pump_A.stock=3, or remove it.")
         trials, workers = self._trials.value(), cores.chosen()
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios import compare
-            return compare(ws, mid, scenarios, trials=trials, workers=workers, seed=None,
+            return compare(ws, mid, scenarios, trials=trials, workers=workers, seed=seed,
                            timeout_s=24 * 3600.0, progress=progress, abort=abort)
         return work
 

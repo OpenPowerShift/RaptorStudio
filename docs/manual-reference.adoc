@@ -50,6 +50,7 @@ current value).
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
 |Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
+|Random Streams |How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run's seed is on the Run panel |
 |===
 
 ==== Annotate
