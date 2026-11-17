@@ -167,6 +167,7 @@ class FileIoMixin(_Base):
         self._current_file = None
         self._dirty = False
         self._results.clear()
+        self._results.forget_previous_run()
         self._results_show_action.setEnabled(False)
         self._results_float_action.setEnabled(False)
         self._sync_overlay_actions([])
@@ -391,6 +392,7 @@ class FileIoMixin(_Base):
         self._inspector.set_rbd(rbd)
         self._inspector.clear_selection()
         self._results.clear()
+        self._results.forget_previous_run()
         # A new model has no result data: clear the old model's canvas
         # overlay and uncheck its button. Otherwise Weak Links stayed
         # "on" over a diagram that painted nothing.

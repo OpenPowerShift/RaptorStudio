@@ -58,7 +58,11 @@
 <li><a href="#several-models">Several models at once</a></li>
 <li><a href="#ai-assistant">AI assistant (MCP)</a></li>
 <li><a href="#files-and-reports">Recording</a></li>
-<li><a href="#run-manifest">What a result set records about itself</a></li>
+<li><a href="#run-manifest">What a result set records about itself</a>
+<ul class="sectlevel2">
+<li><a href="#change-from-last-run">What changed since the last run</a></li>
+</ul>
+</li>
 <li><a href="#stepping">Debug tab: stepping debugger</a></li>
 <li><a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a></li>
 <li><a href="#export-tables">Exporting tables</a>
@@ -2057,6 +2061,25 @@ phases — so changing the trial count for a convergence sweep does not
 retroactively invalidate results already on screen, while changing a
 failure distribution does.</p>
 </div>
+<div class="sect2">
+<h3 id="change-from-last-run">What changed since the last run</h3>
+<div class="paragraph">
+<p>Run, change something, and run again: each headline card on the
+Overview (Availability, Reliability, MTBDE, MDT, System Failures) then
+says what it was before, for example <strong>was 0.912 · up 0.051</strong>. The line
+is green when the change is for the better and red when it is for the
+worse, but only when the difference is bigger than the run-to-run
+spread (95 %). A smaller difference reads <strong>no clear change</strong> in grey:
+the random draws alone move the numbers that much, so it may not be
+your edit at all. More trials narrow the spread.</p>
+</div>
+<div class="paragraph">
+<p>The comparison is with the run before on the same model; opening
+another model or changing the run scope starts afresh. To see only the
+latest run, untick Preferences ▸ Working ▸ Results ▸ <strong>Compare with the
+previous run</strong>; the cards change as soon as you press OK.</p>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -2711,7 +2734,7 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Quick Add</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Add an element at the cursor (Space or / on the canvas)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

@@ -1133,7 +1133,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Quick Add",
-   "tooltip": "Add an element at the cursor (Space or / on the canvas)"
+   "tooltip": "Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)"
   },
   "_quit_action": {
    "checkable": false,

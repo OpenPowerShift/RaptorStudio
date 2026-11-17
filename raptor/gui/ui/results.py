@@ -1211,9 +1211,55 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     # Public API
     # ------------------------------------------------------------------
 
+    def _run_identity(self) -> str:
+        m = self._manifest or {}
+        return str(m.get("run_id") or m.get("digest") or id(m))
+
+    def forget_previous_run(self) -> None:
+        """A different model (or scope): nothing to compare the next run
+        with."""
+        self._shown_figures: tuple[str, dict] | None = None
+        self._previous_figures: tuple[str, dict] | None = None
+        for card in self._cards.values():
+            card.set_change("")
+
+    def _show_changes(self, figures: dict, formats: dict) -> None:
+        """Say on each card what it was in the run before."""
+        from raptor.gui.ui import result_change, settings
+        self._shown_figures = (self._run_identity(), figures)
+        self._change_formats = formats
+        previous: tuple[str, dict] | None = getattr(self, "_previous_figures", None)
+        before: dict = previous[1] if previous else {}
+        on = settings.get_bool(result_change.SETTING, True)
+        for card_key, (key, fmt) in formats.items():
+            diff_fmt = (result_change.short_probability
+                         if fmt is probability_text else None)
+            change = result_change.compare(
+                key, before.get(key), figures.get(key), fmt,
+                diff_fmt) if on else None
+            card = self._cards[card_key]
+            if change is None:
+                card.set_change("")
+            else:
+                card.set_change(change.text, change.verdict, change.tooltip)
+
+    def refresh_changes(self) -> None:
+        """Re-apply the Preferences switch to the cards on screen."""
+        shown = getattr(self, "_shown_figures", None)
+        if shown is not None and self.has_results():
+            self._show_changes(shown[1], getattr(self, "_change_formats", {}))
+
     def has_results(self) -> bool:
         """A result set is on screen (as opposed to the placeholder)."""
         return bool(self._report_data or self._event_logs)
+
+    def ran_without_event_log(self) -> bool:
+        """The results on screen were made with Detailed event log off
+        (from the run's own record, not the panel as it is now)."""
+        if not self.has_results():
+            return False
+        record = (self._manifest or {}).get("recording") or {}
+        return "event_log" in record and not record["event_log"]
 
     def results_bundle(self, model_name: str = "", units: str = ""):
         """The result set on screen, as the plain bundle the table export
@@ -1385,6 +1431,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._summary_sentence.setText("")
         for card in self._cards.values():
             card.set_value("—")
+            card.set_change("")
+        # `_shown_figures` is kept: the next run on this model is compared
+        # with it, including after "Discard results & edit".
         for view in self._raw_views.values():
             view.clear()
         # The raw tabs' backing sources belong to the cleared result set;
@@ -1416,6 +1465,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        # The run on screen until now becomes "the run before" -- unless
+        # this is the same run again (importance variants populate twice).
+        shown = getattr(self, "_shown_figures", None)
+        if shown is not None and shown[0] != self._run_identity():
+            self._previous_figures = shown
         #: The model as it was run, for features that need its structure
         #: (the lost-capacity split asks the Failure Effects machinery).
         self._rbd = rbd
@@ -1919,6 +1973,28 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._cards["System_Failures"].set_value(
             _fmt_count(fails_m),
             f"min {fails_lo:,.0f} · max {fails_hi:,.0f}")
+
+        from raptor.gui.ui.result_change import figure
+        avail_key = "Dependability" if use_dependability else "Availability"
+        figures = {
+            avail_key: figure(d.dependability if use_dependability
+                              else d.availability for d in data),
+            "Reliability": figure(d.reliability for d in data),
+            "MTBDE": figure(d.mtbde for d in data),
+            "MDT": figure(d.mdt for d in data),
+            "System_Failures": figure(float(d.num_system_failures)
+                                      for d in data),
+        }
+
+        def time_text(v: float) -> str:
+            return _fmt_si(v) + time_u
+        self._show_changes(figures, {
+            "Availability": (avail_key, probability_text),
+            "Reliability": ("Reliability", probability_text),
+            "MTBDE": ("MTBDE", time_text),
+            "MDT": ("MDT", time_text),
+            "System_Failures": ("System_Failures", _fmt_count),
+        })
 
         g = _mean([d.green_percent for d in data]) or 0.0
         y = _mean([d.yellow_percent for d in data]) or 0.0

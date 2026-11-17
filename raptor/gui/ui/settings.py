@@ -98,6 +98,9 @@ DEFAULTS: dict[str, Any] = {
     # off (see `raptor.gui.ui.ask_again`). True = ask.
     "confirm/results_on_screen": True,
     "confirm/long_run": True,
+    # results/ -- the Overview cards say what each number was in the run
+    # before (see `raptor.gui.ui.result_change`).
+    "results/show_change": True,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,

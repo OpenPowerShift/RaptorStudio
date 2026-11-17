@@ -178,8 +178,11 @@ class TestSystemValues:
         assert got == [{"systemRedCost": "12.500000"},
                        {"sysLostCost": "3.750000"}]
 
-    def test_system_red_cost_is_always_visible(self, panel):
+    def test_system_red_cost_needs_cost(self, panel):
+        """It prices failed time; with Cost off nothing is priced."""
         panel.set_experiment(rx.normalise({"analyses": []}))
+        assert not panel._system_form.isRowVisible(1)
+        panel.set_experiment(rx.normalise({"analyses": ["cost"]}))
         assert panel._system_form.isRowVisible(1)
 
     def test_flow_generated_needs_capacity(self, panel):

@@ -243,17 +243,26 @@ class AdvisorPanel(QWidget):
         return list(self._findings)
 
     def set_findings(self, findings: list[Finding] | None,
-                     ignored: list[dict] | None = None) -> None:
+                     ignored: list[dict] | None = None,
+                     note: str = "") -> None:
         """Show `findings` (already ordered). `None` means no model is open.
-        `ignored` are the model's dismissed entries (rule, target, reason)."""
+        `ignored` are the model's dismissed entries (rule, target, reason).
+        `note` is a line under the summary: what the Advisor could not
+        check for these results, and how to let it."""
         self._findings = list(findings or [])
         self._ignored = list(ignored or [])
         if findings is None:
-            self.summary.setText(NO_MODEL_TEXT)
+            text = NO_MODEL_TEXT
         elif not findings:
-            self.summary.setText(EMPTY_TEXT)
+            text = EMPTY_TEXT
         else:
-            self.summary.setText(summary_text(self._findings))
+            text = summary_text(self._findings)
+        rich = bool(note) and findings is not None
+        if rich:
+            text = f"{escape(text)}<br><br>{note}"
+        self.summary.setTextFormat(Qt.TextFormat.RichText if rich
+                                   else Qt.TextFormat.PlainText)
+        self.summary.setText(text)
         self._rebuild()
 
     def refresh_theme(self) -> None:

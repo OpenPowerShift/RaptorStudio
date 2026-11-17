@@ -225,8 +225,9 @@ class StoryPage(QWidget):
     @staticmethod
     def _drivers_text(story: Story) -> str:
         if not story.drivers_available:
-            return ("What drives the downtime: switch on <i>Event Log</i> "
-                    "recording and run again.")
+            from raptor.api import run_needs
+            return ("What drives the downtime: worked out from the event "
+                    "log. " + run_needs.gui_hint("attribution"))
         if not story.drivers:
             return "No system outage in these runs."
         ranked = story.drivers_measure

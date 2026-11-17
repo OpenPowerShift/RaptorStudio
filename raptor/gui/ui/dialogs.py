@@ -741,6 +741,15 @@ def show_preferences(win):
         "Whether a run animates when you press Run: one core, every "
         "event shown. Off means full speed on the cores above; the speed "
         "dial only applies while animating.", "app")
+    from raptor.gui.ui import result_change as _change
+    show_change = QCheckBox("Compare with the previous run")
+    show_change.setChecked(_settings.get_bool(_change.SETTING, True))
+    _pref_row(
+        work_form, "Results:", show_change,
+        "On: after a re-run, the Overview cards also say what each number "
+        "was in the previous run, and whether the difference is more than "
+        "chance. Off: the cards show only the latest run.", "app",
+        reset=lambda w: w.setChecked(True), builtins=("On",))
     tabs.addTab(work_page, "Working")
 
     # ---- This model -------------------------------------------------
@@ -876,6 +885,11 @@ def show_preferences(win):
     if sync_cores is not None:
         sync_cores()
     _settings.set_value("execution/default_animate", animate.isChecked())
+    if show_change.isChecked() != _settings.get_bool(_change.SETTING, True):
+        _settings.set_value(_change.SETTING, show_change.isChecked())
+        results = getattr(win, "_results", None)
+        if results is not None:
+            results.refresh_changes()
     old_exp = _settings.get("editing/exp_mode", "mean")
     old_ln = _settings.get("editing/ln_mode", "mean_sd")
     new_exp = exp_combo.currentData()

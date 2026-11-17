@@ -186,6 +186,8 @@ class RunMixin(_Base):
             view.clear_result_overlays()
             self._statusbar.showMessage(
                 "Results cleared: the run scope changed", 6000)
+        # Nor be compared as "the run before".
+        self._results.forget_previous_run()
 
     def _prepare_run_model(self, copy: bool = False):
         """The model the next run should use, plus its isolation record.

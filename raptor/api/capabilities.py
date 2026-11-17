@@ -121,12 +121,12 @@ CAPABILITIES: tuple[Capability, ...] = (
                 "mcp": "a command by name is not a task an assistant needs; "
                        "the underlying tools are exposed directly"}),
     Capability(
-        "model.quick_add", "Add an element at the cursor by name",
+        "model.quick_add", "Repeat the selected block in series or parallel",
         api="raptor.gui.quick_match.rank",
         cli=None, mcp=None, gui="command:model.quick_add",
         absent={"cli": "adding elements is done with the model-building "
                        "commands (raptor edit, set and build tools)",
-                "mcp": "use add_block/add_node/add_event/add_hierarchy"}),
+                "mcp": "use duplicate_elements, add_block and connect"}),
     Capability(
         "edit.replace", "Find and replace in a model table column",
         api="raptor.api.tables.replace_in_table", cli="tables",
