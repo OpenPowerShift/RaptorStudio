@@ -1697,9 +1697,7 @@ the Help window stays usable, and can be closed, while a dialog is open.
 === Availability Workbench interchange
 
 The complete file layout and feature matrix are in
-link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md[the AWB format guide];
-link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_VALIDATION.md[the example validation report]
-gives the 10,000-trial AWB comparison for the examples both programs can represent exactly.
+link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md[the AWB format guide].
 In short:
 
 [cols="2,3,3",options="header"]
