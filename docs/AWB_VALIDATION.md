@@ -65,34 +65,46 @@ sampling error.
 and the run is 600 h, so both programs correctly report no failures and
 availability 1.0000.
 
+### Feature smoke test (Stage 1/2)
+
+A synthetic two-block model with one PM task, a custom spare, a resource
+pool, two phases, a text label and one cut block was exported and opened in
+AWB.  AWB simulated 10 replications and showed the **Phases**, **Spares** and
+**Labor** tabs with non-zero labour/spare costs.  The same `.awb` imported
+back to RAPTOR with 0 validation errors and preserved the PM, spare/resource
+links, phase cut/linked token and cut block.  This is a mapping smoke test,
+not a 10,000-trial engine comparison.
+
 ---
 
 ## 2. Compatibility screening of all 27 examples
 
 "Screened" means the model was exported and the conversion report was
-read. Models marked **exact** were also simulated in both programs.
-Models marked with a loss can still be exported, but the AWB run would be
-a *reduced* model, so a difference could not be attributed to the engine.
+read.  The six models in the comparison above were simulated in both
+programs; `CarWash1` also became exact once phases were mapped, but it is
+not part of the 10,000-trial comparison yet.  Models marked with a loss can
+still be exported, but the AWB run would be a *reduced* model, so a
+difference could not be attributed to the engine.
 
 | Example | AWB compatibility |
 |---|---|
-| AirlinerMission | rate definitions (6); formula-linked fields (12); mission phases (5); phased element schedules (7) |
+| AirlinerMission | rate definitions (6); formula-linked fields (12); node and hierarchy phase schedules (1) |
 | Bakery1 | repair distribution simplified to a fixed duration (1); node standby/priority settings (1); link switching and priority (6) |
 | CarCare0 | repair distribution simplified to a fixed duration (1) |
-| CarCare1 | repair distribution simplified to a fixed duration (1); preventive maintenance (1) |
-| CarWash1 | mission phases (3); phased element schedules (1) |
-| DC1 | repair distribution simplified to a fixed duration (1); spare pools (1); node standby/priority settings (1); link switching and priority (5) |
-| DC2 | repair distribution simplified to a fixed duration (1); spare pools (1); preventive maintenance (1); node standby/priority settings (1); link switching and priority (5) |
+| CarCare1 | repair distribution simplified to a fixed duration (1) |
+| CarWash1 | **exact** (phases now exported) |
+| DC1 | repair distribution simplified to a fixed duration (1); node standby/priority settings (1); link switching and priority (5) |
+| DC2 | repair distribution simplified to a fixed duration (1); node standby/priority settings (1); link switching and priority (5) |
 | Drone1 | **exact** |
 | Espresso1 | **exact** |
 | EspressoDep1 | block dependencies (1) |
 | FinaleShow1 | **not exportable**: event-only model, no RBD blocks |
-| Flight1 | failure events (1); mission phases (4); capacity analysis (2); block dependencies (1); phased element schedules (2); node standby/priority settings (1); link switching and priority (3) |
-| HospitalPower | repair distribution simplified to a fixed duration (8); rate definitions (7); formula-linked fields (17); spare pools (1); preventive maintenance (3); block cost data (9) |
+| Flight1 | failure events (1); capacity analysis (2); block dependencies (1); node standby/priority settings (1); link switching and priority (3) |
+| HospitalPower | repair distribution simplified to a fixed duration (8); rate definitions (7); formula-linked fields (17); block cost data (9); additional or non-fixed PM (2) |
 | Lantern1 | **exact** |
 | Laundromat1 | repair distribution simplified to a fixed duration (1) |
 | ProdLine0 | repair distribution simplified to a fixed duration (12); block cost data (2) |
-| ProdLine1 | repair distribution simplified to a fixed duration (12); preventive maintenance (1); block cost data (3) |
+| ProdLine1 | repair distribution simplified to a fixed duration (12); block cost data (3) |
 | TacoTruck1 | repair distribution simplified to a fixed duration (1) |
 | Toaster_Expo | **exact** |
 | Toaster_Fixed | **exact** |
@@ -102,7 +114,7 @@ a *reduced* model, so a difference could not be attributed to the engine.
 | Vendo1 | repair distribution simplified to a fixed duration (1) |
 | Water1 | capacity analysis (3); link switching and priority (2) |
 | Water2 | capacity analysis (3); block cost data (3); link switching and priority (2) |
-| WaterTreatment | repair distribution simplified to a fixed duration (6); rate definitions (6); formula-linked fields (15); spare pools (1); preventive maintenance (6); block cost data (10) |
+| WaterTreatment | repair distribution simplified to a fixed duration (6); rate definitions (6); formula-linked fields (15); block cost data (10); additional or non-fixed PM (5) |
 
 ### Reading the table
 
@@ -110,9 +122,13 @@ a *reduced* model, so a difference could not be attributed to the engine.
 * **repair distribution simplified** — RAPTOR has a repair *distribution*,
   AWB's generated task is a fixed duration with the same mean. The models
   can be compared if both sides use the fixed mean, but not as shipped.
-* **spare pools / PM / dependencies / phases / capacity / standby /
-  link switching** — AWB has features in these areas, but this converter
-  does not populate them, so the AWB run is a reduced model.
+* **PM / spares / labour / phases** — now partially mapped:
+  one planned task per failure model, one spare pool and one resource pool
+  per block, phase durations and block cut/linked rules. Inspections, extra
+  costs, repair-shop recycling and capacity/load rules remain lossy.
+* **capacity / dependencies / standby / link switching** — AWB has features
+  in these areas, but this converter does not populate them, so the AWB run
+  is a reduced model.
 * **rates/formulas/costs** — metadata or cost data; availability is still
   driven by the same numbers, but the conversion is lossy.
 * **FinaleShow1** — a fault-tree/event model with no RBD blocks; AWB RBD
@@ -124,9 +140,10 @@ a *reduced* model, so a difference could not be attributed to the engine.
 
 For the part of the model AWB and RAPTOR both represent, the two engines
 agree on these examples within Monte Carlo error. The larger question for
-the other examples is feature coverage, not engine disagreement: the AWB
-converter deliberately refuses to invent capacity networks, PM schedules,
-spares, dependencies or phase rules it cannot populate faithfully.
+the other examples is feature coverage, not engine disagreement.  The
+Stage 1 mappings now carry PM, spares, labour and phase rules; capacity,
+consequences, RCM/fault trees and exact cost models remain outside the
+converter.
 
 The full mapping and feature matrix are in
 [`AWB_FORMAT.md`](AWB_FORMAT.md).

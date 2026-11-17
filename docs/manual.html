@@ -2518,19 +2518,44 @@ In short:</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">RAPTOR annotations, rates, formulas, triggers</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text annotations</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes (AWB labels)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes (RAPTOR annotations)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shape annotations, rates, formulas, triggers</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Mission phases, out-of-service rules, dependencies</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">not imported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mission phases</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: durations and block cut/linked rules</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: durations and cut/linked rules; node/hierarchy and capacity/load rules are not imported</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">PM/inspection tasks, spare holdings, labour/equipment</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Out-of-service states</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes: applied to the AWB copy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes: AWB global logic state becomes a RAPTOR cut/linked state</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Block dependencies</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">not imported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: AWB state dependencies become 100% idle dependencies</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preventive maintenance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: one planned task per failure model</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: first enabled planned task; inspections and extra tasks are not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spare holdings</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level-1 stock and lead time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level 1 + 2 become one pool; repair shop is not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Labour/equipment resources</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: resource pools and task links</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: labour/equipment become RAPTOR resources; call-out delay is not imported</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Capacity products and capacity targets</p></td>

@@ -191,7 +191,11 @@ _SCHEMA, _DEFAULTS = _load_schema()
 #: The six tables a minimal AWB RBD project needs.  AWB adds the other
 #: tables its modules use when it opens the project (verified with AWB 5.0).
 AWB_TABLES = ("Project", "FailureModels", "FailureModelCorrectiveTasks",
-              "RbdBlocks", "RbdNodes", "RbdConnections")
+              "RbdBlocks", "RbdNodes", "RbdConnections",
+              "FailureModelScheduledTasks", "FailureModelSchedTaskLabor",
+              "FailureModelSchedTaskSpares", "FailureModelCorrTaskLabor",
+              "FailureModelCorrTaskSpares", "Spares", "Labor", "Phases",
+              "RbdBlockRuleAssignments", "RbdLabels")
 
 
 def _default_for_type(kind: int) -> Any:
@@ -531,6 +535,21 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
     dest = str(path)
     report = AwbReport("rbds-to-awb", src, dest)
 
+    # RAPTOR's out-of-service what-if is ordinary effective model data: a cut
+    # block starts failed with no repair, a linked block never fails.  Apply
+    # it to a copy so the AWB run sees the same view as a RAPTOR run.
+    from raptor.core.fileio.out_of_service import apply as oos_apply
+    from raptor.core.fileio.out_of_service import effective as oos_effective
+    from raptor.core.fileio.out_of_service import states as oos_states
+    oos_block_states: dict[int, str] = {}
+    if oos_states(rbd):
+        oos_block_states, _events = oos_effective(rbd)
+        rbd = oos_apply(rbd)
+        rbd.out_of_service = {}
+        report.notes.append(
+            "out-of-service what-if applied to the AWB copy: cut elements "
+            "start failed, linked elements never fail")
+
     units = _model_units(rbd)
     factor = _hours_factor(units)
     if units.lower() != "hours":
@@ -686,6 +705,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
     block_rows: list[dict[str, Any]] = []
     block_index: dict[str, int] = {}
     block_page: dict[str, int] = {}
+    fm_index_for_block: dict[str, int] = {}
     root = _row("RbdBlocks", Id="1", Description=_text(rbd.file_name, "RAPTOR model"),
                 Super=1, Page=-1, FailureModel=-1, Consequence=-1, Bom=-1,
                 Bitmap=-1, XPosition=0.0, YPosition=0.0, Width=100.0,
@@ -716,6 +736,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         parent = _text(b.get("ParentId"), "0")
         page = page_for_parent(parent)
         fm_i = failure_model(b)
+        fm_index_for_block[bid] = fm_i
         idx = len(block_rows)
         block_index[bid] = idx
         block_page[bid] = page
@@ -729,7 +750,9 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             NonMaintainable=nonmaint, NonOperational=0,
             IncludeInSystemPlot=1, MaxCapacity=0.0, MaxCapacity2=0.0, MaxCapacity3=0.0,
             MaxCapacity4=0.0, LoadFactor=1.0,
-            LogicMode=0, StandbyMode=0))
+            LogicMode=(1 if oos_block_states.get(_int(b.get("ID"))) == "cut"
+                       else 2 if oos_block_states.get(_int(b.get("ID"))) == "linked"
+                       else 0), StandbyMode=0))
 
     # AWB nodes: vote count carries RAPTOR's k-of-n requirement.  AWB has
     # no separate marker types, so start/end/in/out all become ordinary nodes.
@@ -807,6 +830,252 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             InputObjectIndex=findex, OutputObjectType=tobj,
             OutputObjectIndex=tindex, Guid=_guid()))
 
+    # ---- preventive maintenance, spares, resources, phases and labels ----
+    # Each block's PM is one AWB scheduled task on its failure model.  RAPTOR
+    # has one PM per block; AWB allows several tasks per failure model, but
+    # this first mapping keeps the common case exact and names the rest.
+    scheduled_rows: list[dict[str, Any]] = []
+    sched_labor_rows: list[dict[str, Any]] = []
+    sched_spare_rows: list[dict[str, Any]] = []
+    pm_task_by_fm: dict[int, int] = {}
+    pm_duration_by_fm: dict[int, float] = {}
+    pm_sub_by_fm: dict[int, int] = {}
+    pm_lossy = 0
+    for b in blocks:
+        if not _int(b.get("usesPM"), 0):
+            continue
+        bid = _text(b.get("ID"))
+        fm_idx = fm_index_for_block.get(bid)
+        if fm_idx is None:
+            continue
+        if fm_idx in pm_task_by_fm:
+            pm_lossy += 1
+            continue
+        pm_freq = _num(b.get("PMFreq"), 100.0)
+        if pm_freq <= 0:
+            pm_lossy += 1
+            continue
+        pm_dist = _int(b.get("Dist"), _R_FIXED)
+        pm_params = [_num(b.get("Param1#3"), 0.0),
+                     _num(b.get("Param2#3"), 0.0),
+                     _num(b.get("Param3#3"), 0.0)]
+        if pm_dist == _R_FIXED:
+            pm_duration = pm_params[0]
+        else:
+            mean = _dist_mean(pm_dist, pm_params)
+            pm_duration = mean if mean is not None else pm_params[0]
+            pm_lossy += 1
+        sub = len([r for r in scheduled_rows if _int(r.get("FailureModel")) == fm_idx])
+        pm_sub_by_fm[fm_idx] = sub
+        pm_task_by_fm[fm_idx] = sub
+        pm_duration_by_fm[fm_idx] = max(0.0, pm_duration) * factor
+        task_id = _unique(f"PM{fm_idx + 1}", used_ids)
+        scheduled_rows.append(_row(
+            "FailureModelScheduledTasks", FailureModel=fm_idx, SubIndex=sub,
+            Type=0, Description=_text(b.get("blockName"), f"PM for {bid}"),
+            TaskId=task_id, Enabled=1, OperationNumber="", Baseline="",
+            TaskTrigger="", Mandatory=0,
+            AgeReductionFactor=1.0 if _int(b.get("PMRefresh"), 0) else 0.0,
+            AgeReductionMode=0, Std=0.0, Eta=24.0, Beta=2.0, Gamma=0.0,
+            WeibullSet=-1, Distribution=2, OperationalCost=0.0,
+            TaskGroup=-1, SecondaryActionTask=1,
+            TaskDuration=pm_duration_by_fm[fm_idx], RampTime=0.0,
+            TaskInterval=pm_freq * factor, FixedInterval=0, Offset=0.0,
+            MinimumAge=0.0, OutedDuringMaintenance=1, PfInterval=0.0,
+            PfStd=0.0, DetectionP=1.0, PfDistribution=0,
+            OptimizationInitialInterval=730.0,
+            OptimizationIntervalIncrement=730.0,
+            OptimizationNumberIntervals=30,
+            OptimizationCostPointIndex=-1, OptimizationQPointIndex=0.0,
+            OptimizationCostBenefit=0.0, OptimizationCbr=1.0,
+            OptimizationQBenefit=0.0, OptimizationQbr=1.0))
+
+    # Spares: RAPTOR's spare pool is AWB's level-1 stock.  Level-2 is not
+    # populated; a stock-out waits the RAPTOR emergency time as AWB's
+    # level-3 lead time.
+    spare_rows: list[dict[str, Any]] = []
+    spare_index: dict[str, int] = {}
+    corr_spare_rows: list[dict[str, Any]] = []
+    custom_spare_count = 0
+
+    def add_spare(name: str, description: str, stock: int, new_spares: int,
+                  arrive: float, emer: float, cost: float) -> int:
+        key = name
+        if key in spare_index:
+            return spare_index[key]
+        idx = len(spare_rows)
+        spare_index[key] = idx
+        spare_rows.append(_row(
+            "Spares", Id=_unique(name, used_ids), Description=description,
+            Type=-1, UnitCost=max(0.0, cost), CapacityLevel1=max(0, stock),
+            CapacityLevel2=0, LogisticDelayLevel1=0.0,
+            LogisticDelayLevel2=max(0.0, arrive),
+            LogisticDelayLevel3=max(0.0, emer),
+            MinimumReorderQuantity=max(1, new_spares), Guid=_guid()))
+        return idx
+
+    for pool in _section_list(rbd, "SPARE_POOL_DATA"):
+        add_spare(_text(pool.get("PoolName"), "Spare"),
+                  _text(pool.get("PoolName"), "Spare"),
+                  _int(pool.get("Stock"), 0), _int(pool.get("NewSp"), 1),
+                  _num(pool.get("ArriveEvery"), 720.0) * factor,
+                  _num(pool.get("EmerTime"), 24.0) * factor,
+                  _num(pool.get("SpCost"), 1.0))
+
+    for b in blocks:
+        bid = _text(b.get("ID"))
+        fm_idx = fm_index_for_block.get(bid)
+        if fm_idx is None:
+            continue
+        sp_type = _text(b.get("SpType"), "Infinite")
+        if sp_type in ("", "None", "Infinite"):
+            continue
+        if sp_type == "Pooled":
+            pool_name = _text(b.get("SparePoolName"))
+            if pool_name not in spare_index:
+                report.warnings.append(
+                    f"block {bid} draws on spare pool {pool_name!r}, which "
+                    "is not in the model; no AWB spare was written")
+                continue
+            spare_i = spare_index[pool_name]
+        else:
+            # Custom: one AWB spare per block, named after the block.
+            custom_spare_count += 1
+            spare_i = add_spare(
+                f"{bid}_Spare", f"Spares held for {bid}",
+                _int(b.get("Stock"), 0), _int(b.get("NewSp"), 1),
+                _num(b.get("ArriveEvery"), 720.0) * factor,
+                _num(b.get("EmerTime"), 24.0) * factor,
+                _num(b.get("SpCost"), 1.0))
+        qty = max(1, _int(b.get("Quan"), 1))
+        corr_spare_rows.append(_row(
+            "FailureModelCorrTaskSpares", FailureModel=fm_idx, SubIndex=0,
+            Spare=spare_i, Quantity=qty, ExternalReference=""))
+        if _int(b.get("PMSpare"), 0) and fm_idx in pm_sub_by_fm:
+            sched_spare_rows.append(_row(
+                "FailureModelSchedTaskSpares", FailureModel=fm_idx,
+                SubIndex=pm_sub_by_fm[fm_idx], SecondarySubIndex=0,
+                Spare=spare_i, Quantity=1, ExternalReference=""))
+
+    # Resources: RAPTOR has one generic resource pool per block repair/PM.
+    # AWB's nearest equivalent is a labour category; it is created for every
+    # RAPTOR resource and linked to the corrective and scheduled tasks.
+    labor_rows: list[dict[str, Any]] = []
+    labor_index: dict[str, int] = {}
+    corr_labor_rows: list[dict[str, Any]] = []
+    for res in _section_list(rbd, "RESOURCE_DATA"):
+        name = _text(res.get("PoolName"), "Resource")
+        idx = len(labor_rows)
+        labor_index[name] = idx
+        labor_rows.append(_row(
+            "Labor", Id=_unique(name, used_ids), Description=name, Type=-1,
+            CostRate=max(0.0, _num(res.get("PerTimeUnit"), 1.0)),
+            CorrectiveCalloutCost=max(0.0, _num(res.get("FixedPerUse"), 1.0)),
+            ScheduledCalloutCost=max(0.0, _num(res.get("FixedPerUse"), 1.0)),
+            CorrectiveLogisticDelay=0.0,
+            NoAvailable=max(1, _int(res.get("NumIn"), 1)), Guid=_guid()))
+    for b in blocks:
+        bid = _text(b.get("ID"))
+        fm_idx = fm_index_for_block.get(bid)
+        if fm_idx is None or _int(b.get("NumRes"), 0) <= 0:
+            continue
+        name = _text(b.get("Resource1Name"), "None")
+        if name not in labor_index:
+            report.warnings.append(
+                f"block {bid} uses resource {name!r}, which is not in the "
+                "model; no AWB labour row was written")
+            continue
+        task_duration = float(task_rows[fm_idx].get("TaskDuration", 0.0))
+        qty = max(1, _int(b.get("#Res1Rep"), 1))
+        corr_labor_rows.append(_row(
+            "FailureModelCorrTaskLabor", FailureModel=fm_idx, SubIndex=0,
+            Labor=labor_index[name], ActiveTime=task_duration,
+            SetToTaskDuration=0, Quantity=qty, ExternalReference=""))
+        if _int(b.get("usesPM"), 0) and fm_idx in pm_sub_by_fm:
+            sched_labor_rows.append(_row(
+                "FailureModelSchedTaskLabor", FailureModel=fm_idx,
+                SubIndex=pm_sub_by_fm[fm_idx], SecondarySubIndex=0,
+                Labor=labor_index[name],
+                ActiveTime=pm_duration_by_fm.get(fm_idx, 0.0),
+                SetToTaskDuration=0,
+                Quantity=max(1, _int(b.get("#Res1pmRep"), 1)),
+                ExternalReference=""))
+
+    # Phases: durations transfer; per-block AWB rules are reproduced for the
+    # Active/Cut/Linked status RAPTOR stores in its phase columns.
+    phase_rows: list[dict[str, Any]] = []
+    phase_index_by_num: dict[int, int] = {}
+    for p in _section_list(rbd, "PHASES"):
+        num = _int(p.get("Num"), len(phase_rows) + 1)
+        dist = _int(p.get("Dist"), _R_FIXED)
+        params = [_num(p.get("Param1")), _num(p.get("Param2")),
+                  _num(p.get("Param3"))]
+        if dist == _R_FIXED:
+            duration = params[0]
+        else:
+            mean = _dist_mean(dist, params)
+            duration = mean if mean is not None else params[0]
+            report.notes.append(
+                f"phase {_text(p.get('PhaseName'), str(num))} had a "
+                f"{_raptor_dist_name(dist)} duration; AWB uses its mean")
+        phase_index_by_num[num] = len(phase_rows)
+        phase_rows.append(_row(
+            "Phases", Id=_unique(_text(p.get("PhaseName"), f"Phase {num}"),
+                                 used_ids),
+            Description=_text(p.get("PhaseName"), f"Phase {num}"),
+            PhaseGroup=-1, Duration=max(0.0, duration) * factor,
+            Guid=_guid()))
+
+    rule_rows: list[dict[str, Any]] = []
+    rule_count_by_block: dict[int, int] = {}
+    for b in blocks:
+        if not _int(b.get("Phasing"), 0):
+            continue
+        bid = _text(b.get("ID"))
+        block_i = block_index.get(bid)
+        if block_i is None:
+            continue
+        for num, phase_i in phase_index_by_num.items():
+            token = _text(b.get(f"P {num:03d}"))
+            if not token or ":" not in token:
+                continue
+            kind = token.split(":", 1)[0].strip().upper()
+            if kind not in ("C", "L"):
+                continue
+            sub = rule_count_by_block.get(block_i, 0)
+            rule_count_by_block[block_i] = sub + 1
+            rule_rows.append(_row(
+                "RbdBlockRuleAssignments", Block=block_i, SubIndex=sub,
+                Type=1,
+                Description=(f"Phase {phase_rows[phase_i]['Id']}: "
+                             + ("Cut" if kind == "C" else "Linked")),
+                Phase=phase_i,
+                LogicMode=1 if kind == "C" else 2, StandbyMode=0,
+                LoadFactor=1.0, MaxCapacity=0.0, DependentBlock=-1,
+                OutOfService=1 if kind == "C" else 0))
+
+    # Text annotations become AWB labels.  Rectangles, ellipses and arrows
+    # have no RbdLabels equivalent and stay in the report.
+    label_rows: list[dict[str, Any]] = []
+    labels_skipped = 0
+    for ann in (getattr(rbd, "annotations", None) or []):
+        if _text(ann.get("kind"), "text") != "text":
+            labels_skipped += 1
+            continue
+        parent_num = _int(ann.get("parent"), 0)
+        page = page_for_parent(str(parent_num))
+        label_rows.append(_row(
+            "RbdLabels", Id=_unique(f"Label{len(label_rows) + 1}", used_ids),
+            Type=0, Page=page,
+            XPosition=_num(ann.get("x")), YPosition=_num(ann.get("y")),
+            Width=max(10.0, _num(ann.get("w"), 100.0)),
+            Height=max(10.0, _num(ann.get("h"), 20.0)),
+            LabelText=_text(ann.get("text")), Alignment=1,
+            FontName=_text(ann.get("font_family"), "Arial"),
+            FontSize=max(6.0, _num(ann.get("font_size"), 10.0)),
+            FontStyle=0, FontColor=-16777216, Border=0, BitmapOn=0,
+            Bitmap=-1, BackgroundColor=-1, Guid=_guid()))
+
     # ---- project ----------------------------------------------------------
     lifetime, time_terminated = _model_lifetime_hours(rbd)
     trials = _model_trials(rbd)
@@ -823,7 +1092,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         AvsimEquateCapacityValue3=1.0, AvsimEquateCapacityUnit4="",
         AvsimEquateCapacityValue4=1.0,
         WeibullCurrentWeibullSet=-1, ProcessCurrentProcessSet=-1,
-        ALTCurrentALTSet=-1, Guid=_guid())
+        ALTCurrentALTSet=-1, IncludeInitialSpares=1, Guid=_guid())
 
     tables: dict[str, AwbTable] = {
         "Project": AwbTable("Project", _SCHEMA["Project"], [project]),
@@ -836,6 +1105,21 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         "RbdConnections": AwbTable("RbdConnections", _SCHEMA["RbdConnections"],
                                    conn_rows),
     }
+    # Optional tables are written only when they carry data, so a plain RBD
+    # project stays the same small six-table file AWB already accepts.
+    for name, rows in (
+            ("FailureModelScheduledTasks", scheduled_rows),
+            ("FailureModelSchedTaskLabor", sched_labor_rows),
+            ("FailureModelSchedTaskSpares", sched_spare_rows),
+            ("FailureModelCorrTaskLabor", corr_labor_rows),
+            ("FailureModelCorrTaskSpares", corr_spare_rows),
+            ("Spares", spare_rows),
+            ("Labor", labor_rows),
+            ("Phases", phase_rows),
+            ("RbdBlockRuleAssignments", rule_rows),
+            ("RbdLabels", label_rows)):
+        if rows:
+            tables[name] = AwbTable(name, _SCHEMA[name], rows)
     if write:
         write_awb(dest, tables)
 
@@ -866,6 +1150,29 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
                    "exported with a fixed time of 9e8 hours (never fails)")
     _report_raptor_features(rbd, report, blocks, nodes, links, events,
                             hierarchies, units, factor)
+    if pm_lossy:
+        report.add("additional or non-fixed PM", pm_lossy,
+                   "one fixed-duration PM per failure model is written; "
+                   "extra tasks and random PM durations are simplified")
+    if custom_spare_count:
+        report.notes.append(
+            f"{custom_spare_count} block-owned spare stock(s) became "
+            "per-block AWB spare rows")
+    if spare_rows:
+        report.notes.append(
+            f"{len(spare_rows)} spare row(s), {len(corr_spare_rows)} "
+            "corrective spare link(s) exported")
+    if labor_rows:
+        report.notes.append(
+            f"{len(labor_rows)} labour row(s), {len(corr_labor_rows)} "
+            "corrective resource link(s) exported")
+    if phase_rows:
+        report.notes.append(
+            f"{len(phase_rows)} phase(s) and {len(rule_rows)} block phase "
+            "rule(s) exported")
+    if labels_skipped:
+        report.add("non-text annotations", labels_skipped,
+                   "only text annotations become AWB labels")
     return report
 
 
@@ -881,8 +1188,12 @@ def _report_raptor_features(rbd: RbdFile, report: AwbReport,  # noqa: C901, PLR0
         report.add("failure events", len(events),
                    "AWB RBDs use blocks; events are not exported")
     if getattr(rbd, "annotations", None):
-        report.add("diagram annotations", len(rbd.annotations),
-                   "text boxes, rectangles and arrows are not exported")
+        shapes = sum(1 for a in rbd.annotations
+                     if _text(a.get("kind"), "text") != "text")
+        if shapes:
+            report.add("non-text annotations", shapes,
+                       "text annotations become AWB labels; rectangles, "
+                       "ellipses and arrows have no AWB equivalent")
     if getattr(rbd, "rates", None):
         report.add("rate definitions", len(rbd.rates),
                    "values are exported as plain numbers")
@@ -893,21 +1204,6 @@ def _report_raptor_features(rbd: RbdFile, report: AwbReport,  # noqa: C901, PLR0
         report.add("triggers", max(len(getattr(rbd, "triggers", []) or []),
                                    _section_rows(rbd.sections, "TRIGGERS")),
                    "AWB has no equivalent of RAPTOR's trigger logic")
-    if getattr(rbd, "spare_pools", None) or _section_rows(rbd.sections, "SPARE_POOL_DATA"):
-        report.add("spare pools", max(len(getattr(rbd, "spare_pools", []) or []),
-                                      _section_rows(rbd.sections, "SPARE_POOL_DATA")),
-                   "AWB spares are not linked to blocks by this export")
-    if getattr(rbd, "resources", None) or _section_rows(rbd.sections, "RESOURCE_DATA"):
-        report.add("resource pools", max(len(getattr(rbd, "resources", []) or []),
-                                         _section_rows(rbd.sections, "RESOURCE_DATA")),
-                   "AWB labour and equipment resources are not populated")
-    phases = _section_rows(rbd.sections, "PHASES")
-    if phases:
-        report.add("mission phases", phases,
-                   "AWB phase rules are not populated")
-    if getattr(rbd, "out_of_service", None):
-        report.add("out-of-service elements", len(rbd.out_of_service),
-                   "AWB's OutOfService rules are not populated")
     analyses = [str(a).lower() for a in
                 ((getattr(rbd, "experiment", None) or {}).get("analyses") or [])]
     capacity = _text(_system_row(rbd).get("capacityAnalysis"))
@@ -921,16 +1217,12 @@ def _report_raptor_features(rbd: RbdFile, report: AwbReport,  # noqa: C901, PLR0
     if dep:
         report.add("block dependencies", dep,
                    "AWB dependency rules are not populated")
-    pm = sum(1 for b in blocks if _int(b.get("usesPM"), 0))
-    if pm:
-        report.add("preventive maintenance", pm,
-                   "AWB scheduled tasks are not populated")
-    phasing = sum(1 for b in blocks if _int(b.get("Phasing"), 0))
-    phasing += sum(1 for n in nodes if _int(n.get("Phases"), 0))
+    phasing = sum(1 for n in nodes if _int(n.get("Phases"), 0))
     phasing += sum(1 for h in hierarchies if _int(h.get("Phs"), 0))
     if phasing:
-        report.add("phased element schedules", phasing,
-                   "per-element phase status is not exported")
+        report.add("node and hierarchy phase schedules", phasing,
+                   "block phase rules are exported; node and hierarchy "
+                   "phase schedules are not")
     aged = sum(1 for b in blocks
                if _num(b.get("_DutyCycle"), 1.0) != 1.0
                or _num(b.get("_StartAge"), 0.0) != 0.0
@@ -1022,6 +1314,16 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     tasks = _rows(tables, "FailureModelCorrectiveTasks")
     repeats = _rows(tables, "RbdRepeatBlocks")
     labels = _rows(tables, "RbdLabels")
+    sched_tasks = _rows(tables, "FailureModelScheduledTasks")
+    corr_labor = _rows(tables, "FailureModelCorrTaskLabor")
+    sched_labor = _rows(tables, "FailureModelSchedTaskLabor")
+    corr_spares = _rows(tables, "FailureModelCorrTaskSpares")
+    sched_spares = _rows(tables, "FailureModelSchedTaskSpares")
+    spare_rows = _rows(tables, "Spares")
+    labor_rows = _rows(tables, "Labor")
+    equipment_rows = _rows(tables, "Equipment")
+    phase_rows = _rows(tables, "Phases")
+    rule_rows = _rows(tables, "RbdBlockRuleAssignments")
 
     # AWB page index: 0 is the top level; a superblock's row index owns the
     # page its contents are drawn on.  Row 0 is the project root (Page -1).
@@ -1065,6 +1367,138 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
         base = _safe_id(text, 20)
         return _unique(base, used_node_names, 20)
 
+    # ---- phase, spare, PM and resource side tables ------------------------
+    # RAPTOR has one PM per block, one resource pool per block repair and one
+    # spare pool per block.  AWB may have several tasks/resources per failure
+    # model; this maps the first and names the rest in the report.
+    def task_law(task: dict[str, Any]) -> tuple[int, list[float]]:
+        dist = _int(task.get("Distribution"), 2)
+        duration = max(0.0, _num(task.get("TaskDuration"))
+                       + _num(task.get("RampTime")))
+        std = max(0.0, _num(task.get("Std")))
+        if dist == 0:
+            return _R_EXPO, [max(1e-9, duration), 0.0, 0.0]
+        if dist == 1:
+            return _R_LOGNORM, [max(1e-9, duration), std, 0.0]
+        if dist == 3:
+            return _R_WEIBULL, [max(1e-9, _num(task.get("Beta"), 2.0)),
+                                max(1e-9, duration),
+                                max(0.0, _num(task.get("Gamma")))]
+        if std > 0:
+            return _R_NORM, [max(1e-9, duration), std, 0.0]
+        return _R_FIXED, [max(0.0, duration), 0.0, 0.0]
+
+    phase_doc: list[dict[str, Any]] = []
+    phase_number: dict[int, int] = {}
+    for i, p in enumerate(phase_rows):
+        phase_doc.append({
+            "name": _safe_id(_text(p.get("Id"), f"Phase{i + 1}"), 20),
+            "num": i + 1, "mission": 1,
+            "duration_dist": _R_FIXED,
+            "params": [max(0.0, _num(p.get("Duration"), 1.0)), 0.0, 0.0],
+        })
+        phase_number[i] = i + 1
+    group_ids = {_int(p.get("PhaseGroup"), -1) for p in phase_rows}
+    if len(group_ids) > 1:
+        report.notes.append(
+            f"{len(group_ids)} AWB phase groups flattened into one RAPTOR "
+            "phase sequence")
+
+    spare_doc: list[dict[str, Any]] = []
+    spare_name: dict[int, str] = {}
+    used_spares: set[str] = set()
+    for i, sp in enumerate(spare_rows):
+        name = _unique(_safe_id(_text(sp.get("Id"), f"Spare{i + 1}"), 20),
+                       used_spares, 20)
+        stock = max(0, _int(sp.get("CapacityLevel1"), 0)
+                    + _int(sp.get("CapacityLevel2"), 0))
+        arrive = max(1.0, _num(sp.get("LogisticDelayLevel2"), 0.0)
+                     or _num(sp.get("LogisticDelayLevel3"), 24.0))
+        emer = max(1.0, _num(sp.get("LogisticDelayLevel3"), arrive))
+        spare_doc.append({
+            "name": name, "stock": stock,
+            "new_spares": max(1, _int(sp.get("MinimumReorderQuantity"), 1)),
+            "arrive_every": arrive, "eso": 1 if stock else 0,
+            "emer_time": emer, "slo": 0, "level": 0, "quantity": 1,
+            "slo_time": 24.0, "rso": 0,
+            "spare_cost": max(0.0, _num(sp.get("UnitCost"), 1.0)),
+            "emer_ship_cost": max(0.0, _num(sp.get("TransportationCostLevel2"), 1.0)),
+        })
+        spare_name[i] = name
+    if any(_int(sp.get("CapacityLevel2"), 0) for sp in spare_rows):
+        report.add("two-level spare holdings", 1,
+                   "AWB level-1 and level-2 stock are summed into one "
+                   "RAPTOR pool")
+
+    resource_doc: list[dict[str, Any]] = []
+    resource_name: dict[tuple[str, int], str] = {}
+    used_resources: set[str] = set()
+
+    def add_resource(kind: str, i: int, row: dict[str, Any],
+                     quantity: int) -> str:
+        name = _unique(_safe_id(_text(row.get("Id"), f"{kind}{i + 1}"), 20),
+                       used_resources, 20)
+        resource_doc.append({
+            "name": name, "num_in": max(1, quantity),
+            "spare_cost": max(0.0, _num(row.get("CostRate"), 1.0)),
+            "fixed_per_use": max(0.0, _num(row.get("CorrectiveCalloutCost"), 1.0)),
+            "per_time_unit": max(0.0, _num(row.get("CostRate"), 1.0)),
+            "phases": 0,
+        })
+        resource_name[(kind, i)] = name
+        return name
+
+    for i, row in enumerate(labor_rows):
+        add_resource("labor", i, row, _int(row.get("NoAvailable"), 1))
+    for i, row in enumerate(equipment_rows):
+        add_resource("equipment", i, row,
+                     _int(row.get("NoAvailable"), 1))
+    if equipment_rows:
+        report.notes.append(
+            f"{len(equipment_rows)} AWB equipment row(s) imported as RAPTOR "
+            "resource pools, like labour")
+
+    pm_by_fm: dict[int, dict[str, Any]] = {}
+    pm_sub_by_fm: dict[int, int] = {}
+    for t in sched_tasks:
+        if _int(t.get("Type"), 0) != 0 or not _int(t.get("Enabled"), 0):
+            continue
+        fm_i = _int(t.get("FailureModel"), -1)
+        if fm_i < 0 or fm_i in pm_by_fm:
+            continue
+        pm_by_fm[fm_i] = t
+        pm_sub_by_fm[fm_i] = _int(t.get("SubIndex"), 0)
+    if len(pm_by_fm) < len({_int(t.get("FailureModel"), -1)
+                           for t in sched_tasks if _int(t.get("Type"), 0) == 0}):
+        report.notes.append(
+            "one RAPTOR PM per block: extra AWB planned tasks, and "
+            "inspection tasks, are not imported")
+
+    corr_spare_by_fm: dict[int, dict[str, Any]] = {}
+    for row in corr_spares:
+        fm_i = _int(row.get("FailureModel"), -1)
+        corr_spare_by_fm.setdefault(fm_i, row)
+    corr_labor_by_fm: dict[int, dict[str, Any]] = {}
+    for row in corr_labor:
+        fm_i = _int(row.get("FailureModel"), -1)
+        corr_labor_by_fm.setdefault(fm_i, row)
+    sched_spare_by_fm: dict[int, dict[str, Any]] = {}
+    for row in sched_spares:
+        fm_i = _int(row.get("FailureModel"), -1)
+        sched_spare_by_fm.setdefault(fm_i, row)
+    sched_labor_by_fm: dict[int, dict[str, Any]] = {}
+    for row in sched_labor:
+        fm_i = _int(row.get("FailureModel"), -1)
+        sched_labor_by_fm.setdefault(fm_i, row)
+
+    rules_by_block: dict[int, list[dict[str, Any]]] = {}
+    for row in rule_rows:
+        if _int(row.get("Type"), 0) != 1:
+            continue
+        rules_by_block.setdefault(_int(row.get("Block"), -1), []).append(row)
+
+    out_of_service_doc: dict[str, str] = {}
+
     # ---- hierarchies first (parents before children) ----------------------
     # AWB's page owner is the superblock's row index; the hierarchy tree is
     # implicit in the Page column.  Emit a hierarchy per superblock row, then
@@ -1092,6 +1526,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
 
     # ---- ordinary blocks --------------------------------------------------
     block_losses: dict[str, int] = {}
+    block_by_row: dict[int, dict[str, Any]] = {}
     for i, b in enumerate(blocks):
         if i == root_i or i in super_rows:
             continue
@@ -1108,11 +1543,79 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             b, fms, tasks, block_losses)
         x, y = _num(b.get("XPosition")), _num(b.get("YPosition"))
         x_by_page.setdefault(page, []).append(x)
-        elements["blocks"].append({
+        block = {
             "id": bid, "name": name, "parent": parent, "x": x, "y": y,
             "fail_dist": fdist, "fail_params": fparams,
             "repair_dist": rdist, "repair_params": rparams,
-        })
+        }
+        fm_i = _int(b.get("FailureModel"), -1)
+        pm = pm_by_fm.get(fm_i)
+        if pm is not None:
+            pm_dist, pm_params = task_law(pm)
+            pm_freq = max(1.0, _num(pm.get("TaskInterval"), 100.0))
+            if pm_freq > 1e9:
+                report.add("very long PM intervals", 1,
+                           "an AWB PM interval above 1e9 hours was capped")
+                pm_freq = 1e9
+            block.update({
+                "uses_pm": True, "pm_freq": pm_freq,
+                "pm_duration_dist": pm_dist, "pm_params": pm_params,
+                "pm_refresh": _num(pm.get("AgeReductionFactor"), 0.0) >= 0.999,
+                "pm_spare": fm_i in sched_spare_by_fm,
+            })
+            pm_res = sched_labor_by_fm.get(fm_i)
+            if pm_res is not None:
+                kind_i = _int(pm_res.get("Labor"), -1)
+                if ("labor", kind_i) in resource_name:
+                    block["pm_resources_needed"] = max(
+                        1, _int(pm_res.get("Quantity"), 1))
+        spare_link = corr_spare_by_fm.get(fm_i)
+        if spare_link is not None:
+            spare_i = _int(spare_link.get("Spare"), -1)
+            if spare_i in spare_name:
+                block.update({
+                    "sparing_type": "Pooled",
+                    "spare_pool": spare_name[spare_i],
+                    "quantity": max(1, _int(spare_link.get("Quantity"), 1)),
+                })
+        res_link = corr_labor_by_fm.get(fm_i)
+        if res_link is not None:
+            kind_i = _int(res_link.get("Labor"), -1)
+            name2 = resource_name.get(("labor", kind_i))
+            if name2:
+                block.update({
+                    "num_resources": 1, "resource_name": name2,
+                    "repair_resources_needed": max(
+                        1, _int(res_link.get("Quantity"), 1)),
+                })
+        rules = rules_by_block.get(i)
+        if rules and phase_doc:
+            legacy_obj = block.get("legacy")
+            if not isinstance(legacy_obj, dict):
+                legacy_obj = {}
+                block["legacy"] = legacy_obj
+            block["uses_phasing"] = True
+            for phase_seq in range(1, len(phase_doc) + 1):
+                legacy_obj[f"P {phase_seq:03d}"] = "A: 1.000"
+            for rule in rules:
+                pidx = _int(rule.get("Phase"), 0)
+                phase_no = phase_number.get(pidx)
+                if phase_no is None:
+                    continue
+                logic = _int(rule.get("LogicMode"), 0)
+                if logic == 1 or _int(rule.get("OutOfService"), 0):
+                    legacy_obj[f"P {phase_no:03d}"] = "C: 1.000"
+                elif logic == 2:
+                    legacy_obj[f"P {phase_no:03d}"] = "L: 0.000"
+        logic = _int(b.get("LogicMode"), 0)
+        if logic == 1:
+            out_of_service_doc[f"block:{bid}"] = "cut"
+        elif logic == 2:
+            out_of_service_doc[f"block:{bid}"] = "linked"
+        elif _int(b.get("NonOperational"), 0):
+            out_of_service_doc[f"block:{bid}"] = "cut"
+        elements["blocks"].append(block)
+        block_by_row[i] = block
         comments.append({"type": "Block", "id": bid, "name": name,
                          "text": _comment_text(b)})
     for feature, count in sorted(block_losses.items()):
@@ -1127,6 +1630,23 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                 "AWB marks the block non-maintainable; RAPTOR repair is off",
         }.get(feature, "")
         report.add(feature, count, detail)
+    dep_count = 0
+    for row in rule_rows:
+        dep_row = _int(row.get("DependentBlock"), -1)
+        block_row = _int(row.get("Block"), -1)
+        dep_target: dict[str, Any] | None = block_by_row.get(block_row)
+        dep_id = block_id.get(dep_row)
+        if dep_target is not None and dep_id is not None:
+            dep_target.update({
+                "dep_type": "RBDBlock", "dep_num": dep_id,
+                "dep_nothing": 0.0, "dep_idle": 100.0,
+                "dep_pm": 0.0, "dep_fail": 0.0,
+            })
+            dep_count += 1
+    if dep_count:
+        report.notes.append(
+            f"{dep_count} AWB state dependency rule(s) imported as "
+            "100% idle dependencies")
 
     # ---- repeat blocks ----------------------------------------------------
     for i, r in enumerate(repeats):
@@ -1368,7 +1888,29 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                          nodes=len(elements["nodes"]),
                          hierarchies=len(elements["hierarchies"]),
                          links=len(links), failure_models=len(fms),
-                         repeats=len(repeats), labels=len(annotations))
+                         repeats=len(repeats), labels=len(annotations),
+                         pm_tasks=len(pm_by_fm), spares=len(spare_doc),
+                         resources=len(resource_doc), phases=len(phase_doc),
+                         out_of_service=len(out_of_service_doc))
+    if pm_by_fm:
+        report.notes.append(
+            f"{len(pm_by_fm)} AWB planned task(s) imported as RAPTOR PM")
+    if spare_doc:
+        report.notes.append(
+            f"{len(spare_doc)} AWB spare(s) imported as RAPTOR spare pools")
+    if resource_doc:
+        report.notes.append(
+            f"{len(resource_doc)} AWB labour/equipment row(s) imported as "
+            "RAPTOR resource pools")
+    if phase_doc:
+        rule_uses = sum(1 for b in elements["blocks"] if b.get("uses_phasing"))
+        report.notes.append(
+            f"{len(phase_doc)} AWB phase(s) imported; {rule_uses} block(s) "
+            "carry phase cut/linked rules")
+    if out_of_service_doc:
+        report.notes.append(
+            f"{len(out_of_service_doc)} AWB global logic/out-of-service "
+            "state(s) imported as RAPTOR out-of-service")
     if annotations:
         report.notes.append(
             f"{len(annotations)} AWB label(s) imported as RAPTOR annotations")
@@ -1394,6 +1936,10 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
         "links": links,
         "annotations": annotations,
         "comments": comments,
+        "spare_pools": spare_doc,
+        "resources": resource_doc,
+        "phases": phase_doc,
+        "out_of_service": out_of_service_doc,
     }
     from raptor.core.fileio.rbds import parse_rbds
     rbd = parse_rbds(json.dumps(doc), default_name=Path(src).stem)
@@ -1497,7 +2043,7 @@ def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901,
     duration = max(0.0, _num(task.get("TaskDuration")) + _num(task.get("RampTime")))
     tdist = _int(task.get("Distribution"), 2)
     std = max(0.0, _num(task.get("Std")))
-    if _int(block.get("NonMaintainable"), 0):
+    if _int(block.get("NonMaintainable"), 0) and _int(block.get("LogicMode"), 0) != 1:
         losses["non-maintainable blocks"] = (
             losses.get("non-maintainable blocks", 0) + 1)
         return fdist, fparams, _R_NONE, [1.0, 0.0, 0.0]
@@ -1534,24 +2080,45 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
         report.add("consequence and cost models", len(_rows(tables, "Consequences")),
                    "AWB financial/safety/environmental consequences are not "
                    "modelled by RAPTOR")
-    if _rows(tables, "Phases") or _rows(tables, "RbdBlockRuleAssignments"):
-        report.add("mission phases and phase rules",
-                   max(len(_rows(tables, "Phases")),
-                       len(_rows(tables, "RbdBlockRuleAssignments"))),
-                   "AWB phase schedules and rules are not imported")
-    if _rows(tables, "FailureModelScheduledTasks"):
-        report.add("planned maintenance tasks",
-                   len(_rows(tables, "FailureModelScheduledTasks")),
-                   "AWB scheduled/inspection tasks are not imported")
-    if _rows(tables, "Spares") or _rows(tables, "FailureModelCorrTaskSpares"):
-        report.add("spares and sparing rules",
-                   max(len(_rows(tables, "Spares")),
-                       len(_rows(tables, "FailureModelCorrTaskSpares"))),
-                   "AWB spare holdings and logistics are not imported")
-    if _rows(tables, "Labor") or _rows(tables, "Equipment"):
-        report.add("labour and equipment resources",
-                   max(len(_rows(tables, "Labor")), len(_rows(tables, "Equipment"))),
-                   "AWB resource pools are not imported")
+    sched = _rows(tables, "FailureModelScheduledTasks")
+    planned = [t for t in sched
+               if _int(t.get("Type"), 0) == 0 and _int(t.get("Enabled"), 0)]
+    fms_with_planned = {_int(t.get("FailureModel"), -1) for t in planned}
+    if len(planned) > len(fms_with_planned):
+        report.add("extra planned-maintenance tasks",
+                   len(planned) - len(fms_with_planned),
+                   "RAPTOR has one PM per block; only the first planned "
+                   "task per failure model is imported")
+    inspections = [t for t in sched
+                   if _int(t.get("Type"), 0) == 1 and _int(t.get("Enabled"), 0)]
+    if inspections:
+        report.add("inspection tasks", len(inspections),
+                   "AWB inspection tasks are not imported as RAPTOR PM")
+    calendar_pm = [t for t in planned if _int(t.get("FixedInterval"), 0)]
+    if calendar_pm:
+        report.add("calendar-interval PM", len(calendar_pm),
+                   "RAPTOR PM is driven by operating time")
+    two_level = sum(1 for sp in _rows(tables, "Spares")
+                    if _int(sp.get("CapacityLevel2"), 0))
+    if two_level:
+        report.add("two-level spare holdings", two_level,
+                   "AWB level-1 and level-2 stock are summed into one "
+                   "RAPTOR pool")
+    repair_shop = sum(1 for sp in _rows(tables, "Spares")
+                      if _int(sp.get("RepairLevel"), 0))
+    if repair_shop:
+        report.add("spare repair shop", repair_shop,
+                   "AWB spare repair/recycling is not imported")
+    delay = sum(1 for lab in _rows(tables, "Labor")
+                if _num(lab.get("CorrectiveLogisticDelay"), 0.0) > 0)
+    if delay:
+        report.add("labour call-out delay", delay,
+                   "AWB labour logistics delay is not imported")
+    capacity_rules = [r for r in _rows(tables, "RbdBlockRuleAssignments")
+                      if _int(r.get("Type"), 0) != 1]
+    if capacity_rules:
+        report.add("phase capacity/load rules", len(capacity_rules),
+                   "only AWB phase logic/out-of-service rules are imported")
     if _rows(tables, "RcmLocations") or _rows(tables, "RcmCauses"):
         report.add("RCM location hierarchy", max(
             len(_rows(tables, "RcmLocations")), len(_rows(tables, "RcmCauses"))),
@@ -1578,13 +2145,8 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
                         .get("AvsimCapacityCalcsPerformed"), 0):
         report.add("capacity flow and capacity targets", 1,
                    "AWB capacity products are not imported")
-    nonop = sum(1 for b in _rows(tables, "RbdBlocks")
-                if _int(b.get("NonOperational"), 0))
-    if nonop:
-        report.add("non-operational blocks", nonop,
-                   "AWB non-operational state is not imported")
     standby = sum(1 for b in _rows(tables, "RbdBlocks")
-                  if _int(b.get("StandbyMode"), 0) or _int(b.get("LogicMode"), 0))
+                  if _int(b.get("StandbyMode"), 0))
     standby += sum(1 for n in _rows(tables, "RbdNodes")
                    if _int(n.get("LocalStandby"), 0) or _int(n.get("NotLogic"), 0))
     if standby:

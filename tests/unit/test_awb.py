@@ -178,13 +178,10 @@ def test_export_report_names_raptor_features_awb_cannot_use(tmp_path):
     report = export_awb(rbd, path, source="lossy.rbds")
     features = {loss.feature for loss in report.not_in_target}
     for expected in (
-            "failure events", "diagram annotations", "rate definitions",
-            "formula-linked fields", "triggers", "spare pools",
-            "resource pools", "mission phases", "out-of-service elements",
-            "capacity analysis", "block dependencies",
-            "preventive maintenance", "phased element schedules",
-            "failure distribution simplified to exponential",
-            "repair distribution simplified to a fixed duration"):
+            "failure events", "rate definitions",
+            "formula-linked fields", "triggers",
+            "capacity analysis",
+            "failure distribution simplified to exponential"):
         assert expected in features, (expected, sorted(features))
     assert "times converted from days to hours" in " ".join(report.notes)
 
@@ -213,9 +210,7 @@ def test_import_report_names_awb_features_raptor_cannot_use(tmp_path):
     rbd, report = import_awb(path)
     features = {loss.feature for loss in report.not_in_target}
     for expected in (
-            "consequence and cost models", "mission phases and phase rules",
-            "planned maintenance tasks", "spares and sparing rules",
-            "labour and equipment resources", "RCM location hierarchy",
+            "consequence and cost models", "RCM location hierarchy",
             "Weibull sets", "bitmaps", "capacity flow and capacity targets"):
         assert expected in features, (expected, sorted(features))
     assert rbd is not None
@@ -316,3 +311,72 @@ def test_cli_convert_awb_round_trip(tmp_path, capsys):
     from raptor.core.fileio.model_file import load_model_file
     loaded = load_model_file(back)
     assert len(_rows(loaded, "BLOCK_DATA")) == 2
+
+
+def test_pm_spares_resources_phases_and_out_of_service_round_trip(tmp_path):
+    doc = {
+        "format": "raptor-studio", "version": 4,
+        "system": {"units": "hours"},
+        "experiment": {"trials": 10, "termination_type": "TimeSim",
+                       "term_condition": 1000.0},
+        "elements": {
+            "blocks": [
+                {"id": 1, "name": "Pump", "x": 0, "y": 0,
+                 "fail_dist": 4, "fail_params": [1000, 0, 0],
+                 "repair_dist": 19, "repair_params": [10, 0, 0],
+                 "uses_pm": True, "pm_freq": 100.0,
+                 "pm_duration_dist": 19, "pm_params": [5, 0, 0],
+                 "pm_refresh": True, "pm_spare": True,
+                 "num_resources": 1, "resource_name": "Crew",
+                 "repair_resources_needed": 2, "pm_resources_needed": 1,
+                 "sparing_type": "Custom", "stock": 3, "new_spares": 1,
+                 "quantity": 2, "arrive_every": 720.0, "emer_time": 48.0,
+                 "uses_phasing": True,
+                 "legacy": {"P 001": "C: 1.000", "P 002": "A: 1.000"}},
+                {"id": 2, "name": "Valve", "x": 200, "y": 0,
+                 "fail_dist": 4, "fail_params": [2000, 0, 0],
+                 "repair_dist": 19, "repair_params": [20, 0, 0]},
+            ],
+            "nodes": [{"id": 3, "name": "start", "type": 1, "x": -100, "y": 0},
+                      {"id": 4, "name": "end", "type": 3, "x": 300, "y": 0}],
+            "hierarchies": [],
+        },
+        "links": [{"id": 5, "from": ["Node", 3], "to": ["Block", 1]},
+                  {"id": 6, "from": ["Block", 1], "to": ["Block", 2]},
+                  {"id": 7, "from": ["Block", 2], "to": ["Node", 4]}],
+        "spare_pools": [{"name": "CrewSpares", "stock": 2, "new_spares": 1,
+                         "arrive_every": 720, "eso": 1, "emer_time": 48,
+                         "quantity": 1}],
+        "resources": [{"name": "Crew", "num_in": 2, "spare_cost": 1,
+                       "fixed_per_use": 10, "per_time_unit": 20, "phases": 0}],
+        "phases": [{"name": "PhaseA", "num": 1, "mission": 1,
+                    "duration_dist": 19, "params": [100, 0, 0]},
+                   {"name": "PhaseB", "num": 2, "mission": 1,
+                    "duration_dist": 19, "params": [200, 0, 0]}],
+        "annotations": [{"kind": "text", "id": 1, "parent": 0, "x": 10,
+                         "y": 10, "w": 100, "h": 20, "text": "note"}],
+        "out_of_service": {"block:2": "cut"},
+    }
+    rbd = parse_rbds(json.dumps(doc))
+    path = tmp_path / "stage12.awb"
+    export_awb(rbd, path, source="stage12.rbds")
+    tables = read_awb(path)
+    for name in ("FailureModelScheduledTasks", "FailureModelSchedTaskLabor",
+                 "FailureModelSchedTaskSpares", "FailureModelCorrTaskLabor",
+                 "FailureModelCorrTaskSpares", "Spares", "Labor", "Phases",
+                 "RbdBlockRuleAssignments", "RbdLabels"):
+        assert tables[name].rows, name
+    back, report = import_awb(path)
+    assert len(back.sections["PHASES"].rows) == 2
+    assert back.sections["RESOURCE_DATA"].rows
+    assert back.sections["SPARE_POOL_DATA"].rows
+    pump = next(r for r in _rows(back, "BLOCK_DATA")
+                if r["blockName"] == "Pump")
+    assert pump["usesPM"] == "1"
+    assert pump["SpType"] == "Pooled"
+    assert pump["NumRes"] == "1"
+    assert pump["Resource1Name"]
+    assert pump["P 001"].startswith("C:")
+    assert back.out_of_service.get("block:2") == "cut"
+    assert "non-maintainable blocks" not in {
+        loss.feature for loss in report.not_in_target}
