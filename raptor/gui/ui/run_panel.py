@@ -51,6 +51,22 @@ from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.widgets.tidy_spin import TidySpinBox
 
 
+
+def _importance_estimate(blocks: int, mode: str,
+                         trials: int) -> tuple[int, int] | None:
+    """(batches, simulated runs) the importance measures add, or None when
+    the block count is unknown or the estimate fails. It is display-only:
+    a failing estimate must not break the panel, and the run itself
+    reports any real failure."""
+    if not blocks:
+        return None
+    from raptor.api import importance as imp
+    try:
+        return (int(imp.batch_count(blocks, mode)),
+                int(imp.estimate_runs(blocks, mode, trials)))
+    except Exception:  # noqa: BLE001 - display-only estimate
+        return None
+
 class RunPanel(QWidget):
     """The experiment editor.
 
@@ -742,7 +758,6 @@ class RunPanel(QWidget):
 
     def _sync_importance_rows(self) -> None:
         """Show/hide the mode picker and state the cost for this model."""
-        from raptor.api import importance as imp
         from raptor.api import run_needs
 
         experiment = getattr(self, "_exp", None) or rx.defaults()
@@ -760,15 +775,16 @@ class RunPanel(QWidget):
                 self._importance_mode.blockSignals(True)
                 self._importance_mode.setCurrentIndex(idx)
                 self._importance_mode.blockSignals(False)
-        if on and blocks:
-            batches = imp.batch_count(blocks, mode)
-            runs = imp.estimate_runs(blocks, mode, trials)
+        estimate = _importance_estimate(blocks, mode if on else
+                                        rx.IMPORTANCE_DEFAULT_MODE, trials)
+        if on and estimate:
+            batches, runs = estimate
             cost = (f"Adds {batches:,} batches for {blocks:,} "
                     f"block{'s' if blocks != 1 else ''}: about {runs:,} "
                     f"simulated runs. Variant batches record no logs or "
                     f"plots.")
-        elif blocks:
-            batches = imp.batch_count(blocks, rx.IMPORTANCE_DEFAULT_MODE)
+        elif estimate:
+            batches = estimate[0]
             cost = (f"Adds about {batches:,} batches here (one per block, "
                     f"two with Birnbaum), on top of the ordinary run.")
         else:
@@ -796,12 +812,12 @@ class RunPanel(QWidget):
     def importance_runs(self) -> int | None:
         """Simulated runs the importance batches add, or None when off (or
         the model's block count is not known yet)."""
-        from raptor.api import importance as imp
         mode = str(self._exp.get("importance", "none"))
         blocks = int(getattr(self, "_importance_blocks", 0) or 0)
-        if mode == "none" or not blocks:
+        if mode == "none":
             return None
-        return int(imp.estimate_runs(blocks, mode, int(self._exp["trials"])))
+        estimate = _importance_estimate(blocks, mode, int(self._exp["trials"]))
+        return estimate[1] if estimate else None
 
     def importance_note(self) -> str:
         return getattr(self, "_importance_note_text", "")
