@@ -220,7 +220,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_quick_add_action",
         text="Quick Add",
         icon="quick_add_icon:accent",
-        tooltip="Add an element at the cursor (Space or / on the canvas)",
+        tooltip="Repeat the selected block in series or parallel, or add a "
+                "copy or a part type (Space or / on the canvas)",
         handler="_diagram_dock.view.show_quick_add"),
     CommandSpec(
         id="view.command_search",

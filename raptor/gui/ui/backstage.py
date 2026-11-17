@@ -300,28 +300,37 @@ class Backstage(QWidget):
         when the tip names a command, Show me."""
         from PySide6.QtWidgets import QFrame
         from raptor.gui.tips import tip_for_launch
+        # User testing: the tip was in the small default font in a thin
+        # full-width strip, its text stopping half way across. It now uses
+        # the page's body size, more room, and a width the text fills.
         card = QFrame()
         card.setObjectName("BackstageTip")
-        card.setFrameShape(QFrame.Shape.StyledPanel)
+        card.setMaximumWidth(900)
         col = QVBoxLayout(card)
-        col.setContentsMargins(14, 10, 14, 10)
+        col.setContentsMargins(22, 16, 22, 16)
+        col.setSpacing(10)
         head = QLabel("Did you know?")
-        font = head.font()
-        font.setBold(True)
-        head.setFont(font)
+        head.setObjectName("BackstageTipHead")
         col.addWidget(head)
         self._tip_text = QLabel()
+        self._tip_text.setObjectName("BackstageTipText")
         self._tip_text.setWordWrap(True)
         self._tip_text.setTextFormat(Qt.TextFormat.PlainText)
-        self._tip_text.setMaximumWidth(720)
+        self._tip_text.setMinimumHeight(48)
         col.addWidget(self._tip_text)
         row = QHBoxLayout()
+        row.setSpacing(8)
         self._tip_show = QPushButton("Show me")
+        self._tip_show.setObjectName("BackstageTipButton")
         self._tip_show.clicked.connect(self._run_tip)
         nxt = QPushButton("Next tip")
+        nxt.setObjectName("BackstageTipButton")
         nxt.clicked.connect(lambda: self._show_tip(self._tip_index + 1))
         row.addWidget(self._tip_show)
         row.addWidget(nxt)
+        self._tip_count = QLabel()
+        self._tip_count.setObjectName("BackstageNote")
+        row.addWidget(self._tip_count)
         row.addStretch(1)
         col.addLayout(row)
         self._show_tip(tip_for_launch())
@@ -337,7 +346,8 @@ class Backstage(QWidget):
             action = self._win._commands.action(tip.command)
             shortcut = action.shortcut().toString() or ""
         text = tip.text.replace("{shortcut}", shortcut or "its shortcut")
-        self._tip_text.setText(f"{text}  ({self._tip_index + 1} of {len(TIPS)})")
+        self._tip_text.setText(text)
+        self._tip_count.setText(f"  {self._tip_index + 1} of {len(TIPS)}")
         self._tip_show.setVisible(action is not None)
         self._tip_show.setEnabled(action is not None and action.isEnabled())
         self._tip_show.setToolTip(
@@ -818,4 +828,24 @@ class Backstage(QWidget):
             #BackstageTile:hover {{
                 border-color: {c['accent']}; background: {c['canvas']};
             }}
+            #BackstageTip {{
+                border: 1px solid {c['border']};
+                border-left: 4px solid {c['accent']}; border-radius: 6px;
+                background: {c['canvas']};
+            }}
+            #BackstageTipHead {{
+                font-size: {TYPE['body'] + 3}px; font-weight: 600;
+                color: {c['text']}; border: none; background: transparent;
+            }}
+            #BackstageTipText {{
+                font-size: {TYPE['body'] + 1}px; color: {c['text']};
+                border: none; background: transparent;
+            }}
+            #BackstageTipButton {{
+                color: {c['text']}; background: {c['surface']};
+                font-size: {TYPE['body']}px; padding: 6px 14px;
+                border: 1px solid {c['border']}; border-radius: 6px;
+            }}
+            #BackstageTipButton:hover {{ border-color: {c['accent']}; }}
+            #BackstageTipButton:disabled {{ color: {c['muted']}; }}
         """)

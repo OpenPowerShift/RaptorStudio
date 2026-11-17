@@ -33,7 +33,7 @@ def test_every_tip_names_a_real_command_and_fills_its_shortcut(qapp):
         page._show_tip(first + 1)
         assert page._tip_index == (first + 1) % len(TIPS)
         assert "{shortcut}" not in page._tip_text.text()
-        assert f"of {len(TIPS)})" in page._tip_text.text()
+        assert page._tip_count.text().strip().endswith(f"of {len(TIPS)}")
     finally:
         w._dirty = False
         w.close()

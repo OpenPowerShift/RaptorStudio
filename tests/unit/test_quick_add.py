@@ -37,17 +37,97 @@ def _blocks(win):
                 if row.get("ID") != "0"])
 
 
-def test_space_opens_quick_add_and_enter_adds_a_block(win):
+def _select_one_block(view):
+    view._scene.clearSelection()
+    bid = next(b for b in view._block_items if b != 0)
+    view._block_items[bid].setSelected(True)
+    return bid
+
+
+def _pick(popup, key):
+    for row in range(popup.list.count()):
+        if popup.list.item(row).data(Qt.ItemDataRole.UserRole) == key:
+            popup.list.setCurrentRow(row)
+            return
+    raise AssertionError(f"{key} not offered")
+
+
+def test_space_opens_quick_add_and_enter_adds_a_copy(win):
     view = win._diagram_dock.view
     view.setFocus()
     QTest.keyClick(view, Qt.Key.Key_Space)
     popup = view._quick_add
     assert popup.isVisible()
-    popup.query.setText("Block")
-    popup.list.setCurrentRow(0)
+    popup.query.setText("copy")
     before = _blocks(win)
     popup._choose()
     assert _blocks(win) == before + 1
+
+
+def test_no_element_kinds_the_ribbon_already_has(win):
+    """User testing: Block, Node, Event and Hierarchy rows repeated the
+    ribbon's Add buttons."""
+    from raptor.gui.ui.quick_add import QuickAdd
+    popup = QuickAdd(win._diagram_dock.view)
+    _cands, data = popup._candidates()
+    assert not [k for k in data if k.startswith("kind:")]
+
+
+def test_without_a_selection_the_patterns_ask_for_one(win):
+    from raptor.gui.ui.quick_add import HINT, QuickAdd
+    view = win._diagram_dock.view
+    view._scene.clearSelection()
+    popup = QuickAdd(view)
+    popup._fill("")
+    assert popup.list.item(0).data(Qt.ItemDataRole.UserRole) == HINT
+    assert not popup.list.item(0).flags() & Qt.ItemFlag.ItemIsEnabled
+    assert popup.list.currentRow() != 0
+    _cands, data = popup._candidates()
+    assert not [k for k in data if k.startswith(("series:", "parallel:"))]
+
+
+def test_copies_are_named_after_the_block(win):
+    from raptor.gui.ui.quick_add import QuickAdd
+    popup = QuickAdd(win._diagram_dock.view)
+    cands, _data = popup._candidates()
+    names = {str(r["blockName"]) for r in win._rbd.section("BLOCK_DATA").rows
+             if str(r.get("ID")) != "0"}
+    texts = {c.text for c in cands if str(c.data).startswith("block:")}
+    assert texts == {f"Copy of {name}" for name in names}
+
+
+@pytest.mark.parametrize(("key", "added", "k"), [
+    ("series:2", 1, None), ("series:3", 2, None),
+    ("parallel:1:2", 1, 1), ("parallel:2:3", 2, 2), ("parallel:1:3", 2, 1)])
+def test_patterns_repeat_the_selected_block_wired_in(win, key, added, k):
+    """User testing: the patterns asked for a count, then dropped blank
+    blocks unconnected at the cursor. Now they copy the selected block
+    where it is, in one undo step."""
+    from raptor.gui.ui.quick_add import QuickAdd
+    view = win._diagram_dock.view
+    bid = _select_one_block(view)
+    template = view.blocks[bid]
+    before = _blocks(win)
+    popup = QuickAdd(view)
+    popup._fill("")
+    _pick(popup, key)
+    popup._choose()
+    assert _blocks(win) == before + added
+    new = [b for b in view.blocks.values() if b.id not in
+           {bid} and b.fail_distro == template.fail_distro][-added:]
+    assert len(new) == added
+    linked = {(r["FromType"], r["FromID"]) for r in
+              win._rbd.section("LINK_DATA").rows} | {
+              (r["ToType"], r["ToID"]) for r in
+              win._rbd.section("LINK_DATA").rows}
+    for block in new:
+        assert ("RBDBlock", str(block.id)) in linked or \
+            ("Block", str(block.id)) in linked, linked
+    if k is not None:
+        assert k in {n.good_paths for n in view.nodes.values()
+                     if n.type_node == 2}
+    win._undo_stack.undo()
+    assert _blocks(win) == before
 
 
 def test_escape_leaves_the_model_unchanged(win):
@@ -68,37 +148,6 @@ def test_focus_mode_dims_only_the_unselected(win):
     assert view._block_items[ids[1]].opacity() == 0.25
     view.set_focus_mode(False)
     assert view._block_items[ids[1]].opacity() == 1.0
-
-
-def test_series_and_parallel_patterns_are_valid_and_undoable(win):
-    view = win._diagram_dock.view
-    before_blocks = _blocks(win)
-    before_nodes = len(view.nodes)
-    view.add_series(3, 300.0, 200.0)
-    assert _blocks(win) == before_blocks + 3
-    assert len(view.nodes) == before_nodes + 2
-
-    view.add_parallel(3, 2, 400.0, 300.0)
-    assert len(view.nodes) == before_nodes + 4
-    assert _blocks(win) == before_blocks + 6
-    win._undo_stack.undo()
-    assert _blocks(win) == before_blocks + 3
-
-
-def test_parallel_units_stack_and_never_reuse_a_name(win):
-    """User testing: the parallel pattern laid its blocks out in a row (it
-    read as a series chain and ran off-screen) and named one Block_1 beside
-    an existing Block_1 ("Block 1" was checked before it became Block_1)."""
-    view = win._diagram_dock.view
-    view.add_block("Block_1", 50.0, 50.0)
-    ids = view.add_parallel(3, 1, 400.0, 300.0)
-    xs = {view.blocks[b].x_position for b in ids}
-    ys = sorted(view.blocks[b].y_position for b in ids)
-    assert len(xs) == 1 and ys[0] < ys[1] < ys[2]
-    rows = [row for row in win._rbd.section("BLOCK_DATA").rows if row.get("ID") != "0"]
-    new = [str(r.get("blockName")) for r in rows if int(r["ID"]) in ids]
-    old = [str(r.get("blockName")) for r in rows if int(r["ID"]) not in ids]
-    assert len(set(new)) == 3 and not set(new) & set(old), (new, old)
 
 
 def test_quick_add_offers_blocks_from_every_level(qapp):
