@@ -94,6 +94,10 @@ DEFAULTS: dict[str, Any] = {
     # Off: a run goes at full speed on several cores. Animate is the
     # one-core run you watch.
     "execution/default_animate": False,
+    # confirm/ -- the confirmations a "Don't ask again" box can switch
+    # off (see `raptor.gui.ui.ask_again`). True = ask.
+    "confirm/results_on_screen": True,
+    "confirm/long_run": True,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,

@@ -245,7 +245,6 @@ class InspectorBlockMixin(_Base):
         gb, fl = self._group("Failure Distribution", layout)
         self._distro_type_row(fl, block.fail_distro, True, block.id,
                               self.block_fail_type_changed)
-        self._stream_editor_row(fl, block.fail_stream, "F", block.id)
         block_id = block.id
         self._distribution_params_row(
             fl, block.fail_distro, "Failure", block.fail_values,
@@ -253,6 +252,10 @@ class InspectorBlockMixin(_Base):
             addr_prefix=f"block:{block_id}:F",
         )
         self._experience_button(fl, block_id, "fail")
+        # Last: user testing found the random-number stream between the
+        # type and its parameters, pushing the numbers people come to
+        # change below the fold.
+        self._stream_editor_row(fl, block.fail_stream, "F", block.id)
 
         # Advanced tab fields (Raptor 7 "Mean Life Growth and
         # Decay" plus Raptor 7 "Standby Stress") folded in here: Raptor 7's
@@ -415,9 +418,6 @@ class InspectorBlockMixin(_Base):
         else:
             self._distro_type_row(fl, block.repair_distro, False,
                                   block.id, self.block_repair_type_changed)
-            if block.repair_distro != 18:
-                self._stream_editor_row(fl, block.repair_stream, "R",
-                                        block.id)
             block_id = block.id
             self._distribution_params_row(
                 fl, block.repair_distro, "Repair", block.repair_values,
@@ -425,6 +425,10 @@ class InspectorBlockMixin(_Base):
                 addr_prefix=f"block:{block_id}:R",
             )
             self._experience_button(fl, block_id, "repair")
+            if block.repair_distro != 18:
+                # after the parameters, as on the Failure tab
+                self._stream_editor_row(fl, block.repair_stream, "R",
+                                        block.id)
 
     def _populate_spares(self, block: RBDBlock):
         w = self._scroll_spares.widget()

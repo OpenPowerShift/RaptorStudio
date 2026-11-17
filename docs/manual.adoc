@@ -1617,6 +1617,13 @@ sessions.
 *Working* also holds *Open another model in*: a new window (the
 default) or this window (see <<several-models>>).
 
+The confirmations that come up in ordinary work carry a *Don't ask
+again* box: *Results on screen* (editing after a run), *Long
+simulation*, and the save prompt before a run, whose box remembers
+Save or Run Without Saving as the *Unsaved changes before running*
+setting. *Working ▸ Confirmations ▸ Show all confirmations again*
+brings back any you switched off, and says which they are.
+
 The *Display unit* setting accepts either one of the built-in choices or a
 unit name of your own (say `cycles`); durations are then shown in that
 unit and stored in the model's own.

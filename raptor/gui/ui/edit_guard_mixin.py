@@ -100,6 +100,13 @@ class EditGuardMixin(_Base):
             return
         if not self._results_are_stale():
             return              # undone, or a burst that netted out
+        from raptor.gui.ui import ask_again
+        if not ask_again.should_ask("confirm/results_on_screen"):
+            self._discard_results()
+            self._statusbar.showMessage(
+                "Results discarded — the model was edited (Edit ▸ Undo "
+                "takes the edit back)", 6000)
+            return
         self._results_guard_reentrancy = True
         try:
             stack = getattr(self._diagram_dock.view, "_stack", None)
@@ -118,9 +125,18 @@ class EditGuardMixin(_Base):
                     QMessageBox.ButtonRole.NoRole)
             discard_btn = box.addButton(
                 "Discard results && edit", QMessageBox.ButtonRole.YesRole)
-            box.setDefaultButton(keep_btn or discard_btn)
+            # Enter keeps what the user just did. User testing: with Keep
+            # as the default, a new user who pressed Enter to dismiss the
+            # box lost the edit they had just typed.
+            box.setDefaultButton(discard_btn)
+            # Says which answer it remembers: only "discard" can be
+            # remembered (always undoing every edit is no way to work).
+            again = ask_again.add_box(
+                box, "Don't ask again: discard the results when I edit")
             box.exec()
             if box.clickedButton() is discard_btn:
+                if again.isChecked():
+                    ask_again.stop_asking("confirm/results_on_screen")
                 self._discard_results()
                 self._statusbar.showMessage(
                     "Results discarded — the model was edited", 6000)

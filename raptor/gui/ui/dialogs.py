@@ -684,6 +684,19 @@ def show_preferences(win):
         reset=lambda w: w.setCurrentIndex(
             max(0, w.findData("ask"))), builtins=("Ask before running",))
 
+    # Confirmations switched off with "Don't ask again": one button brings
+    # them all back (applied on OK, like every other row here).
+    from raptor.gui.ui import ask_again as _ask_again
+    off = _ask_again.switched_off()
+    ask_again_btn = QPushButton("Show all confirmations again")
+    ask_again_btn.setCheckable(True)
+    ask_again_btn.setEnabled(bool(off))
+    _pref_row(
+        work_form, "Confirmations:", ask_again_btn,
+        ("Switched off with \"Don't ask again\": " + "; ".join(off) + "."
+         if off else "Every confirmation is shown. A \"Don't ask again\" "
+         "box on one switches it off; this button brings them back."), "app")
+
     open_in = QComboBox()
     open_in.addItem("A new window", "new")
     open_in.addItem("This window (closing the open model)", "this")
@@ -851,6 +864,8 @@ def show_preferences(win):
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())
     _settings.set_value("files/save_before_run", save_before_run.currentData())
+    if ask_again_btn.isChecked():
+        _ask_again.ask_all_again()
     _settings.set_value("files/open_in", open_in.currentData())
     _settings.set_value(_cores.KEY, workers.value())
     # One sync for every Cores surface (ribbon, Run panel, status chip),

@@ -2239,6 +2239,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_canvas_event_selected)
         self._diagram_dock.view.selection_changed.connect(
             self._results.refresh_weak_selection)
+        self._diagram_dock.view.selection_changed.connect(
+            self._inspector_forward_on_click)
 
     def _wire_widget_hooks(self):
         # The Inspector's Anchor controls list this level's elements.
@@ -3029,10 +3031,22 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             _proceed_btn = box.addButton("Run Without Saving", QMessageBox.ButtonRole.ActionRole)
         cancel_btn = box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(save_btn)
+        # Before a run the answer is already a preference
+        # (`files/save_before_run`), so the box remembers it there. Closing
+        # always asks: there, not saving loses the edits.
+        remember = None
+        if not closing:
+            from raptor.gui.ui import ask_again
+            remember = ask_again.add_box(box, "Remember my choice for every run")
+            remember.setToolTip("Preferences ▸ Working ▸ Unsaved changes "
+                                "before running changes it back")
         box.exec()
         clicked = box.clickedButton()
         if clicked is cancel_btn:
             return False
+        if remember is not None and remember.isChecked():
+            settings.set_value("files/save_before_run",
+                               "always" if clicked is save_btn else "never")
         if clicked is save_btn:
             self._save_file()
             return not self._dirty  # False if the save failed or was cancelled.
@@ -3043,6 +3057,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         Run, since results otherwise silently reflect a different model
         than what's on disk. Returns True if it's OK to proceed."""
         if not self._dirty:
+            return True
+        if not self._current_file:
+            # Never saved (a new model, or an example opened from the
+            # Start page): there is no file on disk for the results to
+            # differ from. User testing: a new user's first change to an
+            # example met this prompt (Save opened Save As) before every
+            # run. Closing still asks.
             return True
         mode = self._prefs().get("save_before_run", "ask")
         if mode == "never":
@@ -3232,6 +3253,29 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """
         from raptor.gui.ui import dialogs
         dialogs.show_system_config(self)
+
+    def _inspector_forward_on_click(self) -> None:
+        """Clicking an element on the canvas shows its properties.
+
+        User testing: the first run with findings brings the Advisor
+        forward over the Inspector (its tab), and a new user then clicked
+        a block to change it and saw nothing happen. Only a click on the
+        canvas does this -- the Advisor's own "go to element" selects
+        without the mouse on the canvas and keeps its tab in front -- and
+        only when the Inspector is open but covered by another tab."""
+        from PySide6.QtWidgets import QApplication
+        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            return
+        view = self._diagram_dock.view
+        if not view.viewport().underMouse():
+            return
+        if not view._scene.selectedItems():
+            return
+        dock = self._inspector_dock
+        if dock.isHidden() or dock.isFloating():
+            return
+        if dock.visibleRegion().isEmpty():
+            dock.raise_()
 
     def _open_project_settings(self):
         """Project Settings is the Inspector page, not a modal.
