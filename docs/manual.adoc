@@ -1684,9 +1684,14 @@ In short:
 |Exponential, Weibull, lognormal, normal and fixed failure laws |yes |yes
 |Corrective repair duration, project lifetime and trial count |yes |yes
 |Failure events |not exported (AWB RBDs use blocks) |n/a
-|RAPTOR annotations, rates, formulas, triggers |not exported |n/a
-|Mission phases, out-of-service rules, dependencies |not exported |not imported
-|PM/inspection tasks, spare holdings, labour/equipment |not exported |not imported
+|Text annotations |yes (AWB labels) |yes (RAPTOR annotations)
+|Shape annotations, rates, formulas, triggers |not exported |n/a
+|Mission phases |partial: durations and block cut/linked rules |partial: durations and cut/linked rules; node/hierarchy and capacity/load rules are not imported
+|Out-of-service states |yes: applied to the AWB copy |yes: AWB global logic state becomes a RAPTOR cut/linked state
+|Block dependencies |not exported |partial: AWB state dependencies become 100% idle dependencies
+|Preventive maintenance |partial: one planned task per failure model |partial: first enabled planned task; inspections and extra tasks are not imported
+|Spare holdings |partial: level-1 stock and lead time |partial: level 1 + 2 become one pool; repair shop is not imported
+|Labour/equipment resources |partial: resource pools and task links |partial: labour/equipment become RAPTOR resources; call-out delay is not imported
 |Capacity products and capacity targets |not exported |not imported
 |Consequence and cost models |not exported |not imported
 |RCM location hierarchy, fault trees, Weibull sets, bitmaps |n/a |not imported

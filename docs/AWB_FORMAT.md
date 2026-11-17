@@ -62,7 +62,7 @@ There is no per-table byte length and no end marker: the reader walks the
 tables and cells in order.  A truncated file, an unknown column type, or
 trailing bytes are reported as `AwbFormatError` rather than guessed at.
 
-The six tables RAPTOR writes are:
+The six core tables RAPTOR always writes are:
 
 | Table | Purpose |
 |---|---|
@@ -73,9 +73,23 @@ The six tables RAPTOR writes are:
 | `RbdNodes` | RBD nodes and K-of-N votes |
 | `RbdConnections` | links between blocks and nodes |
 
+When the model uses them, RAPTOR also writes:
+
+| Table | Purpose |
+|---|---|
+| `FailureModelScheduledTasks` | one preventive-maintenance task per failure model |
+| `FailureModelSchedTaskLabor` / `...Spares` | PM resource and spare links |
+| `FailureModelCorrTaskLabor` / `...Spares` | repair resource and spare links |
+| `Spares` | spare holdings |
+| `Labor` | labour/resource pools |
+| `Phases` | mission phase durations |
+| `RbdBlockRuleAssignments` | phase cut/linked rules |
+| `RbdLabels` | text annotations |
+
 AWB adds the tables its other modules need when it opens the project.  A
 minimal six-table project was opened, validated and simulated by AWB 5.0 in
-demonstration mode; the tables below are the ones that matter to AvSim.
+demonstration mode; the extra tables above have also been opened and
+simulated in AWB with PM, spares, labour and phases present.
 
 ---
 
@@ -238,16 +252,12 @@ Markdown; `--report FILE` also writes the Markdown.  The report has:
 | Feature | Why |
 |---|---|
 | failure events | AWB RBDs use blocks; events are not exported |
-| diagram annotations | text boxes, rectangles and arrows are draw-only |
+| non-text annotations | text annotations become AWB labels; rectangles, ellipses and arrows are draw-only |
 | rate definitions and formula-linked fields | values are written as plain numbers |
 | triggers | AWB has no equivalent trigger logic |
-| spare pools | AWB spare holdings are not populated by this export |
-| resource pools | AWB labour/equipment are not populated |
-| mission phases and per-element phase schedules | AWB phase rules are not populated |
-| out-of-service elements | AWB `OutOfService` rules are not populated |
 | capacity analysis and flow links | AWB capacity targets are not populated |
 | block dependencies | AWB dependency rules are not populated |
-| preventive maintenance | AWB scheduled tasks are not populated |
+| node and hierarchy phase schedules | block phase rules are exported; node/hierarchy phase states are not |
 | age, restoration and growth settings | AWB initial age is 0 |
 | block cost data | AWB cost fields are not populated |
 | node standby/priority settings | AWB nodes carry only a vote |
@@ -256,6 +266,7 @@ Markdown; `--report FILE` also writes the Markdown.  The report has:
 | advisor state and print title block | RAPTOR-only metadata |
 | other failure laws (gamma, triangular, ...) | simplified to an exponential with the same mean |
 | non-fixed repair laws | simplified to a fixed task duration with the same mean |
+| additional or non-fixed PM | one fixed-duration PM per failure model is written |
 | no-repair blocks | written as `NonMaintainable = 1` |
 | no-failure blocks | written with a fixed time of 9e8 hours |
 
@@ -264,10 +275,12 @@ Markdown; `--report FILE` also writes the Markdown.  The report has:
 | Feature | Why |
 |---|---|
 | consequences and cost models | RAPTOR has no financial/safety/environmental consequence model |
-| mission phases and phase rules | AWB phase schedules are not imported |
-| planned maintenance and inspection tasks | RAPTOR PM is not populated |
-| spares and sparing rules | RAPTOR spare pools are not populated |
-| labour and equipment resources | RAPTOR resource pools are not populated |
+| inspection tasks | AWB inspections are not imported as RAPTOR PM |
+| extra planned tasks | RAPTOR has one PM per block; extra AWB tasks are not imported |
+| two-level spare holdings | AWB level-1 and level-2 stock are summed |
+| spare repair shop | AWB spare repair/recycling is not imported |
+| labour call-out delay | AWB labour logistics delay is not imported |
+| phase capacity/load rules | only AWB phase logic/out-of-service rules are imported |
 | RCM location hierarchy | the RCMCost module is not imported |
 | fault trees | only RBDs are imported |
 | Weibull sets | linked historical data is flattened |
@@ -280,15 +293,18 @@ Markdown; `--report FILE` also writes the Markdown.  The report has:
 | non-maintainable blocks | RAPTOR repair is off |
 | start-up failure probability | not modelled by RAPTOR |
 
-Labels (`RbdLabels`) and repeat blocks (`RbdRepeatBlocks`) are **converted**,
-not lost: labels become RAPTOR annotations, and a repeat block becomes a
-never-failing block that is idle whenever the original block is down.
+**Converted in both directions:** the first enabled planned-maintenance
+task per failure model, spare holdings (AWB level 1 + 2 become one RAPTOR
+pool), labour/equipment rows as RAPTOR resource pools, phase durations,
+block phase cut/linked rules, text annotations and global out-of-service
+states.  Repeat blocks (`RbdRepeatBlocks`) become never-failing blocks that
+are idle whenever the original block is down.
 
 ---
 
-## 6. Column defaults and the six-table file
+## 6. Column defaults and the table schema file
 
-RAPTOR ships the six table schemas in
+RAPTOR ships the table schemas in
 `raptor/core/fileio/awb_tables.json` (column names and types plus the neutral
 project row).  The file is data, not a template project: rows are generated
 from the RAPTOR model, so a generated `.awb` contains no Isograph sample
@@ -333,10 +349,11 @@ rather than driving AWB's own export dialog.
 
 * The reader accepts the AWB 5.0 table-store layout.  Older AWB projects with
   fewer columns are accepted; missing columns take the type default.
-* The writer emits the six tables above.  AWB upgrades the project to its
-  full module schema when it opens it; it may show validation warnings for
-  fields that are not meaningful in a pure AvSim project, but the RBD data is
-  complete.
+* The writer emits the six core tables and only adds the PM/spare/resource/
+  phase/label tables the model actually uses.  AWB upgrades the project to
+  its full module schema when it opens it; it may show validation warnings
+  for fields that are not meaningful in a pure AvSim project, but the RBD
+  data is complete.
 * AWB IDs are limited to 40 characters and RAPTOR names to 20.  RAPTOR
   sanitises names and reports any rename; it never changes the source model.
 * AWB uses the source model's x/y positions as-is and does not auto-layout.
