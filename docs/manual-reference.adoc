@@ -384,6 +384,7 @@ documentation.
 |Print… |Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P) |Ctrl+P
 |Export… |Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E) |Ctrl+E
 |Export to Availability Workbench… |Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent |
+|Check Availability Workbench Export… |Report what an Availability Workbench export would substitute, partially map or drop, without writing a file |
 |Export Tables… |Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table |
 |Copy View |Copy the current view to the clipboard as a high-resolution PNG |
 |===

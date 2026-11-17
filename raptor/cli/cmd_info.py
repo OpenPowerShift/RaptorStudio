@@ -98,6 +98,14 @@ def add_parser(sub: Any) -> None:
                    default="text", help="AWB summary format (default text)")
     c.add_argument("--report", metavar="FILE",
                    help="AWB only: also write the summary as Markdown to FILE")
+    c.add_argument("--dry-run", action="store_true",
+                   help="AWB only: print the summary and write nothing")
+    c.add_argument("--no-sidecar", action="store_true",
+                   help="AWB only: do not write the .raptor.json sidecar of "
+                        "RAPTOR-only metadata")
+    c.add_argument("--normalize-out", metavar="FILE",
+                   help="AWB only: write a reduced RAPTOR model carrying only "
+                        "what the AWB file represents, and export that")
     c.set_defaults(func=convert_command)
 
 
@@ -330,18 +338,38 @@ def _convert_to_awb(args: Any, src: Path, dest: Path) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.input)
         rbd = ws.get(mid).rbd
-        report = awb_api.export(rbd, dest, source=args.input, write=False)
+        actions: list[str] = []
+        if getattr(args, "normalize_out", None):
+            rbd, actions = awb_api.normalize(rbd)
+            norm = Path(args.normalize_out)
+            if norm.suffix.lower() not in (".rbds", ".rbd"):
+                norm = norm.with_suffix(".rbds")
+            nmid = ws.register_model(rbd, name=norm.stem,
+                                     source=str(src))["model_id"]
+            ws.save_model_as(nmid, str(norm), fmt=(
+                "rbd" if norm.suffix.lower() == ".rbd" else "rbds"))
+            eprint(f"wrote normalized model {norm}")
+        report = awb_api.export(rbd, dest, source=args.input, write=False,
+                                sidecar=not args.no_sidecar)
+        report.notes.extend(f"normalized: {a}" for a in actions)
     if args.strict and report.has_losses:
         _print_awb_report(report, args)
         raise CliError(
             "AWB cannot represent every feature in this model; nothing was "
             "written (drop --strict to proceed and keep the summary)", X.REFUSED)
+    if args.dry_run:
+        _print_awb_report(report, args)
+        eprint("dry run: nothing written")
+        return X.OK
     try:
-        awb_api.export(rbd, dest, source=args.input)
+        written_report = awb_api.export(rbd, dest, source=args.input,
+                                        sidecar=not args.no_sidecar)
     except Exception as exc:
         raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
     _print_awb_report(report, args)
     eprint(f"wrote {dest}")
+    if written_report.sidecar:
+        eprint(f"wrote sidecar {written_report.sidecar}")
     return X.OK
 
 

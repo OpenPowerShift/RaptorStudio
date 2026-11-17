@@ -1703,7 +1703,11 @@ In short:
 AWB projects can carry more than an RBD. The converter reads and writes
 the AvSim RBD part; it does not transfer an AWB RCMCost study, fault tree,
 capacity network or life-cycle-cost model. The summary names each of these
-with a count, so nothing is lost silently. AWB may renumber pages and
+with a count, so nothing is lost silently.  **File ▸ Check Availability
+Workbench Export…** is the preview: it reports substitutions, partial
+mappings and drops without writing.  The command line adds `--dry-run`,
+`--no-sidecar` and `--normalize-out`; the normalizer writes a matched reduced
+RAPTOR model for a fair engine comparison. AWB may renumber pages and
 element ids on a round trip, and it uses the source x/y positions rather
 than auto-layout; use AWB's Auto Layout after opening a model whose blocks
 overlap.

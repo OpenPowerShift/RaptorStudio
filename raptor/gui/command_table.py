@@ -138,6 +138,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_export_awb",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.preview_awb",
+        attr="_preview_awb_action",
+        text="Check Availability Workbench Export…",
+        icon="awb_preview_icon:text",
+        tooltip=(
+            "Report what an Availability Workbench export would substitute, "
+            "partially map or drop, without writing a file"),
+        handler="_preview_awb",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_tables",
         attr="_export_tables_action",
         text="Export Tables\u2026",
@@ -1444,7 +1454,8 @@ BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.
     ("Print and Export", ("file.print", "file.export", "file.export_awb",
-                          "file.export_tables", "file.copy_view")),
+                          "file.preview_awb", "file.export_tables",
+                          "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after

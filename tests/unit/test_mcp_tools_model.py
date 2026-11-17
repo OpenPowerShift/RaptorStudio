@@ -532,3 +532,26 @@ def test_every_file_argument_refuses_an_absolute_path(tmp_path):
                    delete_file("/tmp/x.rbds")):
         assert result.is_error
         assert result.structured_content["error"]["code"] == "invalid_argument"
+
+
+class TestAwbInterchange:
+    def test_export_dry_run_then_import(self, tmp_path):
+        from raptor.mcp.server import mcp
+        mcp._raptor_args = type("A", (), {
+            "workspace": str(tmp_path), "allow_write": [],
+            "allow_read": []})()
+        mcp._raptor_ws = None
+        from raptor.mcp.tools_model import (
+            create_model, export_awb, import_awb,
+        )
+        model_id = _sc(create_model("AWBParity", template="blank"))["model_id"]
+        out = tmp_path / "parity.awb"
+        dry = _sc(export_awb(model_id, "parity.awb", dry_run=True))
+        assert dry["dry_run"] is True
+        assert not out.exists()
+        result = _sc(export_awb(model_id, "parity.awb"))
+        assert out.exists()
+        assert result["path"].endswith("parity.awb")
+        imported = _sc(import_awb("parity.awb"))
+        assert imported["model_id"].startswith("m")
+        assert imported["report"]["direction"] == "awb-to-rbds"

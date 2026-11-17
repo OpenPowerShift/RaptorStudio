@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **94 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **93**.
+- **96 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **95**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
