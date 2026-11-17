@@ -63,6 +63,7 @@ Recent bylines:
 
 | Version | Byline |
 |---|---|
+| 0.11 | Analysis Not Paralysis |
 | 0.10 | Flawlessly Failing Faster |
 | 0.9 | Nine Nines and a Dream |
 | 0.8 | Living in the Experiment |
