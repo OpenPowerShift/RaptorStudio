@@ -2564,9 +2564,9 @@ the AvSim RBD part; it does not transfer an AWB RCMCost study, fault tree,
 capacity network or life-cycle-cost model. The summary names each of these
 with a count, so nothing is lost silently.  <strong>File ▸ Check Availability
 Workbench Export…</strong> is the preview: it reports substitutions, partial
-mappings and drops without writing.  The command line adds <code>--dry-run</code>,
-<code>--no-sidecar</code> and <code>--normalize-out</code>; the normalizer writes a matched reduced
-RAPTOR model for a fair engine comparison. AWB may renumber pages and
+mappings and drops without writing.  <strong>File ▸ Export Reduced AWB Model…</strong>
+writes a matched reduced RAPTOR model and its <code>.awb</code>.  The command line adds
+<code>--dry-run</code>, <code>--no-sidecar</code> and <code>--normalize-out</code>. AWB may renumber pages and
 element ids on a round trip, and it uses the source x/y positions rather
 than auto-layout; use AWB&#8217;s Auto Layout after opening a model whose blocks
 overlap.</p>
@@ -4034,6 +4034,11 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Check Availability Workbench Export…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Report what an Availability Workbench export would substitute, partially map or drop, without writing a file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Reduced AWB Model…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
