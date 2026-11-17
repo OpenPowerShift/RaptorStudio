@@ -65,6 +65,34 @@ sampling error.
 and the run is 600 h, so both programs correctly report no failures and
 availability 1.0000.
 
+### Phase check: CarWash1
+
+`CarWash1` became format-exact once phase rules were mapped, but its
+1000-trial result is not yet counted as validated:
+
+| | RAPTOR | AWB |
+|---|---:|---:|
+| Availability | 0.6970 | 0.6914 |
+| System failures | 69.06 | 69.01 |
+
+The failure count matches; the 0.56 percentage-point availability
+difference points at phase/mission semantics (the first phase is
+non-mission in RAPTOR, and AWB has no equivalent mission flag).  It is
+listed as **format exact, result under investigation**, not as a clean
+comparison.
+
+### Normalized comparison: CarCare0
+
+`raptor convert ... --normalize-out` reduced CarCare0's lognormal repair
+to its fixed mean and wrote both files.  At 1000 trials:
+
+| | RAPTOR | AWB |
+|---|---:|---:|
+| Availability | 0.990345 | 0.9904 |
+
+Difference **0.0055 percentage points**, excellent agreement.  This
+validates the normalization pathway for repair-law-only differences.
+
 ### Feature smoke test (Stage 1/2)
 
 A synthetic two-block model with one PM task, a custom spare, a resource
@@ -74,6 +102,17 @@ AWB.  AWB simulated 10 replications and showed the **Phases**, **Spares** and
 back to RAPTOR with 0 validation errors and preserved the PM, spare/resource
 links, phase cut/linked token and cut block.  This is a mapping smoke test,
 not a 10,000-trial engine comparison.
+
+### Large-model check
+
+`ProjectX_BESS_RAM.rbds` (8.4 MB) has 3,470 blocks, 900 nodes, 217
+hierarchies, 5,184 links and capacity analysis.  It exported in 3.6 s to a
+3.0 MB `.awb` plus a 3.4 MB sidecar; AWB 5.0 opened the `.awb` without
+validation errors.  The `.awb` plus sidecar imported back to RAPTOR with 0
+validation errors.  Capacity and random repair laws were the only reported
+losses: capacity is preserved in the sidecar, and the repair law is
+mean-matched for AWB.  AWB demonstration mode may still refuse to analyse a
+project of this size; that is its object limit, not a file-format failure.
 
 ---
 

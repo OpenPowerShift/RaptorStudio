@@ -525,8 +525,9 @@ class FileIoMixin(_Base):
         from PySide6.QtWidgets import QMessageBox
         box = QMessageBox(self)
         box.setWindowTitle(title)
-        if wrote:
-            box.setText(f"Wrote {path}.")
+        if report.direction == "rbds-to-awb":
+            box.setText(f"Wrote {path}." if wrote
+                        else f"Preview for {path}; nothing was written.")
         else:
             box.setText(f"Imported {path}.")
         losses = len(report.not_in_target)

@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-convert \- convert between .rbd, .rbds and AWB .awb
 .SH SYNOPSIS
-\fBraptor convert\fR [\-h] [\-\-to {rbd,rbds,awb}] [\-\-allow\-lossy] [\-\-strict] [\-f {text,json,markdown}] [\-\-report FILE] IN OUT
+\fBraptor convert\fR [\-h] [\-\-to {rbd,rbds,awb}] [\-\-allow\-lossy] [\-\-strict] [\-f {text,json,markdown}] [\-\-report FILE] [\-\-dry\-run] [\-\-no\-sidecar] [\-\-normalize\-out FILE] IN OUT
 .SH DESCRIPTION
 Write IN as OUT in the format OUT's extension names (or \-\-to). AWB conversions print a summary of the features the destination cannot represent. Refuses a lossy .rbd conversion unless \-\-allow\-lossy.
 .SH OPTIONS
@@ -22,5 +22,14 @@ AWB summary format (default text)
 .TP
 \fB\-\-report\fR \fIFILE\fR
 AWB only: also write the summary as Markdown to FILE
+.TP
+\fB\-\-dry\-run\fR
+AWB only: print the summary and write nothing
+.TP
+\fB\-\-no\-sidecar\fR
+AWB only: do not write the .raptor.json sidecar of RAPTOR\-only metadata
+.TP
+\fB\-\-normalize\-out\fR \fIFILE\fR
+AWB only: write a reduced RAPTOR model carrying only what the AWB file represents, and export that
 .SH SEE ALSO
 \fBraptor\fR(1)

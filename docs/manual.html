@@ -2593,7 +2593,11 @@ In short:</p>
 <p>AWB projects can carry more than an RBD. The converter reads and writes
 the AvSim RBD part; it does not transfer an AWB RCMCost study, fault tree,
 capacity network or life-cycle-cost model. The summary names each of these
-with a count, so nothing is lost silently. AWB may renumber pages and
+with a count, so nothing is lost silently.  <strong>File ▸ Check Availability
+Workbench Export…</strong> is the preview: it reports substitutions, partial
+mappings and drops without writing.  The command line adds <code>--dry-run</code>,
+<code>--no-sidecar</code> and <code>--normalize-out</code>; the normalizer writes a matched reduced
+RAPTOR model for a fair engine comparison. AWB may renumber pages and
 element ids on a round trip, and it uses the source x/y positions rather
 than auto-layout; use AWB&#8217;s Auto Layout after opening a model whose blocks
 overlap.</p>
@@ -4056,6 +4060,11 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export to Availability Workbench…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Check Availability Workbench Export…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Report what an Availability Workbench export would substitute, partially map or drop, without writing a file</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

@@ -1411,6 +1411,20 @@ def awb_export_icon(colour: str) -> QIcon:
     return _icon("awbexport", colour, draw)
 
 
+def awb_preview_icon(colour: str) -> QIcon:
+    """Preview an AWB export: a document under a magnifier."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(6, 6, 24, 32)
+        p.drawLine(12, 14, 24, 14)
+        p.drawLine(12, 21, 24, 21)
+        p.drawLine(12, 28, 19, 28)
+        p.drawEllipse(QPointF(31, 31), 8, 8)
+        p.drawLine(37, 37, 44, 44)
+    return _icon("awbpreview", colour, draw)
+
+
 def clear_results_icon(colour: str) -> QIcon:
     """Clear Results: table swept by a diagonal wipe."""
     def draw(p: QPainter, c: QColor):

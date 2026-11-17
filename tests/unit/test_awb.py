@@ -380,3 +380,124 @@ def test_pm_spares_resources_phases_and_out_of_service_round_trip(tmp_path):
     assert back.out_of_service.get("block:2") == "cut"
     assert "non-maintainable blocks" not in {
         loss.feature for loss in report.not_in_target}
+
+
+def test_sidecar_preserves_raptor_only_metadata(tmp_path):
+    doc = {
+        "format": "raptor-studio", "version": 4,
+        "system": {"units": "hours", "capacityAnalysis": "1"},
+        "experiment": {"trials": 10, "termination_type": "TimeSim",
+                       "term_condition": 1000.0},
+        "elements": {
+            "blocks": [{"id": 1, "name": "Pump", "x": 0, "y": 0,
+                        "fail_dist": 4, "fail_params": [1000, 0, 0],
+                        "dep_type": "RBDBlock", "dep_num": 2,
+                        "rep_fixed_cost": 25.0}],
+            "nodes": [{"id": 2, "name": "start", "type": 1},
+                      {"id": 3, "name": "end", "type": 3}],
+            "hierarchies": [],
+        },
+        "links": [{"id": 4, "from": ["Node", 2], "to": ["Block", 1]},
+                  {"id": 5, "from": ["Block", 1], "to": ["Node", 3]}],
+        "rates": [{"name": "base", "expr": "1/1000", "value": 0.001}],
+        "formulas": {"block:1:FParam1": {"rate": "base", "value": 0.001}},
+        "triggers": [{"name": "Storm", "repeats": 1, "init_used": 0.0,
+                      "dist": 8, "params": [288, 1, 0]}],
+        "annotations": [{"kind": "rect", "id": 1, "parent": 0,
+                         "x": 0, "y": 0, "w": 20, "h": 20,
+                         "text": ""}],
+    }
+    rbd = parse_rbds(json.dumps(doc))
+    path = tmp_path / "sidecar.awb"
+    report = export_awb(rbd, path)
+    side = path.with_name(path.name + ".raptor.json")
+    assert side.exists()
+    assert report.sidecar == str(side)
+    back, import_report = import_awb(path)
+    assert back.rates and back.formulas
+    assert len(back.sections["TRIGGERS"].rows) == 1
+    assert any(a.get("kind") == "rect" for a in back.annotations)
+    assert "sidecar" in " ".join(import_report.notes).lower()
+
+
+def test_sidecar_can_be_disabled(tmp_path):
+    rbd = _model()
+    path = tmp_path / "no-sidecar.awb"
+    export_awb(rbd, path, sidecar=False)
+    assert not path.with_name(path.name + ".raptor.json").exists()
+
+
+def test_dry_run_writes_nothing(tmp_path):
+    rbd = _model()
+    path = tmp_path / "dry.awb"
+    report = export_awb(rbd, path, write=False)
+    assert not path.exists()
+    assert not path.with_name(path.name + ".raptor.json").exists()
+    assert report.direction == "rbds-to-awb"
+
+
+def test_normalize_replaces_unsupported_repair_and_clears_extras(tmp_path):
+    doc = {
+        "format": "raptor-studio", "version": 4,
+        "system": {"units": "hours", "capacityAnalysis": "1"},
+        "experiment": {"trials": 10, "termination_type": "TimeSim",
+                       "term_condition": 1000.0},
+        "elements": {
+            "blocks": [{"id": 1, "name": "Pump", "x": 0, "y": 0,
+                        "fail_dist": 14, "fail_params": [0, 50, 100],
+                        "repair_dist": 15, "repair_params": [2, 10, 0],
+                        "dep_type": "RBDBlock", "dep_num": 2}],
+            "nodes": [{"id": 2, "name": "start", "type": 1},
+                      {"id": 3, "name": "end", "type": 3}],
+            "hierarchies": [],
+        },
+        "links": [{"id": 4, "from": ["Node", 2], "to": ["Block", 1]},
+                  {"id": 5, "from": ["Block", 1], "to": ["Node", 3]}],
+        "annotations": [{"kind": "text", "id": 1, "parent": 0,
+                         "x": 0, "y": 0, "w": 10, "h": 10, "text": "x"}],
+        "rates": [{"name": "base", "expr": "1/1000", "value": 0.001}],
+    }
+    from raptor.core.fileio.awb import normalize_for_awb
+    rbd = parse_rbds(json.dumps(doc))
+    norm, actions = normalize_for_awb(rbd)
+    block = _rows(norm, "BLOCK_DATA")[0]
+    assert block["FDist"] == "4"
+    assert block["RDist"] == "19"
+    assert block["DepType"] == "None"
+    assert not norm.annotations and not norm.rates
+    assert actions
+
+
+def test_cli_dry_run_writes_nothing(tmp_path, capsys):
+    from raptor.cli.main import main
+    src = tmp_path / "model.rbds"
+    save_rbds(_model(), str(src))
+    dest = tmp_path / "preview.awb"
+    assert main(["convert", str(src), str(dest), "--dry-run",
+                 "-f", "json"]) == 0
+    assert not dest.exists()
+    assert not dest.with_name(dest.name + ".raptor.json").exists()
+    assert '"direction": "rbds-to-awb"' in capsys.readouterr().out
+
+
+def test_cli_normalize_out_writes_reduced_model(tmp_path):
+    from raptor.cli.main import main
+    src = tmp_path / "model.rbds"
+    save_rbds(_model(), str(src))
+    dest = tmp_path / "model.awb"
+    norm = tmp_path / "normalized.rbds"
+    assert main(["convert", str(src), str(dest),
+                 "--normalize-out", str(norm)]) == 0
+    assert dest.exists() and norm.exists()
+    from raptor.core.fileio.model_file import load_model_file
+    loaded = load_model_file(norm)
+    assert _rows(loaded, "BLOCK_DATA")
+
+
+def test_cli_no_sidecar(tmp_path):
+    from raptor.cli.main import main
+    src = tmp_path / "model.rbds"
+    save_rbds(_model(), str(src))
+    dest = tmp_path / "model.awb"
+    assert main(["convert", str(src), str(dest), "--no-sidecar"]) == 0
+    assert not dest.with_name(dest.name + ".raptor.json").exists()

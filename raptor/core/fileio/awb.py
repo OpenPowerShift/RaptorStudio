@@ -14,6 +14,7 @@ The CLI prints the report as a summary before it writes anything.
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
 import struct
@@ -44,10 +45,12 @@ class AwbLoss:
     count: int
     detail: str = ""
     where: str = ""          # "AWB" or "RAPTOR"
+    kind: str = "dropped"    # "substituted", "partial" or "dropped"
 
     def as_dict(self) -> dict[str, Any]:
         return {"feature": self.feature, "count": self.count,
-                "detail": self.detail, "where": self.where}
+                "detail": self.detail, "where": self.where,
+                "kind": self.kind}
 
 
 @dataclass
@@ -62,18 +65,21 @@ class AwbReport:
     not_in_source: list[AwbLoss] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    sidecar: str = ""
 
     @property
     def has_losses(self) -> bool:
         return bool(self.not_in_target or self.not_in_source)
 
     def add(self, feature: str, count: int, detail: str = "",
-            where: str | None = None) -> None:
+            where: str | None = None, kind: str = "dropped") -> None:
         if count <= 0:
             return
         where = where or ("AWB" if self.direction == "rbds-to-awb"
                           else "RAPTOR")
-        self.not_in_target.append(AwbLoss(feature, count, detail, where))
+        if kind not in ("substituted", "partial", "dropped"):
+            kind = "dropped"
+        self.not_in_target.append(AwbLoss(feature, count, detail, where, kind))
 
     def add_source(self, feature: str, count: int, detail: str = "") -> None:
         """A feature the source had that the destination also lacks, but
@@ -95,6 +101,7 @@ class AwbReport:
             "not_in_source": [x.as_dict() for x in self.not_in_source],
             "notes": list(self.notes),
             "warnings": list(self.warnings),
+            "sidecar": self.sidecar,
         }
 
     def summary_text(self) -> str:
@@ -108,9 +115,16 @@ class AwbReport:
         ]
         if self.not_in_target:
             lines.append(f"  not represented in {target}:")
-            for loss in self.not_in_target:
-                lines.append(f"    - {loss.feature}: {loss.count}"
-                             + (f" ({loss.detail})" if loss.detail else ""))
+            for kind, label in (("substituted", "substituted"),
+                                ("partial", "partially mapped"),
+                                ("dropped", "dropped")):
+                group = [loss for loss in self.not_in_target if loss.kind == kind]
+                if not group:
+                    continue
+                lines.append(f"    {label}:")
+                for loss in group:
+                    lines.append(f"      - {loss.feature}: {loss.count}"
+                                 + (f" ({loss.detail})" if loss.detail else ""))
         else:
             lines.append(f"  not represented in {target}: none")
         if self.not_in_source:
@@ -139,10 +153,17 @@ class AwbReport:
             "",
         ]
         if self.not_in_target:
-            lines += ["| Feature | Count | Detail |", "|---|---:|---|"]
-            for loss in self.not_in_target:
-                lines.append(f"| {loss.feature} | {loss.count} | "
-                             f"{loss.detail or ''} |")
+            for kind, label in (("substituted", "Substituted"),
+                                ("partial", "Partially mapped"),
+                                ("dropped", "Dropped")):
+                group = [loss for loss in self.not_in_target if loss.kind == kind]
+                if not group:
+                    continue
+                lines += ["", f"### {label}", "",
+                          "| Feature | Count | Detail |", "|---|---:|---|"]
+                for loss in group:
+                    lines.append(f"| {loss.feature} | {loss.count} | "
+                                 f"{loss.detail or ''} |")
         else:
             lines.append("None.")
         if self.not_in_source:
@@ -455,6 +476,240 @@ def _has_rows(tables: dict[str, AwbTable], name: str) -> int:
     return len(_rows(tables, name))
 
 
+_SIDECAR_SUFFIX = ".raptor.json"
+
+
+def sidecar_path(path: str | Path) -> Path:
+    p = Path(path)
+    return p.with_name(p.name + _SIDECAR_SUFFIX)
+
+
+def _sidecar_payload(rbd: RbdFile) -> dict[str, Any]:  # noqa: C901, PLR0912, PLR0915
+    """The RAPTOR-only data an AWB file cannot carry, in one JSON object.
+
+    The payload is deliberately separate from the .awb: it should never make
+    AWB validate or open a field it does not know.  Import reads it only when
+    the .awb beside it still has the hash recorded here.
+    """
+    data: dict[str, Any] = {}
+    annotations = [dict(a) for a in (getattr(rbd, "annotations", None) or [])
+                   if _text(a.get("kind"), "text") != "text"]
+    if annotations:
+        data["annotations"] = annotations
+    if getattr(rbd, "rates", None):
+        data["rates"] = list(rbd.rates)
+    if getattr(rbd, "formulas", None):
+        data["formulas"] = dict(rbd.formulas)
+    triggers = _section_list(rbd, "TRIGGERS")
+    if triggers:
+        data["triggers"] = [dict(t) for t in triggers]
+    events = [dict(e) for e in _section_list(rbd, "EVENT_DATA")
+              if _text(e.get("ID")) not in ("", "0")]
+    if events:
+        data["events"] = events
+    if getattr(rbd, "out_of_service", None):
+        data["out_of_service"] = dict(rbd.out_of_service)
+    if getattr(rbd, "comments", None) or _section_list(rbd, "COMMENTS"):
+        data["comments"] = [dict(c) for c in _section_list(rbd, "COMMENTS")]
+    block_extras = {}
+    for b in _section_list(rbd, "BLOCK_DATA"):
+        bid = _text(b.get("ID"))
+        if bid in ("", "0"):
+            continue
+        extra = {k: b.get(k) for k in (
+            "DepType", "DepNum", "DepNothing", "DepIdle", "DepPM",
+            "DepFail", "DepPMThresh", "defDepStateIdle", "Phasing",
+            "SimStart", "AmtExhausted", "SBStress", "GDType", "GDRate",
+            "GDLimit", "_DutyCycle", "_StartAge", "_RestoreFactor",
+            "_RestoreType", "NonOperational", "usesPM", "PMFreq",
+            "Dist", "Param1#3", "Param2#3", "Param3#3",
+            "initial", "Running", "standby", "idle", "repHold",
+            "repPerTime", "repFixed", "donePerTime", "doneFixed",
+            "pmHoldCost", "pmCost", "pmFixedCost", "perSpare",
+            "emerShipping")
+            if b.get(k) not in (None, "", "0", "0.000000")}
+        phases = {k: v for k, v in b.items() if k.startswith("P ")}
+        if phases:
+            extra["phases"] = phases
+        if extra:
+            block_extras[bid] = extra
+    if block_extras:
+        data["block_extras"] = block_extras
+    node_extras = {}
+    for n in _section_list(rbd, "NODE_DATA"):
+        nid = _text(n.get("ID"))
+        if nid in ("", "0"):
+            continue
+        extra = {k: n.get(k) for k in (
+            "Cold", "PR", "Autos", "k*", "Phases", "depNum", "depType",
+            "repCap", "repNA", "fullflow", "divFlow")
+            if n.get(k) not in (None, "", "0", "0.000000")}
+        phases = {k: v for k, v in n.items() if k.startswith("P")}
+        if phases:
+            extra["phases"] = phases
+        if extra:
+            node_extras[nid] = extra
+    if node_extras:
+        data["node_extras"] = node_extras
+    hier_extras = {}
+    for h in _section_list(rbd, "HIERARCHY_DATA"):
+        hid = _text(h.get("ID"))
+        if hid in ("", "0"):
+            continue
+        extra = {k: h.get(k) for k in ("Phs", "In", "Out")
+                 if h.get(k) not in (None, "", "0")}
+        if extra:
+            hier_extras[hid] = extra
+    if hier_extras:
+        data["hierarchy_extras"] = hier_extras
+    system = _system_row(rbd)
+    system_extra = {k: system.get(k) for k in (
+        "capacityAnalysis", "costAnalysis", "weakAnalysis", "flowGenerated",
+        "systemRedCost", "sysLostCost", "nodeAnalType", "GYthreshold",
+        "YRthreshold") if system.get(k) not in (None, "", "0")}
+    if system_extra:
+        data["system"] = system_extra
+    link_extras = []
+    for link in _section_list(rbd, "LINK_DATA"):
+        extra = {k: link.get(k) for k in (
+            "ColdPri", "AProb", "AutoTime", "ManTime", "CapPri",
+            "nomFlow", "MaxFlow") if link.get(k) not in (None, "", "0")}
+        if extra:
+            link_extras.append({"id": link.get("ID"), **extra})
+    if link_extras:
+        data["links"] = link_extras
+    for key in ("project_meta", "display_unit", "advisor", "view",
+                "link_grips", "flow_directions"):
+        value = getattr(rbd, key, None)
+        if value:
+            data[key] = value
+    pools = _section_list(rbd, "SPARE_POOL_DATA")
+    if pools:
+        data["spare_pools"] = [dict(p) for p in pools]
+    resources = _section_list(rbd, "RESOURCE_DATA")
+    if resources:
+        data["resources"] = [dict(r) for r in resources]
+    return data
+
+
+def write_sidecar(awb_path: str | Path, payload: dict[str, Any]) -> Path:
+    import hashlib
+    import json
+    target = Path(awb_path)
+    doc = {
+        "schema": "raptor-awb-sidecar/1",
+        "awb": target.name,
+        "awb_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "data": payload,
+    }
+    path = sidecar_path(target)
+    path.write_text(json.dumps(doc, indent=1, default=str) + "\n")
+    return path
+
+
+def read_sidecar(awb_path: str | Path) -> dict[str, Any] | None:
+    import hashlib
+    import json
+    path = sidecar_path(awb_path)
+    if not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    expected = doc.get("awb_sha256")
+    actual = hashlib.sha256(Path(awb_path).read_bytes()).hexdigest()
+    if expected and expected != actual:
+        return None
+    return doc.get("data") if isinstance(doc.get("data"), dict) else None
+
+
+def apply_sidecar(doc: dict[str, Any], data: dict[str, Any],  # noqa: C901, PLR0912, PLR0915
+                  report: AwbReport) -> None:
+    """Put RAPTOR-only metadata back into the document before parse_rbds."""
+    if not data:
+        return
+    if data.get("annotations"):
+        doc.setdefault("annotations", []).extend(data["annotations"])
+        report.notes.append(
+            f"{len(data['annotations'])} non-text annotation(s) restored "
+            "from the AWB sidecar")
+    for key in ("rates", "formulas", "triggers", "out_of_service",
+                "project_meta", "display_unit", "advisor", "view",
+                "link_grips", "flow_directions"):
+        if data.get(key):
+            doc[key] = data[key]
+    if data.get("system"):
+        system = data["system"]
+        doc.setdefault("system", {}).update(
+            {k: v for k, v in system.items()
+             if k not in ("capacityAnalysis", "costAnalysis", "weakAnalysis")})
+        analyses = doc.setdefault("experiment", {}).setdefault("analyses", [])
+        for flag, name in (("capacityAnalysis", "capacity"),
+                           ("costAnalysis", "cost"),
+                           ("weakAnalysis", "weak")):
+            value = system.get(flag)
+            if value not in (None, "", "0", 0) and name not in analyses:
+                analyses.append(name)
+    if data.get("comments"):
+        existing = doc.get("comments") or []
+        existing.extend(data["comments"])
+        doc["comments"] = existing
+    blocks = {(b.get("name") or str(b.get("id"))): b
+              for b in doc.get("elements", {}).get("blocks", [])}
+    for bid, extra in (data.get("block_extras") or {}).items():
+        target = blocks.get(bid)
+        if target is None:
+            continue
+        for key, value in extra.items():
+            if key == "phases":
+                target["uses_phasing"] = True
+                target.setdefault("legacy", {}).update(value)
+            elif key not in target:
+                target[key] = value
+    for nid, extra in (data.get("node_extras") or {}).items():
+        for node in doc.get("elements", {}).get("nodes", []):
+            if (node.get("name") or str(node.get("id"))) == nid:
+                for key, value in extra.items():
+                    if key == "phases":
+                        node["uses_phasing"] = True
+                        node.setdefault("legacy", {}).update(value)
+                    elif key not in node:
+                        node[key] = value
+                break
+    for hid, extra in (data.get("hierarchy_extras") or {}).items():
+        for hier in doc.get("elements", {}).get("hierarchies", []):
+            if (hier.get("name") or str(hier.get("id"))) == hid:
+                for key, value in extra.items():
+                    if key == "Phs":
+                        hier["uses_phasing"] = True
+                        hier.setdefault("legacy", {})["Phs"] = value
+                    elif key not in hier:
+                        hier[key] = value
+                break
+    if data.get("spare_pools"):
+        by_name = {p.get("name"): p for p in doc.get("spare_pools", [])}
+        for row in data["spare_pools"]:
+            name = row.get("PoolName") or row.get("name")
+            if name and name in by_name:
+                # Keep the imported values; restore only fields RAPTOR has.
+                for key in ("rso", "stock", "new_spares", "arrive_every",
+                            "eso", "emer_time", "slo", "level", "quantity",
+                            "slo_time", "spare_cost", "emer_ship_cost"):
+                    if key in row:
+                        by_name[name][key] = row[key]
+    if data.get("resources"):
+        by_name = {r.get("name"): r for r in doc.get("resources", [])}
+        for row in data["resources"]:
+            name = row.get("PoolName") or row.get("name")
+            if name and name in by_name:
+                for key in ("num_in", "spare_cost", "fixed_per_use",
+                            "per_time_unit", "phases"):
+                    if key in row:
+                        by_name[name][key] = row[key]
+    report.notes.append("AWB sidecar merged with the imported model")
+
+
 # ---------------------------------------------------------------------------
 # RAPTOR -> AWB
 # ---------------------------------------------------------------------------
@@ -524,7 +779,8 @@ def _hierarchy_depth(rbd: RbdFile) -> dict[str, int]:
 
 
 def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
-               source: str = "", write: bool = True) -> AwbReport:
+               source: str = "", write: bool = True,
+               sidecar: bool = True) -> AwbReport:
     """Write *rbd* as an AWB 5.0 project and return the loss report.
 
     ``write=False`` builds the same report and tables without touching the
@@ -534,6 +790,7 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
     src = source or getattr(rbd, "file_name", "") or "model"
     dest = str(path)
     report = AwbReport("rbds-to-awb", src, dest)
+    side_payload = _sidecar_payload(rbd)
 
     # RAPTOR's out-of-service what-if is ordinary effective model data: a cut
     # block starts failed with no repair, a linked block never fails.  Apply
@@ -1122,6 +1379,12 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
             tables[name] = AwbTable(name, _SCHEMA[name], rows)
     if write:
         write_awb(dest, tables)
+        if sidecar and side_payload:
+            side_path = write_sidecar(dest, side_payload)
+            report.sidecar = str(side_path)
+            report.notes.append(
+                f"RAPTOR-only metadata preserved in {side_path.name}; "
+                "import it beside the .awb to restore it")
 
     report.counts.update(blocks=len(blocks), nodes=len(nodes),
                          hierarchies=len(hierarchies), links=len(conn_rows),
@@ -1137,23 +1400,28 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
     if dist_simplified:
         for label, count in sorted(dist_simplified.items()):
             report.add("failure distribution simplified to exponential",
-                       count, f"{label} -> exponential with its mean MTTF")
+                       count, f"{label} -> exponential with its mean MTTF",
+                       kind="substituted")
     if repair_simplified:
         for label, count in sorted(repair_simplified.items()):
             report.add("repair distribution simplified to a fixed duration",
-                       count, f"{label} -> AWB task duration = its mean")
+                       count, f"{label} -> AWB task duration = its mean",
+                       kind="substituted")
     if no_repair:
         report.add("no-repair blocks", no_repair,
-                   "exported with NonMaintainable=1 and a zero-duration task")
+                   "exported with NonMaintainable=1 and a zero-duration task",
+                   kind="substituted")
     if no_failure:
         report.add("no-failure blocks", no_failure,
-                   "exported with a fixed time of 9e8 hours (never fails)")
+                   "exported with a fixed time of 9e8 hours (never fails)",
+                   kind="substituted")
     _report_raptor_features(rbd, report, blocks, nodes, links, events,
                             hierarchies, units, factor)
     if pm_lossy:
         report.add("additional or non-fixed PM", pm_lossy,
                    "one fixed-duration PM per failure model is written; "
-                   "extra tasks and random PM durations are simplified")
+                   "extra tasks and random PM durations are simplified",
+                   kind="partial")
     if custom_spare_count:
         report.notes.append(
             f"{custom_spare_count} block-owned spare stock(s) became "
@@ -1174,6 +1442,82 @@ def export_awb(rbd: RbdFile, path: str | Path, *,  # noqa: C901, PLR0912, PLR091
         report.add("non-text annotations", labels_skipped,
                    "only text annotations become AWB labels")
     return report
+
+
+def normalize_for_awb(rbd: RbdFile) -> tuple[RbdFile, list[str]]:  # noqa: C901
+    """Return a copy reduced to what the AWB export actually carries.
+
+    Used by ``--normalize-out`` and by paired engine comparisons: both
+    programs then run the same reduced model, so a difference measures the
+    engines rather than a feature the AWB file does not contain.
+    """
+    out = copy.deepcopy(rbd)
+    actions: list[str] = []
+    for row in _section_list(out, "BLOCK_DATA"):
+        if _text(row.get("ID")) in ("", "0"):
+            continue
+        fdist = _int(row.get("FDist"), _R_EXPO)
+        if fdist not in (_R_EXPO, _R_LOGNORM, _R_NORM, _R_WEIBULL, _R_NONE, _R_FIXED):
+            mean = _dist_mean(fdist, [_num(row.get("FParam1")),
+                                      _num(row.get("FParam2")),
+                                      _num(row.get("FParam3"))])
+            row.update({"FDist": str(_R_EXPO), "#FParam": "2",
+                        "FParam1": f"{mean if mean and mean > 0 else _num(row.get('FParam1')):.6f}",
+                        "FParam2": "0.000000", "FParam3": "0.000000"})
+            actions.append("unsupported failure law -> exponential mean")
+        rdist = _int(row.get("RDist"), _R_FIXED)
+        if rdist not in (_R_NONE, _R_FIXED):
+            mean = _dist_mean(rdist, [_num(row.get("RParam1")),
+                                      _num(row.get("RParam2")),
+                                      _num(row.get("RParam3"))])
+            row.update({"RDist": str(_R_FIXED), "#RParam": "1",
+                        "RParam1": f"{mean if mean and mean > 0 else _num(row.get('RParam1')):.6f}",
+                        "RParam2": "0.000000", "RParam3": "0.000000"})
+            actions.append("repair distribution -> fixed mean")
+        row.update({"DepType": "None", "DepNum": "0", "DepNothing": "0.00",
+                    "DepIdle": "100.00", "DepPM": "0.00", "DepFail": "0.00",
+                    "DepPMThresh": "75.00", "defDepStateIdle": "0",
+                    "SBStress": "0.000", "GDType": "0", "GDRate": "1.000000",
+                    "GDLimit": "1.000000", "_DutyCycle": "1.000000",
+                    "_StartAge": "0.000000", "_RestoreFactor": "0.000000",
+                    "_RestoreType": "0"})
+    # Events are not exported at all; remove them and every link touching one.
+    event_ids = {_text(e.get("ID")) for e in _section_list(out, "EVENT_DATA")
+                 if _text(e.get("ID")) not in ("", "0")}
+    if event_ids:
+        ev_sec = out.sections.get("EVENT_DATA")
+        if ev_sec:
+            ev_sec.rows = [r for r in ev_sec.rows
+                           if _text(r.get("ID")) in ("", "0")]
+        link_sec = out.sections.get("LINK_DATA")
+        if link_sec:
+            link_sec.rows = [r for r in link_sec.rows
+                             if not ((_text(r.get("FromType")) == "Event"
+                                      and _text(r.get("FromID")) in event_ids)
+                                     or (_text(r.get("ToType")) == "Event"
+                                         and _text(r.get("ToID")) in event_ids))]
+        actions.append("failure events and their links removed")
+    for row in _section_list(out, "NODE_DATA"):
+        row.update({"Cold": "0", "PR": "0", "Autos": "1", "k*": "0",
+                    "Phases": "0"})
+    for row in _section_list(out, "HIERARCHY_DATA"):
+        row["Phs"] = "0"
+    for row in _section_list(out, "LINK_DATA"):
+        row.update({"ColdPri": "50", "AProb": "1.000000",
+                    "AutoTime": "0.000000", "ManTime": "0.000000",
+                    "CapPri": "50", "nomFlow": "-2", "MaxFlow": "-1"})
+    system = _system_row(out)
+    system.update({"capacityAnalysis": "0", "costAnalysis": "0",
+                   "weakAnalysis": "0"})
+    out.rates = []
+    out.formulas = {}
+    triggers = out.sections.get("TRIGGERS")
+    if triggers is not None:
+        triggers.rows = []
+    out.annotations = []
+    out.link_grips = []
+    out.view = {}
+    return out, actions
 
 
 def _report_raptor_features(rbd: RbdFile, report: AwbReport,  # noqa: C901, PLR0912, PLR0915
@@ -1305,6 +1649,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     src = source or str(path)
     tables = read_awb(path)
     report = AwbReport("awb-to-rbds", src, "RAPTOR model")
+    side_data = read_sidecar(path)
     _check_import_features(tables, report)
 
     blocks = _rows(tables, "RbdBlocks")
@@ -1941,6 +2286,8 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
         "phases": phase_doc,
         "out_of_service": out_of_service_doc,
     }
+    if side_data:
+        apply_sidecar(doc, side_data, report)
     from raptor.core.fileio.rbds import parse_rbds
     rbd = parse_rbds(json.dumps(doc), default_name=Path(src).stem)
     return rbd, report
@@ -2088,7 +2435,7 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
         report.add("extra planned-maintenance tasks",
                    len(planned) - len(fms_with_planned),
                    "RAPTOR has one PM per block; only the first planned "
-                   "task per failure model is imported")
+                   "task per failure model is imported", kind="partial")
     inspections = [t for t in sched
                    if _int(t.get("Type"), 0) == 1 and _int(t.get("Enabled"), 0)]
     if inspections:
@@ -2103,7 +2450,7 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
     if two_level:
         report.add("two-level spare holdings", two_level,
                    "AWB level-1 and level-2 stock are summed into one "
-                   "RAPTOR pool")
+                   "RAPTOR pool", kind="substituted")
     repair_shop = sum(1 for sp in _rows(tables, "Spares")
                       if _int(sp.get("RepairLevel"), 0))
     if repair_shop:
@@ -2118,7 +2465,8 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
                       if _int(r.get("Type"), 0) != 1]
     if capacity_rules:
         report.add("phase capacity/load rules", len(capacity_rules),
-                   "only AWB phase logic/out-of-service rules are imported")
+                   "only AWB phase logic/out-of-service rules are imported",
+                   kind="partial")
     if _rows(tables, "RcmLocations") or _rows(tables, "RcmCauses"):
         report.add("RCM location hierarchy", max(
             len(_rows(tables, "RcmLocations")), len(_rows(tables, "RcmCauses"))),

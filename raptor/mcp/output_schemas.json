@@ -1183,6 +1183,65 @@
   ],
   "type": "object"
  },
+ "export_awb": {
+  "properties": {
+   "counts": {
+    "type": "object"
+   },
+   "direction": {
+    "type": "string"
+   },
+   "dry_run": {
+    "type": "boolean"
+   },
+   "normalized_path": {
+    "type": "null"
+   },
+   "not_in_source": {
+    "type": "array"
+   },
+   "not_in_target": {
+    "type": "array"
+   },
+   "notes": {
+    "type": "array"
+   },
+   "path": {
+    "type": "string"
+   },
+   "schema": {
+    "type": "string"
+   },
+   "sidecar": {
+    "type": "string"
+   },
+   "source": {
+    "type": "string"
+   },
+   "target": {
+    "type": "string"
+   },
+   "warnings": {
+    "type": "array"
+   }
+  },
+  "required": [
+   "counts",
+   "direction",
+   "dry_run",
+   "normalized_path",
+   "not_in_source",
+   "not_in_target",
+   "notes",
+   "path",
+   "schema",
+   "sidecar",
+   "source",
+   "target",
+   "warnings"
+  ],
+  "type": "object"
+ },
  "export_report": {
   "properties": {
    "bytes": {
@@ -1611,6 +1670,25 @@
    "changed",
    "ignored",
    "model_id"
+  ],
+  "type": "object"
+ },
+ "import_awb": {
+  "properties": {
+   "model_id": {
+    "type": "string"
+   },
+   "report": {
+    "type": "object"
+   },
+   "summary": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "model_id",
+   "report",
+   "summary"
   ],
   "type": "object"
  },

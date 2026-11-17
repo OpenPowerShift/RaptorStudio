@@ -20,6 +20,13 @@ raptor convert model.rbds model.awb --report report.md
 # AWB -> RAPTOR
 raptor convert project.awb model.rbds
 raptor convert project.awb model.rbd
+
+# report only, write nothing
+raptor convert model.rbds preview.awb --dry-run
+# preserve RAPTOR-only metadata in a companion sidecar (default)
+raptor convert model.rbds model.awb
+# write a matched reduced RAPTOR model as well
+raptor convert model.rbds model.awb --normalize-out model.awb.rbds
 ```
 
 AWB's own demonstration mode can *open and simulate* a project but blocks
@@ -247,6 +254,10 @@ Markdown; `--report FILE` also writes the Markdown.  The report has:
   from the destination (used for information, not to block);
 * `notes` and `warnings`.
 
+Each loss is classed **substituted** (a defensible equivalent was written),
+**partially mapped** (only part of the feature travelled) or **dropped** (no
+AWB field was written; the `.raptor.json` sidecar keeps the RAPTOR copy).
+
 ### Features reported when exporting to AWB
 
 | Feature | Why |
@@ -302,7 +313,30 @@ are idle whenever the original block is down.
 
 ---
 
-## 6. Column defaults and the table schema file
+## 6. Sidecar and normalization
+
+The `.awb` file is the interchange; it is not a lossless container for
+RAPTOR.  When a conversion has RAPTOR-only data, the exporter also writes
+`<name>.awb.raptor.json` beside it.  It holds things AWB has no field for:
+triggers, rate/formula metadata, failure events, shape annotations,
+dependencies, costs, capacity flags and link/node extras.  It is hashed
+against the `.awb`; changing the AWB file makes the importer ignore a stale
+sidecar rather than apply old values.  `--no-sidecar` disables it.
+
+`--normalize-out FILE` writes a reduced RAPTOR model that carries only what
+the AWB file represents: unsupported failure laws become mean-matched
+exponentials, random repairs become fixed means, dependencies/capacity/
+events/triggers/rates are removed, and node/link switching settings return
+to defaults.  Running RAPTOR and AWB on that reduced pair measures engine
+agreement, not missing-feature effects.
+
+The report separates **substituted**, **partially mapped** and **dropped**
+features.  `--strict` still refuses to write if any of those three lists is
+non-empty.
+
+---
+
+## 7. Column defaults and the table schema file
 
 RAPTOR ships the table schemas in
 `raptor/core/fileio/awb_tables.json` (column names and types plus the neutral
@@ -324,7 +358,7 @@ module table when the project is opened.
 
 ---
 
-## 7. Verification
+## 8. Verification
 
 The format and mapping were checked against AWB 5.0.0.0 under Wine:
 
@@ -345,7 +379,7 @@ rather than driving AWB's own export dialog.
 
 ---
 
-## 8. Limits and compatibility
+## 9. Limits and compatibility
 
 * The reader accepts the AWB 5.0 table-store layout.  Older AWB projects with
   fewer columns are accepted; missing columns take the type default.
@@ -366,3 +400,29 @@ rather than driving AWB's own export dialog.
 * The `.awb` layout was reverse-engineered for interoperability; Isograph may
   change it in a future release.  A file that does not parse is reported as
   `AwbFormatError` with the table and byte offset where possible.
+
+### Risk on large and complex models
+
+The format is a table store, but correctness depends on **index and foreign
+key agreement**, not just field names.  The known risks are:
+
+* **Index references**: `RbdConnections`, failure models, spare/labour links
+  and phase rules are row-index based.  A missing or extra row shifts them.
+  The converter writes them from the same in-memory row lists, and tests
+  open, simulate and round-trip the resulting files.
+* **Optional tables**: AWB does not require the PM/spare/resource/phase
+  tables to exist.  When written, each row needs its type and parent tables
+  (`Labor.Type = -1`, `Spares.Type = -1`, PM optimization intervals); an
+  omitted type or a zero interval produced AWB validation errors or an
+  index crash during development.
+* **Demo limits**: AWB demonstration mode may open a large project but
+  refuse to analyse it because of its object limit.  This is an AWB licence
+  restriction, not a file-format failure.
+* **Large project test**: `ProjectX_BESS_RAM.rbds` — 3,470 blocks, 900
+  nodes, 217 hierarchies, 5,184 links — exported to a 3.0 MB `.awb` plus a
+  3.4 MB sidecar.  AWB 5.0 opened it without validation errors, and the
+  `.awb` + sidecar imported back to RAPTOR with 0 validation errors.
+* **Version drift**: AWB 5.0 files vary in column count between samples.
+  Missing columns take type defaults; a future AWB may add required columns
+  or change a rule type.  Re-run the AWB smoke tests before relying on a new
+  AWB release.

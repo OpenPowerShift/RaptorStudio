@@ -238,6 +238,72 @@ def save_model_as(model_id: str, path: str,
     return ok(result, markdown=md)
 
 
+@mcp.tool(annotations=DESTRUCTIVE("Export Availability Workbench project"))
+@guarded
+def export_awb(model_id: str, path: str, dry_run: bool = False,
+               sidecar: bool = True,
+               normalize_out: str | None = None) -> CallToolResult:
+    """Write the model as an Isograph Availability Workbench .awb project.
+
+    The report names substituted, partially mapped and dropped features.
+    `dry_run=true` writes nothing. `sidecar=true` also writes a
+    `<name>.awb.raptor.json` beside the file with RAPTOR-only metadata.
+    `normalize_out` writes a reduced RAPTOR model carrying only what the AWB
+    file represents; that reduced copy is what gets exported.
+    """
+    context.require_write()
+    ws = context.workspace()
+    path = context.require_relative_path(path)
+    dest = ws.resolve_output_path(path, allow_extra=context.allowed_write_dirs())
+    from raptor.api import awb as awb_api
+    rbd = ws.get(model_id).rbd
+    actions: list[str] = []
+    norm_path = None
+    if normalize_out:
+        norm_path = ws.resolve_output_path(
+            normalize_out, allow_extra=context.allowed_write_dirs())
+        rbd, actions = awb_api.normalize(rbd)
+        awb_api.save_normalized(rbd, norm_path)
+    report = awb_api.export(rbd, dest, source=model_id, write=False,
+                            sidecar=sidecar)
+    report.notes.extend(f"normalized: {a}" for a in actions)
+    if not dry_run:
+        written = awb_api.export(rbd, dest, source=model_id, sidecar=sidecar)
+        report.sidecar = written.sidecar
+    payload = report.as_dict() | {
+        "path": str(dest), "dry_run": dry_run,
+        "normalized_path": str(norm_path) if norm_path else None,
+    }
+    md = report.summary_text()
+    if dry_run:
+        md += "\n\nDry run: nothing written."
+    return ok(payload, markdown=md)
+
+
+@mcp.tool(annotations=ADDITIVE("Import Availability Workbench project"))
+@guarded
+def import_awb(path: str) -> CallToolResult:
+    """Open an Isograph Availability Workbench .awb project as a model.
+
+    The report names the AWB features RAPTOR does not import.  A matching
+    `.awb.raptor.json` sidecar, when present and unchanged, restores
+    RAPTOR-only metadata (rates, formulas, triggers, shape annotations,
+    dependencies and costs).
+    """
+    context.require_write()
+    ws = context.workspace()
+    src = ws.resolve_output_path(context.require_relative_path(path),
+                                 allow_extra=context.allowed_read_dirs())
+    from raptor.api import awb as awb_api
+    rbd, report = awb_api.import_project(src, source=str(src))
+    result = ws.register_model(rbd, name=src.stem, source=str(src))
+    payload = {"model_id": result["model_id"], "summary": result["summary"],
+               "report": report.as_dict()}
+    return ok(payload, markdown=(
+        f"Imported `{src.name}` as `{result['model_id']}`.\n\n"
+        + report.summary_text()))
+
+
 @mcp.tool(annotations=DESTRUCTIVE("Close model"))
 @guarded
 def close_model(model_id: str | list[str],

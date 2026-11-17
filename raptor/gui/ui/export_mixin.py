@@ -116,12 +116,15 @@ class ExportMixin(_Base):
         from raptor.gui.ui.tables_dialog import open_export_tables_dialog
         open_export_tables_dialog(self)
 
-    def _export_awb(self, path: str | None = None):
-        """File ▸ Export to Availability Workbench…: write one .awb project."""
+    def _export_awb(self, path: str | None = None, *, dry_run: bool = False):
+        """File ▸ Export to Availability Workbench…: write/preview .awb."""
         if self._rbd is None:
             return
         stem = Path(self._current_file).stem if self._current_file else "model"
-        if path is None:
+        if path is None and dry_run:
+            path = str(Path(self._current_file).with_suffix(".awb")) \
+                if self._current_file else stem + ".awb"
+        elif path is None:
             path, _ = fdg.getSaveFileName(
                 self, "Export Availability Workbench Project",
                 stem + ".awb", "Availability Workbench projects (*.awb)")
@@ -129,13 +132,14 @@ class ExportMixin(_Base):
             return
         if not str(path).lower().endswith(".awb"):
             path += ".awb"
-        from raptor.core.fileio.awb import export_awb
+        from raptor.api import awb as awb_api
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         self._export_in_progress = True
         try:
             self._diagram_dock.view.write_back_to_rbd(self._rbd)
-            report = export_awb(
-                req(self._rbd), path, source=self._current_file or "")
+            report = awb_api.export(
+                req(self._rbd), path, source=self._current_file or "",
+                write=not dry_run)
         except Exception as exc:  # noqa: BLE001 - report the file, not a crash
             msgbox.critical(
                 self, "Export Failed",
@@ -147,8 +151,15 @@ class ExportMixin(_Base):
             QApplication.restoreOverrideCursor()
         show = getattr(self, "_show_awb_report", None)
         if show is not None:
-            show("Availability Workbench export", report, path, wrote=True)
-        self._statusbar.showMessage(f"AWB project saved: {Path(path).name}", 8000)
+            show("Availability Workbench export", report, path,
+                 wrote=not dry_run)
+        self._statusbar.showMessage(
+            "AWB export preview" if dry_run
+            else f"AWB project saved: {Path(path).name}", 8000)
+
+    def _preview_awb(self):
+        """File ▸ Check Availability Workbench export…: report only."""
+        self._export_awb(dry_run=True)
 
     def _export_workbook_xlsx(self, path: str | None = None):
         """File > Export Excel Workbook...: one .xlsx of the default tables."""
