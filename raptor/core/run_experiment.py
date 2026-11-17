@@ -66,8 +66,13 @@ RUN_DEFAULTS: dict[str, Any] = {
 #: (the internal UI blueprint) and the whole reason a user
 #: turns the event log off is memory/disk.
 RECORDING_FIELDS = (
+    # Name everything the log feeds, not just its own tab: Downtime drivers,
+    # the Story's causes, the Advisor's downtime findings and the canvas
+    # downtime layers are all worked out from it, and switching it off
+    # emptied them with no word at the place the switch is.
     ("event_log", "Detailed event log",
-     "Every event, for the Event Log tab."),
+     "Every event. Also needed for Downtime drivers, the Story's causes "
+     "and the Advisor's downtime checks."),
     ("ao_plot", "Availability plot",
      "Availability over time, for Graphs."),
     ("capacity_plot", "Capacity plot",
