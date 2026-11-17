@@ -671,7 +671,8 @@ class RunExperimentMixin:
         valid = self._model_is_valid()
         issues = [] if valid else self._validation_issues()
         experiment = self._current_experiment()
-        summary = (f"{experiment['trials']:,} trial(s) · "
+        trials = int(experiment['trials'])
+        summary = (f"{trials:,} trial{'s' if trials != 1 else ''} · "
                    f"{self._term_words(experiment)}")
         if getattr(self, "_run_or_step_active", lambda: False)():
             stepped = (getattr(self, "_step_session", None) is not None
@@ -679,14 +680,14 @@ class RunExperimentMixin:
             if stepped:
                 panel.set_readiness(
                     False,
-                    "Step session in progress — Finish or Terminate to run "
-                    "again.")
+                    "■ Step session in progress — Finish or Terminate to "
+                    "run again.")
                 return
             paused = bool((getattr(self, "_bg_state", None) or {}).get(
                 "paused"))
             panel.set_readiness(
                 False,
-                f"{'Paused' if paused else 'Running'} — {summary}. "
+                f"{'⏸ Paused' if paused else '▶ Running'} — {summary}. "
                 "Run settings are locked until it finishes.")
             return
         if issues:
@@ -696,7 +697,7 @@ class RunExperimentMixin:
             n = len(issues)
             panel.set_readiness(
                 False,
-                f"Not ready — the model has {n} problem"
+                f"✖ Not ready — the model has {n} problem"
                 f"{'s' if n != 1 else ''}. <a href='issues'>Show them</a>",
                 link=lambda _href: self._validate_model(quiet=False))
             return
@@ -713,11 +714,25 @@ class RunExperimentMixin:
         # Model warnings are NOT repeated here: they are the Issues list's
         # (the ribbon's Issues button and the status-bar badge). This line
         # is about the RUN -- its size and its own settings.
-        # How it will run, in plain sight: one core animated, or N cores.
-        from raptor.gui import cores
-        animate = bool(getattr(self, "_live_sim_action", None)
-                       and self._live_sim_action.isChecked())
-        text = f"Ready. {summary} · {cores.describe(animate)}."
+        # What the run will be, in plain sight (review #286): its size, its
+        # scope and its cores -- the two settings that change what the
+        # numbers MEAN are named here even with More options closed -- and
+        # what it will take on disk. ✔/✖ so the state is not colour alone.
+        from raptor.core.storage_estimate import format_bytes
+        scope_cores = panel.more_options_summary()
+        size = panel.storage_estimate().total_bytes
+        # Importance multiplies the work: the line is what a user checks
+        # before pressing Run, so it says the total, not just the trials.
+        extra = panel.importance_runs()
+        if extra:
+            summary = summary.replace(
+                f"{trials:,} trial{'s' if trials != 1 else ''}",
+                f"{trials:,} trial{'s' if trials != 1 else ''} + importance "
+                f"(about {extra:,} runs)", 1)
+        text = f"✔ Ready · {summary} · {scope_cores}"
+        if size:
+            text += f" · about {format_bytes(size)}"
+        text += "."
         if warn:
             text += f" Warning: {warn}"
         panel.set_readiness(not (warn and stats_start_is_blocking()), text)

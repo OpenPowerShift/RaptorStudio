@@ -699,8 +699,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Run to time…",
         icon="run_to_time_icon:accent",
         tooltip=(
-            "Advance until the sim time set in the Run panel is reached (or the "
-            "run ends)"),
+            "Advance until the sim time set in Step Settings (Debug tab) is "
+            "reached (or the run ends)"),
         handler="_on_run_to",
         enabled_when="can_start_batch"),
     CommandSpec(
@@ -1519,6 +1519,9 @@ LAYOUT: tuple[Page, ...] = (
                       Custom("_build_step_menu"), Btn("sim.restart_step"),
                       Btn("sim.terminate"), Btn("view.focus_event")),
              priority=4),
+       # The values More Steps uses, beside it (they were a column of the
+       # Run panel, among the settings of an ordinary run).
+       Group("Step Settings", (Custom("_build_step_settings"),), priority=3),
        Group("Failure Effects", (Btn("analyse.fev_view", True),
                                  Btn("analyse.fev_fail"),
                                  Btn("analyse.fev_repair"),

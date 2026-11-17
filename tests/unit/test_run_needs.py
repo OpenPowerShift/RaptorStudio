@@ -45,7 +45,9 @@ def test_the_window_labels_are_the_run_panels_own(qapp_offscreen):
     from PySide6.QtWidgets import QCheckBox
     from raptor.gui.ui.run_panel import RunPanel
     panel = RunPanel()
-    labels = {box.text() for box in panel.findChildren(QCheckBox)}
+    # A greyed plot adds what it needs ("Capacity plot (needs Capacity)").
+    labels = {box.text().split(" (needs ")[0]
+              for box in panel.findChildren(QCheckBox)}
     for need in run_needs.NEEDS.values():
         assert need.label in labels, need.label
 
@@ -61,7 +63,7 @@ def qapp_offscreen():
 def test_options_in_one_place_are_named_once():
     from raptor.api.run_needs import gui_hint
     assert gui_hint("weak_link", "cost") == (
-        "Tick <b>Weak Link</b> and <b>Cost</b> under Run panel ▸ Analysis, then run again.")
+        "Tick <b>Weak Link</b> and <b>Cost</b> under Run panel ▸ Results to calculate, then run again.")
 
 
 def test_the_extended_results_page_says_how_to_fill_blank_shares():

@@ -37,7 +37,7 @@ def _window(qapp, name):
 def test_a_cycle_is_a_warning_and_the_panel_stays_ready(qapp):
     w = _window(qapp, "DepCycleIdleProbe")
     label = w._run_panel._readiness
-    assert label.text().startswith("Ready."), label.text()
+    assert label.text().startswith("✔ Ready"), label.text()
     assert "Model warning" not in label.text()
     w._validate_model(quiet=True)
     assert any("circular dependency" in m for m in w._validation_warnings())

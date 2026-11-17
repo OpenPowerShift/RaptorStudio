@@ -3603,7 +3603,7 @@ and in the Run panel&#8217;s ready line.</p>
 </div>
 <div class="paragraph">
 <p>If the computer is needed for something else while a long run is going, lower
-the <strong>Cores</strong> field in the Run panel: the run carries on, on fewer cores, within
+the <strong>Cores</strong> field under <strong>More options</strong> in the Run panel: the run carries on, on fewer cores, within
 a run or two, and the numbers are the same. Raise it again, up to the number it
 started with, to spread out once more.</p>
 </div>
@@ -6183,8 +6183,8 @@ whole model, run the whole model and read the weak-link results.</p>
 </table>
 </div>
 <div class="paragraph">
-<p>The quickest route is the Run panel. Set <strong>Model scope</strong> to the hierarchy
-(then the canvas follows you into it). A warning appears with the same
+<p>The quickest route is the Run panel. Under <strong>More options</strong>, set <strong>Model
+scope</strong> to the hierarchy (then the canvas follows you into it). A warning appears with the same
 boundary treatments as Extract Hierarchy, and Run produces the ordinary
 tables, graphs and importance measures scoped to that hierarchy. Nothing
 is written to disk and the source model is not changed; the Results dock
@@ -9499,16 +9499,17 @@ levers:</p>
 <ul>
 <li>
 <p><strong>Multi</strong> — advance a whole batch of events at once. How many is set
-in the <strong>Run</strong> panel&#8217;s <strong>Stepping</strong> section (10 by default). The
-diagram jumps to the end state.</p>
+in <strong>Multi-step events</strong>, in the <strong>Step Settings</strong> group beside it on
+the Debug tab (10 by default). The diagram jumps to the end state.</p>
 </li>
 <li>
-<p><strong>Run to time</strong> — advance until the clock reaches a target time, also
-set in the Run panel. "Run to 720" is the whole mission in one press.</p>
+<p><strong>Run to time</strong> — advance until the clock reaches a target time, set
+in <strong>Run to</strong> in the same group. "Run to 720 hours" is the whole mission
+in one press.</p>
 </li>
 <li>
-<p><strong>Breakpoint</strong> — pick a block in the Run panel&#8217;s <strong>Breakpoint on</strong>
-field (say, <code>Power</code>) and stepping stops dead the instant that block
+<p><strong>Breakpoint</strong> — pick a block in <strong>Pause when fails</strong>, in the same
+group (say, <code>Power</code>), and stepping stops dead the instant that block
 enters Repairing. This is the classic debugger breakpoint, aimed at
 hardware.</p>
 </li>

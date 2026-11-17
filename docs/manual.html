@@ -946,7 +946,7 @@ runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <stron
 cannot draw stays in the list, greyed; choosing it names the check box
 to tick and where it is (for example <strong>Detailed event log</strong> under Run
 panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
-Analysis for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
+Results to calculate for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
 that ticks it as one undoable step and runs again. When the event log
 is there but the drivers have not been worked out yet, the button works
 them out instead. The Drivers tab has the same button. Over MCP and on
@@ -1369,11 +1369,16 @@ cycles</strong> the run-length figure is a plain count and is never converted �
 the row label changes to say which kind of number it is.</p>
 </div>
 <div class="paragraph">
-<p>A readiness line at the top says whether the model can run, and <strong>why</strong>
-not when it cannot, rather than presenting a greyed button with no
-explanation. The panel <strong>locks while a run is in progress</strong>: the values
-it holds are the ones the run is actually using, and a 20-minute batch
-must not have its settings changed underneath it.</p>
+<p>The line at the top says what the next run will be and whether the
+model can run, and <strong>why</strong> not when it cannot — for example <strong>✔ Ready ·
+100 trials · 1000 hours · Whole model · 8 cores · about 676 KB</strong>. It
+starts with ✔ or ✖, so the state does not depend on colour, and it
+always names the run&#8217;s scope and cores, the two settings that change
+what the numbers mean. The <strong>Run</strong> button (F5) is at the right-hand end
+of the same line, lined up with the last section. The
+panel <strong>locks while a run is in progress</strong>: the values it holds are the
+ones the run is actually using, and a 20-minute batch must not have its
+settings changed underneath it.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -1389,34 +1394,50 @@ must not have its settings changed underneath it.</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Experiment</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A starting <strong>Profile</strong> (Quick check / Steady state / Endurance /
-Endgame) that seeds the rest, <strong>Trials</strong>, <strong>Stop at</strong> (time, system
-failures or phase cycles — the run-length label and unit follow the
-choice), and <strong>Statistics from</strong>. The <strong>Cores</strong> box is a read-only
-readout of the machine setting (edit it in the Run panel); it is
-greyed, with the reason, while Animate is on or a run is going.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Trials</strong>, with <strong>Precision…</strong> (size the run by a precision instead)
+and <strong>Presets ▾</strong>, a menu of starting points — Quick check, Steady
+state, Endurance, Endgame — each with a line saying what it is for.
+Choosing one sets the run&#8217;s length, trials and statistics start, and
+<strong>adds</strong> the analyses and recordings it needs; it never turns off one you
+chose. <strong>Stop at</strong> is one row: <strong>Stop at [Time] after [1000] hours</strong>; the
+word after the number follows the choice (hours, system failures or
+phase cycles). Then <strong>Statistics from</strong>.</p>
+<p class="tableblock"><strong>More options</strong> holds <strong>Model scope</strong> (the whole model, or one
+hierarchy run on its own — see <a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a>) and
+<strong>Cores</strong>. It starts closed and remembers whether you left it open, but
+its heading always says both values (<strong>More options: Whole model · 8
+cores</strong>), and choosing a hierarchy opens it. While Animate is on the run
+uses one core, and the heading and the top line say <strong>1 core (Animate)</strong>.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Analysis</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost and Capacity. Each is a switch with its purpose
-written beside it. Flow generated appears here once Capacity is on; the
-system red cost is always editable, and the cost of lost flow appears
-once both Capacity and Cost are on.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Results to calculate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost, Capacity and Importance measures. Point at one for
+which results it gives (or, while it is off, which will be empty); a
+screen reader reads the same text. The model&#8217;s own values sit under the
+analysis that uses them and appear only while it is on: <strong>System red cost</strong> under Cost, <strong>Flow
+generated</strong> under Capacity, and <strong>Cost of lost flow</strong> once both are on.
+While Importance measures is ticked, a line under it says how many
+extra batches it adds for this model.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Recording</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Which outputs a run collects. Additive rather than a single "level",
 so "state intervals, but no multi-gigabyte event log" is expressible.
-Each dependent plot is <strong>disabled with a stated reason</strong> until its
-analysis is on, and turning an analysis off clears the plot it fed.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Stepping</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Parameters for the interactive debugger: multi-step event count,
-run-to target time, and the breakpoint block.</p></td>
+Point at a recording for what it feeds. The <strong>Detailed event log</strong> feeds
+the Event Log tab, Downtime drivers, the Story&#8217;s causes, the Advisor&#8217;s
+downtime checks and the canvas downtime layers, so while it is off a
+line under it says they will be empty. A sample interval appears under
+its plot while that plot is on. A dependent plot is <strong>disabled and says
+what it needs</strong> — <strong>Capacity plot (needs Capacity)</strong> — until its analysis
+is on, and turning an analysis off clears the plot it fed. The estimated
+size on disk is at the foot.</p></td>
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>The stepping debugger&#8217;s settings are on the <strong>Debug</strong> tab, in the
+<strong>Step Settings</strong> group (see <a href="#stepping">Debug tab: stepping debugger</a>).</p>
+</div>
 <div class="paragraph">
 <p>A stepped session spans the run count the model is configured for. <strong>Jump</strong> lets the current run finish and stops at the next
 run&#8217;s first change; <strong>Finish</strong> completes every run that is left and shows
@@ -1430,7 +1451,7 @@ the results of all of them.</p>
 <div class="paragraph">
 <p><strong>Run</strong> (F5) runs at full speed in the background, splitting the trials
 across the processor cores in the <strong>Cores</strong> box beside it on the Simulate
-tab, and in the Run panel beside Trials (one setting, shown in both). The
+tab, and in the Run panel&#8217;s <strong>More options</strong> (one setting, shown in both). The
 box reads, say, "8 of 8": the cores a run will use, out of the
 cores this computer has. The same count is shown in the status bar, in the
 Run panel&#8217;s readiness line and in the Sweep and Compare windows before they
@@ -2091,8 +2112,11 @@ loop: <strong>Step</strong> (F6), <strong>Next Time</strong> (Shift+F6), <strong
 <strong>Terminate</strong> (Shift+F5) and <strong>Restart</strong> (Ctrl+Shift+F5), plus a <strong>More
 Steps</strong> menu for the less common ways to advance (<strong>Step to next change</strong>
 is F10). Starting a stepped run from any tab opens the Debug tab. The <strong>parameters</strong> those need — multi-step count, run-to time,
-breakpoint block — are in the Run panel&#8217;s <strong>Stepping</strong> section, where
-there is room to label and explain them.</p>
+breakpoint block — are beside them in the Debug tab&#8217;s <strong>Step Settings</strong>
+group: <strong>Multi-step events</strong>, <strong>Run to</strong> (in the model&#8217;s display unit,
+for example <strong>Run to (hours)</strong>) and <strong>Pause when fails</strong>, the breakpoint
+block. The More Steps items name the values they will use, for example
+<strong>Multi (10 events)…</strong> and <strong>Run to 100 hours…</strong>.</p>
 </div>
 <div class="paragraph">
 <p>Press <strong>Step</strong> to start an interactive single run: the first press
@@ -2200,8 +2224,8 @@ individual runs.</p>
 </div>
 <div class="paragraph">
 <p>To run the part without saving an extract, use the Run panel&#8217;s <strong>Model
-scope</strong> selector: choose the hierarchy, review the warning and boundary
-treatments there, then Run. The canvas follows the scope, the source model
+scope</strong> selector, under <strong>More options</strong>: choose the hierarchy, review the
+warning and boundary treatments behind <strong>Isolation options…</strong>, then Run. The canvas follows the scope, the source model
 and file are not changed, and the Results dock carries an isolated-hierarchy
 banner. Importance measures in that run rank blocks within the hierarchy
 only.</p>

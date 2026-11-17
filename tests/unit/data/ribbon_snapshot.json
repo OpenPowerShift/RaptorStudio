@@ -1315,8 +1315,8 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Run to time\u2026",
-   "tooltip": "Advance until the sim time set in the Run panel is reached (or the run ends)\n\nUnavailable: open or create a model first"
+   "text": "Run to time 100\u2026",
+   "tooltip": "Advance until the sim time set in Step Settings (Debug tab) is reached (or the run ends)\n\nUnavailable: open or create a model first"
   },
   "_run_toggle_action": {
    "checkable": true,
@@ -1530,8 +1530,8 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Multi (10)\u2026",
-   "tooltip": "Advance the number of events set in the Run panel (stops early at the breakpoint)\n\nUnavailable: open or create a model first"
+   "text": "Multi (10 events)\u2026",
+   "tooltip": "Advance the number of events set in Step Settings (stops early at the breakpoint)\n\nUnavailable: open or create a model first"
   },
   "_step_next_time_action": {
    "checkable": false,
@@ -2740,6 +2740,44 @@
       }
      ],
      "title": "Step"
+    },
+    {
+     "items": [
+      {
+       "children": [
+        "QLabel",
+        "QSpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QLabel",
+        "TidySpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      }
+     ],
+     "title": "Step Settings"
     },
     {
      "items": [

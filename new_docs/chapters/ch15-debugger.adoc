@@ -86,12 +86,13 @@ not be. Open the **More Steps** menu on the Debug ribbon for the bigger
 levers:
 
 * **Multi** — advance a whole batch of events at once. How many is set
-  in the **Run** panel's *Stepping* section (10 by default). The
-  diagram jumps to the end state.
-* **Run to time** — advance until the clock reaches a target time, also
-  set in the Run panel. "Run to 720" is the whole mission in one press.
-* **Breakpoint** — pick a block in the Run panel's *Breakpoint on*
-  field (say, `Power`) and stepping stops dead the instant that block
+  in *Multi-step events*, in the **Step Settings** group beside it on
+  the Debug tab (10 by default). The diagram jumps to the end state.
+* **Run to time** — advance until the clock reaches a target time, set
+  in *Run to* in the same group. "Run to 720 hours" is the whole mission
+  in one press.
+* **Breakpoint** — pick a block in *Pause when fails*, in the same
+  group (say, `Power`), and stepping stops dead the instant that block
   enters Repairing. This is the classic debugger breakpoint, aimed at
   hardware.
 

@@ -186,7 +186,7 @@ def test_multi_paints_once_and_focuses_the_final_event(
         return original(*args, **kwargs)
 
     monkeypatch.setattr(view, "update_live_states", counted)
-    monkeypatch.setattr(window._run_panel, "step_count", lambda: 20)
+    window._step_count_spin.setValue(20)
     window._on_step_multi()
     qapp.processEvents()
     session = window._step_session
@@ -215,7 +215,7 @@ def test_run_to_paints_once_and_focuses_the_final_event(
         return original(*args, **kwargs)
 
     monkeypatch.setattr(view, "update_live_states", counted)
-    monkeypatch.setattr(window._run_panel, "run_to_time", lambda: 20.0)
+    window._run_to_time_spin.setValue(20.0)
     window._on_run_to()
     qapp.processEvents()
     session = window._step_session

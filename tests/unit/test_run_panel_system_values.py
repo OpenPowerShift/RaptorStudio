@@ -47,7 +47,7 @@ def test_loading_a_model_fills_the_panel_system_fields(win):
 def test_flow_generated_edit_writes_system_data(win):
     panel = win._run_panel
     panel._analysis_checks["capacity"].setChecked(True)
-    assert panel._system_form.isRowVisible(0)
+    assert (not panel._system_rows["flow"].isHidden())
 
     panel._flow_gen.setValue(250)
     panel._flow_gen.editingFinished.emit()
@@ -60,7 +60,7 @@ def test_cost_edits_write_system_data(win):
     panel = win._run_panel
     panel._analysis_checks["capacity"].setChecked(True)
     panel._analysis_checks["cost"].setChecked(True)
-    assert panel._system_form.isRowVisible(2)
+    assert (not panel._system_rows["lost"].isHidden())
 
     panel._system_red_cost_field.setValue(12.5)
     panel._system_red_cost_field.editingFinished.emit()
