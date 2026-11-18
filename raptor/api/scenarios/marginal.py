@@ -140,7 +140,7 @@ def marginal_value(
     with no waiting in the base run); they are reported as skipped instead of
     costing two batches each.
     """
-    from raptor.api.batch import run_variants
+    from raptor.api.batch import cut_short, require_measured, run_variants
 
     wanted = list(items if items is not None else candidates(
         workspace.get(model_id).rbd))
@@ -156,6 +156,7 @@ def marginal_value(
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    short = cut_short(results, timeout_s)
     base = _rows(workspace, results[0]) if results else []
     base_metric = _stat(_values(base, metric))
     base_down = _stat(_values(base, "downtime"))
@@ -193,6 +194,9 @@ def marginal_value(
             "avoided_per_cost": per_cost,
             "error": plus_row.get("error") or minus_row.get("error"),
         })
+    require_measured(short, any(row["plus"]["effect"] is not None
+                                or row["minus"]["effect"] is not None
+                                for row in rows))
     rows.sort(key=lambda row: -(row["downtime_avoided"] or 0.0))
     from raptor.api.batch import discard_runs
     discard_runs(workspace, results)
@@ -206,7 +210,8 @@ def marginal_value(
         "items": rows,
         "skipped": [item.to_dict() for item in skipped],
         "batches": len(results),
-        "caption": _caption(rows),
+        "caption": (short + " " if short else "") + _caption(rows),
+        "cut_short": short,
         "note": ("Marginal value of one unit, paired against Base. A pool "
                  "the base run never waited on is skipped."),
     }

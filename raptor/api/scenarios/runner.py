@@ -17,11 +17,12 @@ from __future__ import annotations
 from raptor.api.insight.axes import pct
 
 import math
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from raptor.api.batch import run_variants
+from raptor.api.batch import Deadline, cut_short, run_variants
 from raptor.api.run import run_dir
 from raptor.api.run_tables import read_per_run
 
@@ -73,6 +74,9 @@ class Comparison:
     requirements: list[dict[str, Any]] = field(default_factory=list)
     caption: str = ""
     note: str = ""
+    #: Set when the time limit or a cancel stopped the study before every
+    #: run finished: say so wherever the numbers are shown.
+    cut_short: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -194,11 +198,13 @@ def compare(
     """
     parsed = [scenario if isinstance(scenario, Scenario)
               else Scenario.from_dict(scenario) for scenario in scenarios]
+    started = time.monotonic()
+    limit = Deadline(abort, timeout_s)
     if precision is not None:
         from raptor.api.scenarios.stopping import run_to_precision
         sized = run_to_precision(workspace, model_id, precision,
                                  workers=workers, seed=seed,
-                                 progress=None, abort=abort,
+                                 progress=None, abort=limit,
                                  timeout_s=timeout_s)
         trials = sized.trials
     variants = [{"label": "Base", "assignments": []}]
@@ -207,7 +213,9 @@ def compare(
                  for scenario in parsed]
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
-        timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+        timeout_s=max(1e-3, timeout_s - (time.monotonic() - started)),
+        seed=seed, progress=progress, abort=limit)
+    short = cut_short(results, timeout_s)
     base_row = results[0] if results else {}
     base_data = _per_run(workspace, base_row)
     base_metrics = {key: _stat(_values(base_data, key)) for key in METRICS}
@@ -217,7 +225,8 @@ def compare(
         entry: dict[str, Any] = {
             "name": scenario.name, "changes": list(scenario.changes),
             "note": scenario.note, "run_id": row.get("run_id"),
-            "error": row.get("error"), "metrics": {},
+            "error": row.get("error"), "skipped": row.get("skipped"),
+            "truncated": bool(row.get("truncated")), "metrics": {},
         }
         if not entry["error"]:
             other = _per_run(workspace, row)
@@ -249,7 +258,8 @@ def compare(
         base={"run_id": base_row.get("run_id"), "metrics": base_metrics},
         rows=rows, variance_reduction=variance,
         requirements=_requirements(requirements or (), base_metrics, rows),
-        caption=_caption(rows),
+        caption=(short + " " if short else "") + _caption(rows),
+        cut_short=short,
         note=("Each scenario is compared with Base using the same seed and "
               "paired trials. The two stay in step only until the change first "
               "moves an event, so pairing usually removes little noise; the "

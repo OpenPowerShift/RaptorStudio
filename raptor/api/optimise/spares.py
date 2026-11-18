@@ -218,6 +218,8 @@ def optimise_spares(  # noqa: C901, PLR0912
     if not selected:
         raise ValueError("no finite spare pool with demand in this model")
     path = analytic_path(selected)
+    from raptor.api.batch import Deadline
+    abort = Deadline(abort, timeout_s)
     base_rows = _evaluate(workspace, model_id, [],
                           trials=trials, seed=seed, workers=workers,
                           timeout_s=timeout_s, abort=abort)
@@ -241,8 +243,10 @@ def optimise_spares(  # noqa: C901, PLR0912
             points, key=lambda point: sign * (
                 (point["lower"] if sign > 0 else point["upper"]) or 0))
     costs_default = all(abs(pool.cost - 1.0) < 1e-12 for pool in selected)
-    stopped_by = _stopped_by(met, mode, abort, evaluations, max_evaluations,
-                             candidates[-1], points)
+    stopped_by = ("time limit" if abort.expired() and not abort.cancelled()
+                  and not met
+                  else _stopped_by(met, mode, abort, evaluations,
+                                   max_evaluations, candidates[-1], points))
     caption = _caption(recommended, target, metric, costs_default,
                        met or mode == "curve")
     held = sum(pool.stock for pool in selected)
@@ -259,7 +263,13 @@ def optimise_spares(  # noqa: C901, PLR0912
                 f" It stopped at the limit of {max_evaluations} evaluations; "
                 "allow more evaluations to search further."),
             "cancelled": " The search was stopped before it finished.",
+            "time limit": (f" It stopped at its time limit (timeout_s="
+                           f"{timeout_s:g} s) before it finished; give a "
+                           "larger timeout_s or fewer trials."),
         }.get(stopped_by, "")
+    elif stopped_by == "time limit":
+        caption += (f" Not complete: the search stopped at its time limit "
+                    f"(timeout_s={timeout_s:g} s).")
     return {
         "mode": mode, "metric": metric, "target": target,
         "confidence": confidence,
