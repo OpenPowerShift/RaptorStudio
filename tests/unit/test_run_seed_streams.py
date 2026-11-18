@@ -119,6 +119,49 @@ def test_reuse_picks_the_least_used_pair():
     assert chosen == [pairs[1]] and reused == 1
 
 
+def test_separate_streams_for_a_run_work_on_a_copy():
+    from raptor.core.fileio.rbds import load_rbds
+    rbd = load_rbds(MODEL)
+    assert osx.separated_for_run(rbd) is rbd, "the model's streams: as is"
+    rows = rbd.sections["BLOCK_DATA"].rows
+    before = [(r.get("FStream"), r.get("RStream")) for r in rows]
+    rbd.experiment = {**(rbd.experiment or {}), "streams": "separate"}
+    out = osx.separated_for_run(rbd)
+    assert out is not rbd
+    assert [(r.get("FStream"), r.get("RStream")) for r in rows] == before
+    streams = [int(r[c]) for r in out.sections["BLOCK_DATA"].rows
+               if int(r["ID"]) != 0 for c in ("FStream", "RStream")]
+    assert len(streams) == len(set(streams))
+    assert all(0 < s <= osx.MAX_INDEPENDENT for s in streams)
+    assert osx.separated_for_run(out) is out, "twice changes nothing"
+
+
+def test_the_streams_choice_is_tidied_and_saved_only_when_separate(tmp_path):
+    from raptor.core.fileio.rbds import load_rbds, save_rbds
+    assert rx.normalise({"streams": " Separate "})["streams"] == "separate"
+    assert rx.normalise({"streams": "odd"})["streams"] == "model"
+    rbd = load_rbds(MODEL)
+    rbd.experiment = rx.normalise(rbd.experiment or {})
+    path = tmp_path / "m.rbds"
+    save_rbds(rbd, str(path))
+    assert "streams" not in json.loads(path.read_text())["experiment"]
+    rbd.experiment["streams"] = "separate"
+    save_rbds(rbd, str(path))
+    assert json.loads(path.read_text())["experiment"]["streams"] == "separate"
+    assert load_rbds(str(path)).experiment["streams"] == "separate"
+
+
+def test_the_cli_separates_block_streams_for_the_run(capsys):
+    from raptor.cli.main import main
+    args = ["run", MODEL, "-n", "3", "-f", "json"]
+    assert main(args) == 0
+    plain = json.loads(capsys.readouterr().out)
+    assert main(args + ["--block-streams", "separate"]) == 0
+    separate = json.loads(capsys.readouterr().out)
+    assert separate["options"]["block_streams"] == "separate"
+    assert plain["summary"] != separate["summary"]
+
+
 def test_cli_seed_takes_a_number_or_new():
     import argparse
 
@@ -266,24 +309,71 @@ def test_all_blocks_gives_every_block_a_pair_in_one_undo_step(
 
 
 @pytest.mark.gui
-def test_new_blocks_get_their_own_streams_while_the_toggle_is_on(win):
+def test_new_blocks_get_their_own_streams_while_the_preference_is_on(win):
     from raptor.gui.ui import settings
     from raptor.gui.ui.own_streams_mixin import NEW_BLOCKS_KEY
     view = win._diagram_dock.view
-    win._own_streams_new_action.setChecked(True)
+    win._set_own_streams_for_new_blocks(True)
     assert settings.get_bool(NEW_BLOCKS_KEY, False) is True
     bid = view.add_block("Fresh", 400.0, 400.0)
     block = view.blocks[bid]
     assert osx.has_own_streams(block.fail_stream, block.repair_stream)
-    win._own_streams_new_action.setChecked(False)
+    win._set_own_streams_for_new_blocks(False)
     bid2 = view.add_block("Plain", 500.0, 400.0)
     assert view.blocks[bid2].fail_stream == 203
 
 
 @pytest.mark.gui
-def test_the_model_tab_has_one_random_streams_menu(win):
-    menu = win._streams_menu_action.menu()
-    assert win._streams_menu_action.text() == "Random Streams"
-    assert menu.actions() == [win._own_streams_action,
-                              win._own_streams_new_action]
-    assert win._own_streams_new_action.isCheckable()
+def test_separate_streams_is_on_data_bulk_edit_not_the_simulate_tab(win):
+    from raptor.gui.command_table import COMMANDS
+    ids = {spec.id for spec in COMMANDS}
+    assert "data.own_streams" in ids
+    assert not {"model.own_streams", "model.own_streams_new"} & ids
+    assert not hasattr(win, "_streams_menu_action")
+    assert win._own_streams_action.text() == "Separate Streams"
+
+
+@pytest.mark.gui
+def test_the_run_panel_streams_choice_is_saved_and_named(win):
+    panel = win._run_panel
+    assert "streams" not in panel.more_options_summary()
+    panel._streams_mode.setCurrentIndex(
+        panel._streams_mode.findData("separate"))
+    assert win._current_experiment()["streams"] == "separate"
+    assert panel.more_options_summary().endswith("separate block streams")
+    # It has no SYSTEM_DATA column: a row -> experiment resync keeps it.
+    win._set_exp_field("trials", 5)
+    win._sync_settings_from_model()
+    assert win._current_experiment()["streams"] == "separate"
+    assert panel._streams_mode.currentData() == "separate"
+
+
+@pytest.mark.gui
+def test_separate_streams_for_the_run_leave_the_model_alone(win, tmp_path,
+                                                           monkeypatch):
+    """The run-time choice == the Bulk Edit command's numbers, without
+    editing a block, and == the API's block_streams="separate"."""
+    from raptor.api.run import run as api_run
+    from raptor.api.workspace import Workspace
+    from raptor.core.fileio.rbds import load_rbds
+    from raptor.gui.ui import dialogs
+    view = win._diagram_dock.view
+    before = {bid: (b.fail_stream, b.repair_stream)
+              for bid, b in view.blocks.items()}
+    _m, model_logs = _run(win)
+    win._set_exp_field("streams", "separate")
+    _m, run_logs = _run(win)
+    assert run_logs != model_logs
+    assert {bid: (b.fail_stream, b.repair_stream)
+            for bid, b in view.blocks.items()} == before
+    gui = [ln for ln in win._results._final_lines if "Availability " in ln]
+    ws = Workspace(str(tmp_path))
+    mid = ws.register_model(load_rbds(MODEL), name="m")["model_id"]
+    result = api_run(ws, mid, num_runs=4, workers=1, block_streams="separate")
+    assert gui == [ln for ln in result.final_results.splitlines()
+                   if "Availability " in ln]
+    win._set_exp_field("streams", "model")
+    monkeypatch.setattr(dialogs, "question_box", lambda *a, **k: True)
+    win._give_blocks_own_streams()
+    _m, edited_logs = _run(win)
+    assert edited_logs == run_logs

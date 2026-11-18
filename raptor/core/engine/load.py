@@ -131,10 +131,12 @@ def _load_blocks(
 
 
 def _out_of_service_applied(rbd_file: RbdFile) -> RbdFile:
-    """The model with its out-of-service elements as plain data (a copy;
-    the same object when none are)."""
+    """The model with its out-of-service elements as plain data, and its
+    blocks' streams separated when the run says so (a copy; the same
+    object when neither applies)."""
+    from raptor.core.edit.own_streams import separated_for_run
     from raptor.core.fileio.out_of_service import apply
-    return apply(rbd_file)
+    return separated_for_run(apply(rbd_file))
 
 
 def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
@@ -152,7 +154,10 @@ def load_model(rbd_file: RbdFile, *, defer_trigger: str = "",
 
     Elements the user took out of service (`rbd_file.out_of_service`) are
     turned into plain data first, on a copy (see
-    `raptor.core.fileio.out_of_service`)."""
+    `raptor.core.fileio.out_of_service`). A run set to separate block
+    streams (`experiment["streams"]`) gets them here, also on a copy, so
+    every way of running a model honours it (see
+    `raptor.core.edit.own_streams.separated_for_run`)."""
     rbd_file = _out_of_service_applied(rbd_file)
     blocks_by_id = _load_blocks(rbd_file, progress)
     # Block comments: only `maintDefer` is read by the engine.

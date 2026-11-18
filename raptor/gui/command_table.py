@@ -339,29 +339,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="F7",
         enabled_when="model_open"),
     CommandSpec(
-        id="model.own_streams",
+        id="data.own_streams",
         attr="_own_streams_action",
-        text="Separate Streams for All Blocks",
+        text="Separate Streams",
         icon="streams_icon:accent",
         tooltip=(
-            "Give every block its own failure and repair random streams, so "
-            "a change to one block does not shift the others' draws. After "
-            "49 blocks the streams are reused from the start. Results then "
-            "no longer match Raptor 7's. Undoable"),
+            "Give every block that shares a random stream a failure and "
+            "repair stream of its own, saved in the model, so a change to "
+            "one block does not shift the others' draws. After 49 blocks "
+            "the streams are reused. Results then no longer match Raptor "
+            "7's. To try it without editing the model, use the Run "
+            "panel's Streams option. Undoable"),
         handler="_give_blocks_own_streams",
-        enabled_when="model_open"),
-    CommandSpec(
-        id="model.own_streams_new",
-        attr="_own_streams_new_action",
-        text="Separate Streams for New Blocks",
-        icon="streams_new_icon:accent",
-        tooltip=(
-            "When on, each block you add, paste or duplicate gets its own "
-            "failure and repair random streams instead of the shared one "
-            "(reused from the start after 49 blocks). Remembered"),
-        handler="_set_own_streams_for_new_blocks",
-        on="toggled",
-        checkable=True,
         enabled_when="model_open"),
     # ---- Model -------------------------------------------------------
     CommandSpec(
@@ -1551,7 +1540,8 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_rates_button"),
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
-                           Btn("data.mass_edit", True)), priority=2),
+                           Btn("data.mass_edit", True),
+                           Btn("data.own_streams", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),
     _p("Simulate", "_simulate_page_index",
@@ -1559,10 +1549,7 @@ LAYOUT: tuple[Page, ...] = (
        # watched); off, Run uses the cores shown right beside it.
        Group("Run", (Btn("sim.run", True), Btn("sim.live_sim", True),
                      Custom("_build_trials_box"), Custom("_build_cores_box"),
-                     Btn("sim.run_settings"), Btn("sim.precision"),
-                     # Random Streams (#292): one menu button, here beside
-                     # the run because the Model tab has no room at 1280 px.
-                     Custom("_build_streams_button"))),
+                     Btn("sim.run_settings"), Btn("sim.precision"))),
        Group("Control", (Btn("sim.pause"), Btn("sim.stop_run"),
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis

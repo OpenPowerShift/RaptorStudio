@@ -132,6 +132,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
+|Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
 |===
 
 ==== Library
@@ -154,7 +155,6 @@ current value).
 |Animate |Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model. |
 |Run Settings… |Open the Run panel — the single editor for trials, termination, analyses and recording |
 |Trials to Precision… |How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run. |
-|Random Streams |How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run's seed is on the Run panel |
 |Trials |Trials the next run will use. Edit them in the Run panel (Simulate ▸ Run Settings), which owns every run setting. |number, now 1
 |Cores for full-speed runs |A full-speed run splits its trials across this many cores (by default, every core this machine has). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives a different random sequence: statistically the same answer but not bit-identical. |number, every core by default
 |===

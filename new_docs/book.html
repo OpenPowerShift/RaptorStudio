@@ -3461,16 +3461,20 @@ that run.</p>
 <p>By default every block draws from one shared stream, as in Raptor 7.
 That is statistically sound, but a change to one block shifts the draws
 of every block after it, which adds noise to a comparison.
-<strong>Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for All Blocks</strong> gives every
-block its own failure and repair streams in one step (<strong>Undo</strong> puts them
-back). <strong>Separate Streams for New Blocks</strong> does the same for each block you add, paste or duplicate from then on; Raptor
-Studio remembers the setting.</p>
+<strong>Run panel ▸ More options ▸ Streams ▸ Separate for each block</strong> gives
+every block its own failure and repair streams for the run, without
+editing the model: switch back to <strong>As in the model</strong> and Raptor 7&#8217;s
+numbers return. To keep separate streams in the model itself, use
+<strong>Data ▸ Bulk Edit ▸ Separate Streams</strong> (<strong>Undo</strong> puts them back). To give
+each block you add, paste or duplicate its own streams from the start,
+turn on <strong>Preferences ▸ Working ▸ New blocks</strong>; Raptor Studio remembers
+the setting.</p>
 </div>
 <div class="paragraph">
 <p>There are 49 pairs of streams. From the 50th block the pairs are reused,
 least-used first, and the status bar says how many blocks share one —
-still sound, and better than one stream for everything. A model with its
-own streams no longer reproduces Raptor 7&#8217;s numbers.</p>
+still sound, and better than one stream for everything. A run with separate
+streams no longer reproduces Raptor 7&#8217;s numbers.</p>
 </div>
 </div>
 </div>

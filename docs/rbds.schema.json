@@ -104,6 +104,9 @@
     "seed": {
      "type": "integer"
     },
+    "streams": {
+     "type": "string"
+    },
     "recording": {
      "type": "object"
     }

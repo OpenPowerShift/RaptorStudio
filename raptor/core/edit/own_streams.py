@@ -18,7 +18,9 @@ of it.
 """
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterable
+from typing import Any
 
 from raptor.core.rng import FETCH_RAPTOR_SEED
 
@@ -151,3 +153,57 @@ def plan_all(blocks: list[tuple[int, int, int]], event_streams: Iterable[int],
     pairs, reused = assign(len(change), used, sys_list)
     plan = {bid: pair for (bid, _f, _r), pair in zip(change, pairs, strict=True)}
     return plan, reused
+
+
+def _int(value: Any) -> int:
+    try:
+        return int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return 0
+
+
+def separated_for_run(rbd: Any) -> Any:
+    """The model a run simulates when its experiment says
+    ``streams: separate`` (Run panel ▸ More options ▸ Streams, ``raptor run
+    --block-streams separate``, MCP ``block_streams``).
+
+    `rbd` itself when the experiment keeps the model's streams or every
+    block already has its own; else a copy whose blocks have the streams
+    `plan_all` gives them. Only the block rows are copied, and the model
+    the user edits is never changed, so switching back gives the model's
+    own (Raptor 7-matching) numbers again. Applying it twice changes
+    nothing the second time.
+    """
+    from raptor.core import run_experiment
+    experiment = getattr(rbd, "experiment", None)
+    if not isinstance(experiment, dict) or \
+            run_experiment.normalise(experiment)["streams"] != "separate":
+        return rbd
+    sections = getattr(rbd, "sections", {})
+    block_sec = sections.get("BLOCK_DATA")
+    if block_sec is None:
+        return rbd
+    sys_sec = sections.get("SYSTEM_DATA")
+    sys_row = sys_sec.rows[0] if sys_sec is not None and sys_sec.rows else {}
+    sys_streams = parse_sys_streams(sys_row.get("SysStreamsArray"))
+    blocks = [(_int(r.get("ID")), _int(r.get("FStream")),
+               _int(r.get("RStream")))
+              for r in block_sec.rows if _int(r.get("ID")) != 0]
+    event_sec = sections.get("EVENT_DATA")
+    events = [_int(r.get("failStream"))
+              for r in (event_sec.rows if event_sec is not None else [])]
+    plan, _reused = plan_all(blocks, events, sys_streams)
+    if not plan:
+        return rbd
+    out = copy.copy(rbd)
+    out.sections = dict(sections)
+    new_sec = copy.copy(block_sec)
+    rows = []
+    for row in block_sec.rows:
+        pair = plan.get(_int(row.get("ID")))
+        if pair is not None and _int(row.get("ID")) != 0:
+            row = {**row, "FStream": str(pair[0]), "RStream": str(pair[1])}
+        rows.append(row)
+    new_sec.rows = rows
+    out.sections["BLOCK_DATA"] = new_sec
+    return out

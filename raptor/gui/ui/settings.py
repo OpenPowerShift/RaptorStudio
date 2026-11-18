@@ -105,7 +105,7 @@ DEFAULTS: dict[str, Any] = {
     # Cores) are open. Closed: its heading still names both.
     "run_panel/more_options": False,
     # model/ -- a block added while this is on gets its own random streams
-    # (Simulate ▸ Run ▸ Random Streams ▸ Own Streams for New Blocks, #292).
+    # (Preferences ▸ Working ▸ New blocks, #292).
     "model/own_streams_new_blocks": False,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,

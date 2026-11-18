@@ -56,6 +56,11 @@ RUN_DEFAULTS: dict[str, Any] = {
     # "number" uses `seed`. The seed salts every stream (`--seed`).
     "seed_mode": "fixed",
     "seed": 0,
+    # Block random streams for the run (#292): "model" uses each block's
+    # own stream settings; "separate" gives every block that shares a
+    # stream a pair of its own, on the run's copy only -- the model's
+    # streams are never edited (`own_streams.separated_for_run`).
+    "streams": "model",
     "recording": {
         "event_log": True,
         "ao_plot": False,
@@ -137,6 +142,8 @@ IMPORTANCE_DEFAULT_MODE = "both"
 
 #: How a run seeds its random streams (see RUN_DEFAULTS).
 SEED_MODES = ("fixed", "new", "number")
+#: How a run treats block random streams (see RUN_DEFAULTS).
+STREAM_MODES = ("model", "separate")
 #: The largest seed: streams are mod 2**31 - 1.
 SEED_MAX = 2**31 - 2
 
@@ -161,6 +168,14 @@ def seed_words(experiment: dict) -> str:
     if exp["seed_mode"] == "new":
         return "new seed each run"
     return "Raptor 7 seeds"
+
+
+def streams_words(experiment: dict) -> str:
+    """'' for the model's own streams, else 'separate block streams'."""
+    if normalise(experiment)["streams"] == "separate":
+        return "separate block streams"
+    return ""
+
 
 _STATS_START_TOOLTIP = "Must be earlier than the run length."
 
@@ -433,6 +448,9 @@ def normalise(raw: dict | None) -> dict:
     if seed_mode in SEED_MODES:
         out["seed_mode"] = seed_mode
     num("seed", int, 0, SEED_MAX)
+    streams = str(src.get("streams", out["streams"])).strip().lower()
+    if streams in STREAM_MODES:
+        out["streams"] = streams
     _normalise_recording(src.get("recording"), out["recording"])
     return out
 

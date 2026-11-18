@@ -560,9 +560,10 @@ class RunExperimentMixin:
         # pressing Run could therefore run without the analysis (observed
         # as `mode: none` with the box visibly ticked).
         experiment["importance"] = current.get("importance", "none")
-        # The seed has no SYSTEM_DATA column either (#292).
+        # Nor have the seed and the block streams choice (#292).
         experiment["seed_mode"] = current.get("seed_mode", "fixed")
         experiment["seed"] = current.get("seed", 0)
+        experiment["streams"] = current.get("streams", "model")
         # A plot whose analysis is off cannot be collected. The modal path
         # used to carry its tick over unconditionally, leaving a checked
         # plot that produced nothing.

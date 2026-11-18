@@ -28,6 +28,9 @@ COMMON: dict[str, str] = {
     "trials": "Paired trials per scenario. Leave out for the tool's default.",
     "timeout_s": "Wall-clock limit for the call, in seconds.",
     "seed": "Non-negative seed that re-rolls the batch reproducibly.",
+    "block_streams": ("separate: each block that shares a random stream gets its own for this run "
+                      "(the model is not edited); model: the blocks' own. Leave out for the model's "
+                      "setting."),
     "run_length": "Simulated time per run, in the model's units. Leave out for the model's own setting.",
     "library_path": "A part library (.rbdlib) file, relative to the workspace.",
     "confirm_long_run": "True runs even when the estimate exceeds timeout_s.",

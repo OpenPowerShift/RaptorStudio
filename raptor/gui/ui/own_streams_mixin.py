@@ -1,16 +1,23 @@
-"""Simulate ▸ Run ▸ Random Streams (#292): give blocks separate random streams.
+"""Give blocks separate random streams (#292).
 
-Every block shares System stream C (203) by default, as in Raptor 7. The
-two commands here (one Random Streams menu on the Simulate tab) give
-blocks failure and repair streams of their own: **Separate Streams for
-All Blocks** now (one undo step), and **... for New Blocks**, a
-remembered toggle that `diagram_commands.AddCmd` reads when a block is
-added, pasted or duplicated. There are 49 pairs; after that the
-least-used are reused. The rules live in `raptor.core.edit.own_streams`.
+Every block shares System stream C (203) by default, as in Raptor 7.
+Three places give blocks failure and repair streams of their own:
+
+* **Data ▸ Bulk Edit ▸ Separate Streams** writes them into the model now
+  (one undo step) -- for a model that should keep them, say to hand on.
+* **Preferences ▸ Working ▸ New blocks**, a remembered setting that
+  `diagram_commands.AddCmd` reads when a block is added, pasted or
+  duplicated -- a design habit, so it is not on the ribbon.
+* **Run panel ▸ More options ▸ Streams** separates them for the run only,
+  on the engine's copy (`own_streams.separated_for_run`); the model is not
+  edited.
+
+There are 49 pairs; after that the least-used are reused. The rules live
+in `raptor.core.edit.own_streams`.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from raptor.core.edit import own_streams
 from raptor.gui.ui import settings
@@ -24,8 +31,6 @@ if TYPE_CHECKING:
     class _Base:
         _diagram_dock: Any
         _own_streams_action: QAction
-        _own_streams_new_action: QAction
-        _streams_menu_action: QAction
         _rbd: Any
         _statusbar: Any
 else:
@@ -45,33 +50,10 @@ def _reuse_note(reused: int, pairs: int) -> str:
 
 
 class OwnStreamsMixin(_Base):
-    """MainWindow's Random Streams commands."""
-
-    def _build_streams_button(self, group) -> None:
-        """Simulate > Run > Random Streams: a menu of the two commands."""
-        from PySide6.QtGui import QAction
-        from PySide6.QtWidgets import QMenu, QWidget
-
-        from raptor.gui.resources import icons
-        from raptor.gui.resources.design_tokens import active_colour
-        parent = cast("QWidget", self)   # the mixin is on MainWindow
-        menu = QMenu(parent)
-        menu.addAction(self._own_streams_action)
-        menu.addAction(self._own_streams_new_action)
-        action = QAction(icons.streams_icon(active_colour()["accent"]),
-                         "Random Streams", parent)
-        action.setToolTip(
-            "How blocks draw their random numbers: one shared stream (as "
-            "Raptor 7), or separate failure and repair streams for each "
-            "block. The run's seed is on the Run panel")
-        action.setMenu(menu)
-        self._commands.track(action, "model_open")  # type: ignore[attr-defined]
-        self._streams_menu_action = action
-        button = group.add_action(action, large=True)
-        button.setProperty("ribbonKeyTip", "Z")
+    """MainWindow's separate-streams command and new-block setting."""
 
     def _give_blocks_own_streams(self) -> None:
-        """Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for All Blocks."""
+        """Data ▸ Bulk Edit ▸ Separate Streams: write them into the model."""
         if self._rbd is None:
             return
         view = self._diagram_dock.view
@@ -109,19 +91,13 @@ class OwnStreamsMixin(_Base):
             + (f"; {_reuse_note(reused, pairs)}" if reused else ""), 10000)
 
     def _set_own_streams_for_new_blocks(self, on: bool) -> None:
-        """Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for New Blocks."""
+        """Preferences ▸ Working ▸ New blocks (remembered per user)."""
         settings.set_value(NEW_BLOCKS_KEY, bool(on))
         self._diagram_dock.view.own_streams_for_new_blocks = bool(on)
 
     def _init_own_streams_toggle(self) -> None:
-        """Show the remembered toggle, and hand it to the canvas."""
+        """Hand the remembered new-block setting to the canvas."""
         on = settings.get_bool(NEW_BLOCKS_KEY, False)
-        action = self._own_streams_new_action
-        action.blockSignals(True)
-        try:
-            action.setChecked(on)
-        finally:
-            action.blockSignals(False)
         view = self._diagram_dock.view
         view.own_streams_for_new_blocks = on
         view.streams_reused.connect(self._on_streams_reused)

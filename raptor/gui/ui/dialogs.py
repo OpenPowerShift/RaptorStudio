@@ -750,6 +750,18 @@ def show_preferences(win):
         "was in the previous run, and whether the difference is more than "
         "chance. Off: the cards show only the latest run.", "app",
         reset=lambda w: w.setChecked(True), builtins=("On",))
+    from raptor.gui.ui.own_streams_mixin import NEW_BLOCKS_KEY
+    new_streams = QCheckBox("Give each new block its own random streams")
+    new_streams.setChecked(_settings.get_bool(NEW_BLOCKS_KEY, False))
+    _pref_row(
+        work_form, "New blocks:", new_streams,
+        "On: a block you add, paste or duplicate gets failure and repair "
+        "random streams no other block uses (reused after 49 blocks), "
+        "instead of the shared stream Raptor 7 gives every block. Changing "
+        "one block then shifts no other block's draws. Blocks already in "
+        "the model keep theirs: Data ▸ Bulk Edit ▸ Separate Streams "
+        "changes those.", "app",
+        reset=lambda w: w.setChecked(False), builtins=("Off",))
     tabs.addTab(work_page, "Working")
 
     # ---- This model -------------------------------------------------
@@ -885,6 +897,11 @@ def show_preferences(win):
     if sync_cores is not None:
         sync_cores()
     _settings.set_value("execution/default_animate", animate.isChecked())
+    set_new_streams = getattr(win, "_set_own_streams_for_new_blocks", None)
+    if set_new_streams is not None:
+        set_new_streams(new_streams.isChecked())
+    else:
+        _settings.set_value(NEW_BLOCKS_KEY, new_streams.isChecked())
     if show_change.isChecked() != _settings.get_bool(_change.SETTING, True):
         _settings.set_value(_change.SETTING, show_change.isChecked())
         results = getattr(win, "_results", None)

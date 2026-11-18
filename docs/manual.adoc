@@ -902,14 +902,15 @@ word after the number follows the choice (hours, system failures or
 phase cycles). Then **Statistics from**.
 
 **More options** holds **Model scope** (the whole model, or one
-hierarchy run on its own — see <<extract-hierarchy>>), **Cores** and
-**Seed**. It starts closed and remembers whether you left it open, but
+hierarchy run on its own — see <<extract-hierarchy>>), **Cores**,
+**Seed** and **Streams**. It starts closed and remembers whether you left it open, but
 its heading always says the scope and cores (*More options: Whole model
-· 8 cores*), plus the seed when it is not the default, and choosing a
+· 8 cores*), plus the seed and streams when they are not the default, and choosing a
 hierarchy opens it. While Animate is on the run uses one core, and the
 heading and the top line say *1 core (Animate)*. **Seed** chooses the
-random numbers: *Raptor 7 (fixed)*, *New each run* or *Number* — see
-<<seeds-and-streams>>.
+random numbers: *Raptor 7 (fixed)*, *New each run* or *Number*;
+**Streams** whether blocks share one random stream or each has its own
+for the run — see <<seeds-and-streams>>.
 
 |Results to calculate
 |Weak Link, Cost, Capacity and Importance measures. Point at one for
@@ -1097,24 +1098,35 @@ repeats a run exactly.
   `--seed` they use a *Number* seed saved in the model, otherwise the
   fixed table. `raptor run --seed new` draws a fresh seed and reports it.
 
-=== Separate streams for each block (Simulate ▸ Run ▸ Random Streams)
+=== Separate streams for each block
 
 By default every block draws its failure and repair times from one
 shared stream, as in Raptor 7. That is sound, but a change to one block
 shifts the draws of every block after it, which adds noise when you
-compare two versions of a model.
+compare two versions of a model. Three places give blocks streams of
+their own; none touches a block that already has its own pair.
 
-* *Separate Streams for All Blocks* gives every block a failure stream and a repair stream of
-  its own, as one step that *Undo* reverses. Blocks that already have
-  separate streams keep them.
-* *Separate Streams for New Blocks* is a toggle, remembered between sessions: while it is on,
-  each block you add, paste or duplicate gets separate streams.
+* *Run panel ▸ More options ▸ Streams* is a run setting: *As in the
+  model* (the default) or *Separate for each block*. Separate gives
+  every block that shares a stream its own pair for the run only. The
+  blocks' data is not edited, and switching back gives Raptor 7's
+  numbers again. The choice is saved with the model's run settings, and
+  the More options heading names it. `raptor run --block-streams
+  separate` and the AI Assistant's `block_streams="separate"` give the
+  same numbers.
+* *Data ▸ Bulk Edit ▸ Separate Streams* writes the streams into the
+  blocks, for a model that should keep them (say, one you hand on). It
+  asks first, and *Undo* reverses it in one step.
+* *Preferences ▸ Working ▸ New blocks* is a design habit, remembered
+  between sessions: while it is on, each block you add, paste or
+  duplicate gets separate streams.
 
 Raptor 7 has 110 independent streams and the System streams use 11, so
 there are 49 pairs. From the 50th block the pairs are reused, least-used
 first, and the status bar says how many blocks share one. Sharing a pair
-is still sound, and better than every block sharing one stream. A model
-with separate streams no longer matches Raptor 7's numbers.
+is still sound, and better than every block sharing one stream. A run
+with separate streams no longer matches Raptor 7's numbers. Events and
+the System streams are never changed.
 
 == What If: compare changes with the model
 

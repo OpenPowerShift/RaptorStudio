@@ -4619,7 +4619,14 @@ Cores box, `raptor run -j`).
 
 `seed` (optional, non-negative) re-rolls the batch reproducibly;
 leaving it unset keeps the engine's fixed seeds, under which the same
-model and run count always return byte-identical numbers.  If a run is
+model and run count always return byte-identical numbers.
+
+`block_streams`: `separate` gives every block that shares a random
+stream (by default all of them share one, as in Raptor 7) a failure
+and repair stream of its own for this run only -- the model is not
+edited -- so changing one block does not shift the others' draws;
+`model` uses the blocks' own settings. Left out, the model's saved
+choice (the desktop app's Run panel ▸ Streams) decides.  If a run is
 cut short by `timeout_s`, `runs` is below the requested count and
 `truncated` is true -- do not read a truncated batch as complete.
 
@@ -4645,6 +4652,7 @@ boundary node reports no lost flow.
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `block_streams` | string \| null | no | `null` | `model`, `separate` |
 | `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
@@ -4665,6 +4673,7 @@ Parameter notes:
 
 - `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
 - `availability_plot` — `availability_plot` / `interim_cost`: record the availability-over-time plot (needed by `get_timeseries(series="availability")`) or the interim cost report for this run.
+- `block_streams` — `block_streams`: `separate` gives every block that shares a random stream (by default all of them share one, as in Raptor 7) a failure and repair stream of its own for this run only -- the model is not edited -- so changing one block does not shift the others' draws; `model` uses the blocks' own se…
 - `capacity_rule` — `capacity_rule` (with attribution on a capacity-analysis model) shares the lost flow among the elements that were down: `proportional` sums to the engine's own lost flow, `marginal` answers "what would fixing this one buy?" (shares need not add up), `first_failed` is for comparison.
 - `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
 - `confirm_long_run` — True runs even when the estimate exceeds timeout_s.
@@ -4756,6 +4765,7 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `block_streams` | string \| null | no | `null` | `model`, `separate` |
 | `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `interim_cost` | boolean \| null | no | `null` | — |
@@ -4770,6 +4780,7 @@ Parameter notes:
 
 - `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
 - `availability_plot` — Record the availability-over-time plot for this run. Leave out for the model's setting.
+- `block_streams` — separate: each block that shares a random stream gets its own for this run (the model is not edited); model: the blocks' own. Leave out for the model's setting.
 - `capacity_rule` — `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 - `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
 - `interim_cost` — Record the interim cost report for this run. Leave out for the model's setting.

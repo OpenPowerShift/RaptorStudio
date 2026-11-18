@@ -45,6 +45,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     },
     "Data": {
         "data.phases": "P", "data.block_defaults": "D", "data.mass_edit": "M",
+        "data.own_streams": "S",
         "data.export_library": "E", "data.import_library": "I",
     },
     "Simulate": {

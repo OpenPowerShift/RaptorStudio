@@ -426,6 +426,7 @@ class RunPanel(QWidget):
             QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
         self._build_scope_and_cores_row(more)
         self._build_seed_row(more)
+        self._build_streams_row(more)
         self._more_body.setVisible(False)
         form.addRow(self._more_body)
 
@@ -499,6 +500,47 @@ class RunPanel(QWidget):
         form.addRow("Seed:", row)
         self._describe(self._seed_mode, self._seed_mode.itemData(
             0, Qt.ItemDataRole.ToolTipRole))
+
+    def _build_streams_row(self, form: QFormLayout) -> None:
+        """'Streams: [As in the model ▾]' (#292): a run-time choice, so the
+        model's own block streams are never rewritten. Data ▸ Bulk Edit ▸
+        Separate Streams writes them into the model instead."""
+        self._streams_mode = QComboBox()
+        for label, mode, tip in (
+                ("As in the model", "model",
+                 "Each block draws from the streams set in its data. By "
+                 "default every block shares one stream, as in Raptor 7, "
+                 "and the results match Raptor 7's."),
+                ("Separate for each block", "separate",
+                 "For this run, every block that shares a stream gets a "
+                 "failure and repair stream of its own (reused after 49 "
+                 "blocks), so changing one block does not shift the "
+                 "others' draws. The model is not edited. Results no "
+                 "longer match Raptor 7's. raptor run --block-streams "
+                 "separate and the AI Assistant (block_streams) give the "
+                 "same numbers.")):
+            self._streams_mode.addItem(label, mode)
+            self._streams_mode.setItemData(
+                self._streams_mode.count() - 1, tip,
+                Qt.ItemDataRole.ToolTipRole)
+        self._streams_mode.setAccessibleName("Block random streams")
+        self._cap(self._streams_mode, 190)
+        self._streams_mode.currentIndexChanged.connect(self._on_streams_mode)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._streams_mode)
+        row.addStretch(1)
+        form.addRow("Streams:", row)
+        self._describe(self._streams_mode, self._streams_mode.itemData(
+            0, Qt.ItemDataRole.ToolTipRole))
+
+    def _on_streams_mode(self, _index: int) -> None:
+        self._describe(self._streams_mode, self._streams_mode.itemData(
+            self._streams_mode.currentIndex(), Qt.ItemDataRole.ToolTipRole))
+        if self._loading:
+            return
+        self._emit_change("streams", str(self._streams_mode.currentData()))
+        self._refresh_more_options()
 
     def _on_seed_mode(self, _index: int) -> None:
         mode = str(self._seed_mode.currentData())
@@ -694,6 +736,8 @@ class RunPanel(QWidget):
         exp = getattr(self, "_exp", None)
         if exp and exp.get("seed_mode", "fixed") != "fixed":
             text += f" · {rx.seed_words(exp)}"
+        if exp and rx.streams_words(exp):
+            text += f" · {rx.streams_words(exp)}"
         return text
 
     def _refresh_more_options(self) -> None:
@@ -1098,6 +1142,8 @@ class RunPanel(QWidget):
             if self._exp["seed"]:
                 self._seed_value.setValue(int(self._exp["seed"]))
             self._seed_value.setVisible(self._exp["seed_mode"] == "number")
+            self._streams_mode.setCurrentIndex(max(0, self._streams_mode.findData(
+                self._exp["streams"])))
         finally:
             self._loading = False
         self.set_enabled(enabled)
@@ -1397,7 +1443,7 @@ class RunPanel(QWidget):
                   self._flow_gen, self._system_red_cost_field,
                   self._lost_flow_cost_field,
                   self._importance_check, self._importance_mode,
-                  self._seed_mode, self._seed_value,
+                  self._seed_mode, self._seed_value, self._streams_mode,
                   *self._analysis_checks.values(),
                   *self._recording_checks.values()):
             w.setEnabled(enabled)

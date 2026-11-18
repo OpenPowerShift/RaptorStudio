@@ -111,6 +111,17 @@ def _apply_run_options(ws: Any, model_id: str, args: Any) -> dict[str, Any]:
         handle.rbd.experiment = _rx.normalise(experiment)
         applied["importance"] = mode
 
+    streams = getattr(args, "block_streams", None)
+    if streams is not None:
+        # On the in-memory handle, as importance is: the workspace holds a
+        # copy, so the user's file is untouched unless --save-model.
+        from raptor.core import run_experiment as _rx
+        handle = ws.get(model_id)
+        experiment = dict(getattr(handle.rbd, "experiment", None) or {})
+        experiment["streams"] = streams
+        handle.rbd.experiment = _rx.normalise(experiment)
+        applied["block_streams"] = streams
+
     texts = list(getattr(args, "sets", []) or [])
     if getattr(args, "set_file", None):
         texts = load_set_file(args.set_file) + texts

@@ -223,6 +223,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     timeout_s: float = 1800.0,
     confirm_long_run: bool = False,
     seed: int | None = None,
+    block_streams: Literal["model", "separate"] | None = None,
     hierarchy: str | int | None = None,
     treatments: dict | None = None,
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
@@ -292,7 +293,14 @@ async def simulate(  # noqa: PLR0912, PLR0915
 
     `seed` (optional, non-negative) re-rolls the batch reproducibly;
     leaving it unset keeps the engine's fixed seeds, under which the same
-    model and run count always return byte-identical numbers.  If a run is
+    model and run count always return byte-identical numbers.
+
+    `block_streams`: `separate` gives every block that shares a random
+    stream (by default all of them share one, as in Raptor 7) a failure
+    and repair stream of its own for this run only -- the model is not
+    edited -- so changing one block does not shift the others' draws;
+    `model` uses the blocks' own settings. Left out, the model's saved
+    choice (the desktop app's Run panel ▸ Streams) decides.  If a run is
     cut short by `timeout_s`, `runs` is below the requested count and
     `truncated` is true -- do not read a truncated batch as complete.
 
@@ -392,7 +400,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
                 abort=abort, timeout_s=timeout_s,
                 confirm_long_run=confirm_long_run, collect_events=collect_events,
                 availability_plot=availability_plot, interim_cost=interim_cost,
-                attribution=attribution, capacity_rule=capacity_rule)
+                attribution=attribution, capacity_rule=capacity_rule,
+                block_streams=block_streams)
             result = outcome.result
             result.precision = outcome.to_dict()
             return result
@@ -400,7 +409,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
             confirm_long_run=confirm_long_run, date=date, abort=abort,
-            progress=progress, seed=seed,
+            progress=progress, seed=seed, block_streams=block_streams,
             availability_plot=availability_plot, interim_cost=interim_cost)
         if hierarchy is not None:
             from raptor.api import isolate
@@ -514,6 +523,7 @@ def start_run(
     interim_cost: bool | None = None,
     attribution: bool = False,
     capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
+    block_streams: Literal["model", "separate"] | None = None,
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
 
@@ -573,6 +583,7 @@ def start_run(
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
+                       block_streams=block_streams,
                        insight_progress=insight_progress,
                        availability_plot=availability_plot,
                        attribution=attribution,
