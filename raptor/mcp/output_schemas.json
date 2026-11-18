@@ -1534,6 +1534,9 @@
    "per_run": {
     "type": "array"
    },
+   "requested_runs": {
+    "type": "integer"
+   },
    "run_id": {
     "type": "string"
    },
@@ -1542,6 +1545,9 @@
      "integer",
      "null"
     ]
+   },
+   "truncated": {
+    "type": "boolean"
    },
    "units": {
     "type": [
@@ -1560,8 +1566,10 @@
    "model_id",
    "model_name",
    "per_run",
+   "requested_runs",
    "run_id",
    "runs",
+   "truncated",
    "units",
    "weak_link"
   ],
@@ -1953,6 +1961,9 @@
    "changes": {
     "type": "array"
    },
+   "cut_short": {
+    "type": "null"
+   },
    "metric": {
     "type": "string"
    },
@@ -1984,6 +1995,7 @@
    "batches",
    "caption",
    "changes",
+   "cut_short",
    "metric",
    "note",
    "objective",
@@ -2010,6 +2022,9 @@
    },
    "confidence": {
     "type": "number"
+   },
+   "cut_short": {
+    "type": "null"
    },
    "metric": {
     "type": "string"
@@ -2045,6 +2060,7 @@
    "caption",
    "changes",
    "confidence",
+   "cut_short",
    "metric",
    "note",
    "recommendations",
@@ -2198,6 +2214,9 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {
+    "type": "null"
+   },
    "note": {
     "type": "string"
    },
@@ -2225,6 +2244,7 @@
    "bars",
    "base",
    "caption",
+   "cut_short",
    "note",
    "rows",
    "schema",
@@ -2694,6 +2714,9 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {
+    "type": "null"
+   },
    "inputs": {
     "type": "array"
    },
@@ -2717,6 +2740,7 @@
    "base",
    "batches",
    "caption",
+   "cut_short",
    "inputs",
    "metric",
    "note",
@@ -3120,6 +3144,9 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {
+    "type": "null"
+   },
    "note": {
     "type": "string"
    },
@@ -3145,6 +3172,7 @@
   "required": [
    "base",
    "caption",
+   "cut_short",
    "note",
    "requirements",
    "rows",
