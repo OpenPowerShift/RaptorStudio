@@ -653,9 +653,16 @@ def cancel_run(job_id: str) -> CallToolResult:
     the job snapshot; poll `run_status` until `state` is `cancelled`.
     """
     from raptor.mcp import async_runs
-    job = async_runs.cancel(job_id)
+    job = async_runs.get(job_id)
     if job is None:
         raise ValueError(f"unknown job {job_id!r}")
+    if job.state in ("done", "failed", "cancelled"):
+        # already over: setting its abort did nothing, and "Cancellation
+        # requested" read as though it had
+        return ok(job.snapshot(),
+                  markdown=f"`{job_id}` had already finished ({job.state}); "
+                           "nothing was cancelled.")
+    async_runs.cancel(job_id)
     return ok(job.snapshot(),
               markdown=f"Cancellation requested for `{job_id}`.")
 
@@ -733,8 +740,14 @@ def get_run_results(run_id: str, top: int = 10,
         "weak_link": weak,
         "files": sorted(p.name for p in runs_dir.iterdir() if p.is_file()),
     }
+    from raptor.api.run_tables import partial_note
+    partial = partial_note(summary)
+    data["requested_runs"] = summary.get("requested_runs")
+    data["truncated"] = bool(partial)
     md = (f"Run `{run_id}` — {data['runs']} replication(s) of "
           f"{data['model_name']}.\n\n")
+    if partial:
+        md = f"**{partial}**\n\n" + md
     if metrics:
         md += "| metric | mean |\n|---|---|\n"
         for name, value in metrics.items():
@@ -794,6 +807,15 @@ def get_report(
     for key in ("columns", "rows"):
         if key in report:
             data[key] = report[key]
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import partial_note, read_summary
+    try:
+        partial = partial_note(read_summary(run_dir(ws, run_id), run_id))
+    except Exception:  # noqa: BLE001 - the report itself has been read
+        partial = None
+    if partial:
+        data["partial"] = partial
+        md = f"**{partial}**\n\n" + md
     return ok(data, markdown=md)
 
 
@@ -1190,7 +1212,12 @@ async def what_if(
             abort=abort)
 
     comparison = await run_job(ctx, work, label="Comparing scenario")
-    failed = comparison.rows[0].get("error") if comparison.rows else None
+    first = comparison.rows[0] if comparison.rows else {}
+    failed = first.get("error")
+    if failed and first.get("skipped") == "time":
+        from raptor.api.run import StudyTimeoutError
+        raise StudyTimeoutError("The scenario did not run. "
+                                + (comparison.cut_short or failed))
     if failed:
         # an error, not a success whose text says nothing ran: a pipeline
         # checking is_error took a bad change for a finished comparison

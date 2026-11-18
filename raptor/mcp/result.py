@@ -36,7 +36,7 @@ from collections.abc import Callable
 from mcp.types import CallToolResult, ImageContent, TextContent, ToolAnnotations
 
 from raptor.api.analyse import AnalysisError
-from raptor.core.analytical.errors import AnalyticalError
+from raptor.core.analytical.errors import AnalyticalError, BddTooLarge
 from raptor.api.annotations import AnnotationNotFound
 from raptor.api.build import AmbiguousName, BuildError, ElementNotFound
 from raptor.core.input_rules import InputRuleViolation
@@ -50,7 +50,13 @@ from raptor.api.render import (
     RenderUnavailable,
 )
 from raptor.api.tables import UnknownTable
-from raptor.api.run import RunCancelledError, RunError, RunNotFoundError, RunTimeoutError
+from raptor.api.run import (
+    RunCancelledError,
+    RunError,
+    RunNotFoundError,
+    RunTimeoutError,
+    StudyTimeoutError,
+)
 from raptor.api.progress import Cancelled
 from raptor.api.workspace import (
     JobLimitExceeded,
@@ -176,6 +182,8 @@ _CLASSIFY: tuple[tuple[type, str, str | None, bool], ...] = (
     # reported as an internal server error.
     (Cancelled, "timeout",
      "Give a larger timeout_s, or fewer trials or a smaller model.", False),
+    (StudyTimeoutError, "timeout",
+     "Give a larger timeout_s, or fewer trials or a smaller model.", False),
     (RunTimeoutError, "timeout",
      "Use fewer runs, a shorter run_length, or confirm_long_run=true.", False),
     (RunArtefactsError, "precondition_failed",
@@ -218,6 +226,11 @@ _CLASSIFY: tuple[tuple[type, str, str | None, bool], ...] = (
     (KeyError, "not_found", None, False),
     (EstimateError, "precondition_failed", None, False),
     (AnalysisError, "precondition_failed", None, False),
+    # too big is not "outside the subset": the model may be well inside it
+    (BddTooLarge, "precondition_failed",
+     "The model is inside the solver's subset but too large to solve "
+     "exactly here; raise the node limit the message names, or use "
+     "simulate.", False),
     (AnalyticalError, "precondition_failed",
      "The model is outside the analytical solver's static subset; use "
      "simulate for repairs, PM, spares, resources, dependencies, standby "

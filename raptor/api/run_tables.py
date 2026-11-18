@@ -171,3 +171,14 @@ def _periods(workspace: Workspace, run_id: str,
         return drivers.periods(workspace, run_id, rows=True)
     except (drivers.NoAttribution, ValueError, OSError):
         return None
+
+
+def partial_note(summary: dict) -> str | None:
+    """A sentence for a stored run that was cut short (`summary.json`'s
+    `truncated`), or None for a complete one."""
+    why = summary.get("truncated")
+    if not why:
+        return None
+    return (f"Partial run: it was stopped ({why}) after "
+            f"{summary.get('num_runs')} of {summary.get('requested_runs')} "
+            "requested replications. The numbers are from those alone.")

@@ -97,6 +97,8 @@ class Recommendations:
     attribution_run_id: str | None = None
     #: The bars the verdicts used: {confidence, min_gain, tested}.
     bars: dict[str, Any] = field(default_factory=dict)
+    #: Set when the time limit or a cancel stopped the tests early.
+    cut_short: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "schema": SCHEMA}
@@ -475,6 +477,11 @@ def recommend(
     from raptor.api.insight import drivers
     from raptor.api.scenarios.runner import Scenario, compare
 
+    import time
+
+    from raptor.api.batch import Deadline
+    started = time.monotonic()
+    limit = Deadline(abort, timeout_s)
     rbd = workspace.get(model_id).rbd
     attribution_run = run_id
     if run_id is not None:
@@ -483,10 +490,18 @@ def recommend(
         from raptor.api.run import run as run_model
         if progress:
             progress(0, 1, "Finding the downtime drivers")
-        result = run_model(workspace, model_id, num_runs=trials, seed=seed,
-                           workers=workers, timeout_s=timeout_s,
-                           attribution=True, abort=abort,
-                           confirm_long_run=True)
+        from raptor.api.run import RunCancelledError, RunTimeoutError
+        try:
+            result = run_model(workspace, model_id, num_runs=trials, seed=seed,
+                               workers=workers, timeout_s=timeout_s,
+                               attribution=True, abort=limit,
+                               confirm_long_run=True)
+        except RunCancelledError:
+            if limit.cancelled():
+                raise
+            raise RunTimeoutError(
+                f"the time limit (timeout_s={timeout_s:g} s) ran out while "
+                "finding the downtime drivers") from None
         attribution_run = result.run_id
         attribution = drivers.read(workspace, result.run_id)
     found = proposals(rbd, attribution, top=top) + list(extra)
@@ -502,9 +517,10 @@ def recommend(
     comparison = compare(
         workspace, model_id,
         [Scenario(p.name, p.changes, p.why) for p in found],
-        trials=trials, seed=seed, workers=workers, timeout_s=timeout_s,
+        trials=trials, seed=seed, workers=workers,
+        timeout_s=max(1e-3, timeout_s - (time.monotonic() - started)),
         progress=(lambda done, total, label: progress(done, total, label))
-        if progress else None, abort=abort)
+        if progress else None, abort=limit)
     base_rows = _per_run(workspace, comparison.base.get("run_id"))
     base_availability = (comparison.base.get("metrics") or {}).get("availability") or {}
     base_mean = base_availability.get("mean")
@@ -525,8 +541,11 @@ def recommend(
               "availability": base_availability.get("mean"),
               "availability_sem": base_availability.get("sem"),
               "units": units},
-        rows=rows, caption=_caption(rows, units, bars), note=_note(bars),
-        attribution_run_id=attribution_run, bars=bars)
+        rows=rows, caption=((comparison.cut_short + " ")
+                            if comparison.cut_short else "")
+        + _caption(rows, units, bars), note=_note(bars),
+        attribution_run_id=attribution_run, bars=bars,
+        cut_short=comparison.cut_short)
 
 
 def _note(bars: dict[str, Any]) -> str:

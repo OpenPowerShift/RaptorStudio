@@ -254,7 +254,7 @@ def tornado(
     `capacity_weighted_availability`, `lost_flow`, ...).  Effects are means
     of paired trial differences against Base, with their SEM.
     """
-    from raptor.api.batch import run_variants
+    from raptor.api.batch import cut_short, require_measured, run_variants
 
     variants = [{"label": "Base", "assignments": []}]
     for item in inputs:
@@ -265,6 +265,7 @@ def tornado(
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    short = cut_short(results, timeout_s)
     base = _rows(workspace, results[0]) if results else []
     base_values = _values(base, metric)
     if base and not base_values:
@@ -296,6 +297,7 @@ def tornado(
             "distinguishable": distinguishable,
             "error": low_row.get("error") or high_row.get("error"),
         })
+    require_measured(short, any(row["swing"] is not None for row in rows))
     rows.sort(key=lambda row: -(row["swing"] or 0.0))
     largest = rows[0]["swing"] if rows and rows[0]["swing"] else 0.0
     for row in rows:
@@ -310,7 +312,9 @@ def tornado(
                  "runs": len(base_values)},
         "inputs": rows,
         "batches": len(results),
-        "caption": _caption(rows, metric, base_mean),
+        "caption": ((short + " " if short else "")
+                    + _caption(rows, metric, base_mean)),
+        "cut_short": short,
         "note": ("One-at-a-time: each input is shown alone. It cannot show "
                  "interactions between inputs."
                  + (f" This model has only {len(inputs)} inputs that can be "

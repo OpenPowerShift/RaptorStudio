@@ -969,7 +969,7 @@ def _link_target(link) -> tuple[str, int]:
 VARIABLE_ORDER = "backward"
 
 
-def _variable_index(order: list[tuple[str, int]], end: int, incoming: dict,
+def _variable_index(order: list[tuple[str, int]], end: int, incoming: dict,  # noqa: C901
                     block_in: dict) -> dict[tuple[str, int], int]:
     """BDD index of each variable (0 = top of the diagram).
 
@@ -986,24 +986,56 @@ def _variable_index(order: list[tuple[str, int]], end: int, incoming: dict,
         return {key: len(order) - 1 - i for i, key in enumerate(order)}
     wanted = set(order)
     out: dict[tuple[str, int], int] = {}
-    seen_nodes: set[int] = set()
-    stack: list[tuple[str, int]] = [("RBDNode", end)]
-    while stack:
-        kind, ident = stack.pop()
-        if kind == "RBDNode":
-            if ident in seen_nodes:
-                continue
-            seen_nodes.add(ident)
-            links = incoming.get(ident, [])
-            stack.extend(_link_source(link) for link in reversed(links))
-            continue
-        key = (kind, ident)
-        if key in out or key not in wanted:
-            continue
-        out[key] = len(out)
+
+    def feeds(key: tuple[str, int]) -> list[tuple[str, int]]:
+        if key[0] == "RBDNode":
+            return [_link_source(link) for link in incoming.get(key[1], [])]
         link = block_in.get(key)
-        if link is not None:
-            stack.append(_link_source(link))
+        return [] if link is None else [_link_source(link)]
+
+    # The walk back waits at each split: a node or element is entered only
+    # once every link out of it (toward End) has been walked back over. A
+    # plain depth-first walk went from a join's first branch through its
+    # split and on back to Start before the second branch, which on a chain
+    # of parallel pairs put the pairs' halves apart and doubled the diagram
+    # with every pair (a 40-block chain reached the node limit).
+    first = ("RBDNode", end)
+    waiting: dict[tuple[str, int], int] = {}
+    found = [first]
+    reached = {first}
+    stack = [first]
+    while stack:
+        for source in feeds(stack.pop()):
+            waiting[source] = waiting.get(source, 0) + 1
+            if source not in reached:
+                reached.add(source)
+                found.append(source)
+                stack.append(source)
+    entered: set[tuple[str, int]] = set()
+
+    def enter(key: tuple[str, int]) -> None:
+        entered.add(key)
+        if key[0] != "RBDNode" and key in wanted and key not in out:
+            out[key] = len(out)
+
+    def walk(root: tuple[str, int], *, wait: bool) -> None:
+        enter(root)
+        todo = [iter(feeds(root))]
+        while todo:
+            source = next(todo[-1], None)
+            if source is None:
+                todo.pop()
+                continue
+            waiting[source] -= 1
+            if source in entered or (wait and waiting[source] > 0):
+                continue
+            enter(source)
+            todo.append(iter(feeds(source)))
+
+    walk(first, wait=True)
+    for key in found:
+        if key not in entered:      # in a loop, so it never became ready
+            walk(key, wait=False)
     for key in order:
         if key not in out:
             out[key] = len(out)

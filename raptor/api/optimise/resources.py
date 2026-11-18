@@ -92,7 +92,7 @@ def optimise_resources(  # noqa: C901, PLR0912
     abort: Any = None,
 ) -> dict[str, Any]:
     """Evaluate crew sizes around the offered-load seed and recommend one."""
-    from raptor.api.batch import run_variants
+    from raptor.api.batch import cut_short, require_measured, run_variants
     from raptor.api.run import run_dir
     from raptor.api.run_needs import how
     from raptor.api.run_tables import read_per_run
@@ -113,6 +113,7 @@ def optimise_resources(  # noqa: C901, PLR0912
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    short = cut_short(results, timeout_s)
 
     def rows_for(result: dict) -> list[dict]:
         run_id = result.get("run_id")
@@ -148,6 +149,7 @@ def optimise_resources(  # noqa: C901, PLR0912
                                if len(values) == len(base_values) and values
                                else None),
                      "error": result.get("error")})
+    require_measured(short, any(row["mean"] is not None for row in rows))
     recommendations = []
     for spec in specs:
         group = [row for row in rows if row["resource"] == spec.name
@@ -185,7 +187,8 @@ def optimise_resources(  # noqa: C901, PLR0912
         "rows": rows, "recommendations": recommendations,
         # PATH=VALUE edits that give the model the recommended sizes
         "changes": [c for r in recommendations for c in r["changes"]],
-        "caption": _caption(recommendations) + (
+        "cut_short": short,
+        "caption": (short + " " if short else "") + _caption(recommendations) + (
             "" if any(row.get("cost") is not None for row in rows) else
             f" What each size costs is not shown: it needs cost analysis; "
             f"{how('cost')}."),

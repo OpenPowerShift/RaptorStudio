@@ -47,6 +47,11 @@ class RunTimeoutError(RunError):
     """Simulation exceeded its timeout budget."""
 
 
+class StudyTimeoutError(RunTimeoutError):
+    """A study (many runs) reached its time limit before it had measured
+    anything worth showing."""
+
+
 class RunNotFoundError(RunError):
     """Referenced run_id does not exist in the workspace."""
 
@@ -739,6 +744,7 @@ def run(
         "model_name": handle.name,
         "model_hash": mhash,
         "num_runs": len(report_data),
+        "requested_runs": effective_runs,
         "units": model_units(sim_rbd),
         "analyses": analyses,
         "metrics": metrics_to_dict(metrics),
@@ -747,6 +753,11 @@ def run(
         "streams": run_metadata.get("streams", "sequential"),
         "seed": int(seed or 0),
     }
+    if effective_runs and len(report_data) < effective_runs:
+        # a cancelled or timed-out batch keeps what it completed; a client
+        # holding only the run id must still be able to tell it is partial
+        summary["truncated"] = ("time limit" if timed_out.is_set()
+                                else "cancelled")
     if importance_data is not None:
         summary["importance"] = importance_data
     if attribution:
