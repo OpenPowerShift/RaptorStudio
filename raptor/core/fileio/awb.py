@@ -484,7 +484,7 @@ def _guid() -> str:
 
 
 def _dist_mean(code: int, params: Iterable[Any]) -> float | None:
-    from raptor.api.distributions import describe_dist
+    from raptor.core.distributions import describe_dist
     try:
         info = describe_dist(code, [float(x) for x in list(params)[:3]])
     except Exception:  # noqa: BLE001 - a report must never hide the model
@@ -1675,7 +1675,7 @@ def _report_raptor_features(rbd: RbdFile, report: AwbReport,  # noqa: C901, PLR0
 
 def _raptor_dist_name(code: int) -> str:
     try:
-        from raptor.api.distributions import dist_name
+        from raptor.core.distributions import dist_name
         return dist_name(code)
     except Exception:  # noqa: BLE001
         return f"distribution {code}"

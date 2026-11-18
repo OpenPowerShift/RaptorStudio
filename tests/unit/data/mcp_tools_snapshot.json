@@ -487,6 +487,19 @@
    "model_id"
   ]
  },
+ "export_awb": {
+  "params": [
+   "dry_run",
+   "model_id",
+   "normalize_out",
+   "path",
+   "sidecar"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
  "export_report": {
   "params": [
    "path",
@@ -626,6 +639,14 @@
   "required": [
    "model_id",
    "rule"
+  ]
+ },
+ "import_awb": {
+  "params": [
+   "path"
+  ],
+  "required": [
+   "path"
   ]
  },
  "insert_assembly": {
