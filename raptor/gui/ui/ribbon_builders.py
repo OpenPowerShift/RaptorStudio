@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import RIBBON, ThemeManager, active_colour
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
+from raptor.gui.widgets.tidy_spin import TidySpinBox
 
 
 def _labeled_box(text: str, widget: QWidget, label_width: int = 0) -> QWidget:
@@ -301,24 +302,19 @@ class RibbonBuilders(_Base):
         if panel is not None:
             panel.set_cores(cores.chosen(),
                             not animate and (not running or adjustable),
-                            why, tip)
+                            why, tip, animate=animate)
 
     def _build_step_menu(self, group) -> None:
         """Debug > Step: the More Steps menu (next change, multi-step, run to time)."""
         # Debugger parity with legacy Raptor (pause/step/jump): multi-step,
         # run-to-time jump, and a stop-on-block-failure breakpoint. The
-        # actions are built here (unchanged) but placed in the More Steps
-        # menu rather than the ribbon, since each needs a parameter that
-        # now lives in the Run panel.
-        self._step_count_spin = QSpinBox()
-        self._step_count_spin.setRange(1, 100_000)
-        self._step_count_spin.setValue(10)
-        self._step_count_spin.setToolTip("Events per Multi step")
+        # actions are placed in the More Steps menu rather than on the
+        # ribbon; the values they use are the Step Settings group beside
+        # it (`_build_step_settings`), and each item names its value.
         self._step_multi_action = QAction(
-            icons.step_multi_icon(active_colour()["accent"]),
-            f"Multi ({self._step_count_spin.value()})…", self)
+            icons.step_multi_icon(active_colour()["accent"]), "Multi…", self)
         self._step_multi_action.setToolTip(
-            "Advance the number of events set in the Run panel "
+            "Advance the number of events set in Step Settings "
             "(stops early at the breakpoint)")
         self._step_multi_action.triggered.connect(self._on_step_multi)
         self._step_multi_action.setEnabled(False)
@@ -337,32 +333,10 @@ class RibbonBuilders(_Base):
         self._step_change_action.setEnabled(False)
         self._commands.track(self._step_change_action, "can_simulate")
 
-        self._run_to_time_spin = QDoubleSpinBox()
-        self._run_to_time_spin.setDecimals(3)
-        self._run_to_time_spin.setRange(0.0, 1e12)
-        self._run_to_time_spin.setValue(100.0)
-        self._run_to_time_spin.setToolTip("Target sim time for Run To")
-        # Label carries the model's own time units once a file is open
-        # (e.g. "Hours:") -- see `_load_into_app`'s units-chip refresh,
-        # which updates this same label; falls back to "Time:" with none
-        # loaded yet.
-        self._run_to_label = QLabel("Time:")
-        self._run_to_label.setObjectName("SectionNote")
-
-        self._breakpoint_combo = QComboBox()
-        self._breakpoint_combo.addItem("No breakpoint")
-        self._breakpoint_combo.setToolTip(
-            "Stop stepping when this block enters Repairing (fails)")
-        self._breakpoint_combo.setToolTip(
-            "Stop stepping when the chosen block fails. Chosen in the Run "
-            "panel's Debugger group")
-
         # More Steps: the ways to advance that are not the default
-        # one-at-a-time click. Each is a verb whose PARAMETER now lives in
-        # the Run panel, so the menu item says which parameter it uses
-        # rather than pretending to be self-contained. The spec sanctions
-        # exactly this: "Less common commands live in galleries"
-        # (the internal UI strategy notes).
+        # one-at-a-time click. The spec sanctions exactly this: "Less
+        # common commands live in galleries" (the internal UI strategy
+        # notes).
         self._step_menu = QMenu(self)
         self._step_menu.addAction(self._step_change_action)
         self._step_menu.addAction(self._step_multi_action)
@@ -377,6 +351,76 @@ class RibbonBuilders(_Base):
         self._step_menu_btn = group.add_action(self._step_menu_action)
         self._step_menu_btn.setAccessibleName(
             "More steps — other ways to advance")
+
+    def _build_step_settings(self, group) -> None:
+        """Debug > Step Settings: the values the More Steps items use.
+
+        They were the Run panel's "Stepping (debugger)" box, a whole column
+        of the panel for three values that only this tab uses, beside the
+        settings of an ordinary run. Here they sit next to the commands
+        that read them, and the breakpoint -- state you want in sight
+        while stepping -- is visible rather than behind a menu.
+        """
+        width = 92
+        self._step_count_spin = QSpinBox()
+        self._step_count_spin.setRange(1, 100_000)
+        self._step_count_spin.setValue(10)
+        self._step_count_spin.setFixedWidth(width)
+        self._step_count_spin.setToolTip(
+            "How many events More Steps ▸ Multi advances")
+        self._step_count_spin.setAccessibleName("Events per multi-step")
+        group.add_widget(_labeled_box("Multi-step events",
+                                      self._step_count_spin, 116))
+
+        self._run_to_time_spin: QDoubleSpinBox = TidySpinBox()
+        self._run_to_time_spin.setDecimals(3)
+        self._run_to_time_spin.setRange(0.0, 1e12)
+        self._run_to_time_spin.setValue(100.0)
+        self._run_to_time_spin.setFixedWidth(width)
+        self._run_to_time_spin.setToolTip(
+            "The sim time More Steps ▸ Run to time advances to, in the "
+            "model's display unit")
+        self._run_to_time_spin.setAccessibleName("Run-to target time")
+        box = _labeled_box("Run to (time)", self._run_to_time_spin, 116)
+        # The label carries the model's display unit once a file is open
+        # ("Run to (hours)"); `_load_into_app` refreshes it.
+        label = box.findChild(QLabel)
+        assert label is not None
+        self._run_to_label = label
+        group.add_widget(box)
+
+        self._breakpoint_combo = QComboBox()
+        self._breakpoint_combo.addItem("No breakpoint", None)
+        self._breakpoint_combo.setMinimumWidth(width)
+        self._breakpoint_combo.setMaximumWidth(220)
+        self._breakpoint_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self._breakpoint_combo.setMinimumContentsLength(10)
+        self._breakpoint_combo.setToolTip(
+            "Stop stepping when the chosen block fails (enters Repairing)")
+        self._breakpoint_combo.setAccessibleName("Pause when block fails")
+        group.add_widget(_labeled_box("Pause when fails",
+                                      self._breakpoint_combo, 116))
+
+        # Each More Steps item names the value it uses, and follows it.
+        self._step_count_spin.valueChanged.connect(self._sync_step_menu_text)
+        self._run_to_time_spin.valueChanged.connect(self._sync_step_menu_text)
+        self._sync_step_menu_text()
+
+    def _sync_step_menu_text(self, *_args) -> None:
+        """'Multi (10 events)…', 'Run to 100 hours…': the menu items say
+        what they will do with the values set in Step Settings."""
+        multi = getattr(self, "_step_multi_action", None)
+        spin = getattr(self, "_step_count_spin", None)
+        if multi is not None and spin is not None:
+            n = spin.value()
+            multi.setText(f"Multi ({n:,} event{'s' if n != 1 else ''})…")
+        run_to = getattr(self, "_run_to_action", None)
+        target = getattr(self, "_run_to_time_spin", None)
+        if run_to is not None and target is not None:
+            unit = getattr(self, "_run_to_unit", "")
+            run_to.setText(f"Run to {target.text()} {unit}…" if unit
+                           else f"Run to time {target.text()}…")
 
     def _build_speed_controls(self, group) -> None:
         """Simulate > Animation: the speed dropdown and read-out."""

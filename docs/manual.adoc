@@ -552,7 +552,7 @@ After a run (or a stepped Finish) the Results dock offers:
   cannot draw stays in the list, greyed; choosing it names the check box
   to tick and where it is (for example *Detailed event log* under Run
   panel ▸ Recording for the downtime charts, *Cost* under Run panel ▸
-  Analysis for the cost charts) and offers a button, *Turn on … and run*,
+  Results to calculate for the cost charts) and offers a button, *Turn on … and run*,
   that ticks it as one undoable step and runs again. When the event log
   is there but the drivers have not been worked out yet, the button works
   them out instead. The Drivers tab has the same button. Over MCP and on
@@ -876,40 +876,62 @@ stored in the model's own. Under *Stop at: system failures* or *phase
 cycles* the run-length figure is a plain count and is never converted —
 the row label changes to say which kind of number it is.
 
-A readiness line at the top says whether the model can run, and **why**
-not when it cannot, rather than presenting a greyed button with no
-explanation. The panel **locks while a run is in progress**: the values
-it holds are the ones the run is actually using, and a 20-minute batch
-must not have its settings changed underneath it.
+The line at the top says what the next run will be and whether the
+model can run, and **why** not when it cannot — for example *✔ Ready ·
+100 trials · 1000 hours · Whole model · 8 cores · about 676 KB*. It
+starts with ✔ or ✖, so the state does not depend on colour, and it
+always names the run's scope and cores, the two settings that change
+what the numbers mean. The **Run** button (F5) is at the right-hand end
+of the same line, lined up with the last section. The
+panel **locks while a run is in progress**: the values it holds are the
+ones the run is actually using, and a 20-minute batch must not have its
+settings changed underneath it.
 
 [cols="2,5",options="header"]
 |===
 |Section |What it sets
 
 |Experiment
-|A starting **Profile** (Quick check / Steady state / Endurance /
-Endgame) that seeds the rest, **Trials**, **Stop at** (time, system
-failures or phase cycles — the run-length label and unit follow the
-choice), and **Statistics from**. The **Cores** box is a read-only
-readout of the machine setting (edit it in the Run panel); it is
-greyed, with the reason, while Animate is on or a run is going.
+|**Trials**, with **Precision…** (size the run by a precision instead)
+and **Presets ▾**, a menu of starting points — Quick check, Steady
+state, Endurance, Endgame — each with a line saying what it is for.
+Choosing one sets the run's length, trials and statistics start, and
+**adds** the analyses and recordings it needs; it never turns off one you
+chose. **Stop at** is one row: *Stop at [Time] after [1000] hours*; the
+word after the number follows the choice (hours, system failures or
+phase cycles). Then **Statistics from**.
 
-|Analysis
-|Weak Link, Cost and Capacity. Each is a switch with its purpose
-written beside it. Flow generated appears here once Capacity is on; the
-system red cost is always editable, and the cost of lost flow appears
-once both Capacity and Cost are on.
+**More options** holds **Model scope** (the whole model, or one
+hierarchy run on its own — see <<extract-hierarchy>>) and
+**Cores**. It starts closed and remembers whether you left it open, but
+its heading always says both values (*More options: Whole model · 8
+cores*), and choosing a hierarchy opens it. While Animate is on the run
+uses one core, and the heading and the top line say *1 core (Animate)*.
+
+|Results to calculate
+|Weak Link, Cost, Capacity and Importance measures. Point at one for
+which results it gives (or, while it is off, which will be empty); a
+screen reader reads the same text. The model's own values sit under the
+analysis that uses them and appear only while it is on: **System red cost** under Cost, **Flow
+generated** under Capacity, and **Cost of lost flow** once both are on.
+While Importance measures is ticked, a line under it says how many
+extra batches it adds for this model.
 
 |Recording
 |Which outputs a run collects. Additive rather than a single "level",
 so "state intervals, but no multi-gigabyte event log" is expressible.
-Each dependent plot is **disabled with a stated reason** until its
-analysis is on, and turning an analysis off clears the plot it fed.
-
-|Stepping
-|Parameters for the interactive debugger: multi-step event count,
-run-to target time, and the breakpoint block.
+Point at a recording for what it feeds. The **Detailed event log** feeds
+the Event Log tab, Downtime drivers, the Story's causes, the Advisor's
+downtime checks and the canvas downtime layers, so while it is off a
+line under it says they will be empty. A sample interval appears under
+its plot while that plot is on. A dependent plot is **disabled and says
+what it needs** — *Capacity plot (needs Capacity)* — until its analysis
+is on, and turning an analysis off clears the plot it fed. The estimated
+size on disk is at the foot.
 |===
+
+The stepping debugger's settings are on the **Debug** tab, in the
+**Step Settings** group (see <<stepping>>).
 
 A stepped session spans the run count the model is configured for. **Jump** lets the current run finish and stops at the next
 run's first change; **Finish** completes every run that is left and shows
@@ -920,7 +942,7 @@ the results of all of them.
 
 **Run** (F5) runs at full speed in the background, splitting the trials
 across the processor cores in the **Cores** box beside it on the Simulate
-tab, and in the Run panel beside Trials (one setting, shown in both). The
+tab, and in the Run panel's **More options** (one setting, shown in both). The
 box reads, say, "8 of 8": the cores a run will use, out of the
 cores this computer has. The same count is shown in the status bar, in the
 Run panel's readiness line and in the Sweep and Compare windows before they
@@ -1405,8 +1427,11 @@ loop: **Step** (F6), **Next Time** (Shift+F6), **Finish** (F8),
 **Terminate** (Shift+F5) and **Restart** (Ctrl+Shift+F5), plus a **More
 Steps** menu for the less common ways to advance (**Step to next change**
 is F10). Starting a stepped run from any tab opens the Debug tab. The *parameters* those need — multi-step count, run-to time,
-breakpoint block — are in the Run panel's **Stepping** section, where
-there is room to label and explain them.
+breakpoint block — are beside them in the Debug tab's **Step Settings**
+group: **Multi-step events**, **Run to** (in the model's display unit,
+for example *Run to (hours)*) and **Pause when fails**, the breakpoint
+block. The More Steps items name the values they will use, for example
+*Multi (10 events)…* and *Run to 100 hours…*.
 
 Press **Step** to start an interactive single run: the first press
 performs the kickoff at t = 0, every later press advances one event, the
@@ -1503,8 +1528,8 @@ hierarchy would have had inside the whole model, so compare averages, not
 individual runs.
 
 To run the part without saving an extract, use the Run panel's **Model
-scope** selector: choose the hierarchy, review the warning and boundary
-treatments there, then Run. The canvas follows the scope, the source model
+scope** selector, under **More options**: choose the hierarchy, review the
+warning and boundary treatments behind **Isolation options…**, then Run. The canvas follows the scope, the source model
 and file are not changed, and the Results dock carries an isolated-hierarchy
 banner. Importance measures in that run rank blocks within the hierarchy
 only.

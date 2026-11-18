@@ -101,6 +101,9 @@ DEFAULTS: dict[str, Any] = {
     # results/ -- the Overview cards say what each number was in the run
     # before (see `raptor.gui.ui.result_change`).
     "results/show_change": True,
+    # run_panel/ -- whether the Run panel's More options (Model scope,
+    # Cores) are open. Closed: its heading still names both.
+    "run_panel/more_options": False,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,

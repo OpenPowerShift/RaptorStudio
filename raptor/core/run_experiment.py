@@ -74,7 +74,7 @@ RECORDING_FIELDS = (
      "Every event. Also needed for Downtime drivers, the Story's causes "
      "and the Advisor's downtime checks."),
     ("ao_plot", "Availability plot",
-     "Availability over time, for Graphs."),
+     "Availability over time, for Charts."),
     ("capacity_plot", "Capacity plot",
      "Flow vs capacity over time."),
     ("cost_plot", "Interim cost",

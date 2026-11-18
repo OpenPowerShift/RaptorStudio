@@ -592,8 +592,7 @@ class StepMixin(_Base):
     def _on_step_multi(self):
         if self._rbd is None:
             return
-        n = self._run_panel.step_count() if self._run_panel is not None \
-            else self._step_count_spin.value()
+        n = self._step_count_spin.value()
         self._advance_until(max_steps=n)
 
     def _on_run_to(self):
@@ -605,8 +604,7 @@ class StepMixin(_Base):
                 self._rbd.sections["SYSTEM_DATA"].rows[0]).units
         except (ValueError, KeyError, IndexError, AttributeError):
             native_units = ""
-        raw = self._run_panel.run_to_time() if self._run_panel is not None \
-            else self._run_to_time_spin.value()
+        raw = self._run_to_time_spin.value()
         target = display_to_native(
             raw, native_units,
             getattr(self._rbd, "display_unit", None))
@@ -667,9 +665,6 @@ class StepMixin(_Base):
         idx = combo.findData(current) if current is not None else -1
         combo.setCurrentIndex(idx if idx > 0 else 0)
         combo.blockSignals(False)
-        panel = getattr(self, "_run_panel", None)
-        if panel is not None and panel._breakpoint is not combo:
-            panel.set_breakpoint_options(options)
 
     def _end_of_stepped_run(self, session) -> None:
         """A stepped run has no events left. Raptor 7 stays in step mode

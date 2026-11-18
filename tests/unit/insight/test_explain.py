@@ -121,7 +121,7 @@ def test_a_missing_option_names_the_switch():
         charts.chart_named("importance-quadrant", attribution={})
     assert "--importance both" in str(info.value)
     assert 'simulate(importance="both")' in str(info.value)
-    assert "Importance measures under Run panel ▸ Analysis" in str(info.value)
+    assert "Importance measures under Run panel ▸ Results to calculate" in str(info.value)
     with pytest.raises(ValueError) as info:
         charts.chart_named("importance-quadrant", importance={"mode": "risk", "metrics": {}})
     assert "mode both" in str(info.value)

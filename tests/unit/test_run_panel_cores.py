@@ -10,6 +10,7 @@ import copy
 import pytest
 from PySide6.QtWidgets import QApplication, QLabel
 
+from raptor.core import run_experiment as rx
 from raptor.gui import cores
 
 pytestmark = pytest.mark.gui
@@ -173,34 +174,26 @@ def _notes_in(box):
             if lb.objectName() == "SectionNote"]
 
 
-@pytest.mark.parametrize("title", ["Analysis", "Recording"])
-def test_notes_start_at_the_same_x_in_one_grid_column(two_cores, title):
-    from PySide6.QtCore import QPoint
-    from PySide6.QtWidgets import QGridLayout, QGroupBox
+def test_warning_lines_are_indented_under_their_check_boxes(two_cores):
+    """A visible note sits on its own row, indented past the indicator to
+    the label's text (#286; it was a second column beside every box)."""
     from raptor.gui.ui.run_panel import RunPanel
     app = QApplication.instance() or QApplication([])
     p = RunPanel()
+    p.set_experiment(rx.normalise({"analyses": [],
+                                   "recording": {"event_log": False}}))
     p.resize(520, 900)
     p.show()
     app.processEvents()
     try:
-        box = next(b for b in p.findChildren(QGroupBox)
-                   if b.title() == title)
-        notes = _notes_in(box)
-        assert len(notes) >= 2
-        grid = next(lay for lay in box.findChildren(QGridLayout))
-        for note in notes:
-            idx = grid.indexOf(note)
-            _r, c, _rs, _cs = grid.getItemPosition(idx)
-            assert c == 1, "notes sit in grid column 1"
-        xs = {note.mapTo(p, QPoint(0, 0)).x() for note in notes}
-        assert len(xs) == 1, f"notes start at different x: {sorted(xs)}"
-        # and clear of the checkboxes' column
-        boxes = [grid.itemAtPosition(grid.getItemPosition(
-            grid.indexOf(n))[0], 0).widget() for n in notes]
-        right_edge = max(b.mapTo(p, QPoint(0, 0)).x() + b.width()
-                         for b in boxes)
-        assert min(xs) >= right_edge
+        notes = [n for n in p._recording_notes.values() if not n.isHidden()]
+        assert notes, "the event log warns when it is off"
+        for key, note in p._recording_notes.items():
+            if note.isHidden():
+                continue
+            box = p._recording_checks[key]
+            assert note.geometry().top() >= box.geometry().bottom()
+            assert note.contentsMargins().left() == p.INDENT
     finally:
         p.close()
 

@@ -59,12 +59,12 @@ def test_the_core_count_is_shown_and_follows_animate(win):
     n = cores.chosen()
     assert win._cores_spin.isEnabled() and win._cores_spin.value() == n
     assert win._cores_chip.text() == f"{n}/{cores.available()} cores"
-    assert f"{n} of {cores.available()}" in win._run_panel._readiness.text()
+    assert f"{n} core{'s' if n != 1 else ''}" in win._run_panel._readiness.text()
     win._live_sim_action.setChecked(True)
     assert not win._cores_spin.isEnabled()
     assert "Animate" in win._cores_spin.toolTip()
     assert win._cores_chip.text() == f"1/{cores.available()} cores (Animate)"
-    assert "1 core" in win._run_panel._readiness.text()
+    assert "1 core (Animate)" in win._run_panel._readiness.text()
 
 
 def test_cores_has_one_editor_and_a_read_only_ribbon_mirror(win):

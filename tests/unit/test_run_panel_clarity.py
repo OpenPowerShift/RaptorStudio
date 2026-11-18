@@ -41,13 +41,13 @@ def test_the_panel_has_the_ribbons_run_button(win):
 def test_system_red_cost_is_shown_only_with_cost(win):
     """It prices failed time; with Cost off nothing is priced."""
     panel = win._run_panel
-    assert not panel._system_form.isRowVisible(1)
+    assert panel._system_rows["red"].isHidden()
     panel._analysis_checks["cost"].setChecked(True)
-    assert panel._system_form.isRowVisible(1)
+    assert (not panel._system_rows["red"].isHidden())
 
 
 def test_the_event_log_says_what_else_needs_it(win):
-    note = win._run_panel._recording_notes["event_log"].text()
+    note = win._run_panel._recording_checks["event_log"].toolTip()
     assert "Downtime drivers" in note and "Advisor" in note
 
 

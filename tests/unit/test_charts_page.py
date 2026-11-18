@@ -91,7 +91,7 @@ def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
     assert "Where the money goes" in _all_titles(page)
     assert "Where the money goes" not in drawable
     # the control's own label and where it is
-    assert "<b>Cost</b> under Run panel ▸ Analysis" in page.missing_reason("cost-pareto")
+    assert "<b>Cost</b> under Run panel ▸ Results to calculate" in page.missing_reason("cost-pareto")
     assert "<b>Availability plot</b> under Run panel ▸ Recording" in page.missing_reason(
         "availability-band")
     page.select("cost-pareto")

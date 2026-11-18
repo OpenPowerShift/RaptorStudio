@@ -353,7 +353,11 @@ class FileIoMixin(_Base):
             # field, not just the model's native unit.
             shown_u = getattr(self._rbd, "display_unit", None) or u
             self._run_to_label.setText(
-                f"{shown_u.capitalize()}:" if shown_u else "Time:")
+                f"Run to ({shown_u.lower()})" if shown_u else "Run to (time)")
+            self._run_to_unit = (shown_u or "").lower()
+            sync = getattr(self, "_sync_step_menu_text", None)
+            if callable(sync):
+                sync()
         v = self._diagram_dock.view
         defaults = self._block_defaults()
         v.default_block_fdist = defaults["fdist"]

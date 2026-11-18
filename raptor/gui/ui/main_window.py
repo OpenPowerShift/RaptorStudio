@@ -1330,13 +1330,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._run_dock = RunPanelDock(self)
         self._set_dock_icon(self._run_dock, "run_panel_icon")
         self._run_panel = self._run_dock.panel
-        # The stepping debugger's parameters moved to the panel; point the
-        # attributes the existing code (and tests) read at the panel's
-        # real widgets, so there is ONE of each rather than a ribbon
-        # spinner and a panel spinner that could disagree.
-        self._step_count_spin = self._run_panel._step_count
-        self._run_to_time_spin = self._run_panel._run_to
-        self._breakpoint_combo = self._run_panel._breakpoint
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._run_dock)
         self.tabifyDockWidget(self._data_tables_dock, self._run_dock)
         # Results, Data Tables and Run share one physical strip, and the

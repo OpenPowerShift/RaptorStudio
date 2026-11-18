@@ -788,10 +788,13 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['accent']};
         border-color: {c['accent']};
     }}
+    /* Disabled: the unticked outline on no fill. The canvas colour this
+       used is near-black in the dark theme, so a disabled box drew as a
+       solid square heavier than the boxes beside it. */
     QCheckBox::indicator:disabled,
     QRadioButton::indicator:disabled {{
         border-color: {c['border']};
-        background: {c['canvas']};
+        background: transparent;
     }}
     /* A checkable ITEM's tick (QTreeWidget/QTableWidget rows -- the Export
        Tables picker) is a different subcontrol from QCheckBox::indicator:

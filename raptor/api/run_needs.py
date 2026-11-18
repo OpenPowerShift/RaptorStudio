@@ -22,7 +22,7 @@ from typing import Any
 
 #: Where the window keeps the run options.
 RECORDING = "Run panel ▸ Recording"
-ANALYSIS = "Run panel ▸ Analysis"
+ANALYSIS = "Run panel ▸ Results to calculate"
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,35 @@ NEEDS: dict[str, Need] = {
 #: What a window control needs ticked first (the panel refuses the
 #: capacity plot without capacity analysis, so the click must tick both).
 _REQUIRES = {"capacity_plot": ("capacity",)}
+
+#: The other direction: what each Run panel option FEEDS, keyed by the
+#: panel's own control key (`analyses` entries, `recording` keys and
+#: "importance"). The panel's note beside every check box is written from
+#: this, so it names the results the option gives -- and, unticked, the
+#: results that will be empty -- in the same words as the results' own
+#: "needs …" messages above (review #286: "is it clear what is required
+#: for different analysis results?").
+FEEDS: dict[str, str] = {
+    "weak": "the Weak Link results and the canvas weak-link bands",
+    "cost": "the Cost results and the cost charts",
+    "capacity": "the Capacity results (flow against the limits)",
+    "importance": "the Importance results and the importance chart",
+    "event_log": ("the Event Log tab, Downtime drivers, the Story's causes, "
+                  "the Advisor's downtime checks and the canvas downtime "
+                  "layers"),
+    "ao_plot": "the availability-over-time chart (Charts)",
+    "capacity_plot": "the flow-over-time chart (Charts)",
+    "cost_plot": "the cost-over-time chart (Charts)",
+}
+
+
+def feeds_note(key: str, on: bool) -> str:
+    """The note beside a Run panel option: what it gives when ticked, and
+    what will be empty when it is not."""
+    what = FEEDS[key]
+    if on:
+        return f"For {what}."
+    return f"Off: {what[0].lower() + what[1:]} will be empty."
 
 
 def _expanded(keys: Iterable[str]) -> list[str]:
