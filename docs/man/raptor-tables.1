@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-tables \- export input and result tables
 .SH SYNOPSIS
-\fBraptor tables\fR [\-h] [\-\-run] [\-\-drivers] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-\-find TEXT] [\-\-replace TEXT] [\-\-column COLUMN] [\-\-whole] [\-\-case\-sensitive] [\-\-in\-place] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
+\fBraptor tables\fR [\-h] [\-\-run] [\-\-drivers] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-table KEY] [\-\-list] [\-\-format {csv,txt,report,xlsx,ods}] [\-o DIR] [\-\-find TEXT] [\-\-replace TEXT] [\-\-column COLUMN] [\-\-whole] [\-\-case\-sensitive] [\-\-in\-place] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N|new] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] MODEL
 .SH DESCRIPTION
 Write the model's input tables (and, with \-\-run, the result tables of a fresh run) as CSV, text or a spreadsheet.
 .SH OPTIONS
@@ -60,8 +60,8 @@ time | failures=N | cycles=N (default: the model's)
 \fB\-\-stats\-start\fR \fIT\fR
 start statistics at T
 .TP
-\fB\-\-seed\fR \fIN\fR
-salt every random stream (default: Raptor's fixed seed table)
+\fB\-\-seed\fR \fIN|new\fR
+salt every random stream: a number repeats a run (a GUI run's seed with \-j 1 for Cores 1, \-j 2 for more); 'new' draws one and reports it (default: the model's saved seed, else Raptor's fixed table)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 parallel workers (default 1; N>1 is reproducible but not draw\-identical to 1)

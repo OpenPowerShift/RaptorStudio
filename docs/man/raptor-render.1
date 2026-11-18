@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-render \- draw the diagram to PNG or SVG
 .SH SYNOPSIS
-\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] [\-\-layer {downtime\-share,lost\-capacity,advisor}] [\-n N] [\-j N] [\-\-seed N] [\-\-capacity\-rule {proportional,marginal,first_failed}] MODEL
+\fBraptor render\fR [\-h] \-o FILE.png|FILE.svg [\-\-level LEVEL] [\-\-highlight SELECTOR] [\-\-zoom\-to SELECTOR] [\-\-theme {light,dark}] [\-\-max\-px MAX_PX] [\-\-no\-annotations] [\-\-layer {downtime\-share,lost\-capacity,advisor}] [\-n N] [\-j N] [\-\-seed N|new] [\-\-capacity\-rule {proportional,marginal,first_failed}] MODEL
 .SH DESCRIPTION
 Render the diagram of MODEL to a PNG file (needs Qt) or, when FILE ends in .svg, to a plain SVG drawing (no Qt needed).
 .SH OPTIONS
@@ -38,7 +38,7 @@ with \-\-layer: runs to simulate (default: the model's own); with \-\-layer advi
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 with \-\-layer: cores to run on
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 with \-\-layer: salt every random stream, as raptor explain \-\-seed, so the layer matches its numbers
 .TP
 \fB\-\-capacity\-rule\fR \fI{proportional|marginal|first_failed}\fR
