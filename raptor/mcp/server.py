@@ -47,10 +47,11 @@ levels before building.  add_hierarchy and collapse_selection report each new
 hierarchy's depth and how many levels can still go inside it, and refuse a
 ninth level.
 
-Large models (hundreds of blocks or more): set-up can take minutes before the
-first replication, so use start_run and poll run_status rather than a blocking
-simulate; run_status reports phase (setting_up, then simulating) and set-up
-progress.  Leaving `workers` out runs a large model 20+ times on several cores
+Large models (hundreds of blocks or more): set-up and the first replication
+can take minutes, so use start_run and poll run_status rather than a blocking
+simulate.  run_status reports phase (setting_up while set-up reports progress,
+then simulating) and `setup` progress; on a big model completed_runs can stay
+0 for a while during the first replication, which is not a hang.  Leaving `workers` out runs a large model 20+ times on several cores
 (pass workers=1 for sequential numbers).  Pass a big spec to build_model as
 spec_path (a JSON file in the workspace), or open a finished .rbds with
 open_model.  To check many failure combinations use failure_effects_batch, one

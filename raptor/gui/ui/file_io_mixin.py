@@ -653,11 +653,22 @@ class FileIoMixin(_Base):
                     yes_text="Continue, save plain values",
                     no_text="Cancel"):
                 return False
+        from raptor.core import run_experiment
+        run_lost = run_experiment.lost_in_rbd(
+            getattr(self._rbd, "experiment", None) or {})
+        if run_lost:
+            msgbox.warning(
+                self, "Run settings not supported in the .rbd format",
+                "The .rbd format has no place for these run settings, so "
+                "they will be DROPPED: " + ", ".join(run_lost) + ". "
+                "Reopening the .rbd gives the defaults. Save as .rbds to "
+                "keep them.")
         save_rbd(req(self._rbd), path)
         # The layout is exported as it is (the same note the CLI and MCP
-        # export give): say so when Raptor 7 would draw it overlapping.
+        # export give): say so when Raptor 7 would draw it overlapping, or
+        # could not show it at all.
         from raptor.api.validate import layout_warning
-        crowded = layout_warning(req(self._rbd))
+        crowded = layout_warning(req(self._rbd), for_rbd=True)
         if crowded:
             msgbox.warning(self, "Layout exported as it is",
                            "The .rbd was saved with this layout, but "

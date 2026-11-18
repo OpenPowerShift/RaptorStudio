@@ -864,7 +864,8 @@ def add_hierarchy(
     the deepest allowed): plan the levels before building. A hierarchy
     whose `parent` is already 8 deep is refused. The result's `depth` is
     the new hierarchy's level (1 = on the home level) and `levels_below`
-    how many more can still go inside it.
+    how many more levels can still go inside it, counting any hierarchies
+    already in it.
 
     Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
     """
@@ -897,9 +898,27 @@ def _depth_fields(ws, model_id: str, hier_id) -> dict[str, int]:
     """`depth` of a new hierarchy (1 = on the home level) and how many
     more levels fit inside it (`input_rules.MAX_HIERARCHY_DEPTH`)."""
     from raptor.core.input_rules import MAX_HIERARCHY_DEPTH, hierarchy_depths
-    depth = hierarchy_depths(ws.get(model_id).rbd).get(int(float(hier_id)), 1)
+    rbd = ws.get(model_id).rbd
+    depths = hierarchy_depths(rbd)
+    hid = int(float(hier_id))
+    depth = depths.get(hid, 1)
+    # What is already inside counts: `collapse_selection` can wrap
+    # hierarchies, and counting only the new one's own depth kept saying
+    # "7 levels below" for a wrapper with 7 levels inside it.
+    sec = rbd.sections.get("HIERARCHY_DATA")
+    parents = {int(float(r.get("ID") or 0)): int(float(r.get("Parent") or 0))
+               for r in (sec.rows if sec is not None else [])}
+    deepest = depth
+    for other, other_depth in depths.items():
+        at, seen = parents.get(other, 0), set()
+        while at and at not in seen:
+            if at == hid:
+                deepest = max(deepest, other_depth)
+                break
+            seen.add(at)
+            at = parents.get(at, 0)
     return {"depth": depth,
-            "levels_below": max(0, MAX_HIERARCHY_DEPTH - depth)}
+            "levels_below": max(0, MAX_HIERARCHY_DEPTH - deepest)}
 
 
 def _depth_sentence(data: dict) -> str:

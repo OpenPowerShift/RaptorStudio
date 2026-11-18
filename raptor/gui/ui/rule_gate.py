@@ -26,7 +26,9 @@ from typing import Any
 from PySide6.QtGui import QUndoCommand, QUndoStack
 
 from raptor.core.input_rules import (
-    Violation, check, hierarchy_depth_violations, refusal_text)
+    Violation, check, check_link_ends, check_new_rows,
+    hierarchy_depth_violations,
+    refusal_text)
 
 
 def _snapshot(rbd: Any) -> Any:
@@ -153,6 +155,8 @@ class RuleGatedStack:
         if self._depth:
             self._stack.push(cmd)
             return
+        if self._push_new_rows(cmd):
+            return
         known = self._known
         if known is not None and known[0] == self._moves and not self._off:
             before: set | None = known[1]
@@ -166,6 +170,60 @@ class RuleGatedStack:
             self._refuse(added)
         elif self._found_keys is not None:
             self._known = (self._moves, self._found_keys)
+
+    def _push_new_rows(self, cmd: QUndoCommand) -> bool:
+        """New elements with no links (add, duplicate one block): check
+        just their rows. A whole-model check per add made building a model
+        one block at a time quadratic (800 adds: 30 s). Their rows hold
+        what the canvas wrote back on insert. False when this does not
+        apply and the whole-model gate must run."""
+        view = self._view
+        rbd = getattr(view, "_rbd_ref", None)
+        if self._off or rbd is None or getattr(view, "_loading", False):
+            return False
+        known = self._known
+        still_known = known is not None and known[0] == self._moves
+        links_of = getattr(cmd, "new_links", None)
+        links = links_of() if callable(links_of) else None
+        if links is not None:
+            return self._push_new_links(cmd, rbd, links, known if still_known else None)
+        scope = getattr(cmd, "new_rows", None)
+        found = scope() if callable(scope) else None
+        if found is None:
+            return False
+        self._stack.push(cmd)
+        section, rows = found
+        added = [v for v in check_new_rows(rbd, section, rows)
+                 if v.kind != "run"]
+        if added:
+            self._known = None
+            self._refuse(added)
+        elif still_known and known is not None:
+            # Elements with no links add no finding elsewhere: what was
+            # known before the add is still everything.
+            self._known = (self._moves, known[1])
+        return True
+
+    def _push_new_links(self, cmd: QUndoCommand, rbd: Any, links: list[dict],
+                        known: tuple[int, set] | None) -> bool:
+        """A new link: compare the findings at its two ends before and
+        after (`check_link_ends`), not the whole model's."""
+        def keys(found: list[Violation]) -> set:
+            return {v.key for v in found if v.kind != "run"}
+
+        before = keys(check_link_ends(rbd, links, with_links=False))
+        self._stack.push(cmd)
+        after_found = [v for v in check_link_ends(rbd, links) if v.kind != "run"]
+        added = [v for v in after_found if v.key not in before]
+        if added:
+            self._known = None
+            self._refuse(added)
+        elif known is not None:
+            self._known = (self._moves,
+                           (known[1] - before) | {v.key for v in after_found})
+        else:
+            self._known = None
+        return True
 
     def beginMacro(self, text: str) -> None:
         if self._depth == 0:

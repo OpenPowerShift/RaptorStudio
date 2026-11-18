@@ -457,24 +457,15 @@ class RunExperimentMixin:
         """
         if self._rbd is None:
             return
-        self._rbd.experiment = run_experiment.normalise(experiment)
-        sec = self._rbd.sections.get("SYSTEM_DATA")
-        self._in_run_setting_edit = True
-        try:
-            if sec and sec.rows:
-                row = sec.rows[0]
-                wanted = dict(run_experiment.to_system_row(
-                    self._rbd.experiment))
-                v = self._diagram_dock.view
-                with v._stack.ungated():
-                    apply_row_edits(v, "SYSTEM_DATA", 0, row, wanted.items(),
-                                    "Run settings")
-            self._sync_run_mirrors()
-            self._inspector.show_system_config()
-            self._mark_dirty()
-        finally:
-            self._in_run_setting_edit = False
-        self._carry_validity_across_run_setting_edit()
+        # Through `_set_exp_fields`, the writer with the undo command: this
+        # wrote the experiment directly, so a field with no SYSTEM_DATA
+        # column (seed, streams, importance, recording) changed with no
+        # undo step at all, and Undo skipped it.
+        wanted = run_experiment.normalise(experiment)
+        current = self._current_experiment()
+        changes = {k: v for k, v in wanted.items() if current.get(k) != v}
+        if changes:
+            self._set_exp_fields(changes)
         self._update_readiness()
 
     def _on_panel_dependency(self, key: str, label: str) -> None:

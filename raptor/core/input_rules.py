@@ -38,6 +38,7 @@ import re
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from raptor.core.distro_rules import RAPTOR7_LISTS
 
@@ -368,28 +369,40 @@ def _check_links(rbd, out: list[Violation]) -> None:
     """`LinkObj.CheckValidLink`: the link shapes
     Raptor 7 will not let you draw."""
     into, links_out = _link_counts(rbd)
-    for section, kind, col in (("BLOCK_DATA", "block", "blockName"), ("EVENT_DATA", "event", "eventName"),
-                               ("HIERARCHY_DATA", "hier", "hierarchyName")):
-        a, to = _ELEMENT_LINK_RULES[kind]
+    for section, kind, col in _LINKED_SECTIONS:
         for row in _rows(rbd, section):
-            oid = str(row.get("ID"))
-            s = _Scope(out, "link", "link", f"{kind.capitalize()} {oid} '{_short(row.get(col, ''))}'")
-            if links_out.get((kind, oid), 0) > 1:
-                s.add(f"{kind}_out", f"{a} can only connect to one object. Route the branch through a node to fan out.")
-            if into.get((kind, oid), 0) > 1:
-                s.add(f"{kind}_in", f"Only one link can connect to {to}.")
+            _element_links_row(row, kind, col, into, links_out, out)
     for node in _rows(rbd, "NODE_DATA"):
-        rule = _MARKER_LINK_RULES.get(_int(node, "Type"))
-        if rule is None:
-            continue
-        nid = str(node.get("ID"))
-        n_in, n_out = into.get(("node", nid), 0), links_out.get(("node", nid), 0)
-        s = _Scope(out, "link", "link", f"Node {nid} '{_short(node.get('Name', ''))}'")
-        forbidden, f_msg, limited, l_msg = rule
-        if (n_in if forbidden == "into" else n_out):
-            s.add(f"marker_{forbidden}", f_msg)
-        if (n_out if limited == "out" else n_in) > 1:
-            s.add(f"marker_{limited}_limit", l_msg)
+        _marker_links_row(node, into, links_out, out)
+
+
+_LINKED_SECTIONS = (("BLOCK_DATA", "block", "blockName"), ("EVENT_DATA", "event", "eventName"),
+                    ("HIERARCHY_DATA", "hier", "hierarchyName"))
+
+
+def _element_links_row(row: dict, kind: str, col: str, into: dict, links_out: dict,
+                       out: list[Violation]) -> None:
+    a, to = _ELEMENT_LINK_RULES[kind]
+    oid = str(row.get("ID"))
+    s = _Scope(out, "link", "link", f"{kind.capitalize()} {oid} '{_short(row.get(col, ''))}'")
+    if links_out.get((kind, oid), 0) > 1:
+        s.add(f"{kind}_out", f"{a} can only connect to one object. Route the branch through a node to fan out.")
+    if into.get((kind, oid), 0) > 1:
+        s.add(f"{kind}_in", f"Only one link can connect to {to}.")
+
+
+def _marker_links_row(node: dict, into: dict, links_out: dict, out: list[Violation]) -> None:
+    rule = _MARKER_LINK_RULES.get(_int(node, "Type"))
+    if rule is None:
+        return
+    nid = str(node.get("ID"))
+    n_in, n_out = into.get(("node", nid), 0), links_out.get(("node", nid), 0)
+    s = _Scope(out, "link", "link", f"Node {nid} '{_short(node.get('Name', ''))}'")
+    forbidden, f_msg, limited, l_msg = rule
+    if (n_in if forbidden == "into" else n_out):
+        s.add(f"marker_{forbidden}", f_msg)
+    if (n_out if limited == "out" else n_in) > 1:
+        s.add(f"marker_{limited}_limit", l_msg)
 
 
 # ---------------------------------------------------------------- the Block dialog
@@ -744,33 +757,38 @@ def _check_link_fields(rbd, out: list[Violation]) -> None:
         return f"{kind} {oid}"
 
     for link in _rows(rbd, "LINK_DATA"):
-        from_type = str(link.get("FromType") or "")
-        to_type = str(link.get("ToType") or "")
-        label = (f"Link {link.get('ID')} "
-                 f"({endpoint_name(from_type, link.get('FromID'))} "
-                 f"\u2192 {endpoint_name(to_type, link.get('ToID'))})")
-        s = _Scope(out, "link_field", "dialog", label)
-        # A capacity flow is an INTEGER in the file: the dialog reads the
-        # typed cell with STRTOINT and `SaveFile`/`OpenFile` use
-        # WriteInt/ReadInt. Raptor 7 itself truncates what is
-        # typed, but a decimal in the .rbd is not merely rounded -- ReadInt
-        # stops at the point, leaving the fraction in the token stream and
-        # shifting every later read, which crashes Raptor 7 with `MODSIM
-        # Runtime error: Access Violation` while opening. Refuse the decimal
-        # at entry so our own export can never produce that file.
-        for col, col_label in (("nomFlow", "Nominal flow"),
-                                     ("MaxFlow", "Max flow")):
-            value = _num(link, col)
-            if value is not None and value not in (-1.0, -2.0) \
-                    and not value.is_integer():
-                s.add("capacity_integer",
-                      f"{col_label} must be a whole number. (the .rbd format "
-                      f"stores capacity flow as an integer)")
-        target = nodes.get(str(link.get("ToID"))) if _kind(link.get("ToType")) == "node" else None
-        if target is not None and _flag(target, "Cold"):
-            _check_standby_link(link, s)
-        if capacity:
-            _check_capacity_link(link, generated, s)
+        _link_field_row(link, endpoint_name, nodes, capacity, generated, out)
+
+
+def _link_field_row(link: dict, endpoint_name, nodes: dict, capacity: bool,
+                    generated: float, out: list[Violation]) -> None:
+    from_type = str(link.get("FromType") or "")
+    to_type = str(link.get("ToType") or "")
+    label = (f"Link {link.get('ID')} "
+             f"({endpoint_name(from_type, link.get('FromID'))} "
+             f"\u2192 {endpoint_name(to_type, link.get('ToID'))})")
+    s = _Scope(out, "link_field", "dialog", label)
+    # A capacity flow is an INTEGER in the file: the dialog reads the
+    # typed cell with STRTOINT and `SaveFile`/`OpenFile` use
+    # WriteInt/ReadInt. Raptor 7 itself truncates what is
+    # typed, but a decimal in the .rbd is not merely rounded -- ReadInt
+    # stops at the point, leaving the fraction in the token stream and
+    # shifting every later read, which crashes Raptor 7 with `MODSIM
+    # Runtime error: Access Violation` while opening. Refuse the decimal
+    # at entry so our own export can never produce that file.
+    for col, col_label in (("nomFlow", "Nominal flow"),
+                                 ("MaxFlow", "Max flow")):
+        value = _num(link, col)
+        if value is not None and value not in (-1.0, -2.0) \
+                and not value.is_integer():
+            s.add("capacity_integer",
+                  f"{col_label} must be a whole number. (the .rbd format "
+                  f"stores capacity flow as an integer)")
+    target = nodes.get(str(link.get("ToID"))) if _kind(link.get("ToType")) == "node" else None
+    if target is not None and _flag(target, "Cold"):
+        _check_standby_link(link, s)
+    if capacity:
+        _check_capacity_link(link, generated, s)
 
 
 def _check_system(rbd, out: list[Violation]) -> None:
@@ -825,7 +843,14 @@ def _node_phase_ks(row: dict) -> list[int]:
     return ks
 
 
-def _check_phases(rbd, n_in: dict, out: list[Violation]) -> None:
+def _block_stress_row(row: dict, out: list[Violation]) -> None:
+    if any(x < 0.0 or x > 999.999 for x in _phase_cells(row)):
+        _Scope(out, "phase", "dialog", f"Block {row.get('ID')} '{row.get('blockName', '')}'").add(
+            "block_stress", "The phase stress must be between 0 and 999.999.")
+
+
+def _check_phases(rbd, n_in: dict, out: list[Violation],
+                  keys: _Keys | None = None) -> None:
     """`PhaseBoxObj.BeSelected`."""
     for row in _all_rows(rbd, "PHASES"):
         name = str(row.get("PhaseName", ""))
@@ -837,21 +862,28 @@ def _check_phases(rbd, n_in: dict, out: list[Violation]) -> None:
         if code == 16:     # the port's text: see _block_distributions
             s.add("dist_offered", "Empirical is not offered for a phase length: only a "
                   "block's failure and repair laws can hold data points.")
+    keys = keys or _Keys()
     for row in _rows(rbd, "BLOCK_DATA"):
-        if any(x < 0.0 or x > 999.999 for x in _phase_cells(row)):
-            _Scope(out, "phase", "dialog", f"Block {row.get('ID')} '{row.get('blockName', '')}'").add(
-                "block_stress", "The phase stress must be between 0 and 999.999.")
+        _memo("block_stress", keys(row), out, lambda o, row=row: _block_stress_row(row, o))
     for row in _rows(rbd, "EVENT_DATA"):
-        if any(x < 0.0 or x > 1.0 for x in _phase_cells(row)):
-            _Scope(out, "phase", "dialog", f"Event {row.get('ID')} '{row.get('eventName', '')}'").add(
-                "event_p", "The probability must be between 0 and 1.")
+        _event_p_row(row, out)
     for row in _rows(rbd, "NODE_DATA"):
-        n, name, ks = n_in.get(str(row.get("ID")), 0), row.get("Name", ""), _node_phase_ks(row)
-        s = _Scope(out, "phase", "dialog", f"Node {row.get('ID')} '{_short(name)}'")
-        if n == 0 and any(k != 0 for k in ks):
-            s.add("node_k_zero", f"Required good (k) for node '{_short(name)}' must be 0 in every phase: it has no paths in.")
-        elif any(k < 0 or k > n or k > 9999 for k in ks):
-            s.add("node_k", f"Required good (k) for node '{_short(name)}' must be between 0 and {n}, its number of paths in, in every phase.")
+        _node_phase_row(row, n_in.get(str(row.get("ID")), 0), out)
+
+
+def _event_p_row(row: dict, out: list[Violation]) -> None:
+    if any(x < 0.0 or x > 1.0 for x in _phase_cells(row)):
+        _Scope(out, "phase", "dialog", f"Event {row.get('ID')} '{row.get('eventName', '')}'").add(
+            "event_p", "The probability must be between 0 and 1.")
+
+
+def _node_phase_row(row: dict, n: int, out: list[Violation]) -> None:
+    name, ks = row.get("Name", ""), _node_phase_ks(row)
+    s = _Scope(out, "phase", "dialog", f"Node {row.get('ID')} '{_short(name)}'")
+    if n == 0 and any(k != 0 for k in ks):
+        s.add("node_k_zero", f"Required good (k) for node '{_short(name)}' must be 0 in every phase: it has no paths in.")
+    elif any(k < 0 or k > n or k > 9999 for k in ks):
+        s.add("node_k", f"Required good (k) for node '{_short(name)}' must be between 0 and {n}, its number of paths in, in every phase.")
 
 
 def _check_triggers(rbd, out: list[Violation]) -> None:
@@ -970,69 +1002,141 @@ _PARAM_COLUMNS = ("FParam1", "FParam2", "FParam3", "RParam1", "RParam2", "RParam
 _COORD_SECTIONS = ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA", "HIERARCHY_DATA")
 
 
-def _check_values(rbd, out: list[Violation]) -> None:
+# ---------------------------------------------------------------- row memo
+#
+# Every edit re-checks the whole model (the GUI gate and the API's save
+# both call `check`), so building a model one block at a time cost
+# O(blocks) per edit and O(blocks^2) overall: 800 adds took 30 s. Nearly
+# all the rules read one row and nothing else, and an edit changes one or
+# two rows, so each row's findings are remembered by the row's content
+# (and whatever else that rule reads) and only a changed row is looked at
+# again. Violations are frozen, so a remembered tuple is shared safely.
+
+_MEMO: dict = {}
+_MEMO_MAX = 400_000
+
+
+class _Keys:
+    """Hashable row contents for one `check` call, each made once."""
+
+    def __init__(self) -> None:
+        self._by_id: dict[int, Any] = {}
+
+    def __call__(self, row: dict) -> Any:
+        key = self._by_id.get(id(row))
+        if key is None:
+            try:
+                key = tuple(row.items())
+                hash(key)
+            except TypeError:       # a non-string cell: not remembered
+                key = False
+            self._by_id[id(row)] = key
+        return key
+
+
+def _memo(tag: Any, key: Any, out: list[Violation], fn) -> None:
+    """`fn(found)` for one row, remembered by (tag, key)."""
+    if key is False:
+        fn(out)
+        return
+    full = (tag, key)
+    hit = _MEMO.get(full)
+    if hit is None:
+        found: list[Violation] = []
+        fn(found)
+        hit = tuple(found)
+        if len(_MEMO) >= _MEMO_MAX:
+            _MEMO.clear()
+        _MEMO[full] = hit
+    out.extend(hit)
+
+
+def _check_values(rbd, out: list[Violation], keys: _Keys | None = None) -> None:
     """Stored values no front end can hold: an unknown distribution code, a
     parameter or coordinate that is not a finite number, a control character
     in any text. A run would fail on the first two; the legacy file would be
     corrupted by the last (a newline starts a new row)."""
-    _check_dist_codes(rbd, out)
-    _check_numbers(rbd, out)
-    _check_control_chars(rbd, out)
+    keys = keys or _Keys()
+    _check_dist_codes(rbd, out, keys)
+    _check_numbers(rbd, out, keys)
+    _check_control_chars(rbd, out, keys)
 
 
-def _check_dist_codes(rbd, out: list[Violation]) -> None:
+def _check_dist_codes(rbd, out: list[Violation], keys: _Keys) -> None:
     for section, cols, zero_ok in _DIST_COLUMNS:
         for row in _rows(rbd, section) if section == "BLOCK_DATA" else _all_rows(rbd, section):
-            ident = (f"Block {row.get('ID')} '{row.get('blockName', '')}'" if section == "BLOCK_DATA"
-                     else f"{section.title()[:-1] if section == 'PHASES' else 'Trigger'} "
-                          f"'{row.get('PhaseName', row.get('TriggerName', ''))}'")
-            for col in cols:
-                if col not in row or (col == "Dist" and section == "BLOCK_DATA"):
-                    continue
-                x = _num(row, col)
-                ok = x is not None and x == int(x) and (int(x) in _DIST_CODES or (zero_ok and int(x) == 0))
-                if not ok:
-                    out.append(Violation(f"value.dist_code.{col}", "value", ident,
-                                         f"{col} {row.get(col)!r} is not a distribution the engine knows "
-                                         "(a whole number from 1 to 22)."))
+            _memo(("dist_codes", section), keys(row), out,
+                  lambda o, row=row, section=section, cols=cols, zero_ok=zero_ok:
+                  _dist_codes_row(row, section, cols, zero_ok, o))
 
 
-def _check_numbers(rbd, out: list[Violation]) -> None:
+def _dist_codes_row(row: dict, section: str, cols, zero_ok: bool,
+                    out: list[Violation]) -> None:
+    ident = (f"Block {row.get('ID')} '{row.get('blockName', '')}'" if section == "BLOCK_DATA"
+             else f"{section.title()[:-1] if section == 'PHASES' else 'Trigger'} "
+                  f"'{row.get('PhaseName', row.get('TriggerName', ''))}'")
+    for col in cols:
+        if col not in row or (col == "Dist" and section == "BLOCK_DATA"):
+            continue
+        x = _num(row, col)
+        ok = x is not None and x == int(x) and (int(x) in _DIST_CODES or (zero_ok and int(x) == 0))
+        if not ok:
+            out.append(Violation(f"value.dist_code.{col}", "value", ident,
+                                 f"{col} {row.get(col)!r} is not a distribution the engine knows "
+                                 "(a whole number from 1 to 22)."))
+
+
+def _params_row(row: dict, out: list[Violation]) -> None:
+    ident = f"Block {row.get('ID')} '{row.get('blockName', '')}'"
+    for col in _PARAM_COLUMNS:
+        raw = row.get(col)
+        if raw in (None, "") or _num(row, col) is not None:
+            continue
+        out.append(Violation(f"value.param.{col}", "value", ident,
+                             f"{col} {raw!r} must be a finite number."))
+
+
+def _coords_row(row: dict, section: str, out: list[Violation]) -> None:
+    for col in ("xPos", "yPos"):
+        raw = row.get(col)
+        if raw in (None, "") or _num(row, col) is not None:
+            continue
+        out.append(Violation(f"value.coord.{col}", "value",
+                             f"{section.split('_')[0].title()} {row.get('ID')}",
+                             f"{col} {str(raw)[:40]!r} must be a finite number."))
+
+
+def _check_numbers(rbd, out: list[Violation], keys: _Keys) -> None:
     for row in _rows(rbd, "BLOCK_DATA"):
-        ident = f"Block {row.get('ID')} '{row.get('blockName', '')}'"
-        for col in _PARAM_COLUMNS:
-            raw = row.get(col)
-            if raw in (None, "") or _num(row, col) is not None:
-                continue
-            out.append(Violation(f"value.param.{col}", "value", ident,
-                                 f"{col} {raw!r} must be a finite number."))
+        _memo("params", keys(row), out, lambda o, row=row: _params_row(row, o))
     for section in _COORD_SECTIONS:
         for row in _rows(rbd, section):
-            for col in ("xPos", "yPos"):
-                raw = row.get(col)
-                if raw in (None, "") or _num(row, col) is not None:
-                    continue
-                out.append(Violation(f"value.coord.{col}", "value",
-                                     f"{section.split('_')[0].title()} {row.get('ID')}",
-                                     f"{col} {str(raw)[:40]!r} must be a finite number."))
+            _memo(("coords", section), keys(row), out,
+                  lambda o, row=row, section=section: _coords_row(row, section, o))
 
 
-def _check_control_chars(rbd, out: list[Violation]) -> None:
+def _control_chars_row(row: dict, section: str, out: list[Violation]) -> None:
+    # One scan per row, not per cell. The cells are joined with a
+    # space, which is not one of the characters looked for: the
+    # joiner used to be U+0001, itself a control character, so every
+    # row "matched" and every cell was scanned after all.
+    text = " ".join(map(str, row.values()))
+    if _ROW_SCAN_RE.search(text) is None:
+        return
+    for col, val in row.items():
+        why = control_problem(str(val))
+        if why:
+            out.append(Violation(f"value.control_char.{section}.{col}", "value",
+                                 f"{section} {row.get('ID', row.get('Name', ''))}",
+                                 f"{col} {why}."))
+
+
+def _check_control_chars(rbd, out: list[Violation], keys: _Keys | None = None) -> None:
+    keys = keys or _Keys()
     for section, sec in rbd.sections.items():
         for row in sec.rows:
-            # One scan per row, not per cell. The cells are joined with a
-            # space, which is not one of the characters looked for: the
-            # joiner used to be U+0001, itself a control character, so every
-            # row "matched" and every cell was scanned after all.
-            text = " ".join(map(str, row.values()))
-            if _ROW_SCAN_RE.search(text) is None:
-                continue
-            for col, val in row.items():
-                why = control_problem(str(val))
-                if why:
-                    out.append(Violation(f"value.control_char.{section}.{col}", "value",
-                                         f"{section} {row.get('ID', row.get('Name', ''))}",
-                                         f"{col} {why}."))
+            _memo(("control", section), keys(row), out,
+                  lambda o, row=row, section=section: _control_chars_row(row, section, o))
 
 
 # ---------------------------------------------------------------- entry points
@@ -1090,21 +1194,27 @@ def _check_hierarchy_depth(rbd, out: list[Violation]) -> None:
 def check(rbd) -> list[Violation]:
     """Every Raptor 7 input rule the model breaks."""
     out: list[Violation] = []
+    keys = _Keys()
     _check_run(rbd, out)
-    _check_values(rbd, out)
+    _check_values(rbd, out, keys)
     _check_links(rbd, out)
     pools = {str(r.get("PoolName")): r for r in _all_rows(rbd, "RESOURCE_DATA")}
+    # What `_block_start_standby_resources` reads of the pools.
+    pools_key = tuple(sorted((name, str(r.get("NumIn"))) for name, r in pools.items()))
     for row in _rows(rbd, "BLOCK_DATA"):
-        _check_block(row, pools, out)
+        _memo(("block", pools_key), keys(row), out,
+              lambda o, row=row: _check_block(row, pools, o))
     for row in _rows(rbd, "EVENT_DATA"):
-        _check_event(row, out)
+        _memo("event", keys(row), out, lambda o, row=row: _check_event(row, o))
     into, _ = _link_counts(rbd)
     n_in = {oid: n for (kind, oid), n in into.items() if kind == "node"}
     for row in _rows(rbd, "NODE_DATA"):
-        _check_node(row, n_in.get(str(row.get("ID")), 0), out)
+        n = n_in.get(str(row.get("ID")), 0)
+        _memo(("node", n), keys(row), out,
+              lambda o, row=row, n=n: _check_node(row, n, o))
     _check_link_fields(rbd, out)
     _check_system(rbd, out)
-    _check_phases(rbd, n_in, out)
+    _check_phases(rbd, n_in, out, keys)
     _check_triggers(rbd, out)
     for row in _all_rows(rbd, "SPARE_POOL_DATA"):
         _check_spare_pool(row, out)
@@ -1113,6 +1223,98 @@ def check(rbd) -> list[Violation]:
         _check_resource(row, units, out)
     _check_experiment(rbd, out)
     _check_hierarchy_depth(rbd, out)
+    return out
+
+
+def check_new_rows(rbd, section: str, rows: list[dict]) -> list[Violation]:  # noqa: C901
+    """The rules that can break when `rows` -- elements just ADDED to
+    `section` (BLOCK_DATA, EVENT_DATA or NODE_DATA), with no links yet --
+    join a model that was otherwise already checked.
+
+    Every rule that reads such an element reads only its own row (and,
+    for a block, the resource pools), so nothing else need be walked: the
+    GUI gate calls this for an add, paste-free, instead of `check` on the
+    whole model, which made each add cost O(model) (800 adds: 30 s). An
+    element with no links changes no other element's findings; a link,
+    which does, still goes through `check`."""
+    out: list[Violation] = []
+    keys = _Keys()
+    for row in rows:
+        _memo(("control", section), keys(row), out,
+              lambda o, row=row: _control_chars_row(row, section, o))
+        if section in _COORD_SECTIONS:
+            _memo(("coords", section), keys(row), out,
+                  lambda o, row=row: _coords_row(row, section, o))
+    if section == "BLOCK_DATA":
+        pools = {str(r.get("PoolName")): r for r in _all_rows(rbd, "RESOURCE_DATA")}
+        for row in rows:
+            for sec, cols, zero_ok in _DIST_COLUMNS:
+                if sec == "BLOCK_DATA":
+                    _dist_codes_row(row, sec, cols, zero_ok, out)
+            _params_row(row, out)
+            _check_block(row, pools, out)
+            _block_stress_row(row, out)
+    elif section == "EVENT_DATA":
+        for row in rows:
+            _check_event(row, out)
+            _event_p_row(row, out)
+    elif section == "NODE_DATA":
+        for row in rows:
+            _check_node(row, 0, out)
+            _node_phase_row(row, 0, out)
+    return out
+
+
+def check_link_ends(rbd, links: list[dict], *, with_links: bool = True) -> list[Violation]:  # noqa: C901
+    """The findings a link edit can change: those of the elements at the
+    ends of `links` (how many links they have, a node's k), plus -- with
+    `with_links` -- the `links`' own fields. The GUI gate calls this before
+    and after drawing a link, instead of `check` on the whole model (each
+    connection cost O(model), 800 links drawn one by one: 96 s).
+
+    A link changes no other element's findings: the link-shape and k rules
+    read an element's own link counts, and the field rules read the link
+    and the node it enters."""
+    out: list[Violation] = []
+    into, links_out = _link_counts(rbd)
+    ends = set()
+    for link in links:
+        ends.add((_kind(link.get("FromType")), str(link.get("FromID", ""))))
+        ends.add((_kind(link.get("ToType")), str(link.get("ToID", ""))))
+    rows_of: dict[tuple[str, str], dict] = {}
+    for section, kind, _col in _LINKED_SECTIONS + (("NODE_DATA", "node", "Name"),):
+        for row in _rows(rbd, section):
+            key = (kind, str(row.get("ID")))
+            if key in ends:
+                rows_of[key] = row
+    for _section, kind, col in _LINKED_SECTIONS:
+        for (k, _oid), row in rows_of.items():
+            if k == kind:
+                _element_links_row(row, kind, col, into, links_out, out)
+    n_in = {oid: n for (kind, oid), n in into.items() if kind == "node"}
+    for (k, oid), row in rows_of.items():
+        if k != "node":
+            continue
+        _marker_links_row(row, into, links_out, out)
+        _check_node(row, n_in.get(oid, 0), out)
+        _node_phase_row(row, n_in.get(oid, 0), out)
+    if with_links:
+        system = _system(rbd)
+        capacity = _flag(system, "capacityAnalysis")
+        generated = _num(system, "flowGenerated") or 0.0
+        cols = {"block": "blockName", "event": "eventName", "node": "Name",
+                "hier": "hierarchyName"}
+
+        def endpoint_name(kind: str, oid: object) -> str:
+            key = _kind(kind)
+            row = rows_of.get((key, str(oid)))
+            if row is not None and key in cols:
+                return str(row.get(cols[key], "") or f"{kind} {oid}")
+            return f"{kind} {oid}"
+
+        nodes = {oid: row for (k, oid), row in rows_of.items() if k == "node"}
+        for link in links:
+            _link_field_row(link, endpoint_name, nodes, capacity, generated, out)
     return out
 
 

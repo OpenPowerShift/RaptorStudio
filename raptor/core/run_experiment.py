@@ -177,6 +177,22 @@ def streams_words(experiment: dict) -> str:
     return ""
 
 
+def lost_in_rbd(experiment: dict) -> list[str]:
+    """The run settings a `.rbd` has no column for, when they are not the
+    defaults, in words: what saving as `.rbd` drops."""
+    exp = normalise(experiment)
+    out = []
+    if exp["seed_mode"] != "fixed":
+        out.append(seed_words(exp))
+    if exp["streams"] != "model":
+        out.append(streams_words(exp))
+    if exp["importance"] != "none":
+        out.append("importance measures")
+    if exp["recording"] != RUN_DEFAULTS["recording"]:
+        out.append("recording choices")
+    return out
+
+
 _STATS_START_TOOLTIP = "Must be earlier than the run length."
 
 

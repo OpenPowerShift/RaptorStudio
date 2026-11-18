@@ -62,6 +62,13 @@ class OwnStreamsMixin(_Base):
         events = [int(e.fail_stream) for e in view.events.values()]
         sys_streams = sys_streams_of(self._rbd)
         plan, reused = own_streams.plan_all(blocks, events, sys_streams)
+        # Past 49 blocks the shared pairs are planned again, onto the same
+        # pairs: leave out what would not change, so a second run says
+        # there is nothing to do instead of asking and adding an empty undo
+        # step.
+        current = {bid: (fail, repair) for bid, fail, repair in blocks}
+        plan = {bid: pair for bid, pair in plan.items()
+                if current.get(bid) != pair}
         if not plan:
             self._statusbar.showMessage(
                 "Every block already has separate random streams", 8000)

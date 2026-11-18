@@ -190,7 +190,10 @@ class StructureMixin(_Base):
         Block Defaults unless given."""
         row = self._new_block_row(name, model_x, model_y, fdist, fparam)
         self._stack.push(AddCmd(self, "block", [row]))
-        return _safe_int(row["ID"])
+        bid = _safe_int(row["ID"])
+        # 0 when the rule gate refused it (a name over 20 characters, say):
+        # the id of a block that was taken back off would not exist.
+        return bid if bid in self.blocks else 0
 
     def _new_block_row(self, name: str, model_x: float, model_y: float,
                        fdist: int | None = None,
@@ -1036,11 +1039,17 @@ class StructureMixin(_Base):
             li = _LinkItem(src, dst, link_num=num)
             self._links.append(li)
             self._scene.addItem(li)
-            # A new link can change its endpoints' entry/exit sides.
+            # A new link can change its endpoints' entry/exit sides, and
+            # with them the route of every link at those two ends. Nothing
+            # else: an element's sides are decided by its own links and
+            # where its neighbours sit (`_LinkItem._flow_sign`, ...), and no
+            # element moved. Re-routing EVERY link made each connection
+            # cost O(links) -- 800 links drawn one by one took 96 s.
             self._clear_route_caches()
             with routing_batch(self._scene):
                 for existing in self._links:
-                    existing._update_route()
+                    if existing._from in (src, dst) or existing._to in (src, dst):
+                        existing._update_route()
         self._recount_link_ends()
         return num
 
@@ -1627,7 +1636,7 @@ class StructureMixin(_Base):
         row.setdefault("Distro", "17")
         row["failVal"] = f"{probability:.6f}"
         self._stack.push(AddCmd(self, "event", [row]))
-        return eid
+        return eid if eid in self.events else 0
 
     def _insert_event(self, row: dict) -> int:
         from raptor.core.fileio.typed import event_from_row
