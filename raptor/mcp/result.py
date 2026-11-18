@@ -51,6 +51,7 @@ from raptor.api.render import (
 )
 from raptor.api.tables import UnknownTable
 from raptor.api.run import RunCancelledError, RunError, RunNotFoundError, RunTimeoutError
+from raptor.api.progress import Cancelled
 from raptor.api.workspace import (
     JobLimitExceeded,
     ModelLimitExceeded,
@@ -164,11 +165,17 @@ _ANTICIPATED = (
     AnalyticalError,
     RenderError,
     NotImplementedError,
+    Cancelled,
 )
 
 # Ordered most-specific first.  (exception type, code, hint, retryable)
 _CLASSIFY: tuple[tuple[type, str, str | None, bool], ...] = (
     (RunCancelledError, "cancelled", None, False),
+    # A study stopped by its own `timeout_s` (or a cancel) part way
+    # through, e.g. recommend_changes in the attribution replay: it was
+    # reported as an internal server error.
+    (Cancelled, "timeout",
+     "Give a larger timeout_s, or fewer trials or a smaller model.", False),
     (RunTimeoutError, "timeout",
      "Use fewer runs, a shorter run_length, or confirm_long_run=true.", False),
     (RunArtefactsError, "precondition_failed",
@@ -244,6 +251,9 @@ def _message(exc: BaseException) -> str:
     # KeyError's str() wraps the message in quotes.
     if isinstance(exc, KeyError) and exc.args:
         return str(exc.args[0])
+    if isinstance(exc, Cancelled) and not str(exc):
+        return ("Stopped before it finished: the time limit (timeout_s) ran "
+                "out or the request was cancelled. Nothing was changed.")
     return str(exc) or type(exc).__name__
 
 

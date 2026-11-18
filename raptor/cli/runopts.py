@@ -126,9 +126,13 @@ def _apply_run_options(ws: Any, model_id: str, args: Any) -> dict[str, Any]:
     if getattr(args, "set_file", None):
         texts = load_set_file(args.set_file) + texts
     changes = []
-    for t in texts:
+    # A distribution and its parameters go in together (`fail_dist=weibull
+    # fail_params=1.5,500`): one at a time, the new law was checked
+    # against the old law's parameters and refused.
+    for group in paths.assignment_groups(texts):
+        t = " ".join(group)
         try:
-            changes.append(paths.apply_assignment(ws, model_id, t))
+            changes.extend(paths.apply_group(ws, model_id, group))
         except paths.PathError as exc:
             raise CliError(f"--set {t!r}: {exc}", USAGE) from exc
         except Exception as exc:       # BuildError / ElementNotFound / ...

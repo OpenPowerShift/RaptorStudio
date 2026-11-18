@@ -28,6 +28,18 @@ from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 # Save persists whatever state undo/redo leaves behind.
 
 
+def _on_own_level(fn):
+    """Wrap a command's redo/undo to run on the level it was made on."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(self, *args, **kwargs):
+        self._go_to_own_level()
+        return fn(self, *args, **kwargs)
+    run._on_own_level = True  # type: ignore[attr-defined]
+    return run
+
+
 class _ViewCmd(QUndoCommand):
     """Base for every canvas undo command: holds the view and emits
     model_changed after each successful apply (suppressed during
@@ -52,6 +64,28 @@ class _ViewCmd(QUndoCommand):
     def __init__(self, view, text):
         super().__init__(text)
         self._v = view
+        #: The level the edit was made on: the view holds only the level on
+        #: screen, so an undo or redo from another level found no element
+        #: and did nothing -- a rename inside a hierarchy stayed after
+        #: "Undo" from the level above, in the model and the saved file.
+        self._level = getattr(view, "_current_parent", 0)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        for name in ("redo", "undo"):
+            fn = cls.__dict__.get(name)
+            if fn is not None and not getattr(fn, "_on_own_level", False):
+                setattr(cls, name, _on_own_level(fn))
+
+    def _go_to_own_level(self) -> None:
+        v = self._v
+        level = self._level
+        if getattr(v, "_loading", False) or \
+                getattr(v, "_current_parent", 0) == level:
+            return
+        if level and level not in getattr(v, "hiers", {}):
+            return                       # not there (yet): act where we are
+        v._set_level(level)
 
     def _done(self):
         if not self._v._loading:

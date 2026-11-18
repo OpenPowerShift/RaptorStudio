@@ -276,9 +276,10 @@ def set_command(args: Any) -> int:
                        ".rbd file", X.USAGE)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
-        for t in texts:
+        for group in paths.assignment_groups(texts):
+            t = " ".join(group)
             try:
-                paths.apply_assignment(ws, mid, t)
+                paths.apply_group(ws, mid, group)
             except paths.PathError as exc:
                 raise CliError(f"{t!r}: {exc}", X.USAGE) from exc
             except Exception as exc:
@@ -293,7 +294,7 @@ def set_command(args: Any) -> int:
             res = ws.save_model_as(mid, str(dest.with_name(
                 dest.stem + ".raptor-tmp" + dest.suffix)), fmt=fmt)
             Path(res["path"]).replace(dest)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
     eprint(f"wrote {dest} ({len(texts)} change(s))")
     return X.OK
@@ -301,6 +302,18 @@ def set_command(args: Any) -> int:
 
 def convert_command(args: Any) -> int:
     src, dest = Path(args.input), Path(args.output)
+    try:
+        same = dest.exists() and src.resolve() == dest.resolve()
+    except OSError:
+        same = False
+    if same:
+        # Converting a file onto itself rewrote (normalised) the source
+        # with no word; `set --in-place` is the command for that.
+        raise CliError(f"{args.output}: the output is the input file; "
+                       "give a different output path", X.USAGE)
+    if not args.to and dest.suffix.lower() not in (".rbds", ".rbd", ".awb"):
+        raise CliError(f"{args.output}: the output must be a .rbds, .rbd or "
+                       ".awb file (or give --to)", X.USAGE)
     if src.suffix.lower() == ".awb":
         fmt = args.to if args.to in ("rbd", "rbds") else (
             "rbd" if dest.suffix.lower() == ".rbd" else "rbds")

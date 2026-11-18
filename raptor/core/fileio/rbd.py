@@ -892,6 +892,23 @@ def ensure_legacy_system_image(f: RbdFile) -> None:
         row["imageString"] = LEGACY_SYSTEM_IMAGE
 
 
+def _latin1_refusal(rbd: RbdFile) -> str:
+    """Which names a `.rbd` (Latin-1) cannot store."""
+    bad: list[str] = []
+    for sec in rbd.sections.values():
+        for row in sec.rows:
+            for value in row.values():
+                if isinstance(value, str):
+                    try:
+                        value.encode("latin-1")
+                    except UnicodeEncodeError:
+                        if value not in bad:
+                            bad.append(value)
+    shown = ", ".join(repr(b) for b in bad[:5]) + (" ..." if len(bad) > 5 else "")
+    return (f"a .rbd file can only hold Latin-1 text, and this model has "
+            f"{shown or 'text outside it'}. Rename those, or save as .rbds.")
+
+
 def save_rbd(f: RbdFile, path: str) -> None:
     # Raptor 7's reports title themselves with the DISK filename that was
     # opened (see load_rbd) — same rule on save, so the header's
@@ -923,5 +940,12 @@ def save_rbd(f: RbdFile, path: str) -> None:
     # convention, with ~n distinguishers on truncated collisions. The
     # .rbds keeps the full names.
     cap_legacy_names(out)
-    with open(path, "w", encoding="latin-1") as fh:
-        fh.write(render_rbd(out))
+    text = render_rbd(out)
+    try:
+        data = text.encode("latin-1")
+    except UnicodeEncodeError:
+        # Encoded before the file is opened, so a refusal leaves no 0-byte
+        # file behind, and the message names what cannot be stored.
+        raise ValueError(_latin1_refusal(out)) from None
+    with open(path, "wb") as fh:
+        fh.write(data)

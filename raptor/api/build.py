@@ -3360,6 +3360,10 @@ _EXPERIMENT_COLUMNS = frozenset({
 })
 
 
+#: The run terminations the engine knows (`run_experiment`).
+_TERMINATION_TYPES = ("TimeSim", "FailSim", "CycleSim")
+
+
 def configure_system(
     workspace: Workspace,
     model_id: str,
@@ -3394,14 +3398,37 @@ def configure_system(
     if run_length is not None:
         updates["TermCondition"] = float(run_length)
     if num_runs is not None:
-        updates["NumRuns"] = float(num_runs)   # Raptor 7 writes "50.000000"
+        # A run count is whole: 1.5 used to become 1 with no word.
+        try:
+            runs = float(num_runs)
+        except (TypeError, ValueError):
+            raise BuildError(f"num_runs must be a whole number, got {num_runs!r}") from None
+        if isinstance(num_runs, bool) or not runs.is_integer() or runs < 1:
+            raise BuildError(f"num_runs must be a whole number of at least 1, "
+                             f"got {num_runs!r}")
+        updates["NumRuns"] = runs   # Raptor 7 writes "50.000000"
     term = termination if termination is not None else term_type
     if term is not None:
-        updates["TerminationType"] = term
+        # An unknown name was stored and then read as TimeSim, while the
+        # change was reported as made.
+        canon = {t.lower(): t for t in _TERMINATION_TYPES}
+        key = str(term).strip().lower()
+        key = {"time": "timesim", "failures": "failsim", "failure": "failsim",
+               "cycles": "cyclesim", "cycle": "cyclesim"}.get(key, key)
+        if key not in canon:
+            raise BuildError(f"termination {term!r} is not one of "
+                             f"{', '.join(_TERMINATION_TYPES)}")
+        updates["TerminationType"] = canon[key]
     if start_stats is not None:
         updates["StartStats"] = float(start_stats)
     if units is not None:
-        updates["units"] = units
+        from raptor.core.distro_rules import _UNIT_HOURS
+        # "units" is Raptor 7's unitless choice (three golden files).
+        known = ("units", *_UNIT_HOURS)
+        if str(units).strip().lower() not in known:
+            raise BuildError(f"units {units!r} is not one of "
+                             f"{', '.join(known)}")
+        updates["units"] = str(units).strip()
     if weak_link is not None:
         updates["weakAnalysis"] = weak_link
     if cost is not None:
