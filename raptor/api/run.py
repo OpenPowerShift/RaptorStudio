@@ -142,6 +142,13 @@ class RunResult:
 _SAFE_RUN_ID = re.compile(r"[A-Za-z0-9_\-]+")
 
 
+def resolve_seed(experiment: dict | None) -> int:
+    """The seed a run of `experiment` uses (Run panel ▸ Seed, #292): 0 for
+    Raptor 7's fixed table, its Number, or a fresh one for New."""
+    from raptor.core import run_experiment as _rx
+    return int(_rx.resolve_seed(experiment or {}))
+
+
 def run_dir(workspace: Workspace, run_id: str) -> Path:
     """The run's directory, refusing ids that escape ``runs/``.
 

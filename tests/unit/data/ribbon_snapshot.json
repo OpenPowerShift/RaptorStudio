@@ -2393,11 +2393,6 @@
        "kind": "action",
        "large": true,
        "text": "Analytical\u2026"
-      },
-      {
-       "kind": "action",
-       "large": true,
-       "text": "Random Streams"
       }
      ],
      "title": "Model"
@@ -2687,6 +2682,11 @@
        "kind": "action",
        "large": false,
        "text": "Trials to Precision\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Random Streams"
       }
      ],
      "title": "Run"

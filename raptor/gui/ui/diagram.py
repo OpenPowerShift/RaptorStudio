@@ -242,7 +242,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: New blocks that were given a stream pair another block already
     #: uses, because all 49 were taken (Separate Streams, #292).
     streams_reused = Signal(int)
-    #: Model ▸ Random Streams ▸ Separate Streams for New Blocks; read by
+    #: Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for New Blocks; read by
     #: `AddCmd`.
     own_streams_for_new_blocks = False
     #: (kind, props | None) -- the saved "style for new <Kind>s" changed.

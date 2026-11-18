@@ -51,7 +51,7 @@
 <li><a href="#seeds-and-streams">Random seeds and streams</a>
 <ul class="sectlevel2">
 <li><a href="#_the_seed_run_panel_more_options_seed">The seed (Run panel ▸ More options ▸ Seed)</a></li>
-<li><a href="#_separate_streams_for_each_block_model_random_streams">Separate streams for each block (Model ▸ Random Streams)</a></li>
+<li><a href="#_separate_streams_for_each_block_simulate_run_random_streams">Separate streams for each block (Simulate ▸ Run ▸ Random Streams)</a></li>
 </ul>
 </li>
 <li><a href="#_what_if_compare_changes_with_the_model">What If: compare changes with the model</a></li>
@@ -1686,7 +1686,7 @@ fixed table. <code>raptor run --seed new</code> draws a fresh seed and reports i
 </div>
 </div>
 <div class="sect2">
-<h3 id="_separate_streams_for_each_block_model_random_streams">Separate streams for each block (Model ▸ Random Streams)</h3>
+<h3 id="_separate_streams_for_each_block_simulate_run_random_streams">Separate streams for each block (Simulate ▸ Run ▸ Random Streams)</h3>
 <div class="paragraph">
 <p>By default every block draws its failure and repair times from one
 shared stream, as in Raptor 7. That is sound, but a change to one block
@@ -3048,11 +3048,6 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Random Streams</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run&#8217;s seed is on the Run panel</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -3406,6 +3401,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Trials to Precision…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Random Streams</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run&#8217;s seed is on the Run panel</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

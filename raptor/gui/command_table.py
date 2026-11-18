@@ -1524,11 +1524,8 @@ LAYOUT: tuple[Page, ...] = (
                        # the large ones Quick Add left a gap
                        Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
-       # Random Streams is one menu button (#292): a group of its own made
-       # the Model tab too wide to fit at 1280 px.
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
-                       Btn("results.analytical", True),
-                       Custom("_build_streams_button")), priority=4),
+                       Btn("results.analytical", True)), priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
        Group("Annotate", (Btn("arrange.anno_text", True),
@@ -1562,7 +1559,10 @@ LAYOUT: tuple[Page, ...] = (
        # watched); off, Run uses the cores shown right beside it.
        Group("Run", (Btn("sim.run", True), Btn("sim.live_sim", True),
                      Custom("_build_trials_box"), Custom("_build_cores_box"),
-                     Btn("sim.run_settings"), Btn("sim.precision"))),
+                     Btn("sim.run_settings"), Btn("sim.precision"),
+                     # Random Streams (#292): one menu button, here beside
+                     # the run because the Model tab has no room at 1280 px.
+                     Custom("_build_streams_button"))),
        Group("Control", (Btn("sim.pause"), Btn("sim.stop_run"),
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis

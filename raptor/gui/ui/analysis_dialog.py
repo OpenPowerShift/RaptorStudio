@@ -130,12 +130,12 @@ def study_seed(win) -> int | None:
     uses, from Run panel ▸ Seed (#292): None for Raptor 7's fixed table.
     Drawn ONCE per study, so the base and every variant share it and the
     comparison stays paired."""
-    from raptor.core import run_experiment as rx
+    from raptor.api.run import resolve_seed
     try:
         experiment = win._current_experiment()
     except Exception:  # noqa: BLE001 - no model: the fixed table
         return None
-    return rx.resolve_seed(experiment) or None
+    return resolve_seed(experiment) or None
 
 
 class AnalysisDialog(QDialog):

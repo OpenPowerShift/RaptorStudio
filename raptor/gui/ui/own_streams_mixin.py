@@ -1,7 +1,7 @@
-"""Model ▸ Random Streams (#292): give blocks separate random streams.
+"""Simulate ▸ Run ▸ Random Streams (#292): give blocks separate random streams.
 
 Every block shares System stream C (203) by default, as in Raptor 7. The
-two commands here (one Random Streams menu on the Model tab) give
+two commands here (one Random Streams menu on the Simulate tab) give
 blocks failure and repair streams of their own: **Separate Streams for
 All Blocks** now (one undo step), and **... for New Blocks**, a
 remembered toggle that `diagram_commands.AddCmd` reads when a block is
@@ -48,7 +48,7 @@ class OwnStreamsMixin(_Base):
     """MainWindow's Random Streams commands."""
 
     def _build_streams_button(self, group) -> None:
-        """Model > Model > Random Streams: a menu of the two commands."""
+        """Simulate > Run > Random Streams: a menu of the two commands."""
         from PySide6.QtGui import QAction
         from PySide6.QtWidgets import QMenu, QWidget
 
@@ -71,7 +71,7 @@ class OwnStreamsMixin(_Base):
         button.setProperty("ribbonKeyTip", "Z")
 
     def _give_blocks_own_streams(self) -> None:
-        """Model ▸ Random Streams ▸ Separate Streams for All Blocks."""
+        """Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for All Blocks."""
         if self._rbd is None:
             return
         view = self._diagram_dock.view
@@ -109,7 +109,7 @@ class OwnStreamsMixin(_Base):
             + (f"; {_reuse_note(reused, pairs)}" if reused else ""), 10000)
 
     def _set_own_streams_for_new_blocks(self, on: bool) -> None:
-        """Model ▸ Random Streams ▸ Separate Streams for New Blocks."""
+        """Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for New Blocks."""
         settings.set_value(NEW_BLOCKS_KEY, bool(on))
         self._diagram_dock.view.own_streams_for_new_blocks = bool(on)
 

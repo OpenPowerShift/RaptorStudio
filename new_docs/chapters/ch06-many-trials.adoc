@@ -92,7 +92,7 @@ that run.
 By default every block draws from one shared stream, as in Raptor 7.
 That is statistically sound, but a change to one block shifts the draws
 of every block after it, which adds noise to a comparison.
-*Model ▸ Random Streams ▸ Separate Streams for All Blocks* gives every
+*Simulate ▸ Run ▸ Random Streams ▸ Separate Streams for All Blocks* gives every
 block its own failure and repair streams in one step (*Undo* puts them
 back). *Separate Streams for New Blocks* does the same for each block you add, paste or duplicate from then on; Raptor
 Studio remembers the setting.

@@ -1097,7 +1097,7 @@ repeats a run exactly.
   `--seed` they use a *Number* seed saved in the model, otherwise the
   fixed table. `raptor run --seed new` draws a fresh seed and reports it.
 
-=== Separate streams for each block (Model ▸ Random Streams)
+=== Separate streams for each block (Simulate ▸ Run ▸ Random Streams)
 
 By default every block draws its failure and repair times from one
 shared stream, as in Raptor 7. That is sound, but a change to one block
