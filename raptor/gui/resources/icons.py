@@ -2396,6 +2396,42 @@ def spread_icon(colour: str) -> QIcon:
     return _icon("spread", colour, draw)
 
 
+def _wave(p: QPainter, x0: float, x1: float, y: float, amp: float = 4.0) -> None:
+    """One wavy stroke from x0 to x1 about y: a random-number stream."""
+    from PySide6.QtGui import QPainterPath
+    path = QPainterPath(QPointF(x0, y))
+    step = (x1 - x0) / 2
+    for i in range(2):
+        a, b = x0 + i * step, x0 + (i + 1) * step
+        path.cubicTo(QPointF(a + step / 3, y - amp),
+                     QPointF(b - step / 3, y + amp), QPointF(b, y))
+    p.drawPath(path)
+
+
+def streams_icon(colour: str) -> QIcon:
+    """Random streams (#292): three separate wavy streams, one faded."""
+    def draw(p: QPainter, c: QColor):
+        for y, alpha in ((12, 255), (24, 140), (36, 255)):
+            col = QColor(c)
+            col.setAlpha(alpha)
+            _stroke(p, col, 3)
+            _wave(p, 6, 42, y)
+    return _icon("streams", colour, draw)
+
+
+def streams_new_icon(colour: str) -> QIcon:
+    """Streams for new blocks: a small block, a plus, and the two
+    (failure and repair) streams it is given."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        p.drawRect(QRectF(5, 15, 16, 16))
+        p.drawLine(13, 19, 13, 27)
+        p.drawLine(9, 23, 17, 23)
+        _wave(p, 25, 44, 15, 3.5)
+        _wave(p, 25, 44, 31, 3.5)
+    return _icon("streams_new", colour, draw)
+
+
 def compare_icon(colour: str) -> QIcon:
     """Compare: two models' results as bars side by side."""
     def draw(p: QPainter, c: QColor):

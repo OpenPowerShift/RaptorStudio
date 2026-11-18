@@ -58,7 +58,7 @@ class OwnStreamsMixin(_Base):
         menu = QMenu(parent)
         menu.addAction(self._own_streams_action)
         menu.addAction(self._own_streams_new_action)
-        action = QAction(icons.spread_icon(active_colour()["accent"]),
+        action = QAction(icons.streams_icon(active_colour()["accent"]),
                          "Random Streams", parent)
         action.setToolTip(
             "How blocks draw their random numbers: one shared stream (as "

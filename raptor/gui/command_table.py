@@ -342,7 +342,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="model.own_streams",
         attr="_own_streams_action",
         text="Separate Streams for All Blocks",
-        icon="spread_icon:accent",
+        icon="streams_icon:accent",
         tooltip=(
             "Give every block its own failure and repair random streams, so "
             "a change to one block does not shift the others' draws. After "
@@ -354,7 +354,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="model.own_streams_new",
         attr="_own_streams_new_action",
         text="Separate Streams for New Blocks",
-        icon="block_icon:accent",
+        icon="streams_new_icon:accent",
         tooltip=(
             "When on, each block you add, paste or duplicate gets its own "
             "failure and repair random streams instead of the shared one "

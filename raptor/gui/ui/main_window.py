@@ -605,7 +605,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 _act.setIcon(getattr(icons, _icon_fn)(c["accent"]))
         self._fev_log_action.setIcon(icons.log_icon(c["text"]))
         self._align_action.setIcon(icons.align_hcenter_icon(c["accent"]))
-        self._streams_menu_action.setIcon(icons.spread_icon(c["accent"]))
+        self._streams_menu_action.setIcon(icons.streams_icon(c["accent"]))
         for icon_fn, act in self._align_menu_actions:
             act.setIcon(getattr(icons, icon_fn)(c["accent"]))
         # The docks' own title-bar Float / Close buttons.
