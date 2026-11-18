@@ -153,7 +153,7 @@ def test_unknown_keys_preserved():
 
 
 def test_rejects_wrong_format_and_future_version():
-    with pytest.raises(ValueError, match="not an"):
+    with pytest.raises(ValueError, match="not a RAPTOR Studio .rbds model"):
         parse_rbds(json.dumps({"format": "other", "version": 1}))
     with pytest.raises(ValueError, match="format version 99, which is newer than"):
         parse_rbds(json.dumps({"format": FORMAT_ID, "version": 99,
