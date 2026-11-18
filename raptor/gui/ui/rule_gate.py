@@ -83,9 +83,26 @@ class RuleGatedStack:
         self._known: tuple[int, set] | None = None
         self._found_keys: set | None = None
         stack.indexChanged.connect(self._on_stack_moved)
+        #: Signals the steps of a macro left for the macro's end (see
+        #: `_ViewCmd._done`); emitted once by `flush_signals`.
+        view._pending_signals = []
 
     def _on_stack_moved(self, _index: int) -> None:
         self._moves += 1
+        if not self._depth:
+            self.flush_signals()
+
+    def flush_signals(self) -> None:
+        """Emit, once each, the view signals a macro's steps put off."""
+        pending = getattr(self._view, "_pending_signals", None)
+        if not pending:
+            return
+        names = list(pending)
+        pending.clear()
+        if getattr(self._view, "_loading", False):
+            return
+        for name in names:
+            getattr(self._view, name).emit()
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._stack, name)
@@ -146,6 +163,10 @@ class RuleGatedStack:
 
     # ---------------------------------------------------------------- stack API
     def push(self, cmd: QUndoCommand) -> None:
+        if self._depth:
+            # a step of a macro: its signal waits for the macro's end, on
+            # the first run and on every later undo and redo of the macro
+            cmd._in_macro = True  # type: ignore[attr-defined]
         # Layout-only commands skip Raptor 7's input-rule gate: no rule
         # reads geometry, and the check is two whole-model deep copies plus
         # two full rule walks. See `_ViewCmd.needs_rule_check`.
@@ -240,6 +261,7 @@ class RuleGatedStack:
         self._stack.endMacro()
         self._depth = max(0, self._depth - 1)
         if self._depth == 0:
+            self.flush_signals()
             before, self._before = self._before, None
             self._found_keys = None
             added = self._added(before)
