@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **94 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **93**.
+- **96 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **95**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -371,8 +371,8 @@ Every tool carries an MCP risk hint:
 - **destructive** — deletes, closes, reverts or overwrites something.
   Examples: `delete_element`, `close_model`, `delete_file`,
   `undo_last_edit`, and the exports `save_model_as`, `export_tables`,
-  `export_report` and `export_analytical` (each replaces a file of the
-  same name).
+  `export_report`, `export_analytical` and `export_awb` (each replaces a
+  file of the same name).
 
 Start the server with `--read-only` to refuse tools that create, edit or
 delete a model or export a file; opening an existing model, analysis and
@@ -720,6 +720,12 @@ field was never applied, not that the model is insensitive.
 - `export_analytical` solves exactly and writes a spreadsheet with Summary,
   Elements, Curve, Equation and Assumptions sheets. `phase="all"` solves
   every phase.
+- `export_awb` writes the model as an Isograph Availability Workbench 5.0
+  `.awb` project, and `import_awb` opens one as a new model. Each returns a
+  report of what the other program cannot represent. `dry_run=true` writes
+  nothing; `normalize_out` also saves the reduced model that was exported.
+  A `.awb.raptor.json` sidecar carries RAPTOR-only data across a round trip.
+  The format is in `docs/AWB_FORMAT.md`.
 - `render_diagram` returns a PNG (the only picture-valued tool). `level` is a
   **hierarchy id**, not a depth: `0` is the whole model, `900` is hierarchy
   900. `zoom_to` frames named elements on that level; `highlight` outlines

@@ -58,6 +58,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+Shift+S",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.import_awb",
+        attr="_import_awb_action",
+        text="Import Availability Workbench…",
+        icon="awb_import_icon:text",
+        tooltip=(
+            "Open an Isograph Availability Workbench 5.0 .awb project as a "
+            "new RAPTOR model; the summary lists what AWB features RAPTOR "
+            "cannot represent"),
+        handler="_import_awb",
+        enabled_when="not_running"),
+    CommandSpec(
         id="file.new",
         attr="_new_action",
         text="New",
@@ -114,6 +125,37 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "Save the printable report (diagram + results + weak link) as a PDF "
             "file"),
         handler="_export_pdf",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="file.export_awb",
+        attr="_export_awb_action",
+        text="Export to Availability Workbench…",
+        icon="awb_export_icon:text",
+        tooltip=(
+            "Save this model as an Isograph Availability Workbench 5.0 .awb "
+            "project; the summary lists what RAPTOR features AWB cannot "
+            "represent"),
+        handler="_export_awb",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="file.preview_awb",
+        attr="_preview_awb_action",
+        text="Check Availability Workbench Export…",
+        icon="awb_preview_icon:text",
+        tooltip=(
+            "Report what an Availability Workbench export would substitute, "
+            "partially map or drop, without writing a file"),
+        handler="_preview_awb",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="file.export_awb_normalized",
+        attr="_export_awb_normalized_action",
+        text="Export Reduced AWB Model…",
+        icon="awb_normalize_icon:text",
+        tooltip=(
+            "Save a matched pair: a reduced RAPTOR model and the .awb it "
+            "represents, for a fair engine-to-engine comparison"),
+        handler="_export_awb_normalized",
         enabled_when="model_open"),
     CommandSpec(
         id="file.export_tables",
@@ -1417,13 +1459,14 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: left of the tabs, as in Office: (section title, command ids). Commands
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("File", ("file.new", "file.open", "file.save", "file.save_as",
-              "file.close_file", "file.quit", "home.diff")),
+    ("File", ("file.new", "file.open", "file.import_awb", "file.save",
+              "file.save_as", "file.close_file", "file.quit", "home.diff")),
     # U22: one Export (the file type picks what is written), then Export
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.
-    ("Print and Export", ("file.print", "file.export", "file.export_tables",
-                          "file.copy_view")),
+    ("Print and Export", ("file.print", "file.export", "file.export_awb",
+                          "file.preview_awb", "file.export_awb_normalized",
+                          "file.export_tables", "file.copy_view")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after

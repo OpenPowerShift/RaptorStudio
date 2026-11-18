@@ -77,6 +77,8 @@ TOOL_CATEGORY: dict[str, str] = {
     "open_model": "workspace",
     "create_model": "workspace",
     "save_model_as": "workspace",
+    "export_awb": "workspace",
+    "import_awb": "workspace",
     "close_model": "workspace",
     "delete_file": "workspace",
     # Build and edit
@@ -184,6 +186,10 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "create_model": {"name": "Pump station", "template": "series", "n": 3},
     "save_model_as": {"model_id": "<model_id>",
                       "path": "exports/pump-station.rbds"},
+    "export_awb": {"model_id": "<model_id>",
+                   "path": "exports/pump-station.awb",
+                   "dry_run": True, "sidecar": True},
+    "import_awb": {"path": "exports/pump-station.awb"},
     "close_model": {"model_id": "<model_id>"},
     "delete_file": {"path": "exports/old-model.rbds"},
     "build_model": {
@@ -414,7 +420,7 @@ def _dedupe(items: list[str]) -> list[str]:
     return out
 
 
-def _schema_types(schema: Any) -> tuple[list[str], list[Any]]:
+def _schema_types(schema: Any) -> tuple[list[str], list[Any]]:  # noqa: C901
     """Return ``(type labels, enum/const values)`` for a JSON Schema node."""
     if not isinstance(schema, dict):
         return ["any"], []
@@ -755,7 +761,7 @@ def _validate_metadata(tools: list[Any]) -> None:
                 problems))
 
 
-def render() -> str:
+def render() -> str:  # noqa: C901
     """Render ``docs/MCP-reference.md`` from the live server."""
     tools, fixed, templates, prompts = _live()
     _validate_metadata(tools)

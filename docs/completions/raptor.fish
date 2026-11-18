@@ -66,7 +66,13 @@ complete -c raptor -n '__fish_use_subcommand' -a config
 complete -c raptor -n '__fish_seen_subcommand_from config' -l help
 complete -c raptor -n '__fish_use_subcommand' -a convert
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l allow-lossy
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l dry-run
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l format
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l help
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l no-sidecar
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l normalize-out
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l report
+complete -c raptor -n '__fish_seen_subcommand_from convert' -l strict
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l to
 complete -c raptor -n '__fish_use_subcommand' -a describe
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l element

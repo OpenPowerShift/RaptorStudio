@@ -183,6 +183,9 @@ def session(rec: Recorder, workspace: Path) -> None:  # noqa: PLR0915
     rec.call("read_doc", name="rbds", limit=5)
     rec.call("read_doc", name="iec61078", limit=5)
     rec.call("save_model_as", model_id=m1, path="out.rbds")
+    rec.call("export_awb", model_id=m1, path="out.awb", dry_run=True)
+    rec.call("export_awb", model_id=m1, path="out.awb")
+    rec.call("import_awb", path="out.awb")
     rec.call("delete_element", model_id=m3, selector="E1")
     rec.call("collapse_selection", model_id=m1, selectors=["B1"], name="Sub")   # one link in, one out: a hierarchy takes no more (Raptor 7)
     rec.call("close_model", model_id=m3)
@@ -219,7 +222,7 @@ def optimisers(rec: Recorder) -> None:
              quantiles=[{"probability": 0.1, "age": 100}, {"probability": 0.5, "age": 300}])
 
 
-def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) -> None:  # noqa: PLR0915
+def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) -> None:  # noqa: C901, PLR0915
     """The tools the main session does not reach: batch edits, library,
     pools, jobs, scenarios and run outputs. On a model of its own, so the
     main session's results do not move."""

@@ -1683,6 +1683,14 @@ the Help window stays usable, and can be closed, while a dialog is open.
   sectioned). Opens and round-trips; saving data the classic format cannot hold
   (annotations, for example) as `.rbd` drops it, with a warning
   first. Import RBD merges a `.rbd` or `.rbds` file in as one hierarchy.
+* `.awb` — an Isograph **Availability Workbench 5.0** project (RBD/AvSim).
+  *File ▸ Import Availability Workbench…* reads one into a new model and
+  *File ▸ Export to Availability Workbench…* writes one; `raptor convert`
+  does the same headless. The conversion always prints a summary of the
+  features the destination cannot represent, with a count; `--strict`
+  writes nothing when that list is not empty. AWB's demonstration mode can
+  open and simulate a project but not save or export it; RAPTOR writes the
+  `.awb` file directly, so no AWB licence is needed to create one.
 * Export Library / Import Library — reuse blocks across models.
 * Open / New / the examples — each opens in a new window when the current
   one holds a model worth keeping (see <<several-models>>). File ▸ New
@@ -1709,6 +1717,49 @@ the Help window stays usable, and can be closed, while a dialog is open.
   results, as CSV, text or one spreadsheet (see <<export-tables>>).
 * Diagram as SVG — the current hierarchy level as a scalable vector file.
 * Diagram as PNG / Copy View — PNG of the diagram, file or clipboard.
+
+[[awb-interchange]]
+=== Availability Workbench interchange
+
+The complete file layout and feature matrix are in
+link:https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md[the AWB format guide].
+In short:
+
+[cols="2,3,3",options="header"]
+|===
+|Feature |RAPTOR → AWB |AWB → RAPTOR
+
+|RBD blocks, nodes, links, K-of-N votes, nested hierarchies |yes |yes
+|Exponential, Weibull, lognormal, normal and fixed failure laws |yes |yes
+|Corrective repair duration, project lifetime and trial count |yes |yes
+|Failure events |not exported (AWB RBDs use blocks) |n/a
+|Text annotations |yes (AWB labels) |yes (RAPTOR annotations)
+|Shape annotations, rates, formulas, triggers |not exported |n/a
+|Mission phases |partial: durations and block cut/linked rules |partial: durations and cut/linked rules; node/hierarchy and capacity/load rules are not imported
+|Out-of-service states |yes: applied to the AWB copy |yes: AWB global logic state becomes a RAPTOR cut/linked state
+|Block dependencies |not exported |partial: AWB state dependencies become 100% idle dependencies
+|Preventive maintenance |partial: one planned task per failure model |partial: first enabled planned task; inspections and extra tasks are not imported
+|Spare holdings |partial: level-1 stock and lead time |partial: level 1 + 2 become one pool; repair shop is not imported
+|Labour/equipment resources |partial: resource pools and task links |partial: labour/equipment become RAPTOR resources; call-out delay is not imported
+|Capacity products and capacity targets |not exported |not imported
+|Consequence and cost models |not exported |not imported
+|RCM location hierarchy, fault trees, Weibull sets, bitmaps |n/a |not imported
+|AWB labels, repeat blocks |n/a |labels become annotations; repeats become dependent blocks
+|Unsupported failure laws |mean-matched exponential |n/a
+|Unsupported repair laws |mean-matched fixed task |n/a
+|===
+
+AWB projects can carry more than an RBD. The converter reads and writes
+the AvSim RBD part; it does not transfer an AWB RCMCost study, fault tree,
+capacity network or life-cycle-cost model. The summary names each of these
+with a count, so nothing is lost silently.  **File ▸ Check Availability
+Workbench Export…** is the preview: it reports substitutions, partial
+mappings and drops without writing.  **File ▸ Export Reduced AWB Model…**
+writes a matched reduced RAPTOR model and its `.awb`.  The command line adds
+`--dry-run`, `--no-sidecar` and `--normalize-out`. AWB may renumber pages and
+element ids on a round trip, and it uses the source x/y positions rather
+than auto-layout; use AWB's Auto Layout after opening a model whose blocks
+overlap.
 
 [[standards]]
 == IEC 61078 and standards alignment

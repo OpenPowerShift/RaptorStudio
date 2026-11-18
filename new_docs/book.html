@@ -9753,7 +9753,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>94 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>96 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10280,8 +10280,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 93 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 92 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 96 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 95 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -10342,6 +10342,18 @@ you need the exact argument shape.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save a model to a path inside the workspace (or an <code>--allow-write</code>
   directory). <code>.rbds</code> by default; <code>.rbd</code> export validates first and
   refuses on error.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>export_awb</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write an Isograph Availability Workbench <code>.awb</code> project. <code>dry_run</code>
+  reports substitutions/partial mappings/drops without writing; <code>sidecar</code>
+  preserves RAPTOR-only metadata; <code>normalize_out</code> writes a matched reduced
+  RAPTOR model for a fair comparison.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>import_awb</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open an <code>.awb</code> project as a model. A matching <code>.awb.raptor.json</code> sidecar
+  restores RAPTOR-only metadata when the file hash still matches.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>close_model</code></p></td>

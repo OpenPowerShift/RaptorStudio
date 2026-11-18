@@ -1383,6 +1383,63 @@ def export_lib_icon(colour: str) -> QIcon:
     return _icon("exportlib", colour, draw)
 
 
+def awb_import_icon(colour: str) -> QIcon:
+    """Import AWB: a document with an arrow entering it."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(10, 4, 26, 38)
+        p.drawLine(16, 12, 30, 12)
+        p.drawLine(16, 19, 30, 19)
+        p.drawLine(16, 26, 24, 26)
+        p.setBrush(c)
+        p.drawPolygon([QPointF(6, 32), QPointF(16, 32), QPointF(11, 38)])
+    return _icon("awbimport", colour, draw)
+
+
+def awb_export_icon(colour: str) -> QIcon:
+    """Export AWB: a document with an arrow leaving it."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(6, 4, 26, 38)
+        p.drawLine(12, 12, 26, 12)
+        p.drawLine(12, 19, 26, 19)
+        p.drawLine(12, 26, 20, 26)
+        p.setBrush(c)
+        p.drawPolygon([QPointF(44, 32), QPointF(34, 32), QPointF(39, 38)])
+    return _icon("awbexport", colour, draw)
+
+
+def awb_preview_icon(colour: str) -> QIcon:
+    """Preview an AWB export: a document under a magnifier."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(6, 6, 24, 32)
+        p.drawLine(12, 14, 24, 14)
+        p.drawLine(12, 21, 24, 21)
+        p.drawLine(12, 28, 19, 28)
+        p.drawEllipse(QPointF(31, 31), 8, 8)
+        p.drawLine(37, 37, 44, 44)
+    return _icon("awbpreview", colour, draw)
+
+
+def awb_normalize_icon(colour: str) -> QIcon:
+    """Reduced AWB pair: two documents with a balancing arrow."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 3))
+        p.drawRect(5, 5, 18, 30)
+        p.drawRect(25, 13, 18, 30)
+        p.setPen(QPen(c, 2))
+        p.drawLine(12, 13, 16, 13)
+        p.drawLine(12, 20, 16, 20)
+        p.drawLine(32, 21, 36, 21)
+        p.drawLine(32, 28, 36, 28)
+    return _icon("awbnormalize", colour, draw)
+
+
 def clear_results_icon(colour: str) -> QIcon:
     """Clear Results: table swept by a diagonal wipe."""
     def draw(p: QPainter, c: QColor):

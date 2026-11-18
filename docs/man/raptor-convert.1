@@ -1,17 +1,35 @@
 .TH "RAPTOR-CONVERT" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-convert \- convert between .rbd and .rbds
+raptor\-convert \- convert between .rbd, .rbds and AWB .awb
 .SH SYNOPSIS
-\fBraptor convert\fR [\-h] [\-\-to {rbd,rbds}] [\-\-allow\-lossy] IN OUT
+\fBraptor convert\fR [\-h] [\-\-to {rbd,rbds,awb}] [\-\-allow\-lossy] [\-\-strict] [\-f {text,json,markdown}] [\-\-report FILE] [\-\-dry\-run] [\-\-no\-sidecar] [\-\-normalize\-out FILE] IN OUT
 .SH DESCRIPTION
-Write IN as OUT in the format OUT's extension names (or \-\-to). Refuses a lossy conversion unless \-\-allow\-lossy.
+Write IN as OUT in the format OUT's extension names (or \-\-to). AWB conversions print a summary of the features the destination cannot represent. Refuses a lossy .rbd conversion unless \-\-allow\-lossy.
 .SH OPTIONS
 .SS Options
 .TP
-\fB\-\-to\fR \fI{rbd|rbds}\fR
+\fB\-\-to\fR \fI{rbd|rbds|awb}\fR
 format to write (default: OUT's extension)
 .TP
 \fB\-\-allow\-lossy\fR
-\&.rbds\-only content (annotations, experiment settings, rate definitions) is dropped in .rbd
+\&.rbds\-only content (annotations, experiment settings, rate definitions) is dropped in .rbd; AWB conversions report their losses instead and do not need this switch
+.TP
+\fB\-\-strict\fR
+AWB only: write nothing and exit 4 if the summary reports any feature the destination cannot use
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json|markdown}\fR
+AWB summary format (default text)
+.TP
+\fB\-\-report\fR \fIFILE\fR
+AWB only: also write the summary as Markdown to FILE
+.TP
+\fB\-\-dry\-run\fR
+AWB only: print the summary and write nothing
+.TP
+\fB\-\-no\-sidecar\fR
+AWB only: do not write the .raptor.json sidecar of RAPTOR\-only metadata
+.TP
+\fB\-\-normalize\-out\fR \fIFILE\fR
+AWB only: write a reduced RAPTOR model carrying only what the AWB file represents, and export that
 .SH SEE ALSO
 \fBraptor\fR(1)

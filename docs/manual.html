@@ -72,7 +72,11 @@
 </li>
 <li><a href="#preferences">Keyboard: Alt key tips</a></li>
 <li><a href="#_preferences">Preferences</a></li>
-<li><a href="#files">Files and formats</a></li>
+<li><a href="#files">Files and formats</a>
+<ul class="sectlevel2">
+<li><a href="#awb-interchange">Availability Workbench interchange</a></li>
+</ul>
+</li>
 <li><a href="#standards">IEC 61078 and standards alignment</a></li>
 <li><a href="#fidelity">Fidelity and known limits</a></li>
 <li><a href="#ui-reference">UI Reference</a></li>
@@ -2445,6 +2449,16 @@ sectioned). Opens and round-trips; saving data the classic format cannot hold
 first. Import RBD merges a <code>.rbd</code> or <code>.rbds</code> file in as one hierarchy.</p>
 </li>
 <li>
+<p><code>.awb</code> — an Isograph <strong>Availability Workbench 5.0</strong> project (RBD/AvSim).
+<strong>File ▸ Import Availability Workbench…</strong> reads one into a new model and
+<strong>File ▸ Export to Availability Workbench…</strong> writes one; <code>raptor convert</code>
+does the same headless. The conversion always prints a summary of the
+features the destination cannot represent, with a count; <code>--strict</code>
+writes nothing when that list is not empty. AWB&#8217;s demonstration mode can
+open and simulate a project but not save or export it; RAPTOR writes the
+<code>.awb</code> file directly, so no AWB licence is needed to create one.</p>
+</li>
+<li>
 <p>Export Library / Import Library — reuse blocks across models.</p>
 </li>
 <li>
@@ -2485,6 +2499,133 @@ results, as CSV, text or one spreadsheet (see <a href="#export-tables">Exporting
 <p>Diagram as PNG / Copy View — PNG of the diagram, file or clipboard.</p>
 </li>
 </ul>
+</div>
+<div class="sect2">
+<h3 id="awb-interchange">Availability Workbench interchange</h3>
+<div class="paragraph">
+<p>The complete file layout and feature matrix are in
+<a href="https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md">the AWB format guide</a>.
+In short:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 37.5%;">
+<col style="width: 37.5%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Feature</th>
+<th class="tableblock halign-left valign-top">RAPTOR → AWB</th>
+<th class="tableblock halign-left valign-top">AWB → RAPTOR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RBD blocks, nodes, links, K-of-N votes, nested hierarchies</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Exponential, Weibull, lognormal, normal and fixed failure laws</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Corrective repair duration, project lifetime and trial count</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failure events</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not exported (AWB RBDs use blocks)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text annotations</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes (AWB labels)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes (RAPTOR annotations)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shape annotations, rates, formulas, triggers</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mission phases</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: durations and block cut/linked rules</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: durations and cut/linked rules; node/hierarchy and capacity/load rules are not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Out-of-service states</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes: applied to the AWB copy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">yes: AWB global logic state becomes a RAPTOR cut/linked state</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Block dependencies</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: AWB state dependencies become 100% idle dependencies</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preventive maintenance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: one planned task per failure model</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: first enabled planned task; inspections and extra tasks are not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spare holdings</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level-1 stock and lead time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level 1 + 2 become one pool; repair shop is not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Labour/equipment resources</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: resource pools and task links</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: labour/equipment become RAPTOR resources; call-out delay is not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Capacity products and capacity targets</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Consequence and cost models</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not exported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RCM location hierarchy, fault trees, Weibull sets, bitmaps</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">not imported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">AWB labels, repeat blocks</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">labels become annotations; repeats become dependent blocks</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Unsupported failure laws</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">mean-matched exponential</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Unsupported repair laws</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">mean-matched fixed task</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">n/a</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>AWB projects can carry more than an RBD. The converter reads and writes
+the AvSim RBD part; it does not transfer an AWB RCMCost study, fault tree,
+capacity network or life-cycle-cost model. The summary names each of these
+with a count, so nothing is lost silently.  <strong>File ▸ Check Availability
+Workbench Export…</strong> is the preview: it reports substitutions, partial
+mappings and drops without writing.  <strong>File ▸ Export Reduced AWB Model…</strong>
+writes a matched reduced RAPTOR model and its <code>.awb</code>.  The command line adds
+<code>--dry-run</code>, <code>--no-sidecar</code> and <code>--normalize-out</code>. AWB may renumber pages and
+element ids on a round trip, and it uses the source x/y positions rather
+than auto-layout; use AWB&#8217;s Auto Layout after opening a model whose blocks
+overlap.</p>
+</div>
 </div>
 </div>
 </div>
@@ -3916,6 +4057,11 @@ documentation.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+O</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import Availability Workbench…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save (Ctrl+S)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+S</p></td>
@@ -3968,6 +4114,21 @@ documentation.</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ctrl+E</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export to Availability Workbench…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Check Availability Workbench Export…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Report what an Availability Workbench export would substitute, partially map or drop, without writing a file</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Export Reduced AWB Model…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison</p></td>
+<td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Export Tables…</p></td>

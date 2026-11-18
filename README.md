@@ -41,7 +41,7 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **Scriptable.** Everything the application does is also a command (`raptor run`, `advise`, `explain`, `whatif`,
   `recommend`, `sensitivity`, `optimise`, `sweep`, `compare`, `diff`, `render` and more) with machine-readable
   results. It fits in a continuous-integration job, a Jupyter notebook or a shell loop.
-- **Usable from an AI assistant.** An MCP server with **94 tools** (93 when `--no-render` hides the PNG diagram tool)
+- **Usable from an AI assistant.** An MCP server with **96 tools** (95 when `--no-render` hides the PNG diagram tool)
   lets an assistant build, edit, validate, simulate, explain and improve models, run long batches in the background,
   and draw the diagram. The [MCP server guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md)
   covers install, client setup, concepts and task recipes; the generated
@@ -54,6 +54,9 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
   exactly as before.
+- **Interchange with Availability Workbench.** `raptor convert` reads and writes Isograph AWB 5.0 `.awb` projects and
+  prints a summary of the features either side cannot represent — capacity products, PM tasks, spares, cost models
+  and the rest — so a conversion never loses something silently. See [`docs/AWB_FORMAT.md`](docs/AWB_FORMAT.md).
 - **Documentation that ships with it.** _Break It Before It Breaks_, a 26-chapter tutorial book with a model for each
   chapter that opens from the page, a field-by-field reference manual, and a formulas page. **F1** opens the right
   section.
@@ -104,7 +107,7 @@ Everything above runs on a copy of the model and changes nothing until you apply
 | **Parallel batches**                 | Runs spread over your cores (`-j N` on the command line); results are reproducible for a given core count, and one core reproduces Raptor 7's own random sequence exactly.                                                        |
 | **Check part of a model**            | Run one hierarchy on its own, with its input assumed available, or save it as a standalone model (`raptor extract`). The results are labelled as isolated.                                                                      |
 | **Sweeps and comparisons**           | Vary any field over a list of values, or run two or more models side by side. **Differences** shows what is different between two models, and runs nothing.                                                                    |
-| **AI assistant (MCP)**               | 94 tools (93 with `--no-render`) to build, edit, run, explain and improve models, over stdio or authenticated HTTP.                                                                                                               |
+| **AI assistant (MCP)**               | 96 tools (95 with `--no-render`) to build, edit, run, explain and improve models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Faster editing**                   | Command search finds any command by name; Quick Add repeats the selected block in series or parallel (1 of 2, 2 of 3, 1 of 3); Duplicate in Parallel adds a redundant copy with the nodes it needs; several models open at once, each with its own undo history.    |
 | **Charts and reports**               | One Charts view (availability through the run, run-to-run system state you can zoom into, downtime, cost, capacity); presentation-ready export; reports as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema). |
@@ -211,7 +214,7 @@ built-in documentation, which the **Help** ribbon tab also opens:
 - **AI assistant** — the [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md), the
   generated [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), and
   the book's MCP chapter.
-- **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format.
+- **File format** — [`docs/RBDS_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md) describes the `.rbds` JSON format, [`docs/AWB_FORMAT.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md) describes the Availability Workbench `.awb` interchange, and [`docs/AWB_VALIDATION.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_VALIDATION.md) gives the example-by-example AWB comparison.
 - **Analytical solver** — [`docs/ANALYTICAL.md`](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md) covers the exact static solver: scope, assumptions, CLI and API.
 
 ## IEC 61078
@@ -258,7 +261,7 @@ The docs render with Ruby asciidoctor: `new_docs/tools/render_docs.sh` (see `new
 | `raptor/`               | The application: `core/` engine, `api/`, `cli/`, `gui/`, `mcp/`, `render/`                                                                                        |
 | `tests/`                | `unit/`, `behaviour/`, `integration/` (incl. `sweeps/`), `golden/` (Raptor 7's captured output; large captures gzipped), `fixtures/` (probe models), `ladder/`, `data/` (shared sample models) |
 | `new_docs/`             | User Guide (tutorial book), its models and build tools                                                                                                            |
-| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
+| `docs/`                 | Reference manual, [engine design](https://github.com/openpowershift/RaptorStudio/blob/main/docs/engine-design/README.adoc), [MCP guide](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP.md) and [tool reference](https://github.com/openpowershift/RaptorStudio/blob/main/docs/MCP-reference.md), [analytical solver](https://github.com/openpowershift/RaptorStudio/blob/main/docs/ANALYTICAL.md), formulas, [keyboard shortcuts](https://github.com/openpowershift/RaptorStudio/blob/main/docs/KEYBOARD_SHORTCUTS.md), [`.rbds` file format](https://github.com/openpowershift/RaptorStudio/blob/main/docs/RBDS_FORMAT.md), [AWB interchange](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_FORMAT.md) and [AWB validation](https://github.com/openpowershift/RaptorStudio/blob/main/docs/AWB_VALIDATION.md), [IEC 61078](https://github.com/openpowershift/RaptorStudio/blob/main/docs/IEC61078.md) |
 | `tools/`                | Developer tools the tests and CI run: engine snapshot, coverage, type gate, doc generators                                                                        |
 | `installer/`            | Packaging (PyInstaller, Inno Setup, deb/AppImage)                                                                                                                 |
 | `packaging/`            | `raptor-studio-mcp`, the small PyPI package the MCP Registry lists                                                                                                |

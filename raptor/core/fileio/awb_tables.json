@@ -1,0 +1,3408 @@
+{
+ "format": "raptor-awb-tables/1",
+ "source": "AWB 5.0.0.0",
+ "tables": {
+  "Project": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "FileName",
+    0
+   ],
+   [
+    "ProductVersion",
+    0
+   ],
+   [
+    "ProjectVersionLong",
+    0
+   ],
+   [
+    "Notes",
+    0
+   ],
+   [
+    "CompiledBy",
+    0
+   ],
+   [
+    "ApprovedBy",
+    0
+   ],
+   [
+    "DoublePrecision",
+    1
+   ],
+   [
+    "DoubleFormat",
+    1
+   ],
+   [
+    "LifeTime",
+    2
+   ],
+   [
+    "LastModule",
+    1
+   ],
+   [
+    "LastRcmRightWindowMode",
+    1
+   ],
+   [
+    "LastAvsimRightWindowMode",
+    1
+   ],
+   [
+    "LastWeibullRightWindowMode",
+    1
+   ],
+   [
+    "LastLccRightWindowMode",
+    1
+   ],
+   [
+    "LastProcessRightWindowMode",
+    1
+   ],
+   [
+    "LastSapRightWindowMode",
+    1
+   ],
+   [
+    "LastMaximoRightWindowMode",
+    1
+   ],
+   [
+    "LastALTRightWindowMode",
+    1
+   ],
+   [
+    "LastRcmTableType",
+    1
+   ],
+   [
+    "LastAvsimTableType",
+    1
+   ],
+   [
+    "LastWeibullTableType",
+    1
+   ],
+   [
+    "LastLccTableType",
+    1
+   ],
+   [
+    "LastProcessTableType",
+    1
+   ],
+   [
+    "LastSapTableType",
+    1
+   ],
+   [
+    "LastMaximoTableType",
+    1
+   ],
+   [
+    "LastALTTableType",
+    1
+   ],
+   [
+    "NpvOn",
+    3
+   ],
+   [
+    "NpvYieldPercent",
+    2
+   ],
+   [
+    "NpvLaborPercent",
+    2
+   ],
+   [
+    "NpvEquipmentPercent",
+    2
+   ],
+   [
+    "NpvSparesUsagePercent",
+    2
+   ],
+   [
+    "NpvSparesStoragePercent",
+    2
+   ],
+   [
+    "NpvOperationalPercent",
+    2
+   ],
+   [
+    "NpvCommissionPercent",
+    2
+   ],
+   [
+    "NpvRedesignPercent",
+    2
+   ],
+   [
+    "NpvAlarmPercent",
+    2
+   ],
+   [
+    "NpvOutagePercent",
+    2
+   ],
+   [
+    "RcmCriticalityUseCost",
+    3
+   ],
+   [
+    "RcmCriticalityUseSafety",
+    3
+   ],
+   [
+    "RcmCriticalityUseOperational",
+    3
+   ],
+   [
+    "RcmCriticalityUseEnvironmental",
+    3
+   ],
+   [
+    "ErpCriticalityUseCost",
+    3
+   ],
+   [
+    "ErpCriticalityUseEffect",
+    3
+   ],
+   [
+    "ErpCriticalityUseNoCM",
+    3
+   ],
+   [
+    "ErpCriticalityUseNoPM",
+    3
+   ],
+   [
+    "ErpCriticalityUseNoIN",
+    3
+   ],
+   [
+    "RcmNoSimulations",
+    1
+   ],
+   [
+    "RcmRandomNoSeed",
+    1
+   ],
+   [
+    "RcmSafetyCriticalityTarget",
+    2
+   ],
+   [
+    "RcmOperationalCritTarget",
+    2
+   ],
+   [
+    "RcmEnvironmentalCritTarget",
+    2
+   ],
+   [
+    "RcmSpareOptQTarget",
+    2
+   ],
+   [
+    "RcmSpareOptNSites",
+    1
+   ],
+   [
+    "RcmAutoCriticality",
+    3
+   ],
+   [
+    "RcmShowId",
+    3
+   ],
+   [
+    "RcmShowDescription",
+    3
+   ],
+   [
+    "RcmShowQuantity",
+    3
+   ],
+   [
+    "RcmShowUnavailability",
+    3
+   ],
+   [
+    "RcmShowFrequency",
+    3
+   ],
+   [
+    "RcmShowEffect",
+    3
+   ],
+   [
+    "RcmShowTaskGroup",
+    3
+   ],
+   [
+    "RcmShowCost",
+    3
+   ],
+   [
+    "RcmShowSafetyCrit",
+    3
+   ],
+   [
+    "RcmShowOperationalCrit",
+    3
+   ],
+   [
+    "RcmShowEnvironmentalCrit",
+    3
+   ],
+   [
+    "RcmShowStrategy",
+    3
+   ],
+   [
+    "NoProfileIntervalS",
+    1
+   ],
+   [
+    "ProfileStart",
+    2
+   ],
+   [
+    "ProfileInterval",
+    2
+   ],
+   [
+    "MapProfileToLifetime",
+    3
+   ],
+   [
+    "ApplyInsPrdDataAtZero",
+    3
+   ],
+   [
+    "RcmLocationTreeNodeExp",
+    3
+   ],
+   [
+    "RcmLocationTypeTreeNodeExp",
+    3
+   ],
+   [
+    "SpareTreeNodeExp",
+    3
+   ],
+   [
+    "LaborTreeNodeExp",
+    3
+   ],
+   [
+    "EquipmentTreeNodeExp",
+    3
+   ],
+   [
+    "TaskGroupTreeNodeExp",
+    3
+   ],
+   [
+    "RcmEffectTreeNodeExp",
+    3
+   ],
+   [
+    "WeibullSetTreeNodeExp",
+    3
+   ],
+   [
+    "ProcessSetTreeNodeExp",
+    3
+   ],
+   [
+    "ALTSetTreeNodeExp",
+    3
+   ],
+   [
+    "BomTreeNodeExp",
+    3
+   ],
+   [
+    "RbdBlockTreeNodeExp",
+    3
+   ],
+   [
+    "ConsequenceTreeNodeExp",
+    3
+   ],
+   [
+    "PhaseTreeNodeExp",
+    3
+   ],
+   [
+    "LibraryBitmapTreeNodeExp",
+    3
+   ],
+   [
+    "GateTreeNodeExp",
+    3
+   ],
+   [
+    "FailureModelTreeNodeExp",
+    3
+   ],
+   [
+    "SapLocationTreeNodeExp",
+    3
+   ],
+   [
+    "SapCatalogTreeNodeExp",
+    3
+   ],
+   [
+    "SapCatProfTreeNodeExp",
+    3
+   ],
+   [
+    "SapEffectTreeNodeExp",
+    3
+   ],
+   [
+    "SapABCIndTreeNodeExp",
+    3
+   ],
+   [
+    "SapTecOTTreeNodeExp",
+    3
+   ],
+   [
+    "SapClassTreeNodeExp",
+    3
+   ],
+   [
+    "SapEqClTreeNodeExp",
+    3
+   ],
+   [
+    "SapLoClTreeNodeExp",
+    3
+   ],
+   [
+    "SapMaClTreeNodeExp",
+    3
+   ],
+   [
+    "SapDoClTreeNodeExp",
+    3
+   ],
+   [
+    "SapLaborTreeNodeExp",
+    3
+   ],
+   [
+    "SapBomTreeNodeExp",
+    3
+   ],
+   [
+    "SapEqBomTreeNodeExp",
+    3
+   ],
+   [
+    "SapLoBomTreeNodeExp",
+    3
+   ],
+   [
+    "SapMtBomTreeNodeExp",
+    3
+   ],
+   [
+    "SapMaterialTreeNodeExp",
+    3
+   ],
+   [
+    "SapMPlanTreeNodeExp",
+    3
+   ],
+   [
+    "MaximoLocationTreeNodeExp",
+    3
+   ],
+   [
+    "MaximoPMTreeNodeExp",
+    3
+   ],
+   [
+    "MaximoFailureListTreeNodeExp",
+    3
+   ],
+   [
+    "MaximoCraftTreeNodeExp",
+    3
+   ],
+   [
+    "MaximoCommodityTreeNodeExp",
+    3
+   ],
+   [
+    "AvsimCurrentRbdPage",
+    1
+   ],
+   [
+    "AvsimCurrentFtPage",
+    1
+   ],
+   [
+    "AvsimNoSimulationsRequested",
+    1
+   ],
+   [
+    "AvsimNoSimulationsCompleted",
+    1
+   ],
+   [
+    "AvsimCapacityCalcsPerformed",
+    3
+   ],
+   [
+    "AvsimTreeControlShowId",
+    3
+   ],
+   [
+    "AvsimTreeControlShowDesc",
+    3
+   ],
+   [
+    "AvsimShowFailureData",
+    3
+   ],
+   [
+    "AvsimShowRepairData",
+    3
+   ],
+   [
+    "AvsimShowCapacity",
+    3
+   ],
+   [
+    "AvsimShowFailureModelId",
+    3
+   ],
+   [
+    "AvsimAvailabilityPreference",
+    3
+   ],
+   [
+    "AvsimShowQm",
+    3
+   ],
+   [
+    "AvsimShowF",
+    3
+   ],
+   [
+    "AvsimShowW",
+    3
+   ],
+   [
+    "AvsimShowRbdArrows",
+    3
+   ],
+   [
+    "AvsimShowGrid",
+    3
+   ],
+   [
+    "AvsimShowRbdDescWithBitmaps",
+    3
+   ],
+   [
+    "AvsimShowSymbol",
+    1
+   ],
+   [
+    "AvsimShowFtIecSymbols",
+    3
+   ],
+   [
+    "AvsimShowFtNameBorder",
+    3
+   ],
+   [
+    "AvsimShowFtRepeatBars",
+    3
+   ],
+   [
+    "AvsimDisableFtPaging",
+    3
+   ],
+   [
+    "AvsimDisableTransferTabs",
+    3
+   ],
+   [
+    "IncludeInitialSpares",
+    3
+   ],
+   [
+    "ResultsEffectIndex",
+    1
+   ],
+   [
+    "ResultsConsequenceIndex",
+    1
+   ],
+   [
+    "ResultsCauseIndex",
+    1
+   ],
+   [
+    "ResultsSpareIndex",
+    1
+   ],
+   [
+    "ResultsLaborIndex",
+    1
+   ],
+   [
+    "ResultsEquipmentIndex",
+    1
+   ],
+   [
+    "ResultsSystemBlockIndex",
+    1
+   ],
+   [
+    "ResultsSystemGateIndex",
+    1
+   ],
+   [
+    "ResultsComponentBlockIndex",
+    1
+   ],
+   [
+    "ResultsComponentEventIndex",
+    1
+   ],
+   [
+    "ResultsPhaseIndex",
+    1
+   ],
+   [
+    "ResultsDetailedLifeCosts",
+    3
+   ],
+   [
+    "WeibullCurrentWeibullSet",
+    1
+   ],
+   [
+    "ProcessCurrentProcessSet",
+    1
+   ],
+   [
+    "ALTCurrentALTSet",
+    1
+   ],
+   [
+    "AvsimDiagramMode",
+    1
+   ],
+   [
+    "AvsimFtPageScale",
+    2
+   ],
+   [
+    "AvsimFtPagePositionX",
+    2
+   ],
+   [
+    "AvsimFtPagePositionY",
+    2
+   ],
+   [
+    "AvsimReplenishSpares",
+    3
+   ],
+   [
+    "AvsimReplenishInterval",
+    2
+   ],
+   [
+    "AvsimRandomNumberSeed",
+    1
+   ],
+   [
+    "AvsimMultipleSites",
+    3
+   ],
+   [
+    "AvsimImportanceConsequence",
+    1
+   ],
+   [
+    "AvsimImportanceCutoff",
+    2
+   ],
+   [
+    "AvsimImportanceInitCap",
+    3
+   ],
+   [
+    "ImportanceShowCost",
+    3
+   ],
+   [
+    "ImportanceShowTdt",
+    3
+   ],
+   [
+    "ImportanceShowTdtC",
+    3
+   ],
+   [
+    "ImportanceShowTdtP",
+    3
+   ],
+   [
+    "ImportanceShowTdtI",
+    3
+   ],
+   [
+    "ImportanceShowW",
+    3
+   ],
+   [
+    "ImportanceShowTdtSpare",
+    3
+   ],
+   [
+    "ImportanceShowTdtCrew",
+    3
+   ],
+   [
+    "ImportanceShowCapacity",
+    3
+   ],
+   [
+    "ImportanceShowCapacityC",
+    3
+   ],
+   [
+    "ImportanceShowCapacityP",
+    3
+   ],
+   [
+    "ImportanceShowCapacityI",
+    3
+   ],
+   [
+    "ImportanceShowCapacitySpare",
+    3
+   ],
+   [
+    "ImportanceShowCapacityCrew",
+    3
+   ],
+   [
+    "ImportanceShowSafety",
+    3
+   ],
+   [
+    "ImportanceShowOperational",
+    3
+   ],
+   [
+    "ImportanceShowEnvironmental",
+    3
+   ],
+   [
+    "AvsimCapAvailSystemType",
+    1
+   ],
+   [
+    "AvsimCapAvailSystemIndex",
+    1
+   ],
+   [
+    "AvsimCapAvailNoIntervals",
+    1
+   ],
+   [
+    "AvsimCapAvailNoPoints",
+    1
+   ],
+   [
+    "AvsimCapAvailStartTime",
+    2
+   ],
+   [
+    "AvsimCapAvailIntervalLength",
+    2
+   ],
+   [
+    "AvsimCapAvailIntervalIndex",
+    1
+   ],
+   [
+    "AvsimCapAvailMap",
+    3
+   ],
+   [
+    "AvsimEquateCapacity",
+    3
+   ],
+   [
+    "AvsimEquateCapacityUnit",
+    0
+   ],
+   [
+    "AvsimEquateCapacityValue",
+    2
+   ],
+   [
+    "StorageCostMethod",
+    1
+   ],
+   [
+    "SpareCostPUnitWeightLevel1",
+    2
+   ],
+   [
+    "SpareCostPUnitWeightLevel2",
+    2
+   ],
+   [
+    "SpareCostPUnitVolumeLevel1",
+    2
+   ],
+   [
+    "SpareCostPUnitVolumeLevel2",
+    2
+   ],
+   [
+    "GlobalLogDelayOnLevel1",
+    3
+   ],
+   [
+    "GlobalLogDelayOnLevel2",
+    3
+   ],
+   [
+    "GlobalLogDelayOnLevel3",
+    3
+   ],
+   [
+    "GlobalLogDelayLevel1",
+    2
+   ],
+   [
+    "GlobalLogDelayLevel2",
+    2
+   ],
+   [
+    "GlobalLogDelayLevel3",
+    2
+   ],
+   [
+    "AvsimBufferDepletionOnCapacity",
+    3
+   ],
+   [
+    "AvsimPasteRenMatFailureModels",
+    3
+   ],
+   [
+    "AvsimPasteRenMatConsequences",
+    3
+   ],
+   [
+    "AvsimPasteRenMatWeibullSets",
+    3
+   ],
+   [
+    "AvsimPasteRenMatSpares",
+    3
+   ],
+   [
+    "AvsimPasteRenMatEquipments",
+    3
+   ],
+   [
+    "AvsimPasteRenMatLabors",
+    3
+   ],
+   [
+    "AvsimPasteRenMatTaskGroups",
+    3
+   ],
+   [
+    "AvsimPasteRenMatPhases",
+    3
+   ],
+   [
+    "AvsimPasteRenMatBitmaps",
+    3
+   ],
+   [
+    "AvsimPasteRenMatBoms",
+    3
+   ],
+   [
+    "WeibullTreeControlShowId",
+    3
+   ],
+   [
+    "WeibullTreeControlShowDesc",
+    3
+   ],
+   [
+    "ProcessTreeControlShowId",
+    3
+   ],
+   [
+    "ProcessTreeControlShowDesc",
+    3
+   ],
+   [
+    "SapTreeControlShowId",
+    3
+   ],
+   [
+    "SapTreeControlShowDesc",
+    3
+   ],
+   [
+    "MaximoTreeControlShowId",
+    3
+   ],
+   [
+    "MaximoTreeControlShowDesc",
+    3
+   ],
+   [
+    "ALTTreeControlShowId",
+    3
+   ],
+   [
+    "ALTTreeControlShowDesc",
+    3
+   ],
+   [
+    "OptimizationVariable",
+    1
+   ],
+   [
+    "RbdReportRankingMethod",
+    1
+   ],
+   [
+    "FtReportRankingMethod",
+    1
+   ],
+   [
+    "LccShowId",
+    3
+   ],
+   [
+    "LccShowDescription",
+    3
+   ],
+   [
+    "LccShowLocalVariables",
+    3
+   ],
+   [
+    "ProcessCapacityUnit",
+    0
+   ],
+   [
+    "ProTranStartDate",
+    2
+   ],
+   [
+    "SetNamesToUpperCase",
+    3
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "NoProducts",
+    1
+   ],
+   [
+    "ProdDesc1",
+    0
+   ],
+   [
+    "ProdDesc2",
+    0
+   ],
+   [
+    "ProdDesc3",
+    0
+   ],
+   [
+    "ProdDesc4",
+    0
+   ],
+   [
+    "AvsimImportanceProduct",
+    1
+   ],
+   [
+    "AvsimCapAvailProductIndex",
+    1
+   ],
+   [
+    "AvsimEquateCapacityUnit2",
+    0
+   ],
+   [
+    "AvsimEquateCapacityValue2",
+    2
+   ],
+   [
+    "AvsimEquateCapacityUnit3",
+    0
+   ],
+   [
+    "AvsimEquateCapacityValue3",
+    2
+   ],
+   [
+    "AvsimEquateCapacityUnit4",
+    0
+   ],
+   [
+    "AvsimEquateCapacityValue4",
+    2
+   ]
+  ],
+  "FailureModels": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "DataLinkCause",
+    1
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "DetectionMethod",
+    0
+   ],
+   [
+    "CompensatingProvisions",
+    0
+   ],
+   [
+    "Remarks",
+    0
+   ],
+   [
+    "FmMttf",
+    2
+   ],
+   [
+    "FmStd",
+    2
+   ],
+   [
+    "FmEta1",
+    2
+   ],
+   [
+    "FmBeta1",
+    2
+   ],
+   [
+    "FmGamma1",
+    2
+   ],
+   [
+    "FmEta2",
+    2
+   ],
+   [
+    "FmBeta2",
+    2
+   ],
+   [
+    "FmGamma2",
+    2
+   ],
+   [
+    "FmEta3",
+    2
+   ],
+   [
+    "FmBeta3",
+    2
+   ],
+   [
+    "FmGamma3",
+    2
+   ],
+   [
+    "FmWeibullSet",
+    1
+   ],
+   [
+    "FmDistribution",
+    1
+   ],
+   [
+    "StandbyFailurePercent",
+    2
+   ],
+   [
+    "StandbyAgeingPercent",
+    2
+   ],
+   [
+    "StartUpFailureProb",
+    2
+   ],
+   [
+    "AlDescription",
+    0
+   ],
+   [
+    "AlScadaTagId",
+    0
+   ],
+   [
+    "AlEnabled",
+    3
+   ],
+   [
+    "FmDormant",
+    3
+   ],
+   [
+    "AlCapitalCost",
+    2
+   ],
+   [
+    "AlCostRate",
+    2
+   ],
+   [
+    "AlPfInterval",
+    2
+   ],
+   [
+    "AlDetectionP",
+    2
+   ],
+   [
+    "AlPfDistribution",
+    1
+   ],
+   [
+    "CoDescription",
+    0
+   ],
+   [
+    "CoEnabled",
+    3
+   ],
+   [
+    "CoCapitalCost",
+    2
+   ],
+   [
+    "CoCostRate",
+    2
+   ],
+   [
+    "CoPeriod",
+    2
+   ],
+   [
+    "RdDescription",
+    0
+   ],
+   [
+    "RdEnabled",
+    3
+   ],
+   [
+    "RdCapitalCost",
+    2
+   ],
+   [
+    "RdCostRate",
+    2
+   ],
+   [
+    "FmWizardRandomOn",
+    3
+   ],
+   [
+    "FmWizardWearoutOn",
+    3
+   ],
+   [
+    "FmWizardInfantOn",
+    3
+   ],
+   [
+    "FmWizardRandomRate",
+    2
+   ],
+   [
+    "FmWizardWearoutStartAge",
+    2
+   ],
+   [
+    "FmWizardWearoutDuration",
+    2
+   ],
+   [
+    "FmWizardInfantPeriod",
+    2
+   ],
+   [
+    "FmWizardInfantRate",
+    2
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "FmInhibitBufferFill",
+    3
+   ],
+   [
+    "FmInhibitBufferFillByCapacity",
+    3
+   ],
+   [
+    "FmInhibitBufferFillByRevCap",
+    3
+   ],
+   [
+    "Guid",
+    0
+   ],
+   [
+    "AlPfStd",
+    2
+   ],
+   [
+    "FmProductIndex",
+    1
+   ]
+  ],
+  "FailureModelCorrectiveTasks": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "TaskId",
+    0
+   ],
+   [
+    "OperationNumber",
+    0
+   ],
+   [
+    "AgeReductionFactor",
+    2
+   ],
+   [
+    "AgeReductionMode",
+    1
+   ],
+   [
+    "TaskDuration",
+    2
+   ],
+   [
+    "RampTime",
+    2
+   ],
+   [
+    "Std",
+    2
+   ],
+   [
+    "Eta",
+    2
+   ],
+   [
+    "Beta",
+    2
+   ],
+   [
+    "Gamma",
+    2
+   ],
+   [
+    "WeibullSet",
+    1
+   ],
+   [
+    "Distribution",
+    1
+   ],
+   [
+    "OperationalCost",
+    2
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Notes5",
+    0
+   ],
+   [
+    "Notes6",
+    0
+   ],
+   [
+    "Notes7",
+    0
+   ],
+   [
+    "Notes8",
+    0
+   ],
+   [
+    "Notes9",
+    0
+   ],
+   [
+    "Notes10",
+    0
+   ],
+   [
+    "Notes11",
+    0
+   ],
+   [
+    "Notes12",
+    0
+   ],
+   [
+    "Notes13",
+    0
+   ],
+   [
+    "Notes14",
+    0
+   ],
+   [
+    "Notes15",
+    0
+   ],
+   [
+    "Notes16",
+    0
+   ],
+   [
+    "Notes17",
+    0
+   ],
+   [
+    "Notes18",
+    0
+   ],
+   [
+    "Notes19",
+    0
+   ],
+   [
+    "Notes20",
+    0
+   ],
+   [
+    "Notes21",
+    0
+   ],
+   [
+    "Notes22",
+    0
+   ],
+   [
+    "Notes23",
+    0
+   ],
+   [
+    "Notes24",
+    0
+   ]
+  ],
+  "RbdBlocks": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Super",
+    3
+   ],
+   [
+    "LogicMode",
+    1
+   ],
+   [
+    "StandbyMode",
+    1
+   ],
+   [
+    "Consequence",
+    1
+   ],
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "Bom",
+    1
+   ],
+   [
+    "Bitmap",
+    1
+   ],
+   [
+    "XPosition",
+    2
+   ],
+   [
+    "YPosition",
+    2
+   ],
+   [
+    "Width",
+    2
+   ],
+   [
+    "Height",
+    2
+   ],
+   [
+    "Page",
+    1
+   ],
+   [
+    "PageScale",
+    2
+   ],
+   [
+    "XPagePosition",
+    2
+   ],
+   [
+    "YPagePosition",
+    2
+   ],
+   [
+    "DescriptionFontName",
+    0
+   ],
+   [
+    "DescriptionFontSize",
+    2
+   ],
+   [
+    "DescriptionFontStyle",
+    1
+   ],
+   [
+    "DescriptionFontColor",
+    1
+   ],
+   [
+    "BackgroundColor",
+    1
+   ],
+   [
+    "MaxCapacity",
+    2
+   ],
+   [
+    "InitialAge",
+    2
+   ],
+   [
+    "SwitchingDelay",
+    2
+   ],
+   [
+    "LoadFactor",
+    2
+   ],
+   [
+    "NonMaintainable",
+    3
+   ],
+   [
+    "NonOperational",
+    3
+   ],
+   [
+    "DiagramReportRanking",
+    1
+   ],
+   [
+    "Tdt",
+    2
+   ],
+   [
+    "TdtStd",
+    2
+   ],
+   [
+    "TdtErr",
+    2
+   ],
+   [
+    "W",
+    2
+   ],
+   [
+    "WStd",
+    2
+   ],
+   [
+    "WErr",
+    2
+   ],
+   [
+    "MeanCapacity",
+    2
+   ],
+   [
+    "MeanCapacityStd",
+    2
+   ],
+   [
+    "MeanCapacityErr",
+    2
+   ],
+   [
+    "F",
+    2
+   ],
+   [
+    "R",
+    2
+   ],
+   [
+    "Q",
+    2
+   ],
+   [
+    "Qm",
+    2
+   ],
+   [
+    "A",
+    2
+   ],
+   [
+    "Am",
+    2
+   ],
+   [
+    "Wm",
+    2
+   ],
+   [
+    "Mtto",
+    2
+   ],
+   [
+    "Mtbo",
+    2
+   ],
+   [
+    "Mttr",
+    2
+   ],
+   [
+    "SpareTdt",
+    2
+   ],
+   [
+    "CrewTdt",
+    2
+   ],
+   [
+    "CTdt",
+    2
+   ],
+   [
+    "PTdt",
+    2
+   ],
+   [
+    "ITdt",
+    2
+   ],
+   [
+    "CW",
+    2
+   ],
+   [
+    "PW",
+    2
+   ],
+   [
+    "IW",
+    2
+   ],
+   [
+    "ImpCost",
+    2
+   ],
+   [
+    "ImpTdt",
+    2
+   ],
+   [
+    "ImpTdtC",
+    2
+   ],
+   [
+    "ImpTdtP",
+    2
+   ],
+   [
+    "ImpTdtI",
+    2
+   ],
+   [
+    "ImpW",
+    2
+   ],
+   [
+    "ImpTdtSpare",
+    2
+   ],
+   [
+    "ImpTdtCrew",
+    2
+   ],
+   [
+    "ImpCapacity",
+    2
+   ],
+   [
+    "ImpCapacityC",
+    2
+   ],
+   [
+    "ImpCapacityP",
+    2
+   ],
+   [
+    "ImpCapacityI",
+    2
+   ],
+   [
+    "ImpCapacitySpare",
+    2
+   ],
+   [
+    "ImpCapacityCrew",
+    2
+   ],
+   [
+    "ImpSafety",
+    2
+   ],
+   [
+    "ImpOperational",
+    2
+   ],
+   [
+    "ImpEnvironmental",
+    2
+   ],
+   [
+    "SparePurchaseCost",
+    2
+   ],
+   [
+    "LaborCost",
+    2
+   ],
+   [
+    "EquipmentCost",
+    2
+   ],
+   [
+    "OperationalCost",
+    2
+   ],
+   [
+    "AlarmCost",
+    2
+   ],
+   [
+    "CommissionCost",
+    2
+   ],
+   [
+    "RedesignCost",
+    2
+   ],
+   [
+    "IncludeInSystemPlot",
+    3
+   ],
+   [
+    "ProcessTransferP",
+    3
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "Guid",
+    0
+   ],
+   [
+    "TimeInStandby",
+    2
+   ],
+   [
+    "MaxCapacity2",
+    2
+   ],
+   [
+    "MaxCapacity3",
+    2
+   ],
+   [
+    "MaxCapacity4",
+    2
+   ],
+   [
+    "MeanCapacity2",
+    2
+   ],
+   [
+    "MeanCapacity3",
+    2
+   ],
+   [
+    "MeanCapacity4",
+    2
+   ],
+   [
+    "MeanCapacityStd2",
+    2
+   ],
+   [
+    "MeanCapacityStd3",
+    2
+   ],
+   [
+    "MeanCapacityStd4",
+    2
+   ],
+   [
+    "MeanCapacityErr2",
+    2
+   ],
+   [
+    "MeanCapacityErr3",
+    2
+   ],
+   [
+    "MeanCapacityErr4",
+    2
+   ]
+  ],
+  "RbdNodes": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Page",
+    1
+   ],
+   [
+    "Vote",
+    1
+   ],
+   [
+    "XPosition",
+    2
+   ],
+   [
+    "YPosition",
+    2
+   ],
+   [
+    "OperationalCapacityTarget",
+    2
+   ],
+   [
+    "LocalStandby",
+    3
+   ],
+   [
+    "NotLogic",
+    3
+   ],
+   [
+    "BackgroundColor",
+    1
+   ],
+   [
+    "Guid",
+    0
+   ],
+   [
+    "OperationalCapacityTarget2",
+    2
+   ],
+   [
+    "OperationalCapacityTarget3",
+    2
+   ],
+   [
+    "OperationalCapacityTarget4",
+    2
+   ]
+  ],
+  "RbdConnections": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Page",
+    1
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "Color",
+    1
+   ],
+   [
+    "InputObjectType",
+    1
+   ],
+   [
+    "InputObjectIndex",
+    1
+   ],
+   [
+    "OutputObjectType",
+    1
+   ],
+   [
+    "OutputObjectIndex",
+    1
+   ],
+   [
+    "Guid",
+    0
+   ]
+  ],
+  "Spares": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "UnitCost",
+    2
+   ],
+   [
+    "LogisticDelayLevel1",
+    2
+   ],
+   [
+    "LogisticDelayLevel2",
+    2
+   ],
+   [
+    "LogisticDelayLevel3",
+    2
+   ],
+   [
+    "CostRateLevel1",
+    2
+   ],
+   [
+    "CostRateLevel2",
+    2
+   ],
+   [
+    "CapacityLevel1",
+    1
+   ],
+   [
+    "CapacityLevel2",
+    1
+   ],
+   [
+    "RepairLevel",
+    1
+   ],
+   [
+    "CostOfRepair",
+    2
+   ],
+   [
+    "RepairMttr",
+    2
+   ],
+   [
+    "RepairDiscard",
+    2
+   ],
+   [
+    "BatchDiscount",
+    2
+   ],
+   [
+    "MinimumReorderQuantity",
+    1
+   ],
+   [
+    "Volume",
+    2
+   ],
+   [
+    "Weight",
+    2
+   ],
+   [
+    "SourceDistribution",
+    1
+   ],
+   [
+    "SourceStd",
+    2
+   ],
+   [
+    "LimitedManufacturingCapacity",
+    3
+   ],
+   [
+    "ManufacturingCapacity",
+    1
+   ],
+   [
+    "TransportationCostLevel2",
+    2
+   ],
+   [
+    "OptimizationLevel1Min",
+    1
+   ],
+   [
+    "OptimizationLevel1Max",
+    1
+   ],
+   [
+    "OptimizationLevel1Opt",
+    1
+   ],
+   [
+    "OptimizationLevel2Min",
+    1
+   ],
+   [
+    "OptimizationLevel2Max",
+    1
+   ],
+   [
+    "OptimizationLevel2Opt",
+    1
+   ],
+   [
+    "OptimizationSensitivity",
+    2
+   ],
+   [
+    "OptimizationUptodate",
+    3
+   ],
+   [
+    "RcmTotalW",
+    2
+   ],
+   [
+    "RcmCW",
+    2
+   ],
+   [
+    "RcmPW",
+    2
+   ],
+   [
+    "RcmTotalCost",
+    2
+   ],
+   [
+    "RcmTotalPurchaseCost",
+    2
+   ],
+   [
+    "RcmLevel1DemandQ",
+    2
+   ],
+   [
+    "RcmCPurchaseCost",
+    2
+   ],
+   [
+    "RcmPPurchaseCost",
+    2
+   ],
+   [
+    "RcmStorageCost",
+    2
+   ],
+   [
+    "RcmRepairCost",
+    2
+   ],
+   [
+    "RcmNoRecycled",
+    2
+   ],
+   [
+    "AvsimTotalW",
+    2
+   ],
+   [
+    "AvsimCW",
+    2
+   ],
+   [
+    "AvsimPW",
+    2
+   ],
+   [
+    "AvsimTotalCost",
+    2
+   ],
+   [
+    "AvsimTotalPurchaseCost",
+    2
+   ],
+   [
+    "AvsimLevel1DemandQ",
+    2
+   ],
+   [
+    "AvsimCPurchaseCost",
+    2
+   ],
+   [
+    "AvsimPPurchaseCost",
+    2
+   ],
+   [
+    "AvsimStorageCost",
+    2
+   ],
+   [
+    "AvsimRepairCost",
+    2
+   ],
+   [
+    "AvsimNoRecycled",
+    2
+   ],
+   [
+    "AvsimImportanceCost",
+    2
+   ],
+   [
+    "AvsimImportanceTdt",
+    2
+   ],
+   [
+    "AvsimImportanceW",
+    2
+   ],
+   [
+    "AvsimImportanceCapacity",
+    2
+   ],
+   [
+    "AvsimImportanceSafety",
+    2
+   ],
+   [
+    "AvsimImportanceOperational",
+    2
+   ],
+   [
+    "AvsimImportanceEnvironmental",
+    2
+   ],
+   [
+    "AvsimImportanceUptodate",
+    3
+   ],
+   [
+    "RcmOptOk",
+    3
+   ],
+   [
+    "RcmOptCbr",
+    2
+   ],
+   [
+    "RcmOptCostBenefit",
+    2
+   ],
+   [
+    "RcmOptPointIndex",
+    1
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "Guid",
+    0
+   ]
+  ],
+  "Labor": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "CostRate",
+    2
+   ],
+   [
+    "CorrectiveCalloutCost",
+    2
+   ],
+   [
+    "ScheduledCalloutCost",
+    2
+   ],
+   [
+    "CorrectiveLogisticDelay",
+    2
+   ],
+   [
+    "NoAvailable",
+    1
+   ],
+   [
+    "RcmTotalTdt",
+    2
+   ],
+   [
+    "RcmCTdt",
+    2
+   ],
+   [
+    "RcmPTdt",
+    2
+   ],
+   [
+    "RcmITdt",
+    2
+   ],
+   [
+    "RcmTotalW",
+    2
+   ],
+   [
+    "RcmCW",
+    2
+   ],
+   [
+    "RcmPW",
+    2
+   ],
+   [
+    "RcmIW",
+    2
+   ],
+   [
+    "RcmTotalCost",
+    2
+   ],
+   [
+    "RcmCCost",
+    2
+   ],
+   [
+    "RcmPCost",
+    2
+   ],
+   [
+    "RcmICost",
+    2
+   ],
+   [
+    "AvsimTotalTdt",
+    2
+   ],
+   [
+    "AvsimCTdt",
+    2
+   ],
+   [
+    "AvsimPTdt",
+    2
+   ],
+   [
+    "AvsimITdt",
+    2
+   ],
+   [
+    "AvsimTotalW",
+    2
+   ],
+   [
+    "AvsimCW",
+    2
+   ],
+   [
+    "AvsimPW",
+    2
+   ],
+   [
+    "AvsimIW",
+    2
+   ],
+   [
+    "AvsimTotalCost",
+    2
+   ],
+   [
+    "AvsimCCost",
+    2
+   ],
+   [
+    "AvsimPCost",
+    2
+   ],
+   [
+    "AvsimICost",
+    2
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "Guid",
+    0
+   ]
+  ],
+  "FailureModelScheduledTasks": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "TaskId",
+    0
+   ],
+   [
+    "Enabled",
+    3
+   ],
+   [
+    "OperationNumber",
+    0
+   ],
+   [
+    "Baseline",
+    0
+   ],
+   [
+    "TaskTrigger",
+    0
+   ],
+   [
+    "Mandatory",
+    3
+   ],
+   [
+    "AgeReductionFactor",
+    2
+   ],
+   [
+    "AgeReductionMode",
+    1
+   ],
+   [
+    "Std",
+    2
+   ],
+   [
+    "Eta",
+    2
+   ],
+   [
+    "Beta",
+    2
+   ],
+   [
+    "Gamma",
+    2
+   ],
+   [
+    "WeibullSet",
+    1
+   ],
+   [
+    "Distribution",
+    1
+   ],
+   [
+    "OperationalCost",
+    2
+   ],
+   [
+    "TaskGroup",
+    1
+   ],
+   [
+    "SecondaryActionTask",
+    3
+   ],
+   [
+    "TaskDuration",
+    2
+   ],
+   [
+    "RampTime",
+    2
+   ],
+   [
+    "TaskInterval",
+    2
+   ],
+   [
+    "FixedInterval",
+    3
+   ],
+   [
+    "Offset",
+    2
+   ],
+   [
+    "MinimumAge",
+    2
+   ],
+   [
+    "OutedDuringMaintenance",
+    3
+   ],
+   [
+    "PfInterval",
+    2
+   ],
+   [
+    "PfStd",
+    2
+   ],
+   [
+    "DetectionP",
+    2
+   ],
+   [
+    "PfDistribution",
+    1
+   ],
+   [
+    "OptimizationInitialInterval",
+    2
+   ],
+   [
+    "OptimizationIntervalIncrement",
+    2
+   ],
+   [
+    "OptimizationNumberIntervals",
+    1
+   ],
+   [
+    "OptimizationCostPointIndex",
+    1
+   ],
+   [
+    "OptimizationQPointIndex",
+    2
+   ],
+   [
+    "OptimizationCostBenefit",
+    2
+   ],
+   [
+    "OptimizationCbr",
+    2
+   ],
+   [
+    "OptimizationQBenefit",
+    2
+   ],
+   [
+    "OptimizationQbr",
+    2
+   ],
+   [
+    "OptimizationOk",
+    3
+   ],
+   [
+    "ExternalReference",
+    0
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Notes5",
+    0
+   ],
+   [
+    "Notes6",
+    0
+   ],
+   [
+    "Notes7",
+    0
+   ],
+   [
+    "Notes8",
+    0
+   ],
+   [
+    "Notes9",
+    0
+   ],
+   [
+    "Notes10",
+    0
+   ],
+   [
+    "Notes11",
+    0
+   ],
+   [
+    "Notes12",
+    0
+   ],
+   [
+    "Notes13",
+    0
+   ],
+   [
+    "Notes14",
+    0
+   ],
+   [
+    "Notes15",
+    0
+   ],
+   [
+    "Notes16",
+    0
+   ],
+   [
+    "Notes17",
+    0
+   ],
+   [
+    "Notes18",
+    0
+   ],
+   [
+    "Notes19",
+    0
+   ],
+   [
+    "Notes20",
+    0
+   ],
+   [
+    "Notes21",
+    0
+   ],
+   [
+    "Notes22",
+    0
+   ],
+   [
+    "Notes23",
+    0
+   ],
+   [
+    "Notes24",
+    0
+   ]
+  ],
+  "FailureModelSchedTaskLabor": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "SecondarySubIndex",
+    1
+   ],
+   [
+    "Labor",
+    1
+   ],
+   [
+    "ActiveTime",
+    2
+   ],
+   [
+    "SetToTaskDuration",
+    3
+   ],
+   [
+    "Quantity",
+    1
+   ],
+   [
+    "ExternalReference",
+    0
+   ]
+  ],
+  "FailureModelSchedTaskSpares": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "SecondarySubIndex",
+    1
+   ],
+   [
+    "Spare",
+    1
+   ],
+   [
+    "Quantity",
+    1
+   ],
+   [
+    "ExternalReference",
+    0
+   ]
+  ],
+  "FailureModelCorrTaskLabor": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "Labor",
+    1
+   ],
+   [
+    "ActiveTime",
+    2
+   ],
+   [
+    "SetToTaskDuration",
+    3
+   ],
+   [
+    "Quantity",
+    1
+   ],
+   [
+    "ExternalReference",
+    0
+   ]
+  ],
+  "FailureModelCorrTaskSpares": [
+   [
+    "FailureModel",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "Spare",
+    1
+   ],
+   [
+    "Quantity",
+    1
+   ],
+   [
+    "ExternalReference",
+    0
+   ]
+  ],
+  "Phases": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "PhaseGroup",
+    1
+   ],
+   [
+    "Notes1",
+    0
+   ],
+   [
+    "Notes2",
+    0
+   ],
+   [
+    "Notes3",
+    0
+   ],
+   [
+    "Notes4",
+    0
+   ],
+   [
+    "Duration",
+    2
+   ],
+   [
+    "TotalCost",
+    2
+   ],
+   [
+    "LaborCost",
+    2
+   ],
+   [
+    "EquipmentCost",
+    2
+   ],
+   [
+    "SparePurchaseCost",
+    2
+   ],
+   [
+    "SpareStorageCost",
+    2
+   ],
+   [
+    "OperationalCost",
+    2
+   ],
+   [
+    "AlarmCost",
+    2
+   ],
+   [
+    "CommissionCost",
+    2
+   ],
+   [
+    "RedesignCost",
+    2
+   ],
+   [
+    "ConsequenceCost",
+    2
+   ],
+   [
+    "Guid",
+    0
+   ]
+  ],
+  "RbdBlockRuleAssignments": [
+   [
+    "Block",
+    1
+   ],
+   [
+    "SubIndex",
+    1
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "Description",
+    0
+   ],
+   [
+    "Phase",
+    1
+   ],
+   [
+    "LogicMode",
+    1
+   ],
+   [
+    "StandbyMode",
+    1
+   ],
+   [
+    "LoadFactor",
+    2
+   ],
+   [
+    "MaxCapacity",
+    2
+   ],
+   [
+    "DependentBlock",
+    1
+   ],
+   [
+    "OutOfService",
+    3
+   ]
+  ],
+  "RbdLabels": [
+   [
+    "Id",
+    0
+   ],
+   [
+    "Type",
+    1
+   ],
+   [
+    "Page",
+    1
+   ],
+   [
+    "XPosition",
+    2
+   ],
+   [
+    "YPosition",
+    2
+   ],
+   [
+    "Width",
+    2
+   ],
+   [
+    "Height",
+    2
+   ],
+   [
+    "LabelText",
+    0
+   ],
+   [
+    "Alignment",
+    1
+   ],
+   [
+    "FontName",
+    0
+   ],
+   [
+    "FontSize",
+    2
+   ],
+   [
+    "FontStyle",
+    1
+   ],
+   [
+    "FontColor",
+    1
+   ],
+   [
+    "Border",
+    3
+   ],
+   [
+    "BitmapOn",
+    3
+   ],
+   [
+    "Bitmap",
+    1
+   ],
+   [
+    "BackgroundColor",
+    1
+   ],
+   [
+    "Guid",
+    0
+   ]
+  ]
+ },
+ "defaults": {
+  "Project": {
+   "Id": "<PROJECTID>",
+   "Description": "",
+   "FileName": "",
+   "ProductVersion": "5.0",
+   "ProjectVersionLong": "5.0.0.0",
+   "Notes": "Created by RAPTOR Studio",
+   "CompiledBy": "",
+   "ApprovedBy": "",
+   "DoublePrecision": 2,
+   "DoubleFormat": 0,
+   "LifeTime": 87600.0,
+   "LastModule": 1,
+   "LastRcmRightWindowMode": 1,
+   "LastAvsimRightWindowMode": 0,
+   "LastWeibullRightWindowMode": 5,
+   "LastLccRightWindowMode": 1,
+   "LastProcessRightWindowMode": 5,
+   "LastSapRightWindowMode": 1,
+   "LastMaximoRightWindowMode": 1,
+   "LastALTRightWindowMode": 5,
+   "LastRcmTableType": 23,
+   "LastAvsimTableType": 38,
+   "LastWeibullTableType": 46,
+   "LastLccTableType": 94,
+   "LastProcessTableType": 99,
+   "LastSapTableType": 103,
+   "LastMaximoTableType": 145,
+   "LastALTTableType": 165,
+   "NpvOn": 0,
+   "NpvYieldPercent": 0.0,
+   "NpvLaborPercent": 0.0,
+   "NpvEquipmentPercent": 0.0,
+   "NpvSparesUsagePercent": 0.0,
+   "NpvSparesStoragePercent": 0.0,
+   "NpvOperationalPercent": 0.0,
+   "NpvCommissionPercent": 0.0,
+   "NpvRedesignPercent": 0.0,
+   "NpvAlarmPercent": 0.0,
+   "NpvOutagePercent": 0.0,
+   "RcmCriticalityUseCost": 1,
+   "RcmCriticalityUseSafety": 0,
+   "RcmCriticalityUseOperational": 0,
+   "RcmCriticalityUseEnvironmental": 0,
+   "ErpCriticalityUseCost": 1,
+   "ErpCriticalityUseEffect": 0,
+   "ErpCriticalityUseNoCM": 0,
+   "ErpCriticalityUseNoPM": 0,
+   "ErpCriticalityUseNoIN": 0,
+   "RcmNoSimulations": 100,
+   "RcmRandomNoSeed": 1,
+   "RcmSafetyCriticalityTarget": 0.0,
+   "RcmOperationalCritTarget": 0.0,
+   "RcmEnvironmentalCritTarget": 0.0,
+   "RcmSpareOptQTarget": 0.0,
+   "RcmSpareOptNSites": 1,
+   "RcmAutoCriticality": 0,
+   "RcmShowId": 1,
+   "RcmShowDescription": 1,
+   "RcmShowQuantity": 0,
+   "RcmShowUnavailability": 0,
+   "RcmShowFrequency": 0,
+   "RcmShowEffect": 0,
+   "RcmShowTaskGroup": 0,
+   "RcmShowCost": 0,
+   "RcmShowSafetyCrit": 0,
+   "RcmShowOperationalCrit": 0,
+   "RcmShowEnvironmentalCrit": 0,
+   "RcmShowStrategy": 0,
+   "NoProfileIntervalS": 100,
+   "ProfileStart": 0.0,
+   "ProfileInterval": 876.0,
+   "MapProfileToLifetime": 1,
+   "ApplyInsPrdDataAtZero": 0,
+   "RcmLocationTreeNodeExp": 0,
+   "RcmLocationTypeTreeNodeExp": 0,
+   "SpareTreeNodeExp": 0,
+   "LaborTreeNodeExp": 0,
+   "EquipmentTreeNodeExp": 0,
+   "TaskGroupTreeNodeExp": 0,
+   "RcmEffectTreeNodeExp": 0,
+   "WeibullSetTreeNodeExp": 0,
+   "ProcessSetTreeNodeExp": 0,
+   "ALTSetTreeNodeExp": 0,
+   "BomTreeNodeExp": 0,
+   "RbdBlockTreeNodeExp": 1,
+   "ConsequenceTreeNodeExp": 1,
+   "PhaseTreeNodeExp": 1,
+   "LibraryBitmapTreeNodeExp": 1,
+   "GateTreeNodeExp": 0,
+   "FailureModelTreeNodeExp": 1,
+   "SapLocationTreeNodeExp": 0,
+   "SapCatalogTreeNodeExp": 0,
+   "SapCatProfTreeNodeExp": 0,
+   "SapEffectTreeNodeExp": 0,
+   "SapABCIndTreeNodeExp": 0,
+   "SapTecOTTreeNodeExp": 0,
+   "SapClassTreeNodeExp": 0,
+   "SapEqClTreeNodeExp": 0,
+   "SapLoClTreeNodeExp": 0,
+   "SapMaClTreeNodeExp": 0,
+   "SapDoClTreeNodeExp": 0,
+   "SapLaborTreeNodeExp": 0,
+   "SapBomTreeNodeExp": 0,
+   "SapEqBomTreeNodeExp": 0,
+   "SapLoBomTreeNodeExp": 0,
+   "SapMtBomTreeNodeExp": 0,
+   "SapMaterialTreeNodeExp": 0,
+   "SapMPlanTreeNodeExp": 0,
+   "MaximoLocationTreeNodeExp": 0,
+   "MaximoPMTreeNodeExp": 0,
+   "MaximoFailureListTreeNodeExp": 0,
+   "MaximoCraftTreeNodeExp": 0,
+   "MaximoCommodityTreeNodeExp": 0,
+   "AvsimCurrentRbdPage": 0,
+   "AvsimCurrentFtPage": -1,
+   "AvsimNoSimulationsRequested": 1000,
+   "AvsimNoSimulationsCompleted": 0,
+   "AvsimCapacityCalcsPerformed": 0,
+   "AvsimTreeControlShowId": 1,
+   "AvsimTreeControlShowDesc": 1,
+   "AvsimShowFailureData": 0,
+   "AvsimShowRepairData": 0,
+   "AvsimShowCapacity": 0,
+   "AvsimShowFailureModelId": 0,
+   "AvsimAvailabilityPreference": 0,
+   "AvsimShowQm": 0,
+   "AvsimShowF": 0,
+   "AvsimShowW": 0,
+   "AvsimShowRbdArrows": 1,
+   "AvsimShowGrid": 1,
+   "AvsimShowRbdDescWithBitmaps": 0,
+   "AvsimShowSymbol": 0,
+   "AvsimShowFtIecSymbols": 0,
+   "AvsimShowFtNameBorder": 1,
+   "AvsimShowFtRepeatBars": 1,
+   "AvsimDisableFtPaging": 0,
+   "AvsimDisableTransferTabs": 0,
+   "IncludeInitialSpares": 1,
+   "ResultsEffectIndex": -1,
+   "ResultsConsequenceIndex": -1,
+   "ResultsCauseIndex": -1,
+   "ResultsSpareIndex": -1,
+   "ResultsLaborIndex": -1,
+   "ResultsEquipmentIndex": -1,
+   "ResultsSystemBlockIndex": 0,
+   "ResultsSystemGateIndex": -1,
+   "ResultsComponentBlockIndex": -1,
+   "ResultsComponentEventIndex": -1,
+   "ResultsPhaseIndex": -1,
+   "ResultsDetailedLifeCosts": 0,
+   "WeibullCurrentWeibullSet": -1,
+   "ProcessCurrentProcessSet": -1,
+   "ALTCurrentALTSet": -1,
+   "AvsimDiagramMode": 0,
+   "AvsimFtPageScale": 1.0,
+   "AvsimFtPagePositionX": 0.0,
+   "AvsimFtPagePositionY": 0.0,
+   "AvsimReplenishSpares": 0,
+   "AvsimReplenishInterval": 8760.0,
+   "AvsimRandomNumberSeed": 1,
+   "AvsimMultipleSites": 0,
+   "AvsimImportanceConsequence": -1,
+   "AvsimImportanceCutoff": 0.0,
+   "AvsimImportanceInitCap": 0,
+   "ImportanceShowCost": 1,
+   "ImportanceShowTdt": 1,
+   "ImportanceShowTdtC": 0,
+   "ImportanceShowTdtP": 0,
+   "ImportanceShowTdtI": 0,
+   "ImportanceShowW": 1,
+   "ImportanceShowTdtSpare": 0,
+   "ImportanceShowTdtCrew": 0,
+   "ImportanceShowCapacity": 1,
+   "ImportanceShowCapacityC": 0,
+   "ImportanceShowCapacityP": 0,
+   "ImportanceShowCapacityI": 0,
+   "ImportanceShowCapacitySpare": 0,
+   "ImportanceShowCapacityCrew": 0,
+   "ImportanceShowSafety": 1,
+   "ImportanceShowOperational": 1,
+   "ImportanceShowEnvironmental": 1,
+   "AvsimCapAvailSystemType": 0,
+   "AvsimCapAvailSystemIndex": -1,
+   "AvsimCapAvailNoIntervals": 1,
+   "AvsimCapAvailNoPoints": 1001,
+   "AvsimCapAvailStartTime": 0.0,
+   "AvsimCapAvailIntervalLength": 87600.0,
+   "AvsimCapAvailIntervalIndex": 0,
+   "AvsimCapAvailMap": 0,
+   "AvsimEquateCapacity": 1,
+   "AvsimEquateCapacityUnit": "",
+   "AvsimEquateCapacityValue": 0.0,
+   "StorageCostMethod": 0,
+   "SpareCostPUnitWeightLevel1": 0.0,
+   "SpareCostPUnitWeightLevel2": 0.0,
+   "SpareCostPUnitVolumeLevel1": 0.0,
+   "SpareCostPUnitVolumeLevel2": 0.0,
+   "GlobalLogDelayOnLevel1": 0,
+   "GlobalLogDelayOnLevel2": 0,
+   "GlobalLogDelayOnLevel3": 0,
+   "GlobalLogDelayLevel1": 0.0,
+   "GlobalLogDelayLevel2": 0.0,
+   "GlobalLogDelayLevel3": 0.0,
+   "AvsimBufferDepletionOnCapacity": 1,
+   "AvsimPasteRenMatFailureModels": 0,
+   "AvsimPasteRenMatConsequences": 0,
+   "AvsimPasteRenMatWeibullSets": 0,
+   "AvsimPasteRenMatSpares": 0,
+   "AvsimPasteRenMatEquipments": 0,
+   "AvsimPasteRenMatLabors": 0,
+   "AvsimPasteRenMatTaskGroups": 0,
+   "AvsimPasteRenMatPhases": 0,
+   "AvsimPasteRenMatBitmaps": 0,
+   "AvsimPasteRenMatBoms": 0,
+   "WeibullTreeControlShowId": 1,
+   "WeibullTreeControlShowDesc": 1,
+   "ProcessTreeControlShowId": 1,
+   "ProcessTreeControlShowDesc": 1,
+   "SapTreeControlShowId": 1,
+   "SapTreeControlShowDesc": 1,
+   "MaximoTreeControlShowId": 1,
+   "MaximoTreeControlShowDesc": 1,
+   "ALTTreeControlShowId": 1,
+   "ALTTreeControlShowDesc": 1,
+   "OptimizationVariable": 0,
+   "RbdReportRankingMethod": 0,
+   "FtReportRankingMethod": 0,
+   "LccShowId": 1,
+   "LccShowDescription": 1,
+   "LccShowLocalVariables": 1,
+   "ProcessCapacityUnit": "",
+   "ProTranStartDate": 6.33979008e+17,
+   "SetNamesToUpperCase": 1,
+   "ExternalReference": "",
+   "NoProducts": 3,
+   "ProdDesc1": "",
+   "ProdDesc2": "",
+   "ProdDesc3": "",
+   "ProdDesc4": "",
+   "AvsimImportanceProduct": -1,
+   "AvsimCapAvailProductIndex": 0,
+   "AvsimEquateCapacityUnit2": "",
+   "AvsimEquateCapacityValue2": 0.0,
+   "AvsimEquateCapacityUnit3": "",
+   "AvsimEquateCapacityValue3": 0.0,
+   "AvsimEquateCapacityUnit4": "",
+   "AvsimEquateCapacityValue4": 0.0,
+   "AvsimEquateCapacityUnit1": "",
+   "AvsimEquateCapacityValue1": 0.0
+  },
+  "FailureModels": {
+   "Id": "",
+   "Description": "",
+   "Type": -1,
+   "DataLinkCause": -1,
+   "Notes1": "",
+   "Notes2": "",
+   "Notes3": "",
+   "Notes4": "",
+   "DetectionMethod": "",
+   "CompensatingProvisions": "",
+   "Remarks": "",
+   "FmMttf": 8760.0,
+   "FmStd": 0.0,
+   "FmEta1": 8760.0,
+   "FmBeta1": 1.0,
+   "FmGamma1": 0.0,
+   "FmEta2": 8760.0,
+   "FmBeta2": 1.0,
+   "FmGamma2": 0.0,
+   "FmEta3": 8760.0,
+   "FmBeta3": 1.0,
+   "FmGamma3": 0.0,
+   "FmWeibullSet": -1,
+   "FmDistribution": 0,
+   "StandbyFailurePercent": 50.0,
+   "StandbyAgeingPercent": 50.0,
+   "StartUpFailureProb": 0.0,
+   "AlDescription": "",
+   "AlScadaTagId": "",
+   "AlEnabled": 0,
+   "FmDormant": 0,
+   "AlCapitalCost": 0.0,
+   "AlCostRate": 0.0,
+   "AlPfInterval": 0.0,
+   "AlDetectionP": 1.0,
+   "AlPfDistribution": 0,
+   "CoDescription": "",
+   "CoEnabled": 0,
+   "CoCapitalCost": 0.0,
+   "CoCostRate": 0.0,
+   "CoPeriod": 0.0,
+   "RdDescription": "",
+   "RdEnabled": 0,
+   "RdCapitalCost": 0.0,
+   "RdCostRate": 0.0,
+   "FmWizardRandomOn": 1,
+   "FmWizardWearoutOn": 0,
+   "FmWizardInfantOn": 0,
+   "FmWizardRandomRate": 0.0,
+   "FmWizardWearoutStartAge": 0.0,
+   "FmWizardWearoutDuration": 87600.0,
+   "FmWizardInfantPeriod": 0.0,
+   "FmWizardInfantRate": 0.0,
+   "ExternalReference": "",
+   "FmInhibitBufferFill": 0,
+   "FmInhibitBufferFillByCapacity": 0,
+   "FmInhibitBufferFillByRevCap": 0,
+   "Guid": "dee1ceed-e7ae-43a6-81f3-78a2eadb1131",
+   "AlPfStd": 0.0,
+   "FmProductIndex": 0
+  },
+  "FailureModelCorrectiveTasks": {
+   "FailureModel": 0,
+   "Description": "Corrective repair",
+   "TaskId": "CM1",
+   "OperationNumber": "",
+   "AgeReductionFactor": 0.0,
+   "AgeReductionMode": 0,
+   "TaskDuration": 24.0,
+   "RampTime": 0.0,
+   "Std": 0.0,
+   "Eta": 24.0,
+   "Beta": 2.0,
+   "Gamma": 0.0,
+   "WeibullSet": -1,
+   "Distribution": 2,
+   "OperationalCost": 0.0,
+   "ExternalReference": "",
+   "Notes1": "",
+   "Notes2": "",
+   "Notes3": "",
+   "Notes4": "",
+   "Notes5": "",
+   "Notes6": "",
+   "Notes7": "",
+   "Notes8": "",
+   "Notes9": "",
+   "Notes10": "",
+   "Notes11": "",
+   "Notes12": "",
+   "Notes13": "",
+   "Notes14": "",
+   "Notes15": "",
+   "Notes16": "",
+   "Notes17": "",
+   "Notes18": "",
+   "Notes19": "",
+   "Notes20": "",
+   "Notes21": "",
+   "Notes22": "",
+   "Notes23": "",
+   "Notes24": ""
+  },
+  "RbdBlocks": {
+   "Id": "",
+   "Description": "",
+   "Notes1": "",
+   "Notes2": "",
+   "Notes3": "",
+   "Notes4": "",
+   "Super": 0,
+   "LogicMode": 0,
+   "StandbyMode": 0,
+   "Consequence": -1,
+   "FailureModel": -1,
+   "Bom": -1,
+   "Bitmap": -1,
+   "XPosition": 0.0,
+   "YPosition": 0.0,
+   "Width": 100.0,
+   "Height": 60.0,
+   "Page": 0,
+   "PageScale": 1.0,
+   "XPagePosition": 0.0,
+   "YPagePosition": 0.0,
+   "DescriptionFontName": "",
+   "DescriptionFontSize": 0.0,
+   "DescriptionFontStyle": 0,
+   "DescriptionFontColor": 0,
+   "BackgroundColor": -1,
+   "MaxCapacity": 100000.0,
+   "InitialAge": 0.0,
+   "SwitchingDelay": 0.0,
+   "LoadFactor": 1.0,
+   "NonMaintainable": 0,
+   "NonOperational": 0,
+   "DiagramReportRanking": -1,
+   "Tdt": 2346.1697784812877,
+   "TdtStd": 687.8770087785166,
+   "TdtErr": 2.931914881385055,
+   "W": 9.8,
+   "WStd": 2.856571371417137,
+   "WErr": 2.914868746344017,
+   "MeanCapacity": 45.76142883397376,
+   "MeanCapacityStd": 0.7111563364848121,
+   "MeanCapacityErr": 0.15540518611535187,
+   "F": 1.0000000000000004,
+   "R": -4.440892098500626e-16,
+   "Q": 0.009999999999999998,
+   "Qm": 0.026782760028325203,
+   "A": 0.99,
+   "Am": 0.9732172399716748,
+   "Wm": 0.00011187214611872147,
+   "Mtto": 8561.597083703056,
+   "Mtbo": 8938.775510204081,
+   "Mttr": 239.4050794368661,
+   "SpareTdt": 0.0,
+   "CrewTdt": 0.0,
+   "CTdt": 0.0,
+   "PTdt": 0.0,
+   "ITdt": 0.0,
+   "CW": 0.0,
+   "PW": 0.0,
+   "IW": 0.0,
+   "ImpCost": 0.0,
+   "ImpTdt": 0.0,
+   "ImpTdtC": 0.0,
+   "ImpTdtP": 0.0,
+   "ImpTdtI": 0.0,
+   "ImpW": 0.0,
+   "ImpTdtSpare": 0.0,
+   "ImpTdtCrew": 0.0,
+   "ImpCapacity": 0.0,
+   "ImpCapacityC": 0.0,
+   "ImpCapacityP": 0.0,
+   "ImpCapacityI": 0.0,
+   "ImpCapacitySpare": 0.0,
+   "ImpCapacityCrew": 0.0,
+   "ImpSafety": 0.0,
+   "ImpOperational": 0.0,
+   "ImpEnvironmental": 0.0,
+   "SparePurchaseCost": 0.0,
+   "LaborCost": 0.0,
+   "EquipmentCost": 0.0,
+   "OperationalCost": 0.0,
+   "AlarmCost": 0.0,
+   "CommissionCost": 0.0,
+   "RedesignCost": 0.0,
+   "IncludeInSystemPlot": 1,
+   "ProcessTransferP": 0,
+   "ExternalReference": "",
+   "Guid": "96271e98-068b-4e2d-b610-e935f7ef39cf",
+   "TimeInStandby": 0.0,
+   "MaxCapacity2": 100000.0,
+   "MaxCapacity3": 100000.0,
+   "MaxCapacity4": 100000.0,
+   "MeanCapacity2": 3757.139421638092,
+   "MeanCapacity3": 4.9301667674933185,
+   "MeanCapacity4": 0.0,
+   "MeanCapacityStd2": 40.64182661599955,
+   "MeanCapacityStd3": 0.04801477677460852,
+   "MeanCapacityStd4": 0.0,
+   "MeanCapacityErr2": 0.10817226100776409,
+   "MeanCapacityErr3": 0.09738976192689934,
+   "MeanCapacityErr4": 0.0
+  },
+  "RbdNodes": {
+   "Id": "",
+   "Page": 0,
+   "Vote": 1,
+   "XPosition": 0.0,
+   "YPosition": 0.0,
+   "OperationalCapacityTarget": 0.0,
+   "LocalStandby": 0,
+   "NotLogic": 0,
+   "BackgroundColor": -1,
+   "Guid": "8c8ee3c3-5ffe-4358-b686-474df8eca05e",
+   "OperationalCapacityTarget2": 0.0,
+   "OperationalCapacityTarget3": 0.0,
+   "OperationalCapacityTarget4": 0.0
+  },
+  "RbdConnections": {
+   "Id": "",
+   "Page": 0,
+   "Type": 0,
+   "Color": -1,
+   "InputObjectType": 20,
+   "InputObjectIndex": 0,
+   "OutputObjectType": 20,
+   "OutputObjectIndex": 0,
+   "Guid": "66666666-6666-6666-6666-666666666661"
+  }
+ }
+}
