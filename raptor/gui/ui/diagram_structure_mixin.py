@@ -332,7 +332,9 @@ class StructureMixin(_Base):
             self._stack.push(AddCmd(self, "node", [in_row, out_row]))
         finally:
             self._stack.endMacro()
-        return _safe_int(hier_row["ID"])
+        hid = _safe_int(hier_row["ID"])
+        # 0 when the rule gate refused it (too deep), as add_block does
+        return hid if hid in self.hiers else 0
 
     def import_rbd_as_hierarchy(self, path: str,
                                 name: str | None = None) -> int:
@@ -930,6 +932,10 @@ class StructureMixin(_Base):
             self._loading = False
         self.sync_model_positions()
         self._user_arranged = True
+        # notes anchored to the moved elements go with them
+        follow = getattr(self, "follow_anchors", None)
+        if follow is not None:
+            follow(set(selected))
         stack = getattr(self, "_stack", None)
         if stack is not None:
             stack.push(LayoutCmd(self, text, before, self._layout_state()))

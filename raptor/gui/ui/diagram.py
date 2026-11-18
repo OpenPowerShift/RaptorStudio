@@ -1268,6 +1268,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             item = cls(int(a.get("id", 0)), cur, a, self,
                        *_anno_ctor_args(a))
             item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
+            if not self.annotation_shown(a):
+                item.setVisible(False)    # View > Annotations hides it
             self._scene.addItem(item)
             self._anno_items[int(a.get("id", 0))] = item
 

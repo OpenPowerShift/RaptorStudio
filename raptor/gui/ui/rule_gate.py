@@ -155,7 +155,12 @@ class RuleGatedStack:
             return []
         return [v for v in found if v.key not in before]
 
+    #: how many edits the gate has refused, for a caller to tell a refused
+    #: step from one that simply made no undo step
+    refusals = 0
+
     def _refuse(self, added: list[Violation]) -> None:
+        self.refusals += 1
         self._stack.undo()
         self._stack.push(_Discard("Refused edit"))
         from raptor.gui.ui import msgbox

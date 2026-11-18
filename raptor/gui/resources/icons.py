@@ -11,7 +11,7 @@ from __future__ import annotations
 from math import atan2, cos, pi, sin
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter,
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath,
                            QPixmap, QPen, QPolygonF)
 import itertools
 
@@ -479,6 +479,32 @@ def collapse_all_icon(colour: str) -> QIcon:
 
 def text_annotation_icon(colour: str) -> QIcon:
     return _text_glyph("T", "anno_text", colour)
+
+
+def show_annotations_icon(colour: str) -> QIcon:
+    """View > Annotations: a dashed note with lines of text in it."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        pen = _outline_pen(c)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        p.setPen(pen)
+        p.drawRect(7, 9, 34, 30)
+        p.setPen(_outline_pen(c))
+        for y in (18, 24, 30):
+            p.drawLine(13, y, 35 if y < 30 else 27, y)
+    return _icon("show_annotations", colour, draw)
+
+
+def comment_notes_icon(colour: str) -> QIcon:
+    """View > Annotations: a speech bubble, for the comment notes."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(7, 8, 34, 24), 6, 6)
+        p.drawPath(path)
+        p.drawPolyline([QPointF(15, 32), QPointF(13, 41), QPointF(23, 32)])
+    return _icon("comment_notes", colour, draw)
 
 
 def rect_annotation_icon(colour: str) -> QIcon:

@@ -1029,6 +1029,9 @@ class AnnoCmd(_ViewCmd):
         item = cls(int(a.get("id", 0)), int(a.get("parent", 0)), a,
                    self._v, *_anno_ctor_args(a))
         item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
+        shown = getattr(self._v, "annotation_shown", None)
+        if shown is not None and not shown(a):
+            item.setVisible(False)    # View > Annotations hides it
         return item
 
     def redo(self):

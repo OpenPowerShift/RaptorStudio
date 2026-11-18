@@ -678,6 +678,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # ...but the speed dial still follows it (off by default now, so a
         # launch with Animate off left the dial looking usable).
         self._set_speed_state_enabled(self._live_sim_action.isChecked())
+        self._sync_annotation_toggles()
         # Controls that exist but are not on the ribbon.
         self._init_find_box()
         self._init_report_stream_actions()
@@ -3496,11 +3497,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 (self._anno_ellipse_tool, "anno_ellipse"),
                 (self._anno_arrow_tool, "anno_arrow"))
 
+    # View > Annotations ------------------------------------------------
+    def _sync_annotation_toggles(self) -> None:
+        """The two toggles show the saved settings (signals blocked: this
+        only reflects them), and Comment Notes is moot while every
+        annotation is hidden."""
+        show_all = settings.get_bool("appearance/show_annotations", True)
+        for attr, key in (("_show_annotations_action", "appearance/show_annotations"),
+                          ("_show_comment_notes_action", "appearance/show_comment_notes")):
+            action = getattr(self, attr, None)
+            if action is None:
+                continue
+            action.blockSignals(True)
+            action.setChecked(settings.get_bool(key, True))
+            action.blockSignals(False)
+        notes = getattr(self, "_show_comment_notes_action", None)
+        if notes is not None:
+            notes.setEnabled(show_all)
+
+    def _set_annotations_shown(self, on: bool) -> None:
+        self._diagram_dock.view.set_annotations_visible(bool(on))
+        self._sync_annotation_toggles()
+        self.statusBar().showMessage(
+            "Annotations shown" if on else
+            "Annotations hidden (still in the model and saved)", 4000)
+
+    def _set_comment_notes_shown(self, on: bool) -> None:
+        self._diagram_dock.view.set_comment_notes_visible(bool(on))
+        self._sync_annotation_toggles()
+        self.statusBar().showMessage(
+            "Comment notes shown" if on else
+            "Comment notes hidden (still in the model and saved)", 4000)
+
     def _set_tool(self, mode: str, on: bool):
         """Exclusive build-tool selection; 'select' is the fallback."""
         v = self._diagram_dock.view
         if on:
             v.tool_mode = mode
+            if mode.startswith("anno_") and not v.annotations_visible():
+                # a note placed while annotations are hidden would vanish
+                self._set_annotations_shown(True)
         elif v.tool_mode == mode:
             # Unchecking the armed tool falls back to Select. Unchecking
             # Select itself leaves the mode at "select": there is no

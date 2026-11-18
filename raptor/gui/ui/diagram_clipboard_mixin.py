@@ -421,6 +421,7 @@ class ClipboardMixin(_Base):
         # Pasted content, not typed input: Raptor 7's PasteObject checks only
         # the edition's block limit and hierarchy depth, not the dialog or
         # link rules, so neither does `rule_gate`.
+        steps_before = self._stack.count()
         with self._stack.ungated():
             self._stack.beginMacro("Paste elements")
             try:
@@ -462,6 +463,8 @@ class ClipboardMixin(_Base):
                     self._stack.push(AnnoCmd(self, a2, add=True))
             finally:
                 self._stack.endMacro()
+        if self._stack.count() == steps_before:
+            return 0      # refused as a whole (hierarchy depth): nothing pasted
         if notes:
             sink = getattr(self, "status_message_sink", None)
             if sink is not None:

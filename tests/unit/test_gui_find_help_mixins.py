@@ -42,10 +42,15 @@ def _status(w):
 # ------------------------------------------------------------------- find
 
 def test_find_list_has_every_element_and_enables_the_box(window):
-    v = window._diagram_dock.view
+    # every element on every level, not only the level on screen
+    rbd = window._diagram_dock.view._rbd_ref
     entries = window._find_model.stringList()
-    assert len(entries) == (len(v.blocks) + len(v.nodes) + len(v.events)
-                            + len(v.hiers))
+
+    def count(section):
+        sec = rbd.sections.get(section)
+        return sum(1 for r in getattr(sec, "rows", []) if float(r.get("ID", 0) or 0) > 0)
+    assert len(entries) == sum(count(s) for s in (
+        "BLOCK_DATA", "NODE_DATA", "EVENT_DATA", "HIERARCHY_DATA"))
     assert window._find_edit.isEnabled()
     assert entries[0].startswith("Block  ")
 
@@ -71,12 +76,12 @@ def test_submit_unknown_text_says_so(window):
 
 def test_submit_block_navigates_and_clears_the_box(window, monkeypatch):
     v = window._diagram_dock.view
-    name = next(iter(v.blocks.values())).name
+    block = next(iter(v.blocks.values()))
     calls = []
-    monkeypatch.setattr(v, "locate_element", lambda *a: calls.append(a))
-    window._find_edit.setText(name)
-    window._on_find_submit(name)
-    assert calls == [("block", name)]
+    monkeypatch.setattr(v, "locate_id", lambda *a: calls.append(a) or True)
+    window._find_edit.setText(block.name)
+    window._on_find_submit(block.name)
+    assert calls == [("block", block.id)]
     assert window._find_edit.text() == ""
 
 

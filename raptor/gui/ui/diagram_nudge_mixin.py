@@ -163,6 +163,10 @@ class NudgeMixin(_Base):
         self._compute_model_transform(rbd)
         self._rebuild_scene()
         self._apply_scene_layout()
+        # anchored notes sit by their element wherever that ended up
+        follow = getattr(self, "follow_anchors", None)
+        if follow is not None:
+            follow()
 
     def _push_bulk_geometry(self, text, old_positions):
         """Wrap a completed bulk placement (align/distribute/auto-layout)
@@ -204,6 +208,24 @@ class NudgeMixin(_Base):
         old_positions = [(it, it.pos()) for it in sel]
         anchor = sel[0]
         ar = anchor.sceneBoundingRect()
+        # setPos() snaps like a drag, which put every item on the grid
+        # rather than on an off-grid anchor's edge (35 units off): suspend
+        # the snap for this placement, as Flip and Auto Layout do
+        snap = dict(self._snap_state)
+        self._snap_state["x"] = self._snap_state["y"] = 0.0
+        try:
+            self._align_to(sel, ar, mode)
+        finally:
+            self._snap_state.update(snap)
+        # _move_by places items directly (no MoveCmd) -- sync the typed
+        # objects or the position overlay reverts the alignment on the
+        # next level change (same rule auto_layout obeys below). Only the
+        # selection moved: a full pass here was O(level) for aligning two
+        # blocks. The placement is wrapped in an undo command.
+        self._sync_items(sel)
+        self._push_bulk_geometry("Align", old_positions)
+
+    def _align_to(self, sel, ar, mode: str) -> None:
         for it in sel[1:]:
             r = it.sceneBoundingRect()
             _cur = it.pos()
@@ -222,13 +244,6 @@ class NudgeMixin(_Base):
             else:   # vcenter
                 dx = 0; dy = ar.center().y() - r.center().y()
             self._move_by(it, dx, dy)
-        # _move_by places items directly (no MoveCmd) -- sync the typed
-        # objects or the position overlay reverts the alignment on the
-        # next level change (same rule auto_layout obeys below). Only the
-        # selection moved: a full pass here was O(level) for aligning two
-        # blocks. The placement is wrapped in an undo command.
-        self._sync_items(sel)
-        self._push_bulk_geometry("Align", old_positions)
 
     def flip_selected(self, axis: str) -> bool:
         """axis: 'h' (mirror left-right) or 'v' (mirror top-bottom).

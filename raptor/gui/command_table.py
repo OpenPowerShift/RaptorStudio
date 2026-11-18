@@ -258,6 +258,28 @@ COMMANDS: tuple[CommandSpec, ...] = (
         on="toggled",
         checkable=True),
     CommandSpec(
+        id="view.show_annotations",
+        attr="_show_annotations_action",
+        text="Annotations",
+        icon="show_annotations_icon:text",
+        tooltip="Show or hide every annotation on the canvas. Hidden "
+                "annotations stay in the model and are saved.",
+        handler="_set_annotations_shown",
+        on="toggled",
+        checkable=True,
+        checked=True),
+    CommandSpec(
+        id="view.show_comment_notes",
+        attr="_show_comment_notes_action",
+        text="Comment Notes",
+        icon="comment_notes_icon:text",
+        tooltip="Show or hide only the canvas notes that show an "
+                "element's comment; other annotations stay.",
+        handler="_set_comment_notes_shown",
+        on="toggled",
+        checkable=True,
+        checked=True),
+    CommandSpec(
         id="model.quick_add",
         attr="_quick_add_action",
         text="Quick Add",
@@ -1614,7 +1636,11 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
+       # Focus, Annotations and Comment Notes share the column under Focus:
+       # a group of their own did not fit at 1280 px
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
+                            Btn("view.show_annotations"),
+                            Btn("view.show_comment_notes"),
                             Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
