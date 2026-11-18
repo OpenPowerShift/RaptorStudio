@@ -345,8 +345,11 @@ def _resolve_name(rbd: RbdFile, section: str, name: str) -> dict:
             f"No element named {name!r} in {section}.{hint}"
         )
     if len(matches) > 1:
+        kind = _SECTION_KIND_TITLE.get(section, section)
+        forms = ", ".join(f"{kind}:{m.get('ID')}" for m in matches[:6])
         raise AmbiguousName(
-            f"Name {name!r} matches {len(matches)} elements in {section}"
+            f"Name {name!r} matches {len(matches)} elements in {section}; "
+            f"name one by id: {forms}"
         )
     return matches[0]
 
@@ -888,11 +891,34 @@ def _apply_system_patch(rbd: RbdFile, row: dict,
         if patch else {}
     streams = spec.get("system_streams", spec.get("sys_streams"))
     if streams is not None:
-        if isinstance(streams, (list, tuple)):
-            row["SysStreamsArray"] = " ".join(str(int(x)) for x in streams)
-        else:
-            row["SysStreamsArray"] = str(streams)
+        row["SysStreamsArray"] = _system_streams_text(streams)
     return changed
+
+
+def _system_streams_text(value: Any) -> str:
+    """The SysStreamsArray text for `value`: the 11 shared streams, each a
+    stream number 1..110 (negative for its antithetic draw). A list, or
+    the numbers in a string. Anything else was stored as given ("abc")
+    and reported as applied, then failed to load."""
+    items = (list(value) if isinstance(value, (list, tuple))
+             else str(value).replace(",", " ").split())
+    numbers: list[int] = []
+    for item in items:
+        if isinstance(item, bool):
+            raise BuildError(f"system_streams: {item!r} is not a stream number")
+        try:
+            number = int(str(item))
+        except ValueError:
+            raise BuildError(
+                f"system_streams: {item!r} is not a stream number; give 11 "
+                "whole numbers, each 1 to 110 (negative = antithetic)") from None
+        if not 1 <= abs(number) <= 110:
+            raise BuildError(f"system_streams: stream {number} is out of range; "
+                             "each is 1 to 110 (negative = antithetic)")
+        numbers.append(number)
+    if len(numbers) != 11:
+        raise BuildError(f"system_streams: give 11 stream numbers, not {len(numbers)}")
+    return " ".join(str(n) for n in numbers)
 
 
 #: Friendly spec key -> the rbdlib row constructor for the four "auxiliary"
@@ -3470,6 +3496,9 @@ def configure_system(
             raise BuildError(f"num_runs must be a whole number of at least 1, "
                              f"got {num_runs!r}")
         updates["NumRuns"] = runs   # Raptor 7 writes "50.000000"
+    # checked before anything is written
+    streams_text = (_system_streams_text(system_streams)
+                    if system_streams is not None else None)
     term = termination if termination is not None else term_type
     if term is not None:
         # An unknown name was stored and then read as TimeSim, while the
@@ -3533,12 +3562,8 @@ def configure_system(
         rbd.experiment = run_experiment.normalise(
             run_experiment.from_system_row(row))
 
-    if system_streams is not None:
-        if isinstance(system_streams, (list, tuple)):
-            row["SysStreamsArray"] = " ".join(
-                str(int(x)) for x in system_streams)
-        else:
-            row["SysStreamsArray"] = str(system_streams)
+    if streams_text is not None:
+        row["SysStreamsArray"] = streams_text
     if display_unit is not None:
         # `display_unit` lives on the RbdFile, not SYSTEM_DATA; keep it
         # in `applied`/`previous` so a caller can see the change.

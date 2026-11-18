@@ -229,7 +229,10 @@ def downtime_drivers(run_id: str, top: int = 10,
 
     ws = context.workspace()
     attribution = drivers.read(ws, run_id)
-    top = max(1, min(int(top), 100))
+    if isinstance(top, bool) or int(top) != top or not 1 <= int(top) <= 100:
+        # was clamped to 1..100 without a word
+        raise ValueError(f"top is a whole number from 1 to 100; got {top!r}")
+    top = int(top)
     rows = drivers.top(attribution, top)
     data = {**attribution, "elements": rows, "run_id": run_id,
             "caption": drivers.caption(attribution)}

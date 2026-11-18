@@ -37,6 +37,25 @@ REPORTS = {
     "domain-tree": ("domain_tree", "rpt_domain_tree"),
     "core-file": ("core_file", "rpt_core_file"),
 }
+#: How to get each report that is only written on request: the note
+#: said only "not collected or not enabled"
+_DEV_REPORTS = {"sim-details": "sim_details", "mission-file": "mission_file",
+                "diagnostics": "diagnostics_log", "domain-tree": "domain_tree",
+                "core-file": "core_file",
+                "cumulative-by-trial": "cumulative_by_trial=N (every N trials)",
+                "cumulative-by-time": "cumulative_by_time=T (every T time units)"}
+
+
+def _report_hint(key: str) -> str:
+    if key in _DEV_REPORTS:
+        return (f"it is a developer report: run with --dev-features "
+                f"{_DEV_REPORTS[key]}")
+    if key == "interim-cost":
+        from raptor.api.run_needs import how
+        return "it needs cost analysis: " + how("cost")
+    return "this model and run gave it nothing to report"
+
+
 #: Reports Raptor 7 writes with CRLF line ends (the data files).
 _CRLF_SECTIONS = frozenset({"key_parameters", "failure_times", "down_times",
                             "end_times", "domain_tree", "core_file",
@@ -482,8 +501,7 @@ def write_reports(ws: Any, result: Any, wanted: list[str], out_dir: Path,
         src = section_path(runs_dir, section)
         text = src.read_text() if src and src.is_file() else ""
         if not text.strip():
-            eprint(f"note: no {key} data for this model "
-                   f"(not collected or not enabled)")
+            eprint(f"note: no {key} data for this run; {_report_hint(key)}")
             continue
         dest = out_dir / f"{stem}_{model_name}.txt"
         if section in _CRLF_SECTIONS:
@@ -541,7 +559,8 @@ def run_command(args: Any) -> int:
         model_id = open_model(ws, args.model)
         result, applied, warns = run_model(ws, model_id, args, wanted=wanted)
         for w in warns:
-            eprint(f"warning: {w}")
+            # the validator's own "WARN: " made "warning: WARN: ..."
+            eprint(f"warning: {w.removeprefix('WARN: ')}")
         if args.workspace:
             eprint(f"run id: {result.run_id} (raptor report "
                    f"{result.run_id} --workspace {args.workspace})")
@@ -565,7 +584,9 @@ def run_command(args: Any) -> int:
                             f".{_SUMMARY_EXT[args.format]}")
             files.append(str(summary_path))
         elif args.output and not files:
-            eprint(f"warning: nothing written to {args.output}: -f none and no -r report")
+            why = ("the -r report(s) had no data for this run" if wanted
+                   else "-f none and no -r report")
+            eprint(f"warning: nothing written to {args.output}: {why}")
         doc = results_document(result, ws, model_id, args.model, applied,
                                warns, files, args)
         metrics = _resolve_metrics(metrics, doc["summary"])

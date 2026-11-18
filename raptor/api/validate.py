@@ -496,7 +496,7 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "FEmp", element, "fail")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} fail",
+            err = validate_distro_params(dist, params[:n_params], "failure",
                                          _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
@@ -511,7 +511,7 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "REmp", element, "repair")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} repair",
+            err = validate_distro_params(dist, params[:n_params], "repair",
                                          _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
@@ -957,10 +957,18 @@ def _check_dependency_targets(rbd: RbdFile) -> list[Issue]:
                 dependency_num = int(float(row.get(num_col, "0") or 0))
             except (TypeError, ValueError):
                 dependency_num = 0
+            name = row.get(name_col) or f"{kind} {row.get('ID')}"
+            if dependency_num < -2:
+                # -1 (its own node) and -2 (the system) are the only
+                # negatives; -5 passed as "valid and runnable"
+                out.append(Issue(
+                    "error", f"{kind} '{name}'",
+                    f"dependency number {dependency_num} names nothing: use an "
+                    "element id, -1 for its own node or -2 for the system"))
+                continue
             if dependency_num <= 0:
                 continue
             target_sec = kind_sec.get(dependency_type)
-            name = row.get(name_col) or f"{kind} {row.get('ID')}"
             if target_sec is None:
                 out.append(Issue(
                     "error", f"{kind} '{name}'",

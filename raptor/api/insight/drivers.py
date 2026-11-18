@@ -37,6 +37,11 @@ def periods(workspace: Any, run_id: str, length: float | None = None, *,
     ``rows``, one entry per (run, period), for an export."""
     from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
     from raptor.api.run import run_dir
+    if below is not None and not (isinstance(below, (int, float))
+                                  and not isinstance(below, bool)
+                                  and 0.0 <= below <= 1.0):
+        # 1.5 read as "100 % of periods fall below 150 %"
+        raise ValueError(f"below is an availability, 0 to 1 (e.g. 0.97); got {below!r}")
     attribution = read(workspace, run_id)
     units = str(attribution.get("units") or "")
     if length is None:

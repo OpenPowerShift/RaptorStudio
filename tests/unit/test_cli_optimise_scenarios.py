@@ -188,7 +188,7 @@ def test_whatif_save_and_change_file(capsys, model, tmp_path):
 
 @pytest.mark.parametrize("content, words", [
     (None, "cannot read"), ("{ broken", "cannot read"),
-    ('{"name": "x"}', "must hold a JSON list"), ('[1]', "bad scenario"),
+    ('{"name": "x"}', "must hold a JSON list"), ('[1]', 'needs "changes"'),
 ])
 def test_whatif_refuses_a_bad_change_file(capsys, model, tmp_path, content, words):
     path = tmp_path / "c.json"

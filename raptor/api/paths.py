@@ -64,6 +64,28 @@ SYSTEM_FIELDS = {
 
 _DIST_FIELDS = {"fail_dist", "repair_dist", "fdist", "rdist"}
 
+#: SYSTEM_DATA column -> the configure_system argument that sets it
+_SYSTEM_COLUMN_KEY = {
+    "NumRuns": "num_runs", "TermCondition": "run_length",
+    "TerminationType": "termination", "StartStats": "start_stats",
+    "units": "units", "weakAnalysis": "weak_link", "costAnalysis": "cost",
+    "capacityAnalysis": "capacity", "flowGenerated": "flow_generated",
+    "GYthreshold": "gy_threshold", "YRthreshold": "yr_threshold",
+    "SysStreamsArray": "system_streams"}
+
+
+def _system_column(field: str) -> str | None:
+    """The SYSTEM_DATA column a system field names: a short name
+    (`runs`), a friendly one as `info` and the set-paths help list them
+    (`term_condition`, `capacity_analysis`) or the column itself. Only the
+    short names worked, so `info`'s own keys were "unknown system field"."""
+    from raptor.api.build import combined_map
+    key = SYSTEM_FIELDS.get(field)
+    if key is not None:
+        return next(col for col, k in _SYSTEM_COLUMN_KEY.items() if k == key)
+    target = combined_map("SYSTEM_DATA").get(field, field)
+    return target if isinstance(target, str) else None
+
 
 @dataclass(frozen=True)
 class ParsedPath:
@@ -182,7 +204,8 @@ def apply_assignment(workspace: Workspace, model_id: str, text: str) -> dict:
     value = parse_value(value_text)
 
     if p.kind == "system":
-        key = SYSTEM_FIELDS.get(p.field)
+        col = _system_column(p.field)
+        key = _SYSTEM_COLUMN_KEY.get(col or "")
         if key is None:
             raise PathError(
                 f"unknown system field {p.field!r}; use one of "
@@ -348,23 +371,16 @@ def get_value(workspace: Workspace, model_id: str,  # noqa: C901, PLR0912
     p = parse_path(path_text)
     rbd = workspace.get(model_id).rbd
     if p.kind == "system":
-        key = SYSTEM_FIELDS.get(p.field)
-        if key is None:
-            raise PathError(f"unknown system field {p.field!r}")
         row = rbd.section("SYSTEM_DATA").rows[0]
-        col = {"num_runs": "NumRuns", "run_length": "TermCondition",
-               "termination": "TerminationType", "start_stats": "StartStats",
-               "units": "units", "weak_link": "weakAnalysis",
-               "cost": "costAnalysis", "capacity": "capacityAnalysis",
-               "flow_generated": "flowGenerated",
-               "gy_threshold": "GYthreshold",
-               "yr_threshold": "YRthreshold"}[key]
-        if key == "num_runs":         # stored Raptor-style, "9.000000"
+        col = _system_column(p.field)
+        if col is None or col not in row:
+            raise PathError(f"unknown system field {p.field!r}")
+        if col == "NumRuns":         # stored Raptor-style, "9.000000"
             try:
                 return int(float(row.get(col) or 0))
             except (TypeError, ValueError):
                 pass
-        return row.get(col)
+        return _readable("SYSTEM_DATA", col, row.get(col))
     if p.kind == "rate":
         idx = rates.find_rate(rbd.rates or [], p.selector)
         if idx is None:
@@ -391,12 +407,37 @@ def get_value(workspace: Workspace, model_id: str,  # noqa: C901, PLR0912
     field_map = combined_map(section)
     target = field_map.get(base, p.field)
     if isinstance(target, tuple):
-        vals = [row.get(c) for c in target]
+        vals = [_readable(section, c, row.get(c)) for c in target]
         m = re.search(r"\[(\d+)\]$", p.field)
         return vals[int(m.group(1))] if m else vals
     if target not in row:
         raise PathError(f"{p.kind} has no field {p.field!r}")
-    return row.get(target)
+    return _readable(section, target, row.get(target))
+
+
+def _readable(section: str, column: str, value: Any) -> Any:
+    """A stored cell as `set` takes it back: a distribution or node type by
+    name (`get` printed `fail_dist=15` while `set` takes `weibull`), and a
+    number as a number ("1000.000000" -> 1000.0)."""
+    from raptor.api.build import _NODE_TYPE_MAP, _STRING_COLUMNS
+    if value is None or column in _STRING_COLUMNS:
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    if column in ("FDist", "RDist", "Dist", "Distro", "Pre-LDTDist",
+                  "Post-LDTDist") and number.is_integer():
+        from raptor.core.rng import Distribution
+        try:
+            return Distribution(int(number)).name.lower()
+        except ValueError:
+            return int(number)
+    if section == "NODE_DATA" and column == "Type" and number.is_integer():
+        names = {code: name for name, code in _NODE_TYPE_MAP.items()
+                 if not name.endswith("node")}
+        return names.get(int(number), int(number))
+    return int(number) if number.is_integer() and "." not in str(value) else number
 
 
 def _settable() -> dict[str, list[str]]:

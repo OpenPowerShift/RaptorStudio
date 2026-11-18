@@ -918,7 +918,7 @@ class TestConfigureSystem:
             workspace, motor_model, run_length=100.0, num_runs=50,
             termination="CycleSim", start_stats=1.0, units="years",
             weak_link=True, cost=True, capacity=True, gy_threshold=0.9,
-            yr_threshold=0.8, system_streams=[1, 2, 3],
+            yr_threshold=0.8, system_streams=list(range(1, 12)),
             display_unit="years")
         assert result["ok"] is True
         assert "TermCondition" in result["applied"]
@@ -928,7 +928,7 @@ class TestConfigureSystem:
         assert row["NumRuns"] == "50.000000"
         assert row["TerminationType"] == "CycleSim"
         assert row["weakAnalysis"] == "1"
-        assert row["SysStreamsArray"] == "1 2 3"
+        assert row["SysStreamsArray"] == "1 2 3 4 5 6 7 8 9 10 11"
         assert handle.rbd.display_unit == "years"
 
     def test_flow_generated_roundtrips_through_rbds(self, workspace,

@@ -85,7 +85,7 @@ def add_parser(sub: Any) -> None:
     c.add_argument("input", metavar="IN")
     c.add_argument("output", metavar="OUT")
     c.add_argument("--to", choices=("rbd", "rbds", "awb"),
-                   help="format to write (default: OUT's extension)")
+                   help="format to write; it must match OUT's extension, which is the default")
     c.add_argument("--allow-lossy", action="store_true",
                    help=".rbds-only content (annotations, experiment "
                         "settings, rate definitions) is dropped in .rbd; "
@@ -300,6 +300,17 @@ def set_command(args: Any) -> int:
     return X.OK
 
 
+def _check_convert_output(args: Any, dest: Path) -> None:
+    if args.to and dest.suffix.lower() != f".{args.to}":
+        # was refused only at the write, with exit 6 and "format='rbd'
+        # needs a .rbd path"
+        raise CliError(f"{args.output}: --to {args.to} writes a .{args.to} "
+                       f"file; name the output {dest.stem}.{args.to}", X.USAGE)
+    if dest.suffix.lower() not in (".rbds", ".rbd", ".awb"):
+        raise CliError(f"{args.output}: the output must be a .rbds, .rbd or "
+                       ".awb file", X.USAGE)
+
+
 def convert_command(args: Any) -> int:
     src, dest = Path(args.input), Path(args.output)
     try:
@@ -311,9 +322,7 @@ def convert_command(args: Any) -> int:
         # with no word; `set --in-place` is the command for that.
         raise CliError(f"{args.output}: the output is the input file; "
                        "give a different output path", X.USAGE)
-    if not args.to and dest.suffix.lower() not in (".rbds", ".rbd", ".awb"):
-        raise CliError(f"{args.output}: the output must be a .rbds, .rbd or "
-                       ".awb file (or give --to)", X.USAGE)
+    _check_convert_output(args, dest)
     if src.suffix.lower() == ".awb":
         fmt = args.to if args.to in ("rbd", "rbds") else (
             "rbd" if dest.suffix.lower() == ".rbd" else "rbds")

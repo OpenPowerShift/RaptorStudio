@@ -294,7 +294,9 @@ def _check_termination(make_system_row: dict, s: _Scope) -> None:
         if _out_of(start, 0.0, 999999999.999998):
             s.add("time_start",
                   "The start of statistics must be between 0 and 999,999,999.999998.")
-        elif not ordered:
+        elif not ordered and not _out_of(length, 0.000001, _BIG):
+            # with the run length itself refused, "start before the end"
+            # only repeated that error in other words
             s.add("time_order",
                   "The start of statistics must be before the end of the run.")
     elif term in (2, 3):
@@ -304,7 +306,7 @@ def _check_termination(make_system_row: dict, s: _Scope) -> None:
         if _out_of(start, 0, 999999998):
             s.add(f"{key}_start",
                   f"The {word}s before statistics start must be between 0 and 999,999,998.")
-        elif not ordered:
+        elif not ordered and not _out_of(length, 1, 999999999):
             s.add(f"{key}_order",
                   f"Statistics must start before the {word}s that end the run.")
 
