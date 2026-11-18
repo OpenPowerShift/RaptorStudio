@@ -1229,6 +1229,9 @@ the phases named in `remove` and shifts the rest down.
 off, per-phase cells dropped) -- previously there was no MCP route
 for this.
 
+`assignments` with no `phases` assigns against the phases already in
+the model. A refused call changes nothing.
+
 assignments: {element: [per-phase state]}, one list entry per phase
 (a short list is an error, not padded).  A block/event state is
 `"<code>: <value>"` -- code `A` (Active), `C` (Cut) or `L` (Linked),
@@ -1251,10 +1254,11 @@ for that phase.  Phase rows are always built through rbdlib.make_phase_row.
 
 Parameter notes:
 
+- `assignments` — `assignments` with no `phases` assigns against the phases already in the model.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `phases` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
 - `remove` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
-- `unassign` — `unassign` names blocks/events/nodes whose phasing is cleared (flag off, per-phase cells dropped) -- previously there was no MCP route for this. assignments: {element: [per-phase state]}, one list entry per phase (a short list is an error, not padded).
+- `unassign` — `unassign` names blocks/events/nodes whose phasing is cleared (flag off, per-phase cells dropped) -- previously there was no MCP route for this.
 
 **Returns**
 

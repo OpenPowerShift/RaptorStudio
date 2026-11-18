@@ -513,6 +513,26 @@ def _summary(doc: dict, metrics: Any, fmt: str) -> str:
     return summary_text(doc, metrics) + "\n"
 
 
+def _resolve_metrics(metrics: list[str] | None, summary: dict
+                     ) -> list[str] | None:
+    """`--metrics` names matched to the summary's, ignoring case. A name
+    the run does not have used to give an empty table and exit 0."""
+    if not metrics:
+        return metrics
+    known = {name.lower(): name for name in summary}
+    found = [known[m.lower()] for m in metrics if m.lower() in known]
+    unknown = [m for m in metrics if m.lower() not in known]
+    if unknown:
+        listing = ", ".join(summary)
+        if not found:
+            raise CliError(f"--metrics: no metric named "
+                           f"{', '.join(unknown)}; this run has: {listing}",
+                           X.USAGE)
+        eprint(f"warning: --metrics: no metric named {', '.join(unknown)} "
+               f"(this run has: {listing})")
+    return found
+
+
 def run_command(args: Any) -> int:
     wanted = _wanted_reports(args.report)
     metrics = [m.strip() for m in args.metrics.split(",")] if args.metrics \
@@ -548,6 +568,7 @@ def run_command(args: Any) -> int:
             eprint(f"warning: nothing written to {args.output}: -f none and no -r report")
         doc = results_document(result, ws, model_id, args.model, applied,
                                warns, files, args)
+        metrics = _resolve_metrics(metrics, doc["summary"])
         if summary_path is not None:
             write_text(summary_path, _summary(doc, metrics, args.format))
         if args.json_path:

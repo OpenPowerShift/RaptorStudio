@@ -141,9 +141,15 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
         raise ValueError(f"no part {part!r}; list them with list_part_types")
     if not isinstance(found, PartType):
         found = PartType.from_dict(found)
-    results = [link_element(ws, model_id, found.kind, element, found,
-                            library=library_path or "", overrides=overrides)
-               for element in elements]
+    context.check_batch(elements, "elements")
+    # one save and one undo step for the lot, all or nothing: per element
+    # it saved the whole model each time (22 s for 240 blocks) and one
+    # undo took back only the last element
+    with ws.batch(model_id):
+        results = [link_element(ws, model_id, found.kind, element, found,
+                                library=library_path or "",
+                                overrides=overrides)
+                   for element in elements]
     return ok({"part": found.id, "version": found.version,
                "elements": results, "count": len(results)},
               f"Applied **{found.name}** to {len(results)} block(s).")

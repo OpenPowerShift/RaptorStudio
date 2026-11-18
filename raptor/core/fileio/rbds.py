@@ -1152,5 +1152,6 @@ def _read_advisor(doc: dict) -> dict:
 
 def load_rbds(path: str) -> RbdFile:
     import os
-    with open(path, encoding="utf-8") as f:
+    # utf-8-sig: a BOM (Notepad, PowerShell `>`) is read past, not refused
+    with open(path, encoding="utf-8-sig") as f:
         return parse_rbds(f.read(), default_name=os.path.basename(path))

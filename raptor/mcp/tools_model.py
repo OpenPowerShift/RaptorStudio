@@ -1972,6 +1972,9 @@ def configure_phases(
     off, per-phase cells dropped) -- previously there was no MCP route
     for this.
 
+    `assignments` with no `phases` assigns against the phases already in
+    the model. A refused call changes nothing.
+
     assignments: {element: [per-phase state]}, one list entry per phase
     (a short list is an error, not padded).  A block/event state is
     `"<code>: <value>"` -- code `A` (Active), `C` (Cut) or `L` (Linked),

@@ -714,11 +714,19 @@ class Workspace:
             # below.
             from raptor.core.fileio.rbds import render_for_save
             _sync_counts(handle.rbd)
-            text = render_for_save(handle.rbd,
-                                   meta={"file_name": handle.rbd.file_name})
-            size = len(text.encode("utf-8"))
-            self._check_model_size(size)
-            self._check_quota(max(0, size - existing))
+            try:
+                text = render_for_save(
+                    handle.rbd, meta={"file_name": handle.rbd.file_name})
+                size = len(text.encode("utf-8"))
+                self._check_model_size(size)
+                self._check_quota(max(0, size - existing))
+            except Exception:
+                # refused (the file would not be valid, or too big): the
+                # model in memory goes back to what is on disk, as for a
+                # rule violation; it kept the refused edit, so the next
+                # call saw a change that had been "refused"
+                self._restore_saved(handle)
+                raise
             if not handle.path.exists() and handle.source:
                 # First write of a model that was only referenced. The
                 # backup must be a readable .rbds, not the source .rbd:
@@ -777,6 +785,17 @@ class Workspace:
             handle.dirty = False
         if pending:
             self.save(model_id)
+
+    def _restore_saved(self, handle: ModelHandle) -> None:
+        """Put *handle*'s model back to its last saved state, if it has one."""
+        for path in (handle.path,
+                     Path(handle.source) if handle.source else None):
+            if path is not None and path.is_file():
+                try:
+                    handle.rbd = self._load_any(str(path))
+                except Exception:                         # noqa: BLE001
+                    continue
+                return
 
     def _refuse_rule_violations(self, handle: ModelHandle) -> set:
         """Raise `InputRuleViolation`, restoring *handle*'s last saved state,
