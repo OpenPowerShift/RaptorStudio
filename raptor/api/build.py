@@ -554,13 +554,7 @@ def _set_field(rbd: RbdFile, section: str, row: dict, kind: str,
             raise BuildError(
                 f"{col} must be a finite number; got {value!r}")
     if col == "Type" and section == "NODE_DATA":
-        if isinstance(value, str):
-            key = value.strip().lower()
-            if key in _NODE_TYPE_MAP:
-                value = _NODE_TYPE_MAP[key]
-            else:
-                raise BuildError(f"unknown node type {value!r}")
-        set_fields(row, **{col: value})
+        set_fields(row, **{col: _node_type_code(value)})
         return
     if isinstance(value, bool):
         set_fields(row, **{col: value})
@@ -989,7 +983,7 @@ def _add_aux_sections(rbd: RbdFile, spec: dict[str, Any]) -> None:
                 name=p.get("name", f"Phase{i}"),
                 num=i,
                 mission=bool(int(p.get("mission", 1))),
-                dist=int(p.get("duration_dist", p.get("dist", 8))),
+                dist=_phase_dist_code(p),
                 params=tuple(p.get("params", (5.0, 0.1, 0.0))),
             ))
         _set_cols(sec)
@@ -2558,6 +2552,33 @@ def add_trigger(workspace: Workspace, model_id: str, name: str, *,
         name, ("TriggerName",))
 
 
+#: The block column that names a row of each named-only table.
+_REFERENCE_COLS = {"SPARE_POOL_DATA": "SparePoolName",
+                   "RESOURCE_DATA": "Resource1Name",
+                   "TRIGGERS": "pmTrig"}
+
+
+def _rename_references(rbd: RbdFile, section: str, before: dict,
+                       row: dict) -> int:
+    """Carry a spare pool's, resource's or trigger's new name to the blocks
+    that use it. Renamed alone, every block kept the old name, and the
+    model stopped being runnable; deleting one in use is refused for the
+    same reason."""
+    column = _REFERENCE_COLS.get(section)
+    if column is None:
+        return 0
+    name_col = _NAME_COLS[section][0]
+    old, new = before.get(name_col), row.get(name_col)
+    if not old or old == new:
+        return 0
+    changed = 0
+    for block in rbd.section("BLOCK_DATA").rows:
+        if block.get(column) == old:
+            block[column] = str(new)
+            changed += 1
+    return changed
+
+
 def delete_named_row(workspace: Workspace, model_id: str,
                      selector: str) -> dict:
     """Delete a spare pool, resource or trigger by name.
@@ -2637,11 +2658,19 @@ def _node_type_code(value: Any) -> int:
         key = value.strip().lower()
         if key in _NODE_TYPE_MAP:
             return int(_NODE_TYPE_MAP[key])
-        raise BuildError(f"unknown node type {value!r}")
+        if not key.isdigit():
+            raise BuildError(f"unknown node type {value!r}")
     try:
-        return int(value)
+        code = int(value)
     except (TypeError, ValueError):
         raise BuildError(f"unknown node type {value!r}") from None
+    inexact = isinstance(value, float) and code != value
+    if inexact or isinstance(value, bool) or not 1 <= code <= 5:
+        # 0 (and the like) built and validated clean, then every later
+        # edit was refused by the file schema
+        raise BuildError(f"unknown node type {value!r}; use 1 start, "
+                         "2 regular, 3 end, 4 in or 5 out (or the name)")
+    return code
 
 
 def _check_node_type_change(rbd: RbdFile, row: dict, new_type: int) -> None:
@@ -2768,6 +2797,7 @@ def update_element(
         row.clear()
         row.update(before)
         raise
+    _rename_references(rbd, section, before, row)
     if section == "BLOCK_DATA":
         _fix_dist_param_counts(row, patch)
         err = _block_distro_error(rbd, row)
@@ -3223,6 +3253,23 @@ def _refuse_stale_phase_tokens(rbd: RbdFile, new_count: int, assignments: dict |
             "`assignments` for each of them, or delete phases with configure_phases(mode='remove')")
 
 
+def _phase_dist_code(phase: dict[str, Any]) -> int:
+    """A phase's duration distribution as its code; a name ("Fixed",
+    "Normal") is accepted in every mode, not only `add`."""
+    code = phase.get("duration_dist", phase.get("dist", 8))
+    if isinstance(code, str) and not _is_plain_number(code):
+        from raptor.core.fileio.rbds import dist_code
+        try:
+            return int(dist_code(code))
+        except ValueError as exc:
+            raise BuildError(str(exc)) from None
+    try:
+        return int(float(code))
+    except (TypeError, ValueError):
+        raise BuildError(f"phase duration_dist {code!r} is not a "
+                         "distribution name or code") from None
+
+
 def configure_phases(
     workspace: Workspace,
     model_id: str,
@@ -3252,6 +3299,25 @@ def configure_phases(
     ``unassign`` names elements whose phasing is cleared entirely (flag
     off and per-phase cells dropped), which previously had no MCP route.
     """
+    # all or nothing: a refused assignment used to leave its element
+    # flagged as phased with blank cells, a model that validated clean and
+    # then failed every run
+    with workspace.batch(model_id):
+        return _configure_phases(workspace, model_id, phases,
+                                 assignments=assignments, mode=mode,
+                                 remove=remove, unassign=unassign)
+
+
+def _configure_phases(  # noqa: C901, PLR0912, PLR0915
+    workspace: Workspace,
+    model_id: str,
+    phases: list[dict[str, Any]] | None,
+    *,
+    assignments: dict[str, list] | None,
+    mode: str,
+    remove: list[str] | None,
+    unassign: list[str] | None,
+) -> dict:
     handle = workspace.get(model_id)
     rbd = handle.rbd
     from raptor.core.fileio.phase_edit import (delete_phase,
@@ -3261,8 +3327,12 @@ def configure_phases(
         raise BuildError(
             f"unknown phase mode {mode!r}; use replace, add or remove")
     phases = list(phases or [])
-    if mode != "remove" and not phases and not unassign:
+    if mode != "remove" and not phases and not unassign and not assignments:
         raise BuildError(f"mode={mode!r} needs at least one phase")
+    if not phases and assignments and mode != "remove" \
+            and phase_count(rbd) == 0:
+        raise BuildError("the model has no phases to assign to; pass `phases` "
+                         "first")
     if mode == "remove" and not remove:
         raise BuildError("mode='remove' needs the phase names in `remove`")
     if len(phases) > MAX_PHASES:
@@ -3293,17 +3363,10 @@ def configure_phases(
     elif mode == "add":
         base = phase_count(rbd)
         for i, p in enumerate(phases, 1):
-            code = p.get("duration_dist", p.get("dist", 8))
-            if isinstance(code, str) and not _is_plain_number(code):
-                from raptor.core.fileio.rbds import dist_code
-                try:
-                    code = dist_code(code)
-                except ValueError as exc:
-                    raise BuildError(str(exc)) from None
             insert_phase(
                 rbd, base + i,
                 name=p.get("name", f"Phase{base + i}"),
-                dist=int(code),
+                dist=_phase_dist_code(p),
                 params=tuple(p.get("params", (5.0, 0.1, 0.0))),
                 mission=bool(int(p.get("mission", 1))),
             )
@@ -3317,7 +3380,7 @@ def configure_phases(
                 name=p.get("name", f"Phase{i}"),
                 num=i,
                 mission=p.get("mission", 1),
-                dist=p.get("duration_dist", p.get("dist", 8)),
+                dist=_phase_dist_code(p),
                 params=p.get("params", (5.0, 0.1, 0.0)),
             ))
 

@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -557,12 +558,34 @@ def _is_protected(sections: dict[str, RbdSection]) -> bool:
 def load_rbd(path: str) -> RbdFile:
     with open(path, encoding="latin-1") as f:
         parsed = parse_rbd(f.read())
+    short = _missing_rows(parsed)
+    if short:
+        # a file cut off part way (a failed copy, a full disk) used to load
+        # and then fail later on a bare KeyError naming a section
+        raise ValueError(f"{os.path.basename(path)} looks truncated: "
+                         f"{short}; the file ends before the model does")
     # Raptor 7's reports title themselves with the DISK filename that was
     # opened, not the header's internal file_name. The internal name is
     # only a fallback when no path is known (GUI paste).
-    import os
     parsed.file_name = os.path.basename(path)
     return parsed
+
+
+def _missing_rows(parsed: RbdFile) -> str | None:
+    """What the header promises that the file lacks, or None."""
+    counts = getattr(parsed, "counts", None) or {}
+    for key in ("Blocks", "Events", "Nodes", "Links"):
+        declared = counts.get(key)
+        if not isinstance(declared, int) or declared <= 0:
+            continue
+        section, offset = _COUNT_SECTIONS[key]
+        found = parsed.sections.get(section)
+        have = len(found.rows) + offset if found is not None else 0
+        if found is None:
+            return f"the header lists {declared} {key.lower()} but there is no {section} section"
+        if have < declared:
+            return f"the header lists {declared} {key.lower()} but {section} has {max(have, 0)}"
+    return None
 
 
 #: Order the header count lines appear in, in every Raptor 7 fixture seen.
