@@ -204,8 +204,10 @@ class TestOneOwner:
         """`run_experiment_mixin.py` wrote this loop twice in one file --
         the review's sharpest observation, and it survives the recount."""
         src = (GUI / "ui/run_experiment_mixin.py").read_text()
-        assert src.count("apply_row_edits(") == 2, (
-            "expected exactly two call sites in run_experiment_mixin.py")
+        # One now: the Run panel's settings go through `_set_exp_fields`
+        # (undoable), which is the one place that calls the helper.
+        assert src.count("apply_row_edits(") == 1, (
+            "expected exactly one call site in run_experiment_mixin.py")
         assert "beginMacro" not in src, (
             "run_experiment_mixin still opens a macro by hand")
 

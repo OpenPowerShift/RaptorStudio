@@ -218,11 +218,14 @@ def test_gui_second_link_out_of_a_block_is_refused(view, monkeypatch):
     assert len(view._rbd_ref.sections["LINK_DATA"].rows) == n_links
 
 
-def test_a_negative_mean_is_refused_when_building_but_never_fails_runs():
-    from raptor.api.build import BuildError, build_from_spec, series
-    spec = series(1)
-    spec["blocks"][0]["fail_params"] = [-5, 0, 0]
-    with pytest.raises(BuildError, match="Mean"):
-        build_from_spec(spec)
-    spec["blocks"][0]["fail_params"] = [1e12, 0, 0]   # "never fails"
-    build_from_spec(spec)
+def test_add_block_refuses_a_negative_mean_and_takes_the_row_back():
+    import tempfile
+    from raptor.api import build
+    from raptor.api.workspace import Workspace
+    ws = Workspace(tempfile.mkdtemp())
+    mid = ws.create_model("neg", template="blank")["model_id"]
+    n = len(ws.get(mid).rbd.sections["BLOCK_DATA"].rows)
+    with pytest.raises(build.BuildError, match="Mean"):
+        build.add_block(ws, mid, "Neg", fail_dist=4, fail_params=[-5, 0])
+    assert len(ws.get(mid).rbd.sections["BLOCK_DATA"].rows) == n
+    build.add_block(ws, mid, "Never", fail_dist=4, fail_params=[1e12, 0])

@@ -1309,9 +1309,6 @@ def build_from_spec(spec: dict[str, Any],
         _require_dist_params_on_new_block(patch)
         _apply_patch(rbd, "BLOCK_DATA", row, "block", patch)
         _fix_dist_param_counts(row, patch)
-        err = _block_distro_error(rbd, row, unusable_only=True)
-        if err:
-            raise BuildError(err)
         blocks_sec.rows.append(row)
         block_seen[name] = str(bid)
         block_map[str(name).lower()] = bid
@@ -1949,10 +1946,11 @@ def _block_distro_error(rbd: RbdFile, row: dict, *,
     """What the block dialog would say about this block's failure or
     repair parameters, or None. `update_element` applies every rule.
 
-    With `unusable_only` (adding a block, building from a spec) only a
-    value no run can use -- negative or not finite -- is refused: those
-    calls reported success for a -5 mean and left a model that only
-    failed later, at validate or simulate. The dialog's other limits (a
+    With `unusable_only` (`add_block`) only a negative or non-finite
+    value is refused: adding a block reported success for a -5 mean and
+    left a model that failed later, at validate or simulate. A spec still
+    builds with one (validate reports it; the behaviour suite builds
+    negative lives on purpose to pin the engine's clamp). The dialog's other limits (a
     1e12 "never fails" mean, a standard deviation of 0) run as they are,
     and built models and scripts rely on them, so validate reports them
     instead of the build refusing them."""
