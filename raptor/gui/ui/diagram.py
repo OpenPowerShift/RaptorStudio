@@ -394,6 +394,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
         self._defer_block_refresh = False   # True while a batch is inserted
+        self._batch_link_ends: set = set()  # link ends to re-route after it
         self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None

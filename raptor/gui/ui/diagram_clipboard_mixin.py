@@ -730,22 +730,27 @@ class ClipboardMixin(_Base):
         if dead_link_nums:
             self.links[:] = [link for link in self.links
                              if link.object_num not in dead_link_nums]
-        for iid in dead_blocks:
-            item: Any
-            item = self._block_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.blocks.pop(iid, None)
-        for iid in dead_nodes:
-            item = self._node_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.nodes.pop(iid, None)
-        for iid in dead_events:
-            item = self._event_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.events.pop(iid, None)
+        # Removing a selected item emits the scene's selectionChanged, and
+        # its listeners (the ribbon's command state, the clipboard check,
+        # the layout tooltip) cost milliseconds each: once per deleted
+        # element made deleting 200 blocks take seconds. Say it once.
+        was_selected = False
+        blocked = self._scene.blockSignals(True)
+        try:
+            for table, model, dead in (
+                    (self._block_items, self.blocks, dead_blocks),
+                    (self._node_items, self.nodes, dead_nodes),
+                    (self._event_items, self.events, dead_events)):
+                for iid in dead:
+                    item: Any = table.pop(iid, None)  # type: ignore[attr-defined]
+                    if item is not None:
+                        was_selected = was_selected or item.isSelected()
+                        self._scene.removeItem(item)
+                    model.pop(iid, None)  # type: ignore[attr-defined]
+        finally:
+            self._scene.blockSignals(blocked)
+        if was_selected:
+            self._scene.selectionChanged.emit()
         self._rebuild_link_items()
         self._recount_link_ends()
         if not self._loading:

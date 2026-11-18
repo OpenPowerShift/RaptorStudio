@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import copy
 import itertools
+from collections.abc import Iterator
+from contextlib import contextmanager
 import math
 import os
 import re
@@ -88,6 +90,7 @@ class StructureMixin(_Base):
         def _current_depth(self) -> int: ...
         _current_parent: int
         _defer_block_refresh: bool
+        _batch_link_ends: set
         def _dependency_visual(self, dependency_num: int, dep_type: str) -> dict | None: ...
         @staticmethod
         def _element_shape_rect(item: Any) -> Any: ...
@@ -1036,9 +1039,17 @@ class StructureMixin(_Base):
         dst = self._resolve_link_endpoint(
             link.connect_t_ref, link.connect_to_id)
         if src is not None and dst is not None:
-            li = _LinkItem(src, dst, link_num=num)
+            li = _LinkItem(src, dst, link_num=num,
+                           defer_route=self._defer_block_refresh)
             self._links.append(li)
             self._scene.addItem(li)
+            if self._defer_block_refresh:
+                # a batch (undo of a delete, a paste): the routes at these
+                # ends and the link counts are done once, in
+                # `refresh_after_batch_insert`; per link they made
+                # restoring 200 elements take 10 s
+                self._batch_link_ends.update((src, dst))
+                return num
             # A new link can change its endpoints' entry/exit sides, and
             # with them the route of every link at those two ends. Nothing
             # else: an element's sides are decided by its own links and
@@ -1050,8 +1061,32 @@ class StructureMixin(_Base):
                 for existing in self._links:
                     if existing._from in (src, dst) or existing._to in (src, dst):
                         existing._update_route()
-        self._recount_link_ends()
+        if not self._defer_block_refresh:
+            self._recount_link_ends()
         return num
+
+    @contextmanager
+    def batch_insert(self) -> Iterator[None]:
+        """Insert many rows (`_insert_block`/`_node`/`_event`/`_link`) and
+        do the once-per-batch work -- level of detail, link counts and node
+        badges, and the routes at the new links' ends -- once at the end."""
+        if self._defer_block_refresh:
+            yield
+            return
+        self._defer_block_refresh = True
+        self._batch_link_ends = set()
+        try:
+            yield
+        finally:
+            self._defer_block_refresh = False
+            ends, self._batch_link_ends = self._batch_link_ends, set()
+            if ends:
+                self._clear_route_caches()
+                with routing_batch(self._scene):
+                    for link in self._links:
+                        if link._from in ends or link._to in ends:
+                            link._update_route()
+            self.refresh_after_block_insert()
 
     # -- insert-on-link -------------------------------------------------
     @staticmethod

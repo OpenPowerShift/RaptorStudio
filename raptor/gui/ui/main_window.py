@@ -1297,7 +1297,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
     def _build_data_tables_dock(self):
         self._data_tables = DataTablesDock()
-        self._data_tables.model_edited.connect(self._mark_dirty)
+        self._data_tables.model_edited.connect(self._on_tables_edited)
         self._data_tables.export_tables_requested.connect(self._export_tables)
         self._data_tables.element_locate_requested.connect(
             self._on_result_element_clicked)
@@ -2424,6 +2424,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         self._dirty = True
         self._update_title()
+
+    def _on_tables_edited(self) -> None:
+        """A Data Tables edit. A multi-row edit's rows each report one;
+        the table reports the lot once at the end, and marking the window
+        dirty per row (which re-walks every block's live overlay) made a
+        1,000-row edit take 20 s."""
+        if getattr(self._data_tables, "_rows_batch", 0):
+            return
+        self._mark_dirty()
 
     def _mark_dirty(self):
         # First, before any early return: whatever the run guard does
