@@ -89,8 +89,8 @@ def run_variants(
             info = ws.register_model(clone, name=f"variant{i + 1}",
                                      source="batch")
             vid = info["model_id"]
-            for text in (base_assignments or []) + list(var["assignments"]):
-                paths.apply_assignment(ws, vid, text)
+            paths.apply_assignments(
+                ws, vid, (base_assignments or []) + list(var["assignments"]))
             res = api_run(ws, vid, num_runs=num_runs, workers=workers,
                           timeout_s=timeout_s, confirm_long_run=True,
                           seed=seed, abort=abort)

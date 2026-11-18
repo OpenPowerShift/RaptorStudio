@@ -256,6 +256,29 @@ def _merge_params(workspace: Workspace, model_id: str, selector: str,
     return new + current[len(new):]
 
 
+def assignment_groups(texts: list[str]) -> list[list[str]]:
+    """`texts` split into what is applied as one edit: a distribution and
+    the parameters right after it on the same element are one group (see
+    `apply_assignments`), everything else is alone. Callers that report
+    errors per assignment loop over these with `apply_group`."""
+    groups: list[list[str]] = []
+    index = 0
+    while index < len(texts):
+        if _dist_pair(texts, index) is not None:
+            groups.append(list(texts[index:index + 2]))
+            index += 2
+        else:
+            groups.append([texts[index]])
+            index += 1
+    return groups
+
+
+def apply_group(workspace: Workspace, model_id: str,
+                group: list[str]) -> list[dict]:
+    """Apply one group from `assignment_groups`."""
+    return apply_assignments(workspace, model_id, group)
+
+
 def apply_assignments(workspace: Workspace, model_id: str,
                       texts: list[str]) -> list[dict]:
     """Apply several, in order. Stops at the first error (earlier changes
