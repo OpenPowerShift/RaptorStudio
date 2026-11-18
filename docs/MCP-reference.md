@@ -4179,6 +4179,7 @@ Parameter notes:
 | `batches` | integer | yes |
 | `caption` | string | yes |
 | `changes` | array<any> | yes |
+| `cut_short` | null | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
 | `objective` | string | yes |
@@ -4251,6 +4252,7 @@ Parameter notes:
 | `caption` | string | yes |
 | `changes` | array<any> | yes |
 | `confidence` | number | yes |
+| `cut_short` | null | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
 | `recommendations` | array<any> | yes |
@@ -4416,6 +4418,7 @@ Parameter notes:
 | `bars` | object | yes |
 | `base` | object | yes |
 | `caption` | string | yes |
+| `cut_short` | null | yes |
 | `note` | string | yes |
 | `rows` | array<any> | yes |
 | `schema` | string | yes |
@@ -4538,6 +4541,7 @@ Parameter notes:
 | `base` | object | yes |
 | `batches` | integer | yes |
 | `caption` | string | yes |
+| `cut_short` | null | yes |
 | `inputs` | array<any> | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
@@ -4949,6 +4953,7 @@ Parameter notes:
 | --- | --- | --- |
 | `base` | object | yes |
 | `caption` | string | yes |
+| `cut_short` | null | yes |
 | `note` | string | yes |
 | `requirements` | array<any> | yes |
 | `rows` | array<any> | yes |
@@ -5813,8 +5818,10 @@ Parameter notes:
 | `model_id` | string \| null | yes |
 | `model_name` | string \| null | yes |
 | `per_run` | array<any> | yes |
+| `requested_runs` | integer | yes |
 | `run_id` | string | yes |
 | `runs` | integer \| null | yes |
+| `truncated` | boolean | yes |
 | `units` | string \| null | yes |
 | `weak_link` | array<any> | yes |
 
