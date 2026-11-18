@@ -19,6 +19,7 @@ from raptor.core.edit import clipboard_payload
 from raptor.core.edit.clipboard_plan import (
     count_elements, next_free_name, plan_copy, plan_paste, plan_paste_data,
     remap_dependencies)
+from raptor.gui.clipboard_data import set_mime_data
 from raptor.gui.ui.diagram_items import routing_batch
 from raptor.gui.ui.diagram_common import (
     BLOCK_H,
@@ -134,7 +135,7 @@ class ClipboardMixin(_Base):
             clipboard_payload.encode(buffer, source_name=name,
                                      model_token=self._model_token)))
         mime.setText(clipboard_payload.summary_text(buffer, name))
-        QApplication.clipboard().setMimeData(mime)
+        set_mime_data(mime)
 
     def _selection_lists(self):
         """(blocks, regular nodes, events, hierarchies) selected on canvas."""
