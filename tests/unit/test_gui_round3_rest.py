@@ -160,3 +160,18 @@ def test_refused_hierarchy_and_paste_return_zero(view, warnings):
     view._set_level(deepest)
     assert view.paste(buffer=view._paste_buffer) == 0
     assert len(view.hiers) == hiers
+
+
+def test_an_export_frames_notes_and_elements_added_since_the_level_opened(view):
+    """Save Bitmap and the PDF's diagram pages framed the rect measured at
+    the last rebuild: before the annotations were added, and before any
+    later edit, so a note or a new block outside it was cut off."""
+    bid = view.add_block("Late", 500, 400)
+    aid = _note(view, "far")
+    item = view._anno_items[aid]
+    item.setPos(item.pos().x() + 3000, item.pos().y() + 2000)
+    frame = view.export_rect()
+    assert frame.contains(item.sceneBoundingRect())
+    assert frame.contains(view._block_items[bid].sceneBoundingRect())
+    view.set_annotations_visible(False)       # a hidden note does not widen it
+    assert not view.export_rect().contains(item.sceneBoundingRect())

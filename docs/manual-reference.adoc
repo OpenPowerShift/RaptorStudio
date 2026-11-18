@@ -300,7 +300,7 @@ current value).
 
 === View tab
 
-==== Zoom
+==== Zoom and Show
 
 [cols="2,4,1",options="header"]
 |===
@@ -311,6 +311,8 @@ current value).
 |Zoom Out |Zoom out of the diagram (Ctrl+- or Ctrl+wheel) |Ctrl+-
 |Zoom % |Zoom percent: set an exact zoom percentage |
 |Hierarchy |Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it) |
+|Notes |Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved. |
+|Comments |Show or hide only the canvas notes that show an element's comment; other annotations stay. |
 |===
 
 ==== Panels
@@ -336,8 +338,6 @@ current value).
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
 |Focus |Dim everything except the selection (topology stays) |
-|Annotations |Show or hide every annotation on the canvas. Hidden annotations stay in the model and are saved. |
-|Comment Notes |Show or hide only the canvas notes that show an element's comment; other annotations stay. |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean

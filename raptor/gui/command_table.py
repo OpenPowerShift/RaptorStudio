@@ -260,10 +260,11 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="view.show_annotations",
         attr="_show_annotations_action",
-        text="Annotations",
+        text="Notes",
         icon="show_annotations_icon:text",
-        tooltip="Show or hide every annotation on the canvas. Hidden "
-                "annotations stay in the model and are saved.",
+        tooltip="Show or hide every annotation (text, shapes, arrows) on "
+                "the canvas. Hidden annotations stay in the model and are "
+                "saved.",
         handler="_set_annotations_shown",
         on="toggled",
         checkable=True,
@@ -271,7 +272,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="view.show_comment_notes",
         attr="_show_comment_notes_action",
-        text="Comment Notes",
+        text="Comments",
         icon="comment_notes_icon:text",
         tooltip="Show or hide only the canvas notes that show an "
                 "element's comment; other annotations stay.",
@@ -1623,11 +1624,16 @@ LAYOUT: tuple[Page, ...] = (
        Group("Bands", (Custom("_build_weak_link_settings"),
                        Btn("results.weak_spread", True)), priority=2)),
     _p("View", "_view_page_index",
-       Group("Zoom", (Btn("arrange.fit", True),
+       Group("Zoom and Show", (Btn("arrange.fit", True),
                       Btn("arrange.zoom_selection", True),
                       Btn("arrange.zoom_in"), Btn("arrange.zoom_out"),
                       Btn("arrange.zoom_percent"),
-                      Btn("arrange.zoom_hierarchy")), priority=4),
+                      # the notes toggles fill the column under Hierarchy:
+                      # in a group of their own, or under Focus, the tab
+                      # no longer fitted 1280 px
+                      Btn("arrange.zoom_hierarchy"),
+                      Btn("view.show_annotations"),
+                      Btn("view.show_comment_notes")), priority=4),
        Group("Panels", (Btn("view.explorer_toggle"),
                         Btn("view.inspector_toggle"),
                         Btn("view.fev_inspector_toggle"),
@@ -1636,11 +1642,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
-       # Focus, Annotations and Comment Notes share the column under Focus:
-       # a group of their own did not fit at 1280 px
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
-                            Btn("view.show_annotations"),
-                            Btn("view.show_comment_notes"),
                             Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),

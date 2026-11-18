@@ -1454,8 +1454,8 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Annotations",
-   "tooltip": "Show or hide every annotation on the canvas. Hidden annotations stay in the model and are saved."
+   "text": "Notes",
+   "tooltip": "Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved."
   },
   "_show_comment_notes_action": {
    "checkable": true,
@@ -1464,7 +1464,7 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Comment Notes",
+   "text": "Comments",
    "tooltip": "Show or hide only the canvas notes that show an element's comment; other annotations stay."
   },
   "_snap_action": {
@@ -3073,9 +3073,19 @@
        "kind": "action",
        "large": false,
        "text": "Hierarchy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Notes"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Comments"
       }
      ],
-     "title": "Zoom"
+     "title": "Zoom and Show"
     },
     {
      "items": [
@@ -3138,16 +3148,6 @@
        "kind": "action",
        "large": false,
        "text": "Focus"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Annotations"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Comment Notes"
       },
       {
        "kind": "action",

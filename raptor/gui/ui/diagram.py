@@ -2039,6 +2039,24 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                                  f" -> {self._endpoint_name(kind, eid)}")
                 self._connect_from = None
 
+    def export_rect(self) -> QRectF:
+        """What an exported or printed picture of this level frames: every
+        item drawn now, annotations included, padded by 30.
+
+        Measured live. The cached `_content_rect` is set by a rebuild,
+        before the annotations are added, and not after an edit, so a PNG
+        or a printed page framed by it left out the notes, and anything
+        added or moved since the level was opened. A hidden item (View >
+        Annotations off) does not widen the frame."""
+        content = QRectF()
+        for it in self._scene.items():
+            if isinstance(it, _GridBackground) or not it.isVisible():
+                continue
+            content = content.united(it.sceneBoundingRect())
+        if content.isEmpty():
+            return QRectF(getattr(self, "_content_rect", None) or self.sceneRect())
+        return content.adjusted(-30, -30, 30, 30)
+
     def fit_all(self):
         """Zoom to fit the actual content bounding box. Computed fresh
         from the current scene items, not the cached `_content_rect`
