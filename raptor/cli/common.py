@@ -17,6 +17,25 @@ from raptor.core.run_experiment import IMPORTANCE_MODES
 FORMATS = ("text", "json", "ndjson", "csv", "markdown", "none")
 
 
+
+def seed_arg(text: str) -> int:
+    """`--seed N` or `--seed new` (#292): a fresh seed, drawn now so the
+    result can report it and be repeated with `--seed <that number>`."""
+    import argparse
+
+    from raptor.core import run_experiment
+    if str(text).strip().lower() == "new":
+        return run_experiment.resolve_seed({"seed_mode": "new"})
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected a whole number or 'new', got {text!r}") from None
+    if not 0 <= value <= run_experiment.SEED_MAX:
+        raise argparse.ArgumentTypeError(
+            f"the seed must be 0..{run_experiment.SEED_MAX}")
+    return value
+
 def eprint(*parts: object) -> None:
     """Status, progress and warnings go to stderr, never stdout."""
     print(*parts, file=sys.stderr)
@@ -144,9 +163,11 @@ def add_run_options(p: Any) -> None:
                    help="time | failures=N | cycles=N (default: the model's)")
     g.add_argument("--stats-start", type=float, metavar="T",
                    help="start statistics at T")
-    g.add_argument("--seed", type=int, metavar="N",
-                   help="salt every random stream (default: Raptor's fixed "
-                        "seed table)")
+    g.add_argument("--seed", type=seed_arg, metavar="N|new",
+                   help="salt every random stream: a number repeats a run "
+                        "(a GUI run's seed with -j 1 for Cores 1, -j 2 for "
+                        "more); 'new' draws one and reports it (default: "
+                        "the model's saved seed, else Raptor's fixed table)")
     g.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
                    help="parallel workers (default 1; N>1 is reproducible "
                         "but not draw-identical to 1)")

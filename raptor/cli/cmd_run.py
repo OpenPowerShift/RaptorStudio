@@ -367,7 +367,9 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
             "termination": row.get("TerminationType"),
             "term_condition": _num(row.get("TermCondition")),
             "stats_start": _num(row.get("StartStats")),
-            "seed": getattr(args, "seed", None),
+            # The seed the run USED: `--seed new` draws one, and a Number
+            # seed saved in the model applies without `--seed` (#292).
+            "seed": getattr(result, "seed", 0) or getattr(args, "seed", None),
             "jobs": getattr(args, "jobs", 1),
             "streams": getattr(result, "streams", "sequential"),
             "applied": applied,
@@ -409,7 +411,9 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
     names = [n for n in rows if not metrics or n in metrics]
     head = (f"{doc['model']['name']}: {doc['options']['runs']} run(s), "
             f"{doc['wall_seconds']:.1f}s, "
-            f"{doc['options'].get('streams', 'sequential')} streams")
+            f"{doc['options'].get('streams', 'sequential')} streams"
+            + (f", seed {doc['options']['seed']}"
+               if doc["options"].get("seed") else ""))
     lines = [head, ""]
     if doc.get("isolation"):
         lines.insert(0, doc["isolation"]["banner"])

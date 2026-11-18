@@ -291,6 +291,8 @@ class RunProgressMixin(_Base):
                 state["data"] = _imp.analyse(
                     worker_model, report_data, mode=mode,
                     runs=len(report_data), workers=workers,
+                    # the baseline's seed: variants stay paired
+                    seed=getattr(self, "_last_run_seed", 0) or None,
                     progress=lambda d, t, lab: state.__setitem__(
                         "progress", (d, t, lab)),
                     # Stop must stop this too. It is the same button and the

@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-whatif \- compare one or more changes with the open model
 .SH SYNOPSIS
-\fBraptor whatif\fR [\-h] [\-\-change PATH=VALUE] [\-\-name N] [\-\-note TEXT] [\-\-change\-file FILE] [\-n N] [\-\-precision P] [\-\-requirement EXPR] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-save FILE] [\-f {text,json}] MODEL
+\fBraptor whatif\fR [\-h] [\-\-change PATH=VALUE] [\-\-name N] [\-\-note TEXT] [\-\-change\-file FILE] [\-n N] [\-\-precision P] [\-\-requirement EXPR] [\-\-seed N|new] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-save FILE] [\-f {text,json}] MODEL
 .SH DESCRIPTION
 Run the model and each scenario with the same seed and compare them by paired trials: the same change costs far less noise than two independent batches. A scenario is the model plus a short list of PATH=VALUE changes; the model file is never modified.
 .SH OPTIONS
@@ -29,7 +29,7 @@ size the batch first with run\-to\-precision, e.g. 10%%
 \fB\-\-requirement\fR \fIEXPR\fR
 e.g. system.ao>=0.995 (repeatable)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR

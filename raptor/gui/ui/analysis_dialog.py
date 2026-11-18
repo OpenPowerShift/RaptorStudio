@@ -125,6 +125,19 @@ def trials_box(win: Any, tooltip: str) -> QSpinBox:
     return box
 
 
+def study_seed(win) -> int | None:
+    """The seed a study (What If, Sensitivity, Recommend, the optimisers)
+    uses, from Run panel ▸ Seed (#292): None for Raptor 7's fixed table.
+    Drawn ONCE per study, so the base and every variant share it and the
+    comparison stays paired."""
+    from raptor.api.run import resolve_seed
+    try:
+        experiment = win._current_experiment()
+    except Exception:  # noqa: BLE001 - no model: the fixed table
+        return None
+    return resolve_seed(experiment) or None
+
+
 class AnalysisDialog(QDialog):
     """Base window. A subclass sets TITLE and INTRO and implements
     `build_inputs`, `build_result_area`, `make_work`, `show_result`,

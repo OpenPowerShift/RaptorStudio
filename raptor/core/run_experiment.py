@@ -51,6 +51,11 @@ RUN_DEFAULTS: dict[str, Any] = {
     # The panel default is "both" for a user who switches it on -- see
     # `IMPORTANCE_DEFAULT_MODE` and `gui/ui/run_panel.py`.
     "importance": "none",
+    # Random numbers (#292): "fixed" is Raptor 7's seed table, so a run
+    # repeats exactly; "new" draws a seed for each run and records it;
+    # "number" uses `seed`. The seed salts every stream (`--seed`).
+    "seed_mode": "fixed",
+    "seed": 0,
     "recording": {
         "event_log": True,
         "ao_plot": False,
@@ -129,6 +134,33 @@ IMPORTANCE_MODES: tuple[str, ...] = ("none", "improvement", "risk", "both")
 
 #: What the panel selects when the user first switches the analysis on.
 IMPORTANCE_DEFAULT_MODE = "both"
+
+#: How a run seeds its random streams (see RUN_DEFAULTS).
+SEED_MODES = ("fixed", "new", "number")
+#: The largest seed: streams are mod 2**31 - 1.
+SEED_MAX = 2**31 - 2
+
+
+def resolve_seed(experiment: dict) -> int:
+    """The seed a run starting now uses: 0 (Raptor 7's table) for Fixed,
+    the stored number for Number, a fresh one for New."""
+    exp = normalise(experiment)
+    if exp["seed_mode"] == "number":
+        return int(exp["seed"])
+    if exp["seed_mode"] == "new":
+        import secrets
+        return 1 + secrets.randbelow(SEED_MAX)
+    return 0
+
+
+def seed_words(experiment: dict) -> str:
+    """'Raptor 7 seeds', 'new seed each run' or 'seed 1234'."""
+    exp = normalise(experiment)
+    if exp["seed_mode"] == "number":
+        return f"seed {int(exp['seed'])}"
+    if exp["seed_mode"] == "new":
+        return "new seed each run"
+    return "Raptor 7 seeds"
 
 _STATS_START_TOOLTIP = "Must be earlier than the run length."
 
@@ -397,6 +429,10 @@ def normalise(raw: dict | None) -> dict:
     if mode in IMPORTANCE_MODES:
         out["importance"] = mode
 
+    seed_mode = str(src.get("seed_mode", out["seed_mode"])).strip().lower()
+    if seed_mode in SEED_MODES:
+        out["seed_mode"] = seed_mode
+    num("seed", int, 0, SEED_MAX)
     _normalise_recording(src.get("recording"), out["recording"])
     return out
 
@@ -499,7 +535,8 @@ def to_system_row(experiment: dict) -> list[tuple[str, str]]:
 
 
 def manifest(experiment: dict, *, model_hash: str, model_name: str,
-             engine_version: str = "", profile: str = "") -> dict:
+             engine_version: str = "", profile: str = "",
+             seed: int = 0) -> dict:
     """Freeze everything a result set needs to describe its own origin.
 
     This is the object that lets run settings be mutable without making
@@ -524,7 +561,12 @@ def manifest(experiment: dict, *, model_hash: str, model_name: str,
         "start_stats": normalised["start_stats"],
         "analyses": list(normalised["analyses"]),
         "recording": dict(normalised["recording"]),
-        "seed_strategy": "per-model streams (SysStreamsArray), fixed; "
-                         "re-running the same file replays the same "
-                         "draws",
+        # The seed this run USED (a New run draws one): with it, any run
+        # can be repeated by choosing Seed ▸ Number.
+        "seed": int(seed),
+        "seed_strategy": (
+            "Raptor 7 seed table, fixed; re-running the same file replays "
+            "the same draws" if not seed else
+            f"seed {int(seed)} ({normalised['seed_mode']}); choose Seed ▸ "
+            f"Number {int(seed)} to repeat this run"),
     }

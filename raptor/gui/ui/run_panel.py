@@ -425,6 +425,7 @@ class RunPanel(QWidget):
         more.setFieldGrowthPolicy(
             QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
         self._build_scope_and_cores_row(more)
+        self._build_seed_row(more)
         self._more_body.setVisible(False)
         form.addRow(self._more_body)
 
@@ -455,6 +456,67 @@ class RunPanel(QWidget):
         row.addStretch(1)
         form.addRow("Model scope:", row)
         form.addRow(self._cores_note)
+
+    def _build_seed_row(self, form: QFormLayout) -> None:
+        """'Seed: [Raptor 7 (fixed) ▾] [1234]' (#292).
+
+        Fixed is the default: runs repeat exactly, and paired studies (What
+        If, Sensitivity) stay paired. New draws a seed for each run and the
+        results' run-settings line shows it, so that run can be repeated."""
+        self._seed_mode = QComboBox()
+        for label, mode, tip in (
+                ("Raptor 7 (fixed)", "fixed",
+                 "Raptor 7's seed table: every run draws the same random "
+                 "numbers and matches Raptor 7. Two runs are the same "
+                 "experiment twice, not two independent samples."),
+                ("New each run", "new",
+                 "A fresh seed every run, so each result is an independent "
+                 "sample. The seed is shown in the results; choose Number "
+                 "afterwards to repeat that run."),
+                ("Number", "number",
+                 "A seed you choose, saved with the model: the same number "
+                 "repeats a run. The CLI (raptor run --seed N) and the AI "
+                 "Assistant (seed=N) give the same numbers on the same "
+                 "number of cores.")):
+            self._seed_mode.addItem(label, mode)
+            self._seed_mode.setItemData(self._seed_mode.count() - 1, tip,
+                                        Qt.ItemDataRole.ToolTipRole)
+        self._cap(self._seed_mode, 160)
+        self._seed_value = QSpinBox()
+        self._seed_value.setRange(1, rx.SEED_MAX)
+        self._seed_value.setAccessibleName("Seed number")
+        self._cap(self._seed_value, 130)
+        self._seed_value.setVisible(False)
+        self._seed_mode.currentIndexChanged.connect(self._on_seed_mode)
+        self._seed_value.editingFinished.connect(
+            lambda: self._emit_change("seed", int(self._seed_value.value())))
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(SPACING["xs"])
+        row.addWidget(self._seed_mode)
+        row.addWidget(self._seed_value)
+        row.addStretch(1)
+        form.addRow("Seed:", row)
+        self._describe(self._seed_mode, self._seed_mode.itemData(
+            0, Qt.ItemDataRole.ToolTipRole))
+
+    def _on_seed_mode(self, _index: int) -> None:
+        mode = str(self._seed_mode.currentData())
+        self._seed_value.setVisible(mode == "number")
+        self._describe(self._seed_mode, self._seed_mode.itemData(
+            self._seed_mode.currentIndex(), Qt.ItemDataRole.ToolTipRole))
+        if self._loading:
+            return
+        if mode == "number":
+            # Start from the last run's seed: choosing Number is how a
+            # New run is repeated.
+            last = int(getattr(self, "last_seed", 0) or 0)
+            value = last or int(self._exp.get("seed") or 0) or 1
+            self._seed_value.setValue(value)
+            self._emit_changes({"seed_mode": "number", "seed": value})
+        else:
+            self._emit_change("seed_mode", mode)
+        self._refresh_more_options()
 
     def _build_cores_widgets(self) -> None:
         from raptor.gui import cores
@@ -624,10 +686,15 @@ class RunPanel(QWidget):
         return f"{n} core{'s' if n != 1 else ''}"
 
     def more_options_summary(self) -> str:
-        """The closed header's text: scope and cores, always."""
+        """The closed header's text: scope and cores, always; the seed
+        too when it is not Raptor 7's fixed table."""
         scope = (self._scope.currentText().strip() if self._scope_hid
                  else "Whole model")
-        return f"{scope} · {self._cores_words()}"
+        text = f"{scope} · {self._cores_words()}"
+        exp = getattr(self, "_exp", None)
+        if exp and exp.get("seed_mode", "fixed") != "fixed":
+            text += f" · {rx.seed_words(exp)}"
+        return text
 
     def _refresh_more_options(self) -> None:
         button = getattr(self, "_more_button", None)
@@ -1026,6 +1093,11 @@ class RunPanel(QWidget):
             self._cost_interval.setValue(
                 float(self._exp["recording"]["cost_interval"]))
             self._sync_importance_rows()
+            mode_index = self._seed_mode.findData(self._exp["seed_mode"])
+            self._seed_mode.setCurrentIndex(max(0, mode_index))
+            if self._exp["seed"]:
+                self._seed_value.setValue(int(self._exp["seed"]))
+            self._seed_value.setVisible(self._exp["seed_mode"] == "number")
         finally:
             self._loading = False
         self.set_enabled(enabled)
@@ -1325,6 +1397,7 @@ class RunPanel(QWidget):
                   self._flow_gen, self._system_red_cost_field,
                   self._lost_flow_cost_field,
                   self._importance_check, self._importance_mode,
+                  self._seed_mode, self._seed_value,
                   *self._analysis_checks.values(),
                   *self._recording_checks.values()):
             w.setEnabled(enabled)
@@ -1336,12 +1409,17 @@ class RunPanel(QWidget):
     # -- state out ------------------------------------------------------
 
     def _emit_change(self, key, value) -> None:
+        self._emit_changes({key: value})
+
+    def _emit_changes(self, changes: dict) -> None:
+        """Several fields as ONE change (one undo step)."""
         if self._loading or not self._enabled:
             return
         experiment = self.experiment()
-        if experiment.get(key) == value:
+        changes = {k: v for k, v in changes.items() if experiment.get(k) != v}
+        if not changes:
             return
-        experiment[key] = value
+        experiment.update(changes)
         self._exp = experiment
         self._refresh()
         self.experiment_changed.emit(experiment)

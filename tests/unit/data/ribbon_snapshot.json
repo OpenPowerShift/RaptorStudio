@@ -1047,6 +1047,26 @@
    "text": "Spares\u2026",
    "tooltip": "The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.\n\nUnavailable: open or create a model first"
   },
+  "_own_streams_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Separate Streams for All Blocks",
+   "tooltip": "Give every block its own failure and repair random streams, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused from the start. Results then no longer match Raptor 7's. Undoable\n\nUnavailable: open or create a model first"
+  },
+  "_own_streams_new_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Separate Streams for New Blocks",
+   "tooltip": "When on, each block you add, paste or duplicate gets its own failure and repair random streams instead of the shared one (reused from the start after 49 blocks). Remembered\n\nUnavailable: open or create a model first"
+  },
   "_paste_action": {
    "checkable": false,
    "checked": false,
@@ -1595,6 +1615,16 @@
    "text": "Stop",
    "tooltip": "Stop\n\nUnavailable: no run is in progress"
   },
+  "_streams_menu_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": true,
+   "shortcuts": [],
+   "text": "Random Streams",
+   "tooltip": "How blocks draw their random numbers: one shared stream (as Raptor 7), or separate failure and repair streams for each block. The run's seed is on the Run panel\n\nUnavailable: open or create a model first"
+  },
   "_sweep_action": {
    "checkable": false,
    "checked": false,
@@ -1851,6 +1881,8 @@
    "_optimise_crews_action": false,
    "_optimise_pm_action": false,
    "_optimise_spares_action": false,
+   "_own_streams_action": false,
+   "_own_streams_new_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -1902,6 +1934,7 @@
    "_step_multi_action": false,
    "_step_next_time_action": false,
    "_stop_run_action": false,
+   "_streams_menu_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
    "_terminate_action": false,
@@ -2017,6 +2050,8 @@
    "_optimise_crews_action": true,
    "_optimise_pm_action": true,
    "_optimise_spares_action": true,
+   "_own_streams_action": true,
+   "_own_streams_new_action": true,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -2068,6 +2103,7 @@
    "_step_multi_action": true,
    "_step_next_time_action": true,
    "_stop_run_action": false,
+   "_streams_menu_action": true,
    "_sweep_action": true,
    "_syscfg_action": true,
    "_terminate_action": false,
@@ -2183,6 +2219,8 @@
    "_optimise_crews_action": false,
    "_optimise_pm_action": false,
    "_optimise_spares_action": false,
+   "_own_streams_action": false,
+   "_own_streams_new_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -2234,6 +2272,7 @@
    "_step_multi_action": false,
    "_step_next_time_action": false,
    "_stop_run_action": false,
+   "_streams_menu_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
    "_terminate_action": false,
@@ -2643,6 +2682,11 @@
        "kind": "action",
        "large": false,
        "text": "Trials to Precision\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Random Streams"
       }
      ],
      "title": "Run"

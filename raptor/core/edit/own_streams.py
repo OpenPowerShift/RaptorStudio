@@ -1,0 +1,153 @@
+"""Give blocks their own random-number streams (#292).
+
+By default every block draws from one shared stream, System stream C
+(203), as Raptor 7 does. That is statistically sound within a run. An
+*independent* stream (1..110, one per entry of Raptor's seed table) gives a
+block draws of its own, so editing one block does not shift every other
+block's draws: paired comparisons are then less noisy.
+
+There are only 110 independent streams, and the model's System streams
+(A..K) already use some of the same seed-table entries. A block needs two
+(failure and repair: one stream for both would reuse each uniform draw),
+so a model has room for 49 blocks with streams of their own. After that
+the pairs are reused, least-used first ("rolled over"): two blocks on one
+pair share draws, which is still sound and still better than every block
+sharing one stream. This module never hands out a negative (antithetic)
+stream, which is the mirror of its positive twin and so not independent
+of it.
+"""
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from raptor.core.rng import FETCH_RAPTOR_SEED
+
+#: Raptor 7's System streams A..K, used when a model does not say.
+DEFAULT_SYS_STREAMS = (7, 8, 9, 10, 70, 71, 72, 73, 74, 75, 101)
+
+#: The highest independent stream number (the seed table's size).
+MAX_INDEPENDENT = len(FETCH_RAPTOR_SEED) - 1
+
+#: Shared System streams are numbered from here (201 = A).
+SYSTEM_BASE = 200
+
+
+def parse_sys_streams(text: str | None) -> tuple[int, ...]:
+    """A SYSTEM_DATA `SysStreamsArray` cell, or Raptor 7's default."""
+    parts = str(text or "").split()
+    try:
+        values = tuple(int(p) for p in parts)
+    except ValueError:
+        return DEFAULT_SYS_STREAMS
+    return values or DEFAULT_SYS_STREAMS
+
+
+def seed_entry(stream: int, sys_streams: Iterable[int]) -> int | None:
+    """The seed-table entry a stream number draws from, or None.
+
+    A System stream (201..) uses the entry its slot names; an independent
+    stream uses its own number; the sign (antithetic) is ignored, because
+    a stream and its mirror are not independent of each other.
+    """
+    stream = int(stream)
+    if stream > SYSTEM_BASE:
+        slots = list(sys_streams)
+        index = stream - SYSTEM_BASE - 1
+        return abs(slots[index]) if 0 <= index < len(slots) else None
+    return abs(stream) or None
+
+
+def free_streams(used: Iterable[int], sys_streams: Iterable[int]) -> list[int]:
+    """Independent streams no System stream, block or event draws from."""
+    sys_list = list(sys_streams)
+    taken = {abs(s) for s in sys_list}
+    for stream in used:
+        entry = seed_entry(stream, sys_list)
+        if entry is not None:
+            taken.add(entry)
+    return [n for n in range(1, MAX_INDEPENDENT + 1) if n not in taken]
+
+
+def has_own_streams(fail: int, repair: int) -> bool:
+    """True when a block already draws from two independent streams."""
+    return 0 < int(fail) <= MAX_INDEPENDENT and \
+        0 < int(repair) <= MAX_INDEPENDENT and int(fail) != int(repair)
+
+
+def stream_pairs(sys_streams: Iterable[int]) -> list[tuple[int, int]]:
+    """Every (failure, repair) pair of independent streams no System
+    stream uses, in order: (1, 2), (3, 4), ... skipping the System ones."""
+    free = free_streams((), sys_streams)
+    return [(free[i], free[i + 1]) for i in range(0, len(free) - 1, 2)]
+
+
+def capacity(sys_streams: Iterable[int]) -> int:
+    """How many blocks can have streams no other block uses."""
+    return len(stream_pairs(sys_streams))
+
+
+def assign(count: int, in_use: Iterable[int],
+           sys_streams: Iterable[int]) -> tuple[list[tuple[int, int]], int]:
+    """`count` (failure, repair) pairs, the least-used first.
+
+    `in_use` is every stream blocks and events already draw from. A pair
+    nobody uses comes first, in order; once none is left the pairs are
+    reused from the least-used up. Returns (the pairs, how many of them
+    were already in use).
+    """
+    sys_list = list(sys_streams)
+    usage: dict[int, int] = {}
+    for stream in in_use:
+        entry = seed_entry(stream, sys_list)
+        if entry is not None:
+            usage[entry] = usage.get(entry, 0) + 1
+    pairs = stream_pairs(sys_list)
+    if not pairs:
+        return [], 0
+    chosen: list[tuple[int, int]] = []
+    reused = 0
+    for _ in range(count):
+        best = min(range(len(pairs)), key=lambda k: (
+            max(usage.get(pairs[k][0], 0), usage.get(pairs[k][1], 0)), k))
+        fail, repair = pairs[best]
+        if usage.get(fail, 0) or usage.get(repair, 0):
+            reused += 1
+        usage[fail] = usage.get(fail, 0) + 1
+        usage[repair] = usage.get(repair, 0) + 1
+        chosen.append((fail, repair))
+    return chosen, reused
+
+
+def plan_all(blocks: list[tuple[int, int, int]], event_streams: Iterable[int],
+             sys_streams: Iterable[int]) -> tuple[dict[int, tuple[int, int]], int]:
+    """Streams that give every block its own pair.
+
+    `blocks` is (block id, failure stream, repair stream). A block that
+    already draws from two independent streams nobody else uses keeps
+    them; every other block is given the least-used pair (`assign`).
+    Returns ({block id: (failure, repair)} for the blocks to change, how
+    many of those share a pair because the 49 ran out).
+    """
+    sys_list = list(sys_streams)
+    counts: dict[int, int] = {}
+    for _bid, f, r in blocks:
+        for s in (f, r):
+            e = seed_entry(s, sys_list)
+            if e is not None:
+                counts[e] = counts.get(e, 0) + 1
+    for s in event_streams:
+        e = seed_entry(s, sys_list)
+        if e is not None:
+            counts[e] = counts.get(e, 0) + 1
+    sys_entries = {abs(s) for s in sys_list}
+    keep: list[tuple[int, int, int]] = []
+    change: list[tuple[int, int, int]] = []
+    for bid, f, r in blocks:
+        unique = (has_own_streams(f, r) and counts.get(abs(f)) == 1
+                  and counts.get(abs(r)) == 1
+                  and abs(f) not in sys_entries and abs(r) not in sys_entries)
+        (keep if unique else change).append((bid, f, r))
+    used = [s for _bid, f, r in keep for s in (f, r)] + list(event_streams)
+    pairs, reused = assign(len(change), used, sys_list)
+    plan = {bid: pair for (bid, _f, _r), pair in zip(change, pairs, strict=True)}
+    return plan, reused

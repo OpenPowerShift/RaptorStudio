@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-sensitivity \- which inputs the answer is most sensitive to
 .SH SYNOPSIS
-\fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
+\fBraptor sensitivity\fR [\-h] [\-\-top N] [\-n N] [\-\-metric FIELD] [\-\-seed N|new] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
 .SH DESCRIPTION
 One\-at\-a\-time tornado: vary each candidate input at a low and a high value, run every variant with Base's seed, and rank the paired swings. This screens inputs; it cannot show interactions.
 .SH OPTIONS
@@ -17,7 +17,7 @@ runs per variant (default: the model's own)
 \fB\-\-metric\fR \fIFIELD\fR
 per\-run field to watch (default availability)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR

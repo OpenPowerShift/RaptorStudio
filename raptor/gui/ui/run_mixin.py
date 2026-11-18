@@ -59,7 +59,8 @@ class RunMixin(_Base):
         # a None check at every use, so it stays Any with its real type noted.
         def _apply_hier_status(self, report_data: Any) -> None: ...
         def _begin_importance_progress(self, total: Any) -> None: ...
-        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ...) -> dict: ...
+        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ..., seed: int = ...) -> dict: ...
+        def _resolve_run_seed(self) -> int: ...
         def _checked_overlay_state(self) -> dict[str, bool]: ...
         def _clear_run_eta(self) -> None: ...
         def _current_experiment(self) -> dict: ...
@@ -607,8 +608,9 @@ class RunMixin(_Base):
         # Freeze the manifest BEFORE the engine is handed anything, so it
         # describes the run that actually happened even if the model is
         # edited while the engine works.
+        run_seed = self._resolve_run_seed()
         run_metadata["manifest"] = self._build_run_manifest(
-            run_model, isolation)
+            run_model, isolation, seed=run_seed)
         hooks = ForegroundRun(
             self, num_runs=num_runs, units=units,
             live_view=self._live_sim_action.isChecked(),
@@ -642,6 +644,7 @@ class RunMixin(_Base):
                 cumulative_trial_interval=self._dev_options().cumulative_by_trial,
                 cumulative_time_path=cumulative_time_path,
                 cumulative_time_mesh=self._dev_options().cumulative_by_time,
+                seed=run_seed or None,
                 keep_partial_logs=True,
             )
         except RunAborted:

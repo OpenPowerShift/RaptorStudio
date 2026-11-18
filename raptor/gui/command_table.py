@@ -338,6 +338,31 @@ COMMANDS: tuple[CommandSpec, ...] = (
         kwargs=(("quiet", False),),
         shortcut="F7",
         enabled_when="model_open"),
+    CommandSpec(
+        id="model.own_streams",
+        attr="_own_streams_action",
+        text="Separate Streams for All Blocks",
+        icon="streams_icon:accent",
+        tooltip=(
+            "Give every block its own failure and repair random streams, so "
+            "a change to one block does not shift the others' draws. After "
+            "49 blocks the streams are reused from the start. Results then "
+            "no longer match Raptor 7's. Undoable"),
+        handler="_give_blocks_own_streams",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="model.own_streams_new",
+        attr="_own_streams_new_action",
+        text="Separate Streams for New Blocks",
+        icon="streams_new_icon:accent",
+        tooltip=(
+            "When on, each block you add, paste or duplicate gets its own "
+            "failure and repair random streams instead of the shared one "
+            "(reused from the start after 49 blocks). Remembered"),
+        handler="_set_own_streams_for_new_blocks",
+        on="toggled",
+        checkable=True,
+        enabled_when="model_open"),
     # ---- Model -------------------------------------------------------
     CommandSpec(
         id="model.import_rbd",
@@ -1534,7 +1559,10 @@ LAYOUT: tuple[Page, ...] = (
        # watched); off, Run uses the cores shown right beside it.
        Group("Run", (Btn("sim.run", True), Btn("sim.live_sim", True),
                      Custom("_build_trials_box"), Custom("_build_cores_box"),
-                     Btn("sim.run_settings"), Btn("sim.precision"))),
+                     Btn("sim.run_settings"), Btn("sim.precision"),
+                     # Random Streams (#292): one menu button, here beside
+                     # the run because the Model tab has no room at 1280 px.
+                     Custom("_build_streams_button"))),
        Group("Control", (Btn("sim.pause"), Btn("sim.stop_run"),
                          Btn("sim.jump")), priority=4),
        # Analyses are run settings and live in the Run panel's Analysis
