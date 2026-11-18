@@ -28,7 +28,7 @@ from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QSizePolicy, QTableWidget, QApplication,
+    QComboBox, QSizePolicy, QTableWidget,
 )
 
 from raptor.core.engine import weak_metric
@@ -815,12 +815,14 @@ class ResultsPagesMixin(_Base):
 
         def _copy_this():
             from PySide6.QtCore import QMimeData
+
+            from raptor.gui.clipboard_data import set_mime_data
             from raptor.gui.ui.table_export import grid_to_html, grid_to_tsv
             headers, rows = _current_grid()
             mime = QMimeData()
             mime.setText(grid_to_tsv(headers, rows))
             mime.setHtml(grid_to_html(headers, rows))
-            QApplication.clipboard().setMimeData(mime)
+            set_mime_data(mime)
             self._status_hint_f and self._status_hint_f(
                 f"Copied '{table_name}'{_scope_word()}")
 
