@@ -267,15 +267,7 @@ class ExportMixin(_Base):
         # and goes stale after ad hoc drags (its own docstring), which
         # would render exported elements off-centre inside the viewBox
         # and could crop links.
-        content = QRectF()
-        from raptor.gui.ui.diagram import _GridBackground
-        for it in v.scene().items():
-            if isinstance(it, _GridBackground):
-                continue
-            content = content.united(it.sceneBoundingRect())
-        if content.isEmpty():
-            content = getattr(v, "_content_rect", None) or v.sceneRect()
-        src = content.adjusted(-30, -30, 30, 30)
+        src = v.export_rect()
         w = max(int(src.width()), 1)
         h = max(int(src.height()), 1)
         gen = QSvgGenerator()
@@ -353,9 +345,11 @@ class ExportMixin(_Base):
         # Full model rect (content), supersampled — never the
         # infinite-canvas world sceneRect (multi-GB pixmap -> OOM).
         view = self._diagram_dock.view
-        rect = (getattr(view, "_content_rect", None)
-                or QRectF(view._scene.itemsBoundingRect()))
-        pm = self._render_scene_png(QRectF(rect))
+        # measured now: the cached `_content_rect` predates the notes and
+        # any edit since the level was opened
+        # no editing grid, as the SVG export
+        with view.grid_hidden():
+            pm = self._render_scene_png(view.export_rect())
         if not pm.save(path, "PNG"):
             msgbox.critical(self, "Export Failed",
                                  f"Could not write {path}")

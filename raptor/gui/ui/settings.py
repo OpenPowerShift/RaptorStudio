@@ -66,6 +66,11 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # View > Annotations: whether the canvas draws the annotations, and
+    # the notes that show an element's comment. A view of the model, not
+    # part of it: hidden notes are still saved.
+    "appearance/show_annotations": True,
+    "appearance/show_comment_notes": True,
     # Digits after the decimal point on Weak Link canvas labels.
     "appearance/weak_link_digits": 3,
     # The two lines under a block's name on the canvas: one of

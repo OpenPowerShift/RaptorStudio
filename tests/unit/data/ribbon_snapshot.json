@@ -1447,6 +1447,26 @@
    "text": "Keyboard Shortcuts",
    "tooltip": "Every shortcut key, one page"
   },
+  "_show_annotations_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Notes",
+   "tooltip": "Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved."
+  },
+  "_show_comment_notes_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Comments",
+   "tooltip": "Show or hide only the canvas notes that show an element's comment; other annotations stay."
+  },
   "_snap_action": {
    "checkable": true,
    "checked": true,
@@ -1898,6 +1918,8 @@
    "_select_all_action": false,
    "_sensitivity_action": false,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -2065,6 +2087,8 @@
    "_select_all_action": true,
    "_sensitivity_action": true,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": true,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -2232,6 +2256,8 @@
    "_select_all_action": false,
    "_sensitivity_action": false,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -3047,9 +3073,19 @@
        "kind": "action",
        "large": false,
        "text": "Hierarchy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Notes"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Comments"
       }
      ],
-     "title": "Zoom"
+     "title": "Zoom and Show"
     },
     {
      "items": [

@@ -300,7 +300,7 @@ current value).
 
 === View tab
 
-==== Zoom
+==== Zoom and Show
 
 [cols="2,4,1",options="header"]
 |===
@@ -311,6 +311,8 @@ current value).
 |Zoom Out |Zoom out of the diagram (Ctrl+- or Ctrl+wheel) |Ctrl+-
 |Zoom % |Zoom percent: set an exact zoom percentage |
 |Hierarchy |Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it) |
+|Notes |Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved. |
+|Comments |Show or hide only the canvas notes that show an element's comment; other annotations stay. |
 |===
 
 ==== Panels

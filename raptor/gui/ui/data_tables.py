@@ -688,7 +688,8 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         win = self.window()
         if hasattr(win, "statusBar"):
             win.statusBar().showMessage(
-                f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
+                "Nothing replaced: the change was refused." if changed < 0
+                else f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
                 if changed else "Nothing to replace: no cell changed.", 5000)
 
     def _replace_cells(self, table: QTableWidget, needle: str,
@@ -736,9 +737,12 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             # No macro: an empty one is still an undo step that does nothing.
             return 0
         stack = getattr(getattr(self, "_view", None), "_stack", None)
+        refused = getattr(stack, "refusals", 0)
         if stack is not None:
             stack.beginMacro("Replace in table")
         changed = 0
+        # each cell's commit emits `model_edited`: act on it once, below
+        self._rows_batch += 1
         try:
             for target, new in edits:
                 target.setText(new)
@@ -747,8 +751,16 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                 if target.text() == new:
                     changed += 1
         finally:
+            self._rows_batch -= 1
             if stack is not None:
                 stack.endMacro()
+        if changed and getattr(stack, "refusals", 0) != refused:
+            # The rule gate refused the lot and put the model back; the
+            # cells still show the refused text until they are re-read
+            self.refresh()
+            return -1
+        if changed:
+            self.model_edited.emit()
         return changed
 
     @staticmethod

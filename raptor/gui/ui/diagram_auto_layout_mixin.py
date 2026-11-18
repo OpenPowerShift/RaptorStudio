@@ -288,6 +288,12 @@ class AutoLayoutMixin(_Base):
         # Up/Home (which rebuild from rows) and Save keep the layout
         self._apply_scene_layout()
         self.sync_model_positions()
+        # The layout moved the notes with the diagram as a whole; one
+        # anchored to an element goes with that element, as it does for a
+        # drag, nudge or align (it was left up to 120 units off)
+        follow = getattr(self, "follow_anchors", None)
+        if follow is not None:
+            follow()
         stack = getattr(self, "_stack", None)
         if stack is not None:
             # Pushed AFTER the rebuild: it records model positions, so the

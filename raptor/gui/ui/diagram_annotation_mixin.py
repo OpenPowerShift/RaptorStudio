@@ -36,6 +36,7 @@ from raptor.gui.ui.diagram_items import (
     _NodeItem,
     _view_status,
 )
+from raptor.gui.ui import settings as app_settings
 from raptor.gui.ui.diagram_annotations import (
     ANNO_APPLICABLE_PROPS,
     ANNO_DEFAULTS,
@@ -364,6 +365,42 @@ class AnnotationMixin(_Base):
         self._refresh_anchor_leader()
         return len(changed_ids)
 
+    # -- View > Annotations: what the canvas draws -------------------------
+    def annotations_visible(self) -> bool:
+        return bool(app_settings.get("appearance/show_annotations", True))
+
+    def comment_notes_visible(self) -> bool:
+        return bool(app_settings.get("appearance/show_comment_notes", True))
+
+    def annotation_shown(self, entry: dict) -> bool:
+        """Whether View > Annotations lets the canvas draw `entry`."""
+        if not self.annotations_visible():
+            return False
+        return bool(self.comment_notes_visible() or not entry.get("comment_of"))
+
+    def set_annotations_visible(self, on: bool) -> None:
+        """Show or hide every annotation on the canvas (a view setting:
+        hidden ones are still in the model and saved)."""
+        app_settings.set_value("appearance/show_annotations", bool(on))
+        self.apply_annotation_visibility()
+
+    def set_comment_notes_visible(self, on: bool) -> None:
+        """Show or hide only the notes linked to an element's comment."""
+        app_settings.set_value("appearance/show_comment_notes", bool(on))
+        self.apply_annotation_visibility()
+
+    def apply_annotation_visibility(self) -> None:
+        by_id = {int(e.get("id", 0) or 0): e
+                 for e in getattr(self, "annotations", []) or []}
+        following = set(getattr(self, "_hidden_following", []) or [])
+        for aid, item in list(getattr(self, "_anno_items", {}).items()):
+            entry = by_id.get(aid)
+            shown = entry is not None and self.annotation_shown(entry)
+            if not shown and item.isSelected():
+                item.setSelected(False)
+            item.setVisible(shown and aid not in following)
+        self._refresh_anchor_leader()
+
     def _hide_following_annotations(self, moved: set[tuple[str, int]]) -> None:
         refs: set[str] = set()
         for kind, oid in moved:
@@ -404,8 +441,10 @@ class AnnotationMixin(_Base):
     def _show_following_annotations(self) -> None:
         for aid in getattr(self, "_hidden_following", []) or []:
             item = self._anno_items.get(aid)
+            entry = next((e for e in getattr(self, "annotations", []) or []
+                          if int(e.get("id", 0) or 0) == aid), None)
             if item is not None:
-                item.setVisible(True)
+                item.setVisible(entry is None or self.annotation_shown(entry))
         self._hidden_following = []
         self._refresh_anchor_leader()
 
