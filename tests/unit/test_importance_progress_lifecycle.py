@@ -600,12 +600,17 @@ def test_background_pause_blocks_between_importance_variants(
     from raptor.api import importance as imp_mod
 
     started = threading.Event()
+    # The variants wait for the test's Pause: on a loaded machine the
+    # whole loop could otherwise finish before the main thread got round
+    # to pressing it ("worker did not observe the pause").
+    pause_pressed = threading.Event()
 
     def slow_analyse(_rbd, _baseline, *, mode="both", runs=None, workers=1,
                      seed=None, progress=None, stop_check=None):
         started.set()
         if progress is not None:
             progress(2, 5, "perfect:A")
+        assert pause_pressed.wait(20.0), "the test never pressed Pause"
         for i in range(20):
             time.sleep(0.02)
             if stop_check is not None and stop_check():
@@ -633,6 +638,7 @@ def test_background_pause_blocks_between_importance_variants(
     assert started.is_set(), "importance never started"
 
     win._toggle_bg_pause()
+    pause_pressed.set()
     deadline = time.monotonic() + 3.0
     while (not (win._bg_state or {}).get("paused")
            and time.monotonic() < deadline):
