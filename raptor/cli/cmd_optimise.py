@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, positive_int
 from raptor.cli.cmd_run import add_study_progress, study_progress
 from raptor.cli.exitcodes import CliError
 
@@ -54,7 +54,7 @@ def add_parser(sub: Any) -> None:
     p.add_argument("-n", "--trials", type=int, metavar="N",
                    help="runs per point (default: the model's own)")
     p.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    p.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    p.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(p)
     p.add_argument("--apply", action="store_true",
                    help="write the recommended stocks into the model")
@@ -71,7 +71,7 @@ def add_parser(sub: Any) -> None:
     m.add_argument("-n", "--trials", type=int, metavar="N",
                    help="runs per point (default: the model's own)")
     m.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    m.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    m.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(m)
     m.add_argument("--apply", action="store_true",
                    help="write the recommended intervals into the model")
@@ -88,7 +88,7 @@ def add_parser(sub: Any) -> None:
                    help="sizes above the seed to try (default 3)")
     r.add_argument("-n", "--trials", type=int, metavar="N")
     r.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    r.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(r)
     r.add_argument("--apply", action="store_true",
                    help="write the recommended sizes into the model")

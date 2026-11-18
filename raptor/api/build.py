@@ -579,8 +579,10 @@ def _set_field(rbd: RbdFile, section: str, row: dict, kind: str,
         _require_dist_code(col, value)
     elif col in _DIST_CODE_COLS:
         raise BuildError(f"{col} must be a distribution code, not a flag")
-    if col == "SpType" and isinstance(value, str):
-        value = _SPARING_MODE_TO_FILE.get(value.strip().lower(), value)
+    if col == "SpType":
+        value = _sparing_type(value)
+    elif col == "DepType":
+        value = _dependency_type(value)
     if isinstance(value, str) and col not in _STRING_COLUMNS \
             and not _is_plain_number(value):
         from raptor.api.rates import resolve_value
@@ -1353,6 +1355,8 @@ def build_from_spec(spec: dict[str, Any],
 
     hiers_sec = rbd.sections["HIERARCHY_DATA"]
     hier_seen: dict[str, str] = {}
+    hier_map: dict[str, int] = {}
+    level_given: set[int] = set()
     for h in spec.get("hierarchies") or []:
         hid = _coerce_id(h.get("id", h.get("ID")))
         if hid is None:
@@ -1366,9 +1370,24 @@ def build_from_spec(spec: dict[str, Any],
         _apply_patch(rbd, "HIERARCHY_DATA", row, "hier", patch)
         hiers_sec.rows.append(row)
         hier_seen[name] = str(hid)
+        hier_map[str(name).lower()] = hid
+        hier_map[str(hid)] = hid
+        if "level" in h or "Level" in h:
+            level_given.add(hid)
+    # A hierarchy's level is how deep it sits, so a spec need not say: one
+    # nested 3 deep was left at level 1 and drew a wrong-level warning per
+    # hierarchy. A level the spec gives is kept (validate reports it if it
+    # disagrees).
+    from raptor.core.input_rules import hierarchy_depths
+    for hid, depth in hierarchy_depths(rbd).items():
+        if hid not in level_given:
+            for row in hiers_sec.rows:
+                if str(row.get("ID")) == str(hid):
+                    row["level"] = str(depth)
 
     # --- links ------------------------------------------------------------
-    maps = {"block": block_map, "node": node_map, "event": event_map}
+    maps = {"block": block_map, "node": node_map, "event": event_map,
+            "hier": hier_map}
     links_sec = rbd.sections["LINK_DATA"]
     for link in spec.get("links") or []:
         lid = _coerce_id(link.get("id", link.get("ID")))
@@ -1528,6 +1547,22 @@ def template_spec(template: str, *, n: int = 2, k: int = 1) -> RbdFile:
     if name in ("blank", "new", ""):
         from raptor.core.edit.new_model import build_new_model
         return build_new_model()
+    if name in ("series", "parallel", "k_of_n", "kofn", "k-out-of-n",
+                "koutofn"):
+        # The same limits `Workspace.create_model` applies: `n=0` built a
+        # model with a dangling link ("cannot resolve link endpoint
+        # 'Block1'"), and `k=0` a node no run can use.
+        from raptor.api.limits import MAX_TEMPLATE_BLOCKS
+        if isinstance(n, bool) or not isinstance(n, int) \
+                or not 1 <= n <= MAX_TEMPLATE_BLOCKS:
+            raise BuildError(
+                f"template n must be a whole number from 1 to "
+                f"{MAX_TEMPLATE_BLOCKS}, got {n!r}")
+        if name not in ("series", "parallel") and (
+                isinstance(k, bool) or not isinstance(k, int)
+                or not 1 <= k <= n):
+            raise BuildError(f"template k must be a whole number from 1 to "
+                             f"n ({n}), got {k!r}")
     if name == "series":
         return build_from_spec(series(n))
     if name == "parallel":
@@ -1906,6 +1941,43 @@ def _check_parent(rbd: RbdFile, parent: Any) -> None:
     return
 
 
+def _block_distro_error(rbd: RbdFile, row: dict, *,
+                        unusable_only: bool = False) -> str | None:
+    """What the block dialog would say about this block's failure or
+    repair parameters, or None. `update_element` applies every rule.
+
+    With `unusable_only` (`add_block`) only a negative or non-finite
+    value is refused: adding a block reported success for a -5 mean and
+    left a model that failed later, at validate or simulate. A spec still
+    builds with one (validate reports it; the behaviour suite builds
+    negative lives on purpose to pin the engine's clamp). The dialog's other limits (a
+    1e12 "never fails" mean, a standard deviation of 0) run as they are,
+    and built models and scripts rely on them, so validate reports them
+    instead of the build refusing them."""
+    from raptor.api.run import model_units
+    from raptor.core.distro_rules import validate_distro_params
+    for prefix, use in (("F", "fail"), ("R", "repair")):
+        try:
+            dist = int(float(row.get(f"{prefix}Dist", "0")))
+            n = int(float(row.get(f"#{prefix}Param", "0")))
+            params = [float(row.get(f"{prefix}Param{i}", "0"))
+                      for i in (1, 2, 3)]
+        except (TypeError, ValueError):
+            continue
+        if dist == 0 or n <= 0:
+            continue
+        if unusable_only and all(math.isfinite(v) and v >= 0.0
+                                 for v in params[:n]):
+            continue
+        err = validate_distro_params(
+            dist, params[:n],
+            f"Block '{row.get('blockName', row.get('ID'))}' {use}",
+            model_units(rbd))
+        if err:
+            return err
+    return None
+
+
 def add_block(
     workspace: Workspace,
     model_id: str,
@@ -1934,8 +2006,17 @@ def add_block(
     row = _append_new_row(rbd, "BLOCK_DATA", lambda: make_block_row(bid, name=name),
                           ID=bid, blockName=name)
     _require_dist_params_on_new_block(kwargs)
-    _apply_patch(rbd, "BLOCK_DATA", row, "block", kwargs)
-    _fix_dist_param_counts(row, kwargs)
+    try:
+        _apply_patch(rbd, "BLOCK_DATA", row, "block", kwargs)
+        _fix_dist_param_counts(row, kwargs)
+        err = _block_distro_error(rbd, row, unusable_only=True)
+        if err:
+            raise BuildError(err)
+    except BuildError:
+        rows = rbd.sections["BLOCK_DATA"].rows
+        if row in rows:
+            rows.remove(row)
+        raise
     if after is not None:
         _link_from(rbd, after, "Block", bid)
     _fix_link_counts(rbd)
@@ -2689,26 +2770,11 @@ def update_element(
         raise
     if section == "BLOCK_DATA":
         _fix_dist_param_counts(row, patch)
-        from raptor.core.distro_rules import validate_distro_params
-        for prefix, use in (("F", "fail"), ("R", "repair")):
-            try:
-                dist = int(float(row.get(f"{prefix}Dist", "0")))
-                n = int(float(row.get(f"#{prefix}Param", "0")))
-                params = [float(row.get(f"{prefix}Param{i}", "0"))
-                          for i in (1, 2, 3)]
-            except (TypeError, ValueError):
-                continue
-            if dist == 0 or n <= 0:
-                continue
-            from raptor.api.run import model_units
-            err = validate_distro_params(
-                dist, params[:n],
-                f"Block '{row.get('blockName', row.get('ID'))}' {use}",
-                model_units(rbd))
-            if err:
-                row.clear()
-                row.update(before)
-                raise BuildError(err)
+        err = _block_distro_error(rbd, row)
+        if err:
+            row.clear()
+            row.update(before)
+            raise BuildError(err)
     sync_counts(rbd)
     workspace.save(model_id)
     return row
@@ -2814,6 +2880,43 @@ def _reconnect_on_delete(rbd: RbdFile, kind: str, elem_id: str) -> None:
 # configure_sparing / configure_maintenance / configure_phases /
 # configure_system
 # ---------------------------------------------------------------------------
+
+def _sparing_type(value: Any) -> str:
+    """A block's sparing type as the file spells it. Refuses anything
+    else: the .rbds reader rejects an unknown one, so accepting it here
+    saved a model that could not be opened again, and Raptor 7 reads it
+    as no sparing at all."""
+    text = str(value).strip()
+    named = _SPARING_MODE_TO_FILE.get(text.lower())
+    if named is None or isinstance(value, bool):
+        allowed = ", ".join(sorted(set(_SPARING_MODE_TO_FILE.values())))
+        raise BuildError(
+            f"sparing type {value!r} is not one of {allowed} (a name, not a "
+            "number)")
+    return named
+
+
+_DEP_TYPE_TO_FILE = {
+    "none": "None", "": "None",
+    "rbdblock": "RBDBlock", "block": "RBDBlock",
+    "rbdnode": "RBDNode", "node": "RBDNode",
+    "rbdevent": "RBDEvent", "event": "RBDEvent",
+    "rbdhier": "RBDHier", "hier": "RBDHier", "hierarchy": "RBDHier",
+}
+
+
+def _dependency_type(value: Any) -> str:
+    """A block's dependency type as the file spells it (RBDBlock, ...).
+    "Block", "Node", "Event" and "Hierarchy" are accepted too. Anything
+    else is refused: the engine read it as no dependency, and the .rbds
+    reader refuses the saved file."""
+    named = _DEP_TYPE_TO_FILE.get(str(value).strip().lower())
+    if named is None or isinstance(value, bool):
+        raise BuildError(
+            f"dependency type {value!r} is not one of None, Block, Node, "
+            "Event, Hierarchy")
+    return named
+
 
 _SPARING_MODE_TO_FILE = {
     "infinite": "Infinite",

@@ -742,7 +742,8 @@ have, use `collapse_selection` instead -- it does all the rewiring.
 the deepest allowed): plan the levels before building. A hierarchy
 whose `parent` is already 8 deep is refused. The result's `depth` is
 the new hierarchy's level (1 = on the home level) and `levels_below`
-how many more can still go inside it.
+how many more levels can still go inside it, counting any hierarchies
+already in it.
 
 Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
 

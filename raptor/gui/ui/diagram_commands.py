@@ -436,6 +436,19 @@ class AddCmd(_ViewCmd):
                                        False):
             _give_own_streams(view, self.rows)
 
+    def new_rows(self) -> tuple[str, list[dict]] | None:
+        """(section, rows) when this adds elements with no links, which
+        the rule gate can check on their own (`check_new_rows`) instead of
+        the whole model; None for a link or a hierarchy."""
+        section = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                   "event": "EVENT_DATA"}.get(self.kind)
+        return None if section is None else (section, self.rows)
+
+    def new_links(self) -> list[dict] | None:
+        """The link rows this adds, for the rule gate's link-end check
+        (`check_link_ends`); None for anything else."""
+        return self.rows if self.kind == "link" else None
+
     def redo(self):
         id_col = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
                   "event": ("EVENT_DATA", "ID"),

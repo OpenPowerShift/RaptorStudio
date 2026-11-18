@@ -516,6 +516,42 @@ def _emit_element(row: dict, section: str, inferred_pid: int | None = None,
     return obj
 
 
+#: `_emit_element` results by row content (see `_emit_element_cached`).
+_EMIT_MEMO: dict = {}
+_EMIT_MEMO_MAX = 60_000
+
+
+def _row_key(row: dict | None) -> Any:
+    if row is None:
+        return None
+    key = tuple(row.items())
+    hash(key)
+    return key
+
+
+def _emit_element_cached(row: dict, section: str, inferred_pid: int | None,
+                         start: dict | None, start_key: Any) -> dict:
+    """`_emit_element`, remembered by the row's content.
+
+    Every edit through the API saves the model, and the save rendered every
+    element again: adding blocks one at a time cost O(model) per add (1,000
+    adds: 73 s), nearly all of it here. An edit changes a row or two, so
+    the rest come from this memo. The result is a fresh top-level dict
+    each time (the caller adds "at" to a defaults row); nothing writes into
+    the values."""
+    try:
+        key = (section, inferred_pid, start_key, _row_key(row))
+    except TypeError:                  # an unhashable cell (`_rbds_extra`)
+        return _emit_element(row, section, inferred_pid, start=start)
+    hit = _EMIT_MEMO.get(key)
+    if hit is None:
+        hit = _emit_element(row, section, inferred_pid, start=start)
+        if len(_EMIT_MEMO) >= _EMIT_MEMO_MAX:
+            _EMIT_MEMO.clear()
+        _EMIT_MEMO[key] = hit
+    return dict(hit)
+
+
 def _emit_keyed(row: dict, section: str) -> dict:
     """Spare pools, resources, triggers, phases: named rows in their
     friendly fields, leaving out what equals the table's template row."""
@@ -603,12 +639,17 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
         out = []
         own = (None if jkey == "links" else
                next((r for r in rows_of(section) if _row_id(r) == 0), None))
+        try:
+            own_key = _row_key(own)
+        except TypeError:
+            own_key = object()         # unhashable: never matches, no memo
         for i, row in enumerate(rows_of(section)):
             is_default = _row_id(row) == 0 and jkey != "links"
-            obj = _emit_element(row, section,
-                                _shared_parent(row, parents)
-                                if jkey == "links" else None,
-                                start=None if is_default else own)
+            obj = _emit_element_cached(
+                row, section,
+                _shared_parent(row, parents) if jkey == "links" else None,
+                None if is_default else own,
+                ("default",) if is_default else own_key)
             if _row_id(row) == 0 and jkey != "links":
                 if i:              # where Raptor 7 keeps it varies; keep it
                     obj["at"] = i

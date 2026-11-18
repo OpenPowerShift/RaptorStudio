@@ -6,7 +6,7 @@ import sys
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, positive_int
 from raptor.cli.exitcodes import CliError
 from raptor.core.run_experiment import IMPORTANCE_MODES
 
@@ -45,7 +45,7 @@ def add_parser(sub: Any) -> None:
     a.add_argument("--target", action="append", metavar="EXPR",
                    help="a requirement to judge the run against, e.g. "
                         "'system.ao>=0.995' (implies --simulate; repeatable)")
-    a.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    a.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N",
                    help="worker processes for --simulate (default 1)")
     a.add_argument("--progress", choices=_PROGRESS, default="auto",
                    help="progress of --simulate on stderr (json: one object per line)")
@@ -73,7 +73,7 @@ def add_parser(sub: Any) -> None:
     e.add_argument("model", metavar="MODEL", nargs="?")
     e.add_argument("-n", "--runs", type=int, metavar="N",
                    help="number of runs (default: the model's own)")
-    e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    e.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N",
                    help="worker processes (default 1; more is reproducible but "
                         "gives different numbers from -j 1)")
     e.add_argument("--seed", type=seed_arg, metavar="N|new")

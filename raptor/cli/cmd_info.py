@@ -268,6 +268,12 @@ def set_command(args: Any) -> int:
         raise CliError("refusing to guess where to write: give -o OUT or "
                        "--in-place", X.USAGE)
     src = Path(args.model)
+    if args.output and Path(args.output).suffix.lower() not in (".rbds", ".rbd"):
+        # Checked before anything runs: the save used to fail at the end
+        # with "format='rbds' needs a .rbds path; got '.raptor-tmp'",
+        # naming its own temporary file (exit 1).
+        raise CliError(f"-o {args.output}: the output must be a .rbds or "
+                       ".rbd file", X.USAGE)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         for t in texts:

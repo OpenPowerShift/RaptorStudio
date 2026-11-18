@@ -764,9 +764,13 @@ def run(
     from raptor.core.fileio.out_of_service import note as _oos_note
     if (_oos := _oos_note(sim_rbd)):
         warnings.append(_oos)
-    if num_runs is not None and len(report_data) < num_runs:
+    # Against the count the run was asked for, whether the caller passed it
+    # or the model holds it: `raptor run -n` sets the model's, so testing
+    # `num_runs` alone let a timed-out CLI run report success (exit 0).
+    if effective_runs is not None and len(report_data) < effective_runs:
         warnings.append(
-            f"Completed {len(report_data)}/{num_runs} runs (timeout or abort)"
+            f"Completed {len(report_data)}/{effective_runs} runs "
+            "(timeout or abort)"
         )
     # Sanity-check the pre-run estimate against reality.  Models with
     # non-uniform per-run cost (capacity/events/growth) can beat a short

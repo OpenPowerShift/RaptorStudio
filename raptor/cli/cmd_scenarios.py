@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, positive_int
 from raptor.cli.cmd_run import add_study_progress, study_progress
 from raptor.cli.exitcodes import CliError
 
@@ -37,7 +37,7 @@ def add_parser(sub: Any) -> None:
     w.add_argument("--requirement", action="append", default=[],
                    metavar="EXPR", help="e.g. system.ao>=0.995 (repeatable)")
     w.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    w.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    w.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(w)
     w.add_argument("--save", metavar="FILE",
                    help="write the scenario definition(s) as JSON")
@@ -58,7 +58,7 @@ def add_parser(sub: Any) -> None:
     s.add_argument("--metric", default="availability", metavar="FIELD",
                    help="per-run field to watch (default availability)")
     s.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    s.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    s.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(s)
     s.add_argument("-f", "--format", choices=("text", "json"), default="text")
     s.set_defaults(func=sensitivity_command)
@@ -86,7 +86,7 @@ def add_parser(sub: Any) -> None:
                    help="smallest availability gain, in points, called "
                         "'clearly helps' (default: removing 5 %% of Base's downtime)")
     r.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    r.add_argument("-j", "--jobs", type=int, default=1, metavar="N")
+    r.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
     add_study_progress(r)
     r.add_argument("-f", "--format", choices=("text", "json"), default="text")
     r.set_defaults(func=recommend_command)

@@ -8,7 +8,7 @@ from typing import Any
 from raptor.cli import exitcodes as X
 from raptor.cli.common import (
     add_run_options, eprint, emit_json, open_model, parse_duration,
-    require_runnable, seed_arg, workspace_for, write_text,
+    positive_int, require_runnable, seed_arg, workspace_for, write_text,
 )
 from raptor.cli.exitcodes import CliError
 from raptor.cli.runopts import apply_run_options
@@ -187,7 +187,7 @@ def add_parser(sub: Any) -> None:
     d.add_argument("-n", "--trials", type=int, metavar="N",
                    help="with --layer: runs to simulate (default: the model's own); "
                         "with --layer advisor, also run and add the run's findings")
-    d.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    d.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N",
                    help="with --layer: cores to run on")
     d.add_argument("--seed", type=seed_arg, metavar="N|new",
                    help="with --layer: salt every random stream, as raptor "

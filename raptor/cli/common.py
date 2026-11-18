@@ -36,6 +36,20 @@ def seed_arg(text: str) -> int:
             f"the seed must be 0..{run_experiment.SEED_MAX}")
     return value
 
+def positive_int(text: str) -> int:
+    """An argparse type for a count of at least 1 (`-j`): `-j 0` and
+    `-j -3` used to run with one worker and no word."""
+    import argparse
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected a whole number, got {text!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return value
+
+
 def eprint(*parts: object) -> None:
     """Status, progress and warnings go to stderr, never stdout."""
     print(*parts, file=sys.stderr)
@@ -175,7 +189,7 @@ def add_run_options(p: Any) -> None:
                         "Streams option (the model file is not changed); "
                         "model: the blocks' own (default: the model's "
                         "saved choice)")
-    g.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    g.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N",
                    help="parallel workers (default 1; N>1 is reproducible "
                         "but not draw-identical to 1)")
     g.add_argument("--timeout", metavar="DURATION", default="10m",

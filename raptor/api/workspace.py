@@ -149,7 +149,9 @@ def rbds_only_content(rbd: RbdFile) -> list[str]:  # noqa: C901, PLR0912
         row = sec.rows[0] if sec and sec.rows else {}
         derived = run_experiment.normalise(run_experiment.from_system_row(row))
         if run_experiment.normalise(experiment) != derived:
-            lost.append("experiment (run) settings")
+            named = run_experiment.lost_in_rbd(experiment)
+            lost.append("experiment (run) settings"
+                        + (f": {', '.join(named)}" if named else ""))
     return lost
 
 
@@ -1019,7 +1021,8 @@ class Workspace:
                             if fmt == "rbd" else []),
                 # The layout is exported as it is; say so when Raptor 7
                 # would draw it overlapping.
-                "layout_warning": layout_warning(handle.rbd) if fmt == "rbd" else None}
+                "layout_warning": (layout_warning(handle.rbd, for_rbd=True)
+                                   if fmt == "rbd" else None)}
 
     # ------------------------------------------------------------------
     # Size cap
