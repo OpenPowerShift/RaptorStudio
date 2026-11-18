@@ -90,7 +90,8 @@ def duplicate_elements(workspace: Any, model_id: str,
     rbd = workspace.get(model_id).rbd
     selection = _selection(rbd, elements)
     if not any(selection.values()):
-        raise ValueError("nothing selected to duplicate")
+        raise ValueError("nothing to duplicate: Start, End and the In/Out "
+                         "markers cannot be copied, and nothing else was named")
     hiers = _hiers(rbd)
     buffer = plan_copy(rbd, hiers, blocks=selection["block"],
                        nodes=selection["node"], events=selection["event"],
@@ -98,6 +99,9 @@ def duplicate_elements(workspace: Any, model_id: str,
     made: list[dict[str, Any]] = []
     blocks = {_int(row.get("ID")): row for row in rbd.section("BLOCK_DATA").rows}
     existing = {str(row.get("blockName") or "") for row in blocks.values()}
+    hier_names = {str(row.get("hierarchyName") or "")
+                  for row in getattr(rbd.sections.get("HIERARCHY_DATA"), "rows", [])}
+    created: list[dict[str, Any]] = []
     for index in range(copies):
         plan = plan_paste(
             rbd, buffer, _live(rbd), dx=offset[0] * (index + 1),
@@ -120,13 +124,31 @@ def duplicate_elements(workspace: Any, model_id: str,
                                       str(source.get("blockName") or "Block"))
                 existing.add(name)
                 target["blockName"] = name
+        # A copied hierarchy kept its name, so the original could no longer
+        # be named on its own
+        for row in plan.new_rows.get("hier", []):
+            name = next_free_name(hier_names, str(row.get("hierarchyName") or "Hier"))
+            hier_names.add(name)
+            row["hierarchyName"] = name
         remap_dependencies(plan, keep_external=True)
         _append(rbd, plan)
         made.append({kind: [row.get("ID") for row in rows]
                      for kind, rows in plan.new_rows.items()})
+        created.extend(
+            {"kind": _KIND_TITLE[kind], "id": _int(row.get("ID")),
+             "name": str(row.get(_NAME_COLUMN[kind]) or ""),
+             "selector": f"{_KIND_TITLE[kind]}:{_int(row.get('ID'))}"}
+            for kind, rows in plan.new_rows.items() if kind in _KIND_TITLE
+            for row in rows)
     workspace.save(model_id)
-    return {"copies": copies, "elements": made,
+    return {"copies": copies, "elements": made, "created": created,
             "count": sum(len(ids) for copy in made for ids in copy.values())}
+
+
+#: duplicate_elements' `created` entries: the selector kind and name column
+_KIND_TITLE = {"block": "Block", "node": "Node", "event": "Event", "hier": "Hier"}
+_NAME_COLUMN = {"block": "blockName", "node": "Name", "event": "eventName",
+                "hier": "hierarchyName"}
 
 
 def copy_element_data(workspace: Any, model_id: str, source: str,

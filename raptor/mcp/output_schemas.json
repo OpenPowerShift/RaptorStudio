@@ -1074,6 +1074,9 @@
    "count": {
     "type": "integer"
    },
+   "created": {
+    "type": "array"
+   },
    "elements": {
     "type": "array"
    }
@@ -1081,6 +1084,7 @@
   "required": [
    "copies",
    "count",
+   "created",
    "elements"
   ],
   "type": "object"
@@ -1719,6 +1723,9 @@
    },
    "part": {
     "type": "string"
+   },
+   "renamed": {
+    "type": "object"
    }
   },
   "required": [
@@ -1727,7 +1734,8 @@
    "elements",
    "name",
    "notes",
-   "part"
+   "part",
+   "renamed"
   ],
   "type": "object"
  },

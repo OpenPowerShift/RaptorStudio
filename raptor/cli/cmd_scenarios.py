@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, positive_int
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, job_count
 from raptor.cli.cmd_run import add_study_progress, study_progress
 from raptor.cli.exitcodes import CliError
 
@@ -37,7 +37,7 @@ def add_parser(sub: Any) -> None:
     w.add_argument("--requirement", action="append", default=[],
                    metavar="EXPR", help="e.g. system.ao>=0.995 (repeatable)")
     w.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    w.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
+    w.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N")
     add_study_progress(w)
     w.add_argument("--save", metavar="FILE",
                    help="write the scenario definition(s) as JSON")
@@ -58,7 +58,7 @@ def add_parser(sub: Any) -> None:
     s.add_argument("--metric", default="availability", metavar="FIELD",
                    help="per-run field to watch (default availability)")
     s.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    s.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
+    s.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N")
     add_study_progress(s)
     s.add_argument("-f", "--format", choices=("text", "json"), default="text")
     s.set_defaults(func=sensitivity_command)
@@ -86,7 +86,7 @@ def add_parser(sub: Any) -> None:
                    help="smallest availability gain, in points, called "
                         "'clearly helps' (default: removing 5 %% of Base's downtime)")
     r.add_argument("--seed", type=seed_arg, default=None, metavar="N|new")
-    r.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N")
+    r.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N")
     add_study_progress(r)
     r.add_argument("-f", "--format", choices=("text", "json"), default="text")
     r.set_defaults(func=recommend_command)
@@ -168,6 +168,17 @@ def _scenario(args: Any) -> dict[str, Any]:
         if not isinstance(data, list):
             raise CliError("--change-file must hold a JSON list of scenarios",
                            X.USAGE)
+        for i, row in enumerate(data, 1):
+            what = (row.get("name") if isinstance(row, dict) else None) or f"#{i}"
+            changes = row.get("changes") if isinstance(row, dict) else None
+            # a dict of changes was read key by key ("... is not
+            # PATH=VALUE"), and a scenario with none ran as "(no changes)"
+            if not isinstance(changes, list) or not changes or not all(
+                    isinstance(c, str) for c in changes):
+                raise CliError(
+                    f"--change-file: scenario {what} needs \"changes\": a "
+                    "non-empty list of \"PATH=VALUE\" strings, e.g. "
+                    "[\"block:Pump.fail_params[1]=3000\"]", X.USAGE)
         return {"scenarios": data}
     return {"scenarios": [{"name": args.name, "changes": list(args.change),
                            "note": args.note}]}

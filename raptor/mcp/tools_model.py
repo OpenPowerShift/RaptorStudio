@@ -1758,6 +1758,7 @@ def auto_layout(model_id: str,
                                    all_levels=all_levels)
     report: dict = {}
     from raptor.api.annotations import ensure_view_transform, follow_layout
+    had_transform = getattr(handle.rbd, "view_transform", None)
     old_transform = ensure_view_transform(handle.rbd)
     if selectors:
         applied = _apply_layout_selection(
@@ -1787,6 +1788,10 @@ def auto_layout(model_id: str,
         direction=direction, max_columns=max_columns)
     if applied or points["removed"] or points["added"]:
         ws.save(model_id)
+    else:
+        # nothing moved: leave the model as it was (freezing a transform
+        # changed its content with no save or undo step)
+        handle.rbd.view_transform = had_transform
     cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
             "elements_moved": applied, "annotations_moved": annotations_moved,
@@ -2415,7 +2420,8 @@ def duplicate_elements(model_id: str, elements: list[str],
 
     `elements` are names or ids (optionally kind-prefixed). Internal links
     are remapped to the copies, dependencies on copied elements follow them,
-    and block names get the next free suffix. One save.
+    and block and hierarchy names get the next free suffix. One save.
+    `created` lists each new element as {kind, id, name, selector}.
     """
     context.require_write()
     from raptor.api import edit

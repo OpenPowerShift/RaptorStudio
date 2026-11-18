@@ -50,6 +50,33 @@ def positive_int(text: str) -> int:
     return value
 
 
+def finite_float(text: str) -> float:
+    """An argparse type for a time: `-t nan` reached the model and was
+    refused as "TermCondition must be a finite number"."""
+    import argparse
+    import math
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number, got {text!r}") from None
+    if not math.isfinite(value):
+        raise argparse.ArgumentTypeError(f"expected a finite number, got {text!r}")
+    return value
+
+
+def job_count(text: str) -> int:
+    """`-j N`: at least 1, and no more than this machine's cores. More
+    workers than cores only made a run slower (`-j 64` took longer than
+    `-j 1`), and `-j 9999` was taken without a word."""
+    value = positive_int(text)
+    cores = os.cpu_count() or 1
+    if value > cores:
+        print(f"note: -j {value} is more than this machine's {cores} cores; "
+              f"using {cores}", file=sys.stderr)
+        return cores
+    return value
+
+
 def eprint(*parts: object) -> None:
     """Status, progress and warnings go to stderr, never stdout."""
     print(*parts, file=sys.stderr)
@@ -72,6 +99,8 @@ def open_model(ws: Any, model_path: str) -> str:
     """Register `model_path` in `ws`; return the model id."""
     from raptor.api.workspace import WorkspaceError
     p = Path(model_path).expanduser()
+    if p.is_dir():
+        raise CliError(f"{model_path} is a folder, not a model file", USAGE)
     if not p.is_file():
         raise CliError(f"no such model file: {model_path}", USAGE)
     try:
@@ -171,11 +200,11 @@ def add_run_options(p: Any) -> None:
     g = p.add_argument_group("run control")
     g.add_argument("-n", "--runs", type=int, metavar="N",
                    help="number of runs (default: the model's)")
-    g.add_argument("-t", "--length", type=float, metavar="T",
+    g.add_argument("-t", "--length", type=finite_float, metavar="T",
                    help="run length for a time-terminated run")
     g.add_argument("--stop", metavar="KIND[=VALUE]",
                    help="time | failures=N | cycles=N (default: the model's)")
-    g.add_argument("--stats-start", type=float, metavar="T",
+    g.add_argument("--stats-start", type=finite_float, metavar="T",
                    help="start statistics at T")
     g.add_argument("--seed", type=seed_arg, metavar="N|new",
                    help="salt every random stream: a number repeats a run "
@@ -189,7 +218,7 @@ def add_run_options(p: Any) -> None:
                         "Streams option (the model file is not changed); "
                         "model: the blocks' own (default: the model's "
                         "saved choice)")
-    g.add_argument("-j", "--jobs", type=positive_int, default=1, metavar="N",
+    g.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N",
                    help="parallel workers (default 1; N>1 is reproducible "
                         "but not draw-identical to 1)")
     g.add_argument("--timeout", metavar="DURATION", default="10m",

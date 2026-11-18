@@ -396,7 +396,13 @@ def parse_rbd(text: str) -> RbdFile:
 
     header_parts = lines[0].split(None, 2)
     if not header_parts or not header_parts[0].startswith("Version"):
-        raise ValueError(f"unrecognized .rbd header line: {lines[0]!r}")
+        first_line = lines[0][:40]
+        if not first_line.isprintable():
+            # a binary file put raw bytes on the terminal
+            raise ValueError("not a .rbd model: the file does not start with a "
+                             "'Version' line (it looks like binary data)")
+        raise ValueError(f"not a .rbd model: the first line should start with "
+                         f"'Version'; it is {first_line!r}")
     version = header_parts[0]
     if not version.startswith("Version7"):
         # Version 5/6 files have separate readers + `UpdateVersion`

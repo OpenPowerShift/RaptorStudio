@@ -994,9 +994,13 @@ def _read_project_meta(doc: dict) -> dict | None:
 def newer_version_message(doc: dict, version: int) -> str:
     """Why a file from a newer RAPTOR Studio will not open, and what to do."""
     generator = (doc.get("meta") or {}).get("generator") if isinstance(doc.get("meta"), dict) else None
-    saved_by = f"was saved by {generator}" if isinstance(generator, str) and generator \
-        else "was saved by a newer RAPTOR Studio"
     from raptor import __version__
+    # a generator naming this very version (a copied or hand-edited file)
+    # made the message say a version is newer than itself
+    saved_by = (f"was saved by {generator}"
+                if isinstance(generator, str) and generator
+                and __version__ not in generator
+                else "was saved by a newer RAPTOR Studio")
     return (f"This file {saved_by} in .rbds format version {version}, which is "
             f"newer than this RAPTOR Studio {__version__} reads (up to version "
             f"{VERSION}). Open it with that version or later, or ask for a copy "
@@ -1030,7 +1034,10 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     doc = json.loads(text)
     if not isinstance(doc, dict) or doc.get("format") != FORMAT_ID:
         fmt = doc.get("format") if isinstance(doc, dict) else None
-        raise ValueError(f"not an {FORMAT_ID} file (format={fmt!r})")
+        raise ValueError(
+            "not a RAPTOR Studio .rbds model: "
+            + (f'its "format" is {fmt!r}, not "{FORMAT_ID}"' if fmt is not None
+               else f'it has no "format": "{FORMAT_ID}" entry'))
     version = doc.get("version", 1)
     if isinstance(version, int) and not isinstance(version, bool) and version > VERSION:
         raise ValueError(newer_version_message(doc, version))

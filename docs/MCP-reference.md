@@ -1845,7 +1845,8 @@ Copy blocks, nodes, events or hierarchies with fresh ids and names.
 
 `elements` are names or ids (optionally kind-prefixed). Internal links
 are remapped to the copies, dependencies on copied elements follow them,
-and block names get the next free suffix. One save.
+and block and hierarchy names get the next free suffix. One save.
+`created` lists each new element as {kind, id, name, selector}.
 
 **Parameters**
 
@@ -1866,6 +1867,7 @@ Parameter notes:
 | --- | --- | --- |
 | `copies` | integer | yes |
 | `count` | integer | yes |
+| `created` | array<any> | yes |
 | `elements` | array<any> | yes |
 
 **Example**
@@ -3627,8 +3629,9 @@ Parameter notes:
 Insert a fresh copy of an assembly into a model.
 
 `part` is the assembly's id or name, from `library_path` or the model's
-own part list.  The copy gets new ids and free names (Pump -> Pump_2);
-a hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
+own part list.  The copy gets new ids; a name the model already uses
+becomes a free one (Pump -> Pump_2), listed in `renamed` {old: new}; a
+hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
 by default, to the right of the model, and is NOT connected: link it in
 with `connect`.  Spare pools or resources the model lacks are reset and
 listed in `notes`.
@@ -3661,6 +3664,7 @@ Parameter notes:
 | `name` | string | yes |
 | `notes` | array<any> | yes |
 | `part` | string | yes |
+| `renamed` | object | yes |
 
 **Example**
 
@@ -4081,7 +4085,8 @@ Returns `params` (named), `slots` (in the model's parameter order),
 law is nearly a fixed age). With `block`, also `changes` (PATH=VALUE, for `raptor
 set`) and `update` (the fields to pass to `update_element`, law and
 parameters together) for its failure (`use="fail"`) or repair law.
-Nothing is changed here.
+`block` is only the name written into those; no model is read, so it is
+not checked. Nothing is changed here.
 
 **Parameters**
 

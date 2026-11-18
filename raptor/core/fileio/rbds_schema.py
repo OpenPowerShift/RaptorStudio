@@ -324,7 +324,9 @@ def _message(error: Any) -> str:
     kind, value, sub = error.validator, error.instance, error.schema
     if kind == "type":
         kinds = sub["type"] if isinstance(sub["type"], list) else [sub["type"]]
-        want = " or ".join("a whole number" if k == "integer" else "a " + k for k in kinds)
+        words = {"integer": "a whole number", "array": "a list", "object": "an object",
+                 "string": "a text", "number": "a number", "boolean": "true or false"}
+        want = " or ".join(words.get(k, "a " + k) for k in kinds)
         return f"must be {want}; got {_show(value)}"
     if kind == "enum":
         return f"must be one of {', '.join(repr(e) for e in sub['enum'])}; got {_show(value)}"

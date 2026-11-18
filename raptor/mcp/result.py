@@ -240,7 +240,8 @@ _CLASSIFY: tuple[tuple[type, str, str | None, bool], ...] = (
     (AnnotationNotFound, "not_found",
      "Call list_annotations for valid annotation ids.", False),
     (AmbiguousName, "invalid_argument",
-     "Use the 'Block:N' / 'Node:N' form to pick one.", False),
+     "Use one of the 'Kind:N' selectors the message lists (Block:N, Node:N, "
+     "Event:N or Hier:N).", False),
     (InputRuleViolation, "invalid_argument",
      "RAPTOR Studio refuses this value or link; the model was left unchanged. "
      "The message is RAPTOR Studio's own; change the value and try again.", False),

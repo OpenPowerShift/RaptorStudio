@@ -283,7 +283,7 @@ def test_get_and_set_round_trip(capsys, tmp_path):
     _, v, _ = run_cli(capsys, "get", str(out), "block:Casing.fail_params[1]")
     assert float(v.strip()) == 999.0
     _, v, _ = run_cli(capsys, "get", str(out), "block:Casing.fail_dist")
-    assert v.strip() == "15"
+    assert v.strip() == "weibull"   # by name, as set takes it
 
 
 def test_set_refuses_without_a_destination(capsys):

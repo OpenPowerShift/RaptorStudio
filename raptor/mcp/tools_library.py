@@ -278,8 +278,9 @@ def insert_assembly(model_id: str, part: str,
     """Insert a fresh copy of an assembly into a model.
 
     `part` is the assembly's id or name, from `library_path` or the model's
-    own part list.  The copy gets new ids and free names (Pump -> Pump_2);
-    a hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
+    own part list.  The copy gets new ids; a name the model already uses
+    becomes a free one (Pump -> Pump_2), listed in `renamed` {old: new}; a
+    hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
     by default, to the right of the model, and is NOT connected: link it in
     with `connect`.  Spare pools or resources the model lacks are reset and
     listed in `notes`.
@@ -296,6 +297,9 @@ def insert_assembly(model_id: str, part: str,
                      None))
     if found is None:
         raise ValueError(f"no assembly {part!r}; list them with list_part_types")
+    if (x is None) != (y is None):
+        # one of them alone was ignored without a word
+        raise ValueError("give both x and y, or neither")
     at = (x, y) if x is not None and y is not None else None
     result = insert(rbd, found, at=at)
     ws.save(model_id)
