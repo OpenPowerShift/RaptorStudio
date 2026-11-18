@@ -229,3 +229,21 @@ def test_add_block_refuses_a_negative_mean_and_takes_the_row_back():
         build.add_block(ws, mid, "Neg", fail_dist=4, fail_params=[-5, 0])
     assert len(ws.get(mid).rbd.sections["BLOCK_DATA"].rows) == n
     build.add_block(ws, mid, "Never", fail_dist=4, fail_params=[1e12, 0])
+
+
+def test_undo_from_another_level_acts_on_the_edits_own_level(view):
+    """A rename made inside a hierarchy, undone after going up a level,
+    used to do nothing: the view only holds the level on screen."""
+    ids = [view.add_block(f"B{i}", 50.0 * i, 0) for i in range(3)]
+    view.scene().clearSelection()
+    for bid in ids[:2]:
+        view._block_items[bid].setSelected(True)
+    hid = view.collapse_selection()
+    view.enter_level(hid)
+    view.rename_block(ids[0], "Inside")
+    view.go_up()
+    view._stack.undo()                           # the rename
+    assert view._current_parent == hid
+    assert view.blocks[ids[0]].name == "B0"
+    view._stack.redo()
+    assert view.blocks[ids[0]].name == "Inside"
