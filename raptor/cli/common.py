@@ -168,6 +168,13 @@ def add_run_options(p: Any) -> None:
                         "(a GUI run's seed with -j 1 for Cores 1, -j 2 for "
                         "more); 'new' draws one and reports it (default: "
                         "the model's saved seed, else Raptor's fixed table)")
+    g.add_argument("--block-streams", choices=("model", "separate"),
+                   dest="block_streams",
+                   help="separate: every block that shares a random stream "
+                        "gets its own for this run, as the GUI's Run panel "
+                        "Streams option (the model file is not changed); "
+                        "model: the blocks' own (default: the model's "
+                        "saved choice)")
     g.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
                    help="parallel workers (default 1; N>1 is reproducible "
                         "but not draw-identical to 1)")

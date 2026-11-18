@@ -323,6 +323,7 @@ def run(
     attribution: bool = False,
     capacity_rule: str = "proportional",
     insight_progress: Any = None,
+    block_streams: str | None = None,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
 
@@ -366,6 +367,12 @@ def run(
     model is never mutated.  Unless ``confirm_long_run`` is set, the call
     estimates first and refuses work predicted to exceed ``timeout_s``.
 
+    ``block_streams`` ("model" or "separate") overrides the model's saved
+    Run panel ▸ Streams choice for this run: "separate" gives every block
+    that shares a random stream a pair of its own on the run's copy
+    (`raptor.core.edit.own_streams.separated_for_run`), the same numbers as
+    the GUI. ``None`` (default) follows the model.
+
     ``seed`` (optional, non-negative) salts every random stream so a batch
     can be re-rolled reproducibly; ``None`` (default) keeps the engine's
     fixed RAPTOR seed table, under which the same model and run count
@@ -395,6 +402,17 @@ def run(
     sim_rbd = copy.deepcopy(handle.rbd) if run_length is not None else handle.rbd
     if run_length is not None:
         _set_run_length(sim_rbd, run_length)
+    if block_streams is not None:
+        from raptor.core import run_experiment as _rx
+        mode = str(block_streams).strip().lower()
+        if mode not in _rx.STREAM_MODES:
+            raise ValueError(
+                f"block_streams must be one of {', '.join(_rx.STREAM_MODES)}, "
+                f"got {block_streams!r}")
+        if sim_rbd is handle.rbd:
+            sim_rbd = copy.copy(sim_rbd)   # the experiment only; rows shared
+        sim_rbd.experiment = {**(getattr(sim_rbd, "experiment", None) or {}),
+                              "streams": mode}
 
     # The model's own Experiment recording intervals govern sampling, as
     # they do in the GUI. Ignoring them wrote availability at 10 and cost

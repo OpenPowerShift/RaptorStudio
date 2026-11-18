@@ -1033,6 +1033,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "block_streams",
    "capacity_rule",
    "collect_events",
    "confirm_long_run",
@@ -1068,6 +1069,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "block_streams",
    "capacity_rule",
    "collect_events",
    "interim_cost",

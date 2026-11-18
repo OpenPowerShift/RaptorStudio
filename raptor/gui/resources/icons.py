@@ -2419,19 +2419,6 @@ def streams_icon(colour: str) -> QIcon:
     return _icon("streams", colour, draw)
 
 
-def streams_new_icon(colour: str) -> QIcon:
-    """Streams for new blocks: a small block, a plus, and the two
-    (failure and repair) streams it is given."""
-    def draw(p: QPainter, c: QColor):
-        _stroke(p, c, 3)
-        p.drawRect(QRectF(5, 15, 16, 16))
-        p.drawLine(13, 19, 13, 27)
-        p.drawLine(9, 23, 17, 23)
-        _wave(p, 25, 44, 15, 3.5)
-        _wave(p, 25, 44, 31, 3.5)
-    return _icon("streams_new", colour, draw)
-
-
 def compare_icon(colour: str) -> QIcon:
     """Compare: two models' results as bars side by side."""
     def draw(p: QPainter, c: QColor):

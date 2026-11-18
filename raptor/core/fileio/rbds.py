@@ -589,6 +589,8 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
         experiment.pop("seed", None)
     elif experiment.get("seed_mode") == "new":
         experiment.pop("seed", None)
+    if experiment.get("streams", "model") == "model":
+        experiment.pop("streams", None)
     doc["experiment"] = experiment
 
     # The ID-0 rows are the defaults a new element starts from (Raptor 7's

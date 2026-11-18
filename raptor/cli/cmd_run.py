@@ -354,6 +354,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
     """The structured results (schema raptor-results/1)."""
     import raptor
     from raptor.api.presentation import pooled_outages
+    from raptor.core import run_experiment as _rx
     handle = ws.get(model_id)
     sec = handle.rbd.sections.get("SYSTEM_DATA")
     row = sec.rows[0] if sec and sec.rows else {}
@@ -372,6 +373,9 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
             "seed": getattr(result, "seed", 0) or getattr(args, "seed", None),
             "jobs": getattr(args, "jobs", 1),
             "streams": getattr(result, "streams", "sequential"),
+            # Run panel ▸ Streams / --block-streams: "model" or "separate".
+            "block_streams": _rx.normalise(
+                getattr(handle.rbd, "experiment", None) or {})["streams"],
             "applied": applied,
         },
         "summary": {m.name: _null_nan(m.to_dict())

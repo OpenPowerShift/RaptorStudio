@@ -41,8 +41,6 @@ OFF_RIBBON = {
     # the single-type commands stay for the palette and shortcuts.
     "file.export_pdf", "file.export_xlsx", "file.export_ods",
     "file.export_svg", "file.export_png",
-    # Simulate > Run > Random Streams, a menu placed by _build_streams_button.
-    "model.own_streams", "model.own_streams_new",
 }
 
 #: Attributes of MainWindow that handlers may start from.

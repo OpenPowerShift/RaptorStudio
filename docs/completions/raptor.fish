@@ -39,6 +39,7 @@ complete -c raptor -n '__fish_seen_subcommand_from analytic' -l times
 complete -c raptor -n '__fish_seen_subcommand_from analytic' -l xlsx
 complete -c raptor -n '__fish_use_subcommand' -a compare
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from compare' -l block-streams
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l format
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l help
 complete -c raptor -n '__fish_seen_subcommand_from compare' -l importance
@@ -198,6 +199,7 @@ complete -c raptor -n '__fish_seen_subcommand_from report' -l report
 complete -c raptor -n '__fish_seen_subcommand_from report' -l workspace
 complete -c raptor -n '__fish_use_subcommand' -a run
 complete -c raptor -n '__fish_seen_subcommand_from run' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from run' -l block-streams
 complete -c raptor -n '__fish_seen_subcommand_from run' -l deps
 complete -c raptor -n '__fish_seen_subcommand_from run' -l format
 complete -c raptor -n '__fish_seen_subcommand_from run' -l help
@@ -251,6 +253,7 @@ complete -c raptor -n '__fish_seen_subcommand_from set' -l output
 complete -c raptor -n '__fish_seen_subcommand_from set' -l set-file
 complete -c raptor -n '__fish_use_subcommand' -a simulate
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from simulate' -l block-streams
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l deps
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l format
 complete -c raptor -n '__fish_seen_subcommand_from simulate' -l help
@@ -299,6 +302,7 @@ complete -c raptor -n '__fish_seen_subcommand_from step' -l run
 complete -c raptor -n '__fish_seen_subcommand_from step' -l until
 complete -c raptor -n '__fish_use_subcommand' -a sweep
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from sweep' -l block-streams
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l format
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l help
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l importance
@@ -323,6 +327,7 @@ complete -c raptor -n '__fish_seen_subcommand_from sweep' -l vary
 complete -c raptor -n '__fish_seen_subcommand_from sweep' -l weak-type
 complete -c raptor -n '__fish_use_subcommand' -a tables
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l analysis
+complete -c raptor -n '__fish_seen_subcommand_from tables' -l block-streams
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l case-sensitive
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l column

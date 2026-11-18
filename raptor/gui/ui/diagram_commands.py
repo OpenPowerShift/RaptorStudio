@@ -406,7 +406,7 @@ class LayoutCmd(_ViewCmd):
 
 
 def _give_own_streams(view, rows: list[dict]) -> None:
-    """Separate Streams for New Blocks (#292): new block rows draw from
+    """Preferences ▸ Working ▸ New blocks (#292): new block rows draw from
     streams of their own, chosen ONCE here so redo and undo replay the
     same numbers. A pasted or duplicated block is new too: keeping its
     source's stream would give it the very same draws. After 49 blocks
