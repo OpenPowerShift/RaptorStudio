@@ -168,6 +168,11 @@ you. Requirements: Python 3.12+. The PDF export uses WeasyPrint, which needs sys
 `sudo apt install libpango-1.0-0 libpangocairo-1.0-0`, macOS: `brew install pango`. The Windows/macOS installers
 bundle it.
 
+The installers make double-clicking a `.rbds` or `.rbd` file open RAPTOR Studio. After a pip install, run
+`raptor register-file-types` once to do the same for your user (Windows and Linux; `--dry-run` lists the changes,
+`--unregister` undoes them). `.rbd` is Raptor 7's extension, so it is left alone when another program already opens
+it, unless you add `--force`.
+
 **Windows note (path too long):** Qt for Python (PySide6) installs some very deeply nested files. If `pip` stops with
 `OSError: [Errno 2] No such file or directory` and a hint about *Windows Long Path support*, the install folder's path
 is too long for Windows' 260-character limit. It happens most with the Python from the Microsoft Store, whose package

@@ -19,7 +19,7 @@ COMMANDS = (
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
     "spf", "fev", "step", "extract", "analytic", "whatif", "sensitivity", "recommend",
     "optimise", "fit", "library", "edit", "mcp", "config",
-    "completion", "doctor", "help",
+    "completion", "doctor", "help", "register-file-types",
 )
 
 

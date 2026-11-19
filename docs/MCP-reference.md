@@ -3927,6 +3927,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4472,8 +4473,10 @@ Parameter notes:
 Progress of a job started with `start_run`.
 
 Returns {job_id, model_id, state, phase, setup, completed_runs,
-requested_runs, percent, elapsed_s, wall_seconds, run_id, summary,
-error}. `state` is queued, running, done, cancelled or failed. `phase`
+requested_runs, percent, elapsed_s, eta_s, wall_seconds, run_id,
+summary, error}. `eta_s` is the seconds left at the rate since the first
+replication finished: an estimate (runs vary), null until two counts
+are known. `state` is queued, running, done, cancelled or failed. `phase`
 adds what a running job is doing: `setting_up` while a large model is
 prepared (`setup` then has `{stage, done, total, percent}`; it can take
 minutes before the first replication, and `completed_runs` stays 0), then
@@ -4502,6 +4505,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4834,6 +4838,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |

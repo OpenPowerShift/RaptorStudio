@@ -327,6 +327,8 @@ for _tool in ("start_run", "run_status", "cancel_run"):
         (_tool, "attributing"): ["object", "null"],
         (_tool, "percent"): ["number", "null"],
         (_tool, "wall_seconds"): ["number", "null"],
+        # null until a second run finishes: timing decides what a sample shows
+        (_tool, "eta_s"): ["number", "null"],
         (_tool, "run_id"): ["string", "null"],
         (_tool, "summary"): ["object", "null"],
         (_tool, "error"): ["string", "null"],

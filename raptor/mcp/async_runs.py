@@ -52,6 +52,20 @@ class Job:
     #: The work after the last replication (the attribution replay), as
     #: `(label, done, total)`; None until it reports.
     insight: tuple[str, int, int | None] | None = None
+    #: `(time, runs done)` when the first replication finished: the rate
+    #: after it gives the ETA (set-up time is not a replication's).
+    first_run: tuple[float, int] | None = None
+
+    def eta_s(self) -> float | None:
+        """Seconds left at the rate since the first replication finished;
+        None until two points are known or when the run is not simulating.
+        An estimate: replications vary in length."""
+        if self.state != "running" or self.phase != "simulating" or not self.total:
+            return None
+        if self.first_run is None or self.done <= self.first_run[1]:
+            return None
+        rate = (time.time() - self.first_run[0]) / (self.done - self.first_run[1])
+        return max(0.0, rate * (self.total - self.done))
 
     @property
     def phase(self) -> str:
@@ -87,6 +101,7 @@ class Job:
             "requested_runs": self.total,
             "percent": None if percent is None else round(percent, 1),
             "elapsed_s": round(elapsed, 1),
+            "eta_s": None if (eta := self.eta_s()) is None else round(eta, 1),
             "wall_seconds": None if self.wall_seconds is None
                             else round(self.wall_seconds, 1),
             "run_id": self.run_id,
@@ -158,6 +173,8 @@ def start(
 
     def progress(done: int, total_hint: int | None) -> None:
         job.done = int(done)
+        if job.first_run is None and job.done > 0:
+            job.first_run = (time.time(), job.done)
         if total_hint:
             job.total = int(total_hint)
 

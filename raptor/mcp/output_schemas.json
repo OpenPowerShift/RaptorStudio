@@ -457,6 +457,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -508,6 +514,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
@@ -2480,6 +2487,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -2531,6 +2544,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
@@ -2920,6 +2934,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -2977,6 +2997,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
