@@ -1496,8 +1496,11 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: left of the tabs, as in Office: (section title, command ids). Commands
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("File", ("file.new", "file.open", "file.import_awb", "file.save",
+    ("File", ("file.new", "file.open", "file.save",
               "file.save_as", "file.close_file", "file.quit", "home.diff")),
+    # Other tools' files opened as a new model: one tile per format, so a
+    # new importer is one more id here.
+    ("Import", ("file.import_awb",)),
     # U22: one Export (the file type picks what is written), then Export
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.

@@ -1750,8 +1750,8 @@ the Help window stays usable, and can be closed, while a dialog is open.
   (annotations, for example) as `.rbd` drops it, with a warning
   first. Import RBD merges a `.rbd` or `.rbds` file in as one hierarchy.
 * `.awb` — an Isograph **Availability Workbench 5.0** project (RBD/AvSim).
-  *File ▸ Import Availability Workbench…* reads one into a new model and
-  *File ▸ Export to Availability Workbench…* writes one; `raptor convert`
+  *File ▸ Import ▸ Import Availability Workbench…* reads one into a new model and
+  *File ▸ Print and Export ▸ Export to Availability Workbench…* writes one; `raptor convert`
   does the same headless. The conversion always prints a summary of the
   features the destination cannot represent, with a count; `--strict`
   writes nothing when that list is not empty. AWB's demonstration mode can
