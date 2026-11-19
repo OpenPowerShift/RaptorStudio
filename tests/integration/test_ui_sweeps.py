@@ -75,8 +75,13 @@ def test_ui_sweep(script: pathlib.Path, tmp_path: pathlib.Path):
     found = TOTAL_RE.findall(proc.stdout)
     if not found:
         # A crash before the TOTAL line is itself a failure — surface it.
-        tail = "\n".join((proc.stdout + proc.stderr).splitlines()[-25:])
-        pytest.fail(f"{script.name} crashed before printing TOTAL:\n{tail}")
+        # stderr last and longer: a faulthandler trace is there, and the
+        # exit code tells a signal (-11 segfault, -9 killed) from an exit
+        tail = "\n".join(proc.stdout.splitlines()[-10:]
+                         + [ln for ln in proc.stderr.splitlines()
+                            if "propagateSizeHints" not in ln][-60:])
+        pytest.fail(f"{script.name} crashed before printing TOTAL "
+                    f"(exit code {proc.returncode}):\n{tail}")
     assert len(found) == 1, (
         f"{script.name} printed {len(found)} TOTAL lines ({found}); the "
         f"sweeps must report through exactly one Recorder.report() call"

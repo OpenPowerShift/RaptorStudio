@@ -181,6 +181,23 @@ _TERMINATION_CHOICES = [
 
 
 
+
+def ensure_fusion(app: QApplication) -> None:
+    """Make Fusion the application style, once.
+
+    Only before the theme's application stylesheet is set: from then on
+    `app.style()` is Qt's stylesheet style, whose name is empty, so a
+    check by name called `setStyle` again for every new window. That
+    re-styles every widget in the application, and a message box being
+    torn down at the time crashed Qt (a segmentation fault opening a model
+    in a second window)."""
+    from PySide6.QtWidgets import QStyleFactory
+    if app.property("raptorFusion") or app.styleSheet():
+        return
+    if app.style().objectName().lower() != "fusion":
+        app.setStyle(QStyleFactory.create("Fusion"))
+    app.setProperty("raptorFusion", True)
+
 class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixin, SelectionMixin, FindZoomMixin, RecentFilesMixin, ExportMixin, HelpMixin, RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin,
                  ValidationMixin, DockLayoutMixin, StepMixin, FileIoMixin,
                  RunProgressMixin, AutosaveMixin, StatusSummaryMixin, OverlayMixin,
@@ -331,10 +348,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Safety net for entry points that build a MainWindow without
         # app.main() (test harnesses, embedding): same rationale as
         # app.py's own setStyle call just above.
-        from PySide6.QtWidgets import QStyleFactory
         qapp = cast(QApplication | None, QApplication.instance())
-        if qapp is not None and qapp.style().objectName().lower() != "fusion":
-            qapp.setStyle(QStyleFactory.create("Fusion"))
+        if qapp is not None:
+            ensure_fusion(qapp)
 
         self._setup_ribbon()
         self._setup_central()

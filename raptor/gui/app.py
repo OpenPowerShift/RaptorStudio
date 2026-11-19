@@ -213,8 +213,8 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     # corner "arcs" and scroller-arrow bitmaps that ignore the stylesheet
     # and palette. The design is tuned against Fusion, so this keeps all
     # platforms consistent.
-    from PySide6.QtWidgets import QStyleFactory
-    app.setStyle(QStyleFactory.create("Fusion"))
+    from raptor.gui.ui.main_window import ensure_fusion
+    ensure_fusion(app)
     app.setOrganizationName("OpenPowerShift")
     app.setApplicationName("RAPTOR Studio")
     _install_excepthook()
