@@ -181,6 +181,11 @@ complete -c raptor -n '__fish_seen_subcommand_from recommend' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l timeout
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l top
 complete -c raptor -n '__fish_seen_subcommand_from recommend' -l trials
+complete -c raptor -n '__fish_use_subcommand' -a register-file-types
+complete -c raptor -n '__fish_seen_subcommand_from register-file-types' -l dry-run
+complete -c raptor -n '__fish_seen_subcommand_from register-file-types' -l force
+complete -c raptor -n '__fish_seen_subcommand_from register-file-types' -l help
+complete -c raptor -n '__fish_seen_subcommand_from register-file-types' -l unregister
 complete -c raptor -n '__fish_use_subcommand' -a render
 complete -c raptor -n '__fish_seen_subcommand_from render' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from render' -l help

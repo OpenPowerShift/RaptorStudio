@@ -41,6 +41,46 @@ def add_parser(sub: Any) -> None:
     d.add_argument("-f", "--format", choices=("text", "json"), default="text")
     d.set_defaults(func=doctor_command)
 
+    r = sub.add_parser(
+        "register-file-types",
+        help="open .rbds and .rbd files with RAPTOR Studio (this user only)",
+        description="Associate .rbds and .rbd model files with RAPTOR Studio for "
+                    "the current user, so double-clicking one opens it: for a pip "
+                    "or venv install, which has no installer to do it. .rbd is "
+                    "Raptor 7's extension: it is left alone when another program "
+                    "already opens it, unless --force.")
+    r.add_argument("--unregister", action="store_true",
+                   help="undo the registration")
+    r.add_argument("--force", action="store_true",
+                   help="take .rbd even when another program opens it")
+    r.add_argument("--dry-run", action="store_true",
+                   help="list the changes without making them")
+    r.set_defaults(func=register_file_types_command)
+
+
+def register_file_types_command(args: Any) -> int:
+    from raptor.api.file_types import plan
+    todo = plan(unregister=args.unregister, force=args.force)
+    for note in todo.notes:
+        print(note)
+    if not todo.steps:
+        if not todo.notes:
+            print("nothing to do: RAPTOR Studio is not registered for this user")
+        return X.OK
+    for step in todo.steps:
+        print(("would " if args.dry_run else "") + step.text)
+        if not args.dry_run:
+            try:
+                step.run()
+            except OSError as exc:
+                raise CliError(f"could not {step.text}: {exc}", X.RUNTIME) from exc
+    for ext in todo.skipped:
+        print(f"left alone: {ext}; give --force to take it", file=sys.stderr)
+    if not args.dry_run:
+        print("unregistered" if args.unregister else
+              "registered: double-click a .rbds file to open it in RAPTOR Studio")
+    return X.OK
+
 
 def help_command(args: Any) -> int:
     from raptor.cli.main import build_parser

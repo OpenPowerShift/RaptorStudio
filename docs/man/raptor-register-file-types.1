@@ -1,0 +1,20 @@
+.TH "RAPTOR-REGISTER-FILE-TYPES" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-register\-file\-types \- open .rbds and .rbd files with RAPTOR Studio (this user only)
+.SH SYNOPSIS
+\fBraptor register\-file\-types\fR [\-h] [\-\-unregister] [\-\-force] [\-\-dry\-run]
+.SH DESCRIPTION
+Associate .rbds and .rbd model files with RAPTOR Studio for the current user, so double\-clicking one opens it: for a pip or venv install, which has no installer to do it. .rbd is Raptor 7's extension: it is left alone when another program already opens it, unless \-\-force.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-unregister\fR
+undo the registration
+.TP
+\fB\-\-force\fR
+take .rbd even when another program opens it
+.TP
+\fB\-\-dry\-run\fR
+list the changes without making them
+.SH SEE ALSO
+\fBraptor\fR(1)

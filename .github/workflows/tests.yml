@@ -377,12 +377,15 @@ jobs:
 
   engine-coverage:
     needs: [changed, typecheck, ui-sweeps, mcp-e2e, docs-html]
-    # Nightly (or on demand) only: ~50 min, and it re-runs the engine tier
-    # that `test` already ran. The floors are still enforced, a day late.
+    # Not on pull requests (~50 min, and it re-runs the engine tier that
+    # `test` already ran), but on every merge to main as well as nightly:
+    # a floor broken by a merge turns that merge commit red the same day,
+    # not the next morning with no commit attached (#29).
     if: >-
       needs.changed.outputs.run == 'true'
       && needs.changed.outputs.docs_only != 'true'
-      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+          || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     # Branch coverage of the engine tier. Fails if any engine module drops
     # below tools/coverage_floors.json; the HTML report (with
     # per-test contexts: "which test covers this line?") is uploaded.

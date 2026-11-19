@@ -607,8 +607,10 @@ def run_status(job_id: str) -> CallToolResult:
     """Progress of a job started with `start_run`.
 
     Returns {job_id, model_id, state, phase, setup, completed_runs,
-    requested_runs, percent, elapsed_s, wall_seconds, run_id, summary,
-    error}. `state` is queued, running, done, cancelled or failed. `phase`
+    requested_runs, percent, elapsed_s, eta_s, wall_seconds, run_id,
+    summary, error}. `eta_s` is the seconds left at the rate since the first
+    replication finished: an estimate (runs vary), null until two counts
+    are known. `state` is queued, running, done, cancelled or failed. `phase`
     adds what a running job is doing: `setting_up` while a large model is
     prepared (`setup` then has `{stage, done, total, percent}`; it can take
     minutes before the first replication, and `completed_runs` stays 0), then
@@ -628,7 +630,8 @@ def run_status(job_id: str) -> CallToolResult:
     data = job.snapshot()
     md = (f"Job `{job.job_id}`: **{data['state']}** — "
           f"{data['completed_runs']}/{data['requested_runs']} runs, "
-          f"{data['elapsed_s']}s elapsed")
+          f"{data['elapsed_s']}s elapsed"
+          + (f", about {data['eta_s']:.0f}s left" if data.get("eta_s") is not None else ""))
     if data["phase"] == "setting_up" and data["setup"]:
         s = data["setup"]
         md += f"; setting up: {s['stage']} {s['done']}/{s['total']}"
