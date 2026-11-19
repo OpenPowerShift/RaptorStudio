@@ -353,9 +353,10 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run
+    from raptor.api.run_tables import read_per_run, run_units
 
     ws = context.workspace()
+    units = run_units(ws, run_id)            # "not found" before an empty chart
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     attribution = None
     try:
@@ -384,7 +385,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     spec = charts.fold_small(
         charts.chart_named(chart, per_run=per_run, attribution=attribution,
                            periods=periods, costs=costs, run=run,
-                           importance=importance, y_floor=y_floor, **over_time),
+                           importance=importance, y_floor=y_floor,
+                           units=units, surface="mcp", **over_time),
         min_share)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:

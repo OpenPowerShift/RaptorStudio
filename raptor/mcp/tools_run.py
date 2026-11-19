@@ -1339,7 +1339,7 @@ async def sensitivity(
     count. This is a screening view: it shows each input alone and cannot
     show interactions.
     """
-    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.scenarios.sensitivity import default_inputs, screening, tornado
 
     ws = context.workspace()
     context.whole_number(top, "top", minimum=1, maximum=60)
@@ -1348,13 +1348,14 @@ async def sensitivity(
     inputs = default_inputs(ws.get(model_id).rbd, limit=top)
     if not inputs:
         raise ValueError("no input could be varied in this model")
+    screened = screening(ws.get(model_id).rbd, inputs)
 
     def work(abort, progress):
         return tornado(
             ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
             workers=max(1, workers or 1), timeout_s=timeout_s,
             progress=lambda done, total, label: progress(done, total, label),
-            abort=abort, asked=top)
+            abort=abort, asked=top, screened=screened)
 
     data = await run_job(ctx, work, label="Screening inputs")
     lines = ["| Input | Swing | Low | High | Distinguishable |",

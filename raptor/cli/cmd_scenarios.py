@@ -119,18 +119,19 @@ def recommend_command(args: Any) -> int:
 
 
 def sensitivity_command(args: Any) -> int:
-    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.scenarios.sensitivity import default_inputs, screening, tornado
 
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         inputs = default_inputs(ws.get(mid).rbd, limit=args.top)
+        screened = screening(ws.get(mid).rbd, inputs)
         if not inputs:
             raise CliError("no input could be varied in this model", X.REFUSED)
         result = tornado(
             ws, mid, inputs, trials=args.trials, metric=args.metric,
             seed=args.seed, workers=max(1, args.jobs),
             progress=study_progress(args),
-            timeout_s=study_timeout(args), asked=args.top)
+            timeout_s=study_timeout(args), asked=args.top, screened=screened)
     if args.format == "json":
         emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
         return X.OK

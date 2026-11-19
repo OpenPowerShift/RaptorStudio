@@ -428,7 +428,7 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     from raptor.api.insight import charts
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run
+    from raptor.api.run_tables import read_per_run, run_units
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     over_time = (stored_inputs(run_dir(ws, run_id)) if name in TIME_CHARTS
                  else {})
@@ -451,6 +451,7 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
             charts.chart_named(name, per_run=per_run, attribution=attribution,
                                periods=periods, costs=costs, run=run,
                                importance=importance, y_floor=y_floor,
+                               units=run_units(ws, run_id), surface="cli",
                                **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc

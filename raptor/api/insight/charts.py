@@ -45,6 +45,14 @@ class ChartSpec:
         return asdict(self)
 
 
+def _no_capacity(attribution: dict[str, Any]) -> str:
+    """Why a lost-capacity chart is empty: nothing was lost, or the analysis
+    was not made. "Needs capacity analysis" was said with it ticked."""
+    if attribution.get("capacity"):
+        return "No capacity was lost in these runs, so there is nothing to show."
+    return _needs("capacity")
+
+
 def runs_text(n: int) -> str:
     """`1 run`, `5 runs`, `1,200 runs`: captions said "1 runs"."""
     return f"{n:,} run{'' if n == 1 else 's'}"
@@ -558,6 +566,9 @@ def importance_quadrant(importance: dict[str, Any],
                        f"{r.get('block')} {float(r['raw']):.3g}"
                        for r in sorted(unbounded, key=lambda r: -float(r["raw"]))[:5])
                    + ".")
+    elif not any(r.get("raw") is not None for r in rows):
+        caption = ("No block failed in these runs, so there is no importance "
+                   "to measure.")
     else:
         caption = "No block has both a RAW and an RRW."
     xs = [float(p["x"]) for p in points if _number_value(p["x"]) and float(p["x"]) > 0]
@@ -747,7 +758,7 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
         "element", "share of the total", series=series,
         caption=(f"{rows[0]['name']} loses the largest share of capacity "
                  f"({pct(rows[0]['share']['mean'] or 0)})."
-                 if rows else _needs("capacity")),
+                 if rows else _no_capacity(attribution)),
         provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
@@ -774,7 +785,7 @@ def capacity_vs_downtime(attribution: dict[str, Any],
         "share of lost capacity", series=points,
         marks=[{"kind": "diagonal"}],
         caption=("Points above the diagonal are understated by availability "
-                 "alone." if points else _needs("capacity")),
+                 "alone." if points else _no_capacity(attribution)),
         provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
 
@@ -800,7 +811,7 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
         "share of lost energy", series=steps,
         caption=(f"The largest loss is {steps[0]['name'].lower()} "
                  f"({pct(steps[0]['value'])} of lost energy)."
-                 if steps else _needs("capacity")),
+                 if steps else _no_capacity(attribution)),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
@@ -1007,9 +1018,7 @@ def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                     fmt="percent", what="the lost flow",
                     runs=int(attribution.get("runs", 0) or 0),
                     width=width, height=height, top=top,
-                    empty=("No capacity was lost in these runs, so there is "
-                           "nothing to show." if attribution.get("capacity")
-                           else _needs("capacity")))
+                    empty=_no_capacity(attribution))
 
 
 def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
@@ -1260,7 +1269,8 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 -
                 ao_runs: list[dict[str, Any]] | None = None,
                 cap_runs: list[dict[str, Any]] | None = None,
                 run: int = 1,
-                y_floor: float | None = None) -> ChartSpec:
+                y_floor: float | None = None,
+                surface: str | None = None) -> ChartSpec:
     """Build one chart by name, from whichever inputs it needs.
 
     The charts over time (`raptor.api.insight.timecharts.TIME_CHARTS`) take
@@ -1269,7 +1279,11 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 -
     limit for the availability axis.
 
     Raises ValueError naming the charts when the name is unknown, and
-    ValueError naming the missing input when one is required.
+    ValueError naming the missing input when one is required: an analysis
+    the run did not make, or a run too short for the year charts. A chart
+    whose analysis ran but found nothing (no capacity lost, nothing down)
+    is drawn, its reason as the caption. `surface` ("cli", "mcp", "gui")
+    words the how-to for that surface alone.
     """
     if name not in CHARTS:
         raise ValueError(
@@ -1285,36 +1299,68 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 -
 
     capacity_chart = name in ("lost-capacity-treemap", "lost-capacity-pareto",
                               "capacity-vs-downtime", "capacity-waterfall")
+    rows = per_run or []
+    ran_capacity = any(r.get("capacity_weighted_availability") is not None for r in rows)
+    ran_cost = any(r.get("grand_total") is not None for r in rows)
+
+    def needs(*keys: str) -> str:
+        return message(*keys, surface=surface)
+
+    if capacity_chart and attribution is not None and not attribution.get("capacity") \
+            and ran_capacity:
+        # the analysis ran and nothing was lost: "needs capacity analysis"
+        # sent a user to tick a box that was ticked
+        return ChartSpec(
+            "pareto", {"lost-capacity-pareto": "Who loses the capacity",
+                       "capacity-vs-downtime": "Downtime against lost capacity",
+                       "capacity-waterfall": "Where the capacity goes",
+                       "lost-capacity-treemap": "Lost capacity treemap"}[name],
+            caption=("No capacity was lost in these runs, so there is nothing "
+                     "to show."))
 
     def need_attribution() -> dict[str, Any]:
         if attribution is None:
-            raise ValueError(message("attribution", *(("capacity",) if capacity_chart
-                                                      else ())))
+            raise ValueError(needs("attribution", *(("capacity",) if capacity_chart
+                                                    else ())))
         # one behaviour for "not in this run": an error, as the charts over
         # time give, not a blank figure carrying the how-to as its caption
         if capacity_chart and not attribution.get("capacity"):
-            raise ValueError(message("capacity"))
+            raise ValueError(needs("capacity"))
         if name == "phase-downtime" and not attribution.get("phases"):
             raise ValueError("this chart needs a phased model: this one has no "
                              "mission phases")
         return attribution
 
-    def _need(value: Any, what: str) -> dict[str, Any]:
-        if value is None:
-            raise ValueError(f"this chart needs {what}")
-        return value
-
-    years = ("period-by-period availability: a run at least one whole year "
-             "long (8,760 hours), with downtime attribution")
+    def need_years() -> dict[str, Any]:
+        """The year charts' input, or the real reason there is none: "0
+        run-years; no threshold was set" for a 2,000-hour run."""
+        unit = str(units or "hours")
+        ends = [float(r["ending_sim_time"]) for r in rows
+                if isinstance(r.get("ending_sim_time"), (int, float))]
+        length = max(ends) if ends else None
+        if not unit.lower().startswith("hour"):
+            raise ValueError("the year charts need the model's time unit to be "
+                             f"hours; this model counts {unit}")
+        if length is not None and length < 8760:
+            raise ValueError("the year charts need a run at least one whole year "
+                             f"long (8,760 hours); this run is {length:,.0f} hours")
+        if not periods or not (periods.get("by_index") or periods.get("pooled")):
+            raise ValueError(needs("attribution"))
+        if name == "annual-capacity-fan" and not (
+                (periods.get("capacity") or {}).get("by_index")):
+            raise ValueError(needs("capacity"))
+        return periods
 
     def element_cost_rows() -> list[dict[str, Any]]:
+        if not ran_cost and rows and costs in (None, []):
+            raise ValueError(needs("cost"))
         return costs if costs is not None else element_costs(report_data or [])
 
     def need_importance() -> dict[str, Any]:
         if importance is None or importance.get("mode") not in (None, "both"):
             # the quadrant plots RAW against RRW: "improvement" has no RAW
             # and "risk" no RRW, so only "both" can draw it
-            raise ValueError(message("importance"))
+            raise ValueError(needs("importance"))
         return importance
 
     builders = {
@@ -1347,9 +1393,8 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 -
         "capacity-vs-downtime": lambda: capacity_vs_downtime(
             need_attribution()),
         "capacity-waterfall": lambda: capacity_waterfall(need_attribution()),
-        "annual-fan": lambda: annual_fan(_need(periods, years)),
-        "annual-dots": lambda: annual_dots(_need(periods, years)),
-        "annual-capacity-fan": lambda: annual_capacity_fan(
-            _need(periods, years)),
+        "annual-fan": lambda: annual_fan(need_years()),
+        "annual-dots": lambda: annual_dots(need_years()),
+        "annual-capacity-fan": lambda: annual_capacity_fan(need_years()),
     }
     return builders[name]()

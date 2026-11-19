@@ -1198,9 +1198,7 @@
    "dry_run": {
     "type": "boolean"
    },
-   "normalized_path": {
-    "type": "null"
-   },
+   "normalized_path": {},
    "not_in_source": {
     "type": "array"
    },
@@ -1969,9 +1967,7 @@
    "changes": {
     "type": "array"
    },
-   "cut_short": {
-    "type": "null"
-   },
+   "cut_short": {},
    "metric": {
     "type": "string"
    },
@@ -1987,9 +1983,7 @@
    "rows": {
     "type": "array"
    },
-   "seed": {
-    "type": "null"
-   },
+   "seed": {},
    "trials": {
     "type": [
      "integer",
@@ -2031,9 +2025,7 @@
    "confidence": {
     "type": "number"
    },
-   "cut_short": {
-    "type": "null"
-   },
+   "cut_short": {},
    "metric": {
     "type": "string"
    },
@@ -2049,9 +2041,7 @@
    "rows": {
     "type": "array"
    },
-   "seed": {
-    "type": "null"
-   },
+   "seed": {},
    "target": {
     "type": "number"
    },
@@ -2222,9 +2212,7 @@
    "caption": {
     "type": "string"
    },
-   "cut_short": {
-    "type": "null"
-   },
+   "cut_short": {},
    "note": {
     "type": "string"
    },
@@ -2562,7 +2550,10 @@
     "type": "string"
    },
    "dot_target": {
-    "type": "null"
+    "type": [
+     "null",
+     "number"
+    ]
    },
    "dots": {
     "type": "array"
@@ -2669,9 +2660,7 @@
    "format": {
     "type": "string"
    },
-   "layout_warning": {
-    "type": "null"
-   },
+   "layout_warning": {},
    "path": {
     "type": "string"
    }
@@ -2722,9 +2711,7 @@
    "caption": {
     "type": "string"
    },
-   "cut_short": {
-    "type": "null"
-   },
+   "cut_short": {},
    "inputs": {
     "type": "array"
    },
@@ -3152,9 +3139,7 @@
    "caption": {
     "type": "string"
    },
-   "cut_short": {
-    "type": "null"
-   },
+   "cut_short": {},
    "note": {
     "type": "string"
    },

@@ -665,7 +665,11 @@ def _apply_patch(rbd: RbdFile, section: str, row: dict, kind: str,
                 seq = list(value)
                 _check_value_count(row, patch, field, targets, seq)
             else:
-                seq = [value] * len(targets)
+                # one number is the leading parameter, as `raptor set` and
+                # what-if read `fail_params=1000`: copying it into every
+                # column made an Exponential's location 1000 as well, so
+                # the mean life doubled with no warning
+                targets, seq = targets[:1], [value]
             if len(seq) < len(targets):
                 seq = seq + [0] * (len(targets) - len(seq))
             seq = seq[:len(targets)]

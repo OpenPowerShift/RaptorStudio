@@ -1656,6 +1656,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._details_tabs.addTab(self._scroll_wrap(page), "Importance")
         self._update_hier_filter_visibility()
         self._refresh_theme()
+        # the Charts page's importance quadrant reads the same measures: it
+        # stayed greyed out ("Needs importance measures") after they came
+        self._refresh_charts()
         self.contents_changed.emit()
 
     # ------------------------------------------------------------------
