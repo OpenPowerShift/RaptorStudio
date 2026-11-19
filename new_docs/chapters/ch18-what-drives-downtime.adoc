@@ -275,8 +275,18 @@ never biases the comparison, the standard error comes from the paired
 differences either way, and the `Pairing cut the variance by` line says
 what was gained.
 
-Use the same seed and the same trial count when you compare two runs by
-hand; otherwise you are reading noise.
+Use the same seed, the same trial count and the same number of cores when
+you compare two runs by hand; otherwise you are reading noise. The numbers
+depend on the cores (`-j`): one core and several draw different streams, so
+the header says how many were used. The What If window (Analyse ▸ What If)
+uses the cores chosen in the Run panel, so it can differ from a command-line
+`whatif`, which uses one unless you give `-j`.
+
+A change can have no effect at all, such as a repair time on a block that is
+never repaired. Every trial is then identical to Base: the result says "no
+effect" and the window does not offer Apply. Besides block, node, event,
+hierarchy, link, system and rate paths, a change can set a spare pool's
+stock or a crew pool's size: `pool:Spares.stock=3`, `resource:Crew.units=2`.
 
 === Which inputs matter
 
@@ -289,7 +299,12 @@ raptor sensitivity VanFlat.rbds --top 8 -n 100
 ----
 
 Candidates come from block lives and repair means, PM intervals, finite
-spare stock and crew counts. A swing whose interval contains zero is drawn
+spare stock and crew counts. Only the first `--top` of them are screened
+(10 by default): after a run with downtime attribution, the elements that
+cause the most downtime come first; without one, the blocks down for the
+largest share of their own time. The output says how many of the inputs
+were screened; raise `--top` to screen the rest. The Sensitivity window
+(Analyse ▸ Sensitivity) does the same, using the last run's attribution. A swing whose interval contains zero is drawn
 as "not distinguishable" rather than promoted. This is a screening view: it
 shows each input alone, so it cannot show interactions.
 

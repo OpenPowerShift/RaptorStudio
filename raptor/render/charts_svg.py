@@ -1319,7 +1319,9 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     size = (f"width='{physical[0]}' height='{physical[1]}'" if physical
             else f"width='{width}' height='{height}'")
     title = _wrap(spec.title, width - 2 * PAD, size=15)
-    subtitle = _wrap(spec.subtitle, width - 2 * PAD) if spec.subtitle else []
+    # a saved picture cannot be clicked
+    static = (spec.subtitle or "").replace("; click a cell to locate", "")
+    subtitle = _wrap(static, width - 2 * PAD) if static else []
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' {size} "
         f"viewBox='0 0 {width} {height}' "

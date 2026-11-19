@@ -34,8 +34,8 @@ REQUIREMENT_LABELS = {
     "reliability": "Reliability",
     "dependability": "Dependability",
     "capacity_weighted_availability": "Delivered fraction",
-    "mtbde": "Time between failures",
-    "mdt": "Time down per outage",
+    "mtbde": "Time between outages (average of each run's)",
+    "mdt": "Time down per outage (average of each run's)",
     "mtbm": "Time between maintenance",
 }
 
@@ -105,8 +105,8 @@ class Story:
     headline: StoryHeadline | None
     dots: list[dict[str, Any]]
     dot_target: float | None
-    met: int
-    total: int
+    met: int | None          # runs that met the target; None with no target
+    total: int | None
     proportion: str
     drivers: list[DriverLine]
     drivers_available: bool
@@ -330,8 +330,8 @@ def _finding_list(findings: list[Any]) -> list[StoryFinding]:
 _METRIC_CHOICES = (
     ("availability", "Availability"),
     ("reliability", "Reliability"),
-    ("mtbde", "Time between failures"),
-    ("mdt", "Time down per outage"),
+    ("mtbde", "Time between outages (all runs pooled)"),
+    ("mdt", "Time down per outage (all runs pooled)"),
     ("capacity_weighted_availability", "Delivered fraction"),
     ("grand_total", "Grand total cost"),
 )
@@ -402,7 +402,7 @@ def _time_chip(field_name: str, label: str, outages: int, up: float, down: float
     elif outages < 10 and value is not None:
         text = (f"{_fmt(value, 'mtbde', units)} (from {outages} "
                 f"outage{'s' if outages != 1 else ''}: a rough figure)")
-    return "Time between outages", value, text
+    return "Time between outages (all runs pooled)", value, text
 
 
 def chip_text(chip: NumberChip) -> str:
@@ -505,7 +505,12 @@ def build(
     values = _values(per_run, headline.field) if headline else []
     dots = quantile_dots(values, 40)
     target = headline.target if headline else None
+    met: int | None
+    total: int | None
     met, total = split_at(values, target, headline.op if headline else None)
+    if target is None:
+        # "met 20 of 20" with no target set read as a verdict
+        met, total = None, None
     drivers, others_share, others_time, measure = _driver_lines(
         attribution, bool(has_capacity))
     run_length = _mean(_values(per_run, "total_time"))
@@ -524,7 +529,8 @@ def build(
     }
     return Story(
         headline=headline, dots=dots, dot_target=target, met=met, total=total,
-        proportion=proportion_text(met, total) if target is not None else "",
+        proportion=(proportion_text(met, total)
+                    if met is not None and total is not None else ""),
         drivers=drivers, drivers_available=attribution is not None,
         other_drivers_share=others_share, others_time=others_time,
         findings=_caveats(per_run, requested_runs if stopped else None,
@@ -592,14 +598,15 @@ def text_lines(story: Story) -> list[str]:
             lines.append(f"  [{finding.severity}] {finding.message}")
     if story.numbers:
         lines += ["", "Key numbers:"]
+        width = max(26, *(len(chip.label) + 2 for chip in story.numbers))
         for chip in story.numbers:
-            lines.append(f"  {chip.label:<26}{chip_text(chip)}")
+            lines.append(f"  {chip.label:<{width}}{chip_text(chip)}")
     prov = story.provenance
     runs = prov["runs"]
     lines += ["", f"{runs:,} run{'s' if runs != 1 else ''}"
                   + (f" of {prov['requested_runs']:,} asked for"
                      if prov.get("requested_runs") else "")
-                  + (f" · {prov['run_length']:,.4g} {prov['units']} each"
+                  + (f" · {_fmt(prov['run_length'], 'mtbde', prov['units'])} each"
                      if prov.get("run_length") else "")
                   + f" · model {str(prov.get('model_hash') or '')[:8]}"
                   + f" · run {prov.get('run_id') or ''}"]

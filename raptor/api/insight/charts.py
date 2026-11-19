@@ -11,6 +11,8 @@ comes from `per_run` rows, an `Attribution` dict or the measure registry.
 """
 from __future__ import annotations
 
+import itertools
+
 from dataclasses import asdict, dataclass, field
 from collections.abc import Callable
 from typing import Any
@@ -43,6 +45,36 @@ class ChartSpec:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+#: Rows that are not one element: a caption does not name them as a cause
+#: ("(no single element) loses the largest share" read as a block's name).
+_NOT_A_CAUSE = ("(no single element)", "(non-mission phase)", "other", "others")
+
+
+def _pareto_caption(rows: list[dict], attribution: dict) -> str:
+    if not rows:
+        return nothing_down(attribution)
+    named = [r for r in rows if r.get("name") not in _NOT_A_CAUSE]
+    lead = (f"{named[0]['name']} causes the largest share "
+            f"({pct(named[0]['dtci']['mean'] or 0)})." if named else
+            "No single element is behind the downtime.")
+    if named and named[0] is not rows[0]:
+        lead = (f"{pct(rows[0]['dtci']['mean'] or 0)} of the downtime was started "
+                f"by no single element. " + lead)
+    return lead
+
+
+def _capacity_caption(rows: list[dict], attribution: dict) -> str:
+    if not rows:
+        return _no_capacity(attribution)
+    named = [r for r in rows if r.get("name") not in _NOT_A_CAUSE]
+    if not named:
+        return ("No single element is behind the lost capacity: it comes from "
+                "changes no one element started.")
+    top = named[0]
+    return (f"{top['name']} loses the largest share of capacity "
+            f"({pct(top['share']['mean'] or 0)}).")
 
 
 def _no_capacity(attribution: dict[str, Any]) -> str:
@@ -175,13 +207,16 @@ def csv_table(chart: ChartSpec) -> tuple[list[str], list[list[Any]]]:  # noqa: C
     return header, [[item.get(k, "") for k in header] for item in flat]
 
 
-def _kind_lines(chart: ChartSpec,  # noqa: C901 - one branch per chart kind
+def _kind_lines(chart: ChartSpec,  # noqa: C901, PLR0912 - one branch per chart kind
                 row_value: Callable[[float], str]) -> list[str] | None:
     """The numbers of the charts whose rows are not (name, value) pairs:
     the text gave blank-labelled rows ("  : 179") or nothing for them."""
     rows = chart.series
     if chart.kind == "dot_plot":
         values = sorted(float(v) for r in rows for v in r.get("values") or ())
+        values += sorted(float(d["value"]) for r in rows for d in r.get("dots") or ()
+                         if _number_value(d.get("value")))
+        values.sort()
         if not values:
             return []
         return [f"  runs: {len(values):,}",
@@ -209,11 +244,30 @@ def _kind_lines(chart: ChartSpec,  # noqa: C901 - one branch per chart kind
     if chart.kind == "histogram":
         from raptor.api.insight.axes import format_value
         unit = str(chart.provenance.get("time_units") or "")
-        return [f"  {format_value(float(r['lo']), '', 3)} to "
-                f"{format_value(float(r['hi']), '', 3)}{(' ' + unit) if unit else ''}: "
-                f"{int(r['count']):,}" for r in rows if _number_value(r.get("count"))]
+        unit = f" {unit}" if unit else ""
+        return [(f"  {format_value(float(r['lo']), '', 4)}{unit}: "
+                 if float(r["lo"]) == float(r["hi"]) else      # "2.139 to 2.139"
+                 f"  {format_value(float(r['lo']), '', 3)} to "
+                 f"{format_value(float(r['hi']), '', 3)}{unit}: ")
+                + f"{int(r['count']):,}" for r in rows if _number_value(r.get("count"))]
+    if chart.kind == "bubble":
+        return [f"  {bubble_tip(chart, r)}" for r in rows[:10]
+                if _number_value(r.get("x")) and _number_value(r.get("y"))]
+    if chart.kind == "quadrant":
+        return [f"  {r.get('name', '')}: RAW {float(r['x']):,.4g}, RRW {float(r['y']):,.4g}"
+                for r in rows[:10] if _number_value(r.get("x")) and _number_value(r.get("y"))]
+    if chart.kind == "ribbon":
+        shares = sorted(float(r["downtime"]) / float(r["span"]) for r in rows
+                        if _number_value(r.get("downtime")) and r.get("span"))
+        if not shares:
+            return []
+        return [f"  runs drawn: {len(shares):,}",
+                f"  least down: {pct(shares[0])} of its time",
+                f"  median: {pct(_quartile(shares, 0.5))}",
+                f"  most down: {pct(shares[-1])}"]
     if chart.kind == "scatter":
-        return [f"  {r.get('name', '')}: x {r['x']:,.4g}, y {r['y']:,.4g}"
+        return [f"  {r.get('name', '')}: {chart.x_label} {row_value(float(r['x']))}, "
+                f"{chart.y_label} {row_value(float(r['y']))}"
                 for r in rows[:10] if _number_value(r.get("x")) and _number_value(r.get("y"))]
     return None
 
@@ -349,6 +403,11 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
         caption = f"The one run reached {shown(values[0])}."
     elif points and min(values) == max(values):
         caption = f"Every run reached {shown(values[0])}."
+    elif points and len(values) < 10:
+        # "9 runs in 10" was said of 2 or 5 runs
+        ordered = sorted(values, reverse=higher_is_better)
+        caption = (f"All {len(values)} runs reached {word} {shown(ordered[-1])}; "
+                   f"the best reached {shown(ordered[0])}.")
     elif points:
         nine = _reached(points, 0.9)
         half = _reached(points, 0.5)
@@ -387,7 +446,10 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
     rest = sum(r["dtci"]["mean"] or 0 for r in ranked[top:])
     return ChartSpec(
         "pareto", "Who causes the downtime",
-        _with_note("stacked by what the time was spent on",
+        # the Story said "Generator_3, waiting for a spare" while this said
+        # repair: an outage is charged whole to the element that started it
+        _with_note("each outage charged to the element that started it, "
+                   "stacked by what that element was doing",
                    cut_note(len(rows), len(ranked), rest)), "element",
         "share of system downtime",
         series=[{"name": r["name"], "value": r["dtci"]["mean"] or 0.0,
@@ -396,10 +458,12 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
                  "outages": r.get("deci", {}).get("mean") or 0.0,
                  "red_time": r.get("red_time", {}).get("mean") or 0.0}
                 for r in rows],
-        caption=(f"{rows[0]['name']} causes the largest share "
-                 f"({pct(rows[0]['dtci']['mean'] or 0)})."
-                 if rows else nothing_down(attribution)),
-        provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent"})
+        caption=_pareto_caption(rows, attribution),
+        provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent",
+                    # the rows past `top`, so a fold counts them too (it
+                    # said "7 others" where the treemap said "15 others")
+                    "cut": [{"name": r["name"], "value": r["dtci"]["mean"] or 0.0,
+                             "causes": r.get("causes") or {}} for r in ranked[top:]]})
 
 
 def downtime_waterfall(attribution: dict[str, Any],
@@ -449,13 +513,34 @@ def availability_ladder(ladder: dict[str, Any]) -> ChartSpec:
         series.append({"name": label, "key": key, "value": entry.get("value"),
                        "source": entry.get("source", "")})
     present = [s for s in series if s["value"] is not None]
+    caption = "; ".join(f"{s['name']} {100 * s['value']:.6g} %"
+                        for s in present) or "No availability reported."
+    # equal rungs drew three identical bars with no word why
+    nothing = [later["name"].split(" (+ ")[-1].rstrip(")")
+               for earlier, later in itertools.pairwise(present)
+               if abs(float(later["value"]) - float(earlier["value"])) < 1e-12]
+    if nothing:
+        caption += (". " + " and ".join(nothing).capitalize()
+                    + " took nothing away in these runs.")
     return ChartSpec(
         "ladder", "What each kind of availability keeps",
         "the gap between rungs is what the next cause takes away",
         "availability", "fraction", series=present,
-        caption="; ".join(f"{s['name']} {100 * s['value']:.6g} %"
-                          for s in present) or "No availability reported.",
+        caption=caption,
         provenance={"runs": ladder.get("runs"), "format": "percent"})
+
+
+def _open_note(durations: dict[str, Any], count: int) -> str:
+    """Outages still going when a run ended: with no repair every outage
+    was, and "half end by 267 h" was the run length, not a repair time."""
+    still = int(durations.get("open_at_end") or 0)
+    if not still or not count:
+        return ""
+    if still == count:
+        return (" Every outage was still going when its run ended, so these are "
+                "the times to the end of the run, not how long outages last.")
+    return (f" {still:,} of the {count:,} outages were still going when the run "
+            "ended; they are counted to the end of the run.")
 
 
 def outage_histogram(attribution: dict[str, Any]) -> ChartSpec:
@@ -466,17 +551,22 @@ def outage_histogram(attribution: dict[str, Any]) -> ChartSpec:
     # the time unit was nowhere on the chart or in its caption
     units = str(attribution.get("units") or "")
     unit = f" {units}" if units else ""
+    count = int(durations.get("count") or sum(float(b.get("count") or 0) for b in hist))
     return ChartSpec(
         "histogram", "How long is an outage?",
         "log scale: many short outages or a few long ones",
         f"duration ({units})" if units else "duration",
         "outages", series=hist,
-        marks=[{"kind": "quantile", "label": "median", "value": p50},
-               {"kind": "quantile", "label": "1 in 10 longer", "value": p90}],
-        caption=(f"Half of the outages end by {p50:,.4g}{unit}; one in ten "
-                 f"lasts over {p90:,.4g}{unit}."
-                 if p50 is not None and p90 is not None
-                 else nothing_down(attribution)),
+        marks=([] if count < 2 else
+               [{"kind": "quantile", "label": "median", "value": p50},
+                {"kind": "quantile", "label": f"1 in 10 longer ({p90:,.4g}{unit})"
+                 if p90 is not None else "1 in 10 longer", "value": p90}]),
+        caption=(nothing_down(attribution) if p50 is None or p90 is None else
+                 # "half end by 267; one in ten lasts over 267" of one outage
+                 f"There was one outage in {attribution.get('runs', 0):,} runs; it "
+                 f"lasted {p50:,.4g}{unit}." if count == 1 else
+                 f"Half of the outages end by {p50:,.4g}{unit}; one in ten "
+                 f"lasts over {p90:,.4g}{unit}.") + _open_note(durations, count),
         provenance={"runs": attribution.get("runs", 0),
                     "count": durations.get("count", 0), "time_units": units})
 
@@ -608,9 +698,13 @@ def convergence(per_run: list[dict], field_name: str = "availability",
         "the band is +/- 2 standard errors; it should stop moving",
         "runs", field_name, series=points,
         marks=[{"kind": "target", "value": target}] if target is not None else [],
+        # as the Story says it: "± 0.25 points (95 %)", not "give or take
+        # 0.24 %" (a spread of a percentage is in points)
         caption=(f"After {len(values):,} runs the mean is "
-                 f"{shown(float(last['mean']), 6)}, give or take "
-                 f"{shown(2 * float(last['sem']), 2)} (2 standard errors)."
+                 f"{shown(float(last['mean']), 6)} ± "
+                 + (f"{200 * float(last['sem']):.2g} points" if fmt == "percent"
+                    else shown(2 * float(last['sem']), 2))
+                 + " (2 standard errors, about 95 %)."
                  if last is not None and last["sem"] is not None
                  else "Not enough runs to estimate the error."),
         provenance={"runs": len(values), "measure": field_name,
@@ -728,7 +822,9 @@ def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
                  f"({pct(rows[0][1] / grand)})."
                  if rows and grand else
                  "No element has a cost in this run." if costs else _needs("cost")),
-        provenance={"items": len(ranked), "grand_total": grand, "format": "money"})
+        provenance={"items": len(ranked), "grand_total": grand, "format": "money",
+                    "cut": [{"name": n, "value": v, "share": v / grand if grand else 0.0}
+                            for n, v in ranked[top:]]})
 
 
 def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
@@ -756,11 +852,12 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
         _with_note("capacity share against downtime share, same element order",
                    note),
         "element", "share of the total", series=series,
-        caption=(f"{rows[0]['name']} loses the largest share of capacity "
-                 f"({pct(rows[0]['share']['mean'] or 0)})."
-                 if rows else _no_capacity(attribution)),
+        caption=_capacity_caption(rows, attribution),
         provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent",
-                    "rule": capacity.get("rule", "")})
+                    "rule": capacity.get("rule", ""),
+                    "cut": [{"name": r["name"], "value": r["share"]["mean"] or 0.0,
+                             "downtime": by_name.get(r["name"], {}).get("dtci", {})
+                             .get("mean") or 0.0} for r in ranked[top:]]})
 
 
 def capacity_vs_downtime(attribution: dict[str, Any],
@@ -855,6 +952,13 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
     else:
         caption = (f"{len(series)} years; the median moves from "
                    f"{pct(series[0]['p50'])} to {pct(series[-1]['p50'])}.")
+    runs = periods.get("runs") or 0
+    dropped = periods.get("dropped_partial_periods") or 0
+    if series and dropped and runs:
+        # a 2.5-year run showed 2 years with no word about the half year
+        caption += (" The part year at the end of each run is left out."
+                    if dropped == runs else
+                    f" {dropped:,} part years at the ends of runs are left out.")
     # plain words: "whiskers: P5-P95, box: P25-P75" was jargon
     return ChartSpec(
         "fan", "Availability year by year",
@@ -974,12 +1078,19 @@ def phase_downtime(attribution: dict[str, Any]) -> ChartSpec:
         caption = nothing_down(attribution)
         series = []
     elif worst is not None:
-        caption = (f"{worst['name']} is the weakest phase: availability "
-                   f"{100 * worst['availability']:.4g} %, "
+        # "the weakest phase" beside a taller bar for another phase: say
+        # which measure picked it
+        caption = (f"{worst['name']} has the lowest availability of the phases "
+                   f"({100 * worst['availability']:.4g} %) and "
                    f"{pct(worst['share_of_downtime'])} of all downtime")
-        if worst.get("drivers"):
-            caption += f", mostly started by {worst['drivers'][0]['name']}"
+        named = [d for d in worst.get("drivers") or [] if d.get("name") not in _NOT_A_CAUSE]
+        if named:
+            caption += f", mostly started by {named[0]['name']}"
         caption += "."
+        most = max(rows, key=lambda r: r.get("share_of_downtime") or 0.0)
+        if most is not worst and (most.get("share_of_downtime") or 0) > 0:
+            caption += (f" {most['name']} holds the most downtime "
+                        f"({pct(most['share_of_downtime'])}).")
     return ChartSpec(
         "pareto", "Downtime by phase",
         "share of all system downtime in each phase, in phase order",
@@ -1070,7 +1181,7 @@ def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
         caption=(f"The commonest start is {series[0]['label']} "
                  f"({pct(left)} of downtime)."
                  if series else nothing_down(attribution)),
-        provenance={"runs": attribution.get("runs", 0),
+        provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "sequences": len(attribution.get("sequences") or [])})
 
 
@@ -1144,7 +1255,7 @@ def foldable(spec: ChartSpec) -> bool:
     return any(_share_of(spec, row) is not None for row in spec.series)
 
 
-def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:
+def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:  # noqa: C901 - one walk, two layouts
     """The same chart with every item below `min_share` (0 to 1) of the
     whole gathered into one "N others below X %" row or cell.
 
@@ -1157,7 +1268,10 @@ def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:
         return spec
     keep: list[dict[str, Any]] = []
     small: list[dict[str, Any]] = []
-    for row in spec.series:
+    rows = list(spec.series)
+    if spec.kind != "treemap":
+        rows += spec.provenance.get("cut") or []
+    for row in rows:
         share = _share_of(spec, row)
         (small if share is not None and share < min_share else keep).append(row)
     if len(small) < 2:
@@ -1178,7 +1292,7 @@ def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:
     if causes and total > 0:
         folded["causes"] = {c: v / total for c, v in causes.items()}
     provenance = {**spec.provenance, "folded_below": min_share,
-                  "folded": len(small)}
+                  "folded": len(small), "cut": []}
     caption = (f"{spec.caption} " if spec.caption else "") + \
         f"{label}: {', '.join(names)}."
     if spec.kind != "treemap":
@@ -1256,6 +1370,14 @@ CHARTS = {
 }
 
 
+#: Where the availability plot's interval is set, by surface.
+_INTERVAL_WHERE = {
+    "cli": "(ao_interval under experiment: recording: in the .rbds file)",
+    "mcp": ("(experiment.recording.ao_interval, in the model's .rbds or "
+            "build_model's experiment)"),
+}
+
+
 def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 - one table of charts
                 attribution: dict[str, Any] | None = None,
                 importance: dict[str, Any] | None = None,
@@ -1292,10 +1414,16 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 -
     if name in TIME_CHARTS:
         generated = (attribution or {}).get("capacity", {}) or {}
         ends = [row.get("ending_sim_time") for row in per_run or []]
-        return time_chart(name, ao_runs=ao_runs, cap_runs=cap_runs, run=run,
-                          units=units, target=target, y_floor=y_floor,
-                          generated=generated.get("generated"),
-                          ends=ends if any(e is not None for e in ends) else None)
+        try:
+            return time_chart(name, ao_runs=ao_runs, cap_runs=cap_runs, run=run,
+                              units=units, target=target, y_floor=y_floor,
+                              generated=generated.get("generated"),
+                              ends=ends if any(e is not None for e in ends) else None)
+        except ValueError as exc:
+            # "under Run panel ▸ Recording" was told to a command-line user
+            raise ValueError(str(exc).replace(
+                "under Run panel ▸ Recording", _INTERVAL_WHERE.get(surface or "", "")
+                or "under Run panel ▸ Recording")) from exc
 
     capacity_chart = name in ("lost-capacity-treemap", "lost-capacity-pareto",
                               "capacity-vs-downtime", "capacity-waterfall")

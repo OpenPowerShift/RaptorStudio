@@ -166,16 +166,12 @@ class TestSensitivity:
 
 
 class TestWhatIf:
-    def test_a_null_change_is_exactly_zero_and_paired(self, ws_with_motor):
+    def test_no_change_is_refused(self, ws_with_motor):
+        """An empty list ran Base against itself and "succeeded"."""
         from raptor.mcp.tools_run import what_if
-        data = _sc(_resolve(what_if(
-            ws_with_motor, changes=[], name="Same", trials=3, seed=2,
-            timeout_s=60)))
-        metric = data["rows"][0]["metrics"]["availability"]
-        assert data["rows"][0]["error"] is None
-        assert metric["paired"] is True
-        assert metric["delta"]["mean"] == 0
-        assert data["caption"]
+        result = _resolve(what_if(ws_with_motor, changes=[], name="Same", trials=3,
+                                  seed=2, timeout_s=60))
+        assert result.is_error and "changes is empty" in _text(result)
 
     def test_a_bad_change_is_an_error_result_not_a_crash(self, ws_with_motor):
         """Reported as an is_error result saying why, never raised, and

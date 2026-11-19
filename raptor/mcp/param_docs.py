@@ -47,9 +47,19 @@ COMMON: dict[str, str] = {
 _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z`(])")
 
 
+#: Abbreviations a sentence does not end at ("e.g. `>=`" cut a description
+#: at "e.g.").
+_ABBREVIATIONS = ("e.g.", "i.e.", "etc.", "vs.", "cf.", "approx.")
+
+
 def _sentences(text: str) -> list[str]:
     flat = re.sub(r"\s+", " ", text or "").strip()
-    return [s.strip() for s in _SENTENCE.split(flat) if s.strip()]
+    for i, abbr in enumerate(_ABBREVIATIONS):
+        flat = flat.replace(abbr + " ", f"\x00{i}\x00 ")
+    out = [s.strip() for s in _SENTENCE.split(flat) if s.strip()]
+    for i, abbr in enumerate(_ABBREVIATIONS):
+        out = [s.replace(f"\x00{i}\x00", abbr) for s in out]
+    return out
 
 
 def from_docstring(doc: str, name: str, limit: int = 300) -> str | None:
@@ -68,6 +78,9 @@ def describe(properties: dict[str, Any], doc: str) -> int:
         if not isinstance(prop, dict) or prop.get("description"):
             continue
         text = from_docstring(doc, name) or COMMON.get(name)
+        if name == "num_runs" and prop.get("default") is not None and text == COMMON[name]:
+            # "Leave out to use the model's own setting" beside a default of 10
+            text = f"Replications (trials); {prop['default']} when left out."
         if text:
             prop["description"] = text
             n += 1

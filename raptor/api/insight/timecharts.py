@@ -66,6 +66,16 @@ def _pick_run(runs: list[dict[str, Any]], run: int) -> tuple[int, dict[str, Any]
     return run, runs[run - 1]
 
 
+def _usable_floor(highs: list[float], floor: float | None) -> tuple[float | None, str]:
+    """The axis floor, unless it is above every value: then the plot was
+    blank with no word why.  Returns the floor to use and a caption note."""
+    tops = [v for v in highs if v is not None]
+    if floor is not None and 0 < floor < 1 and tops and floor >= max(tops):
+        return None, (f" The axis floor ({_pct(floor)}) is above every value, so "
+                      "the axis fits the data instead.")
+    return floor, ""
+
+
 def _floor_range(lows: list[float], floor: float | None, *, zoom: bool) -> list[float]:
     """The suggested y range for a fraction chart.
 
@@ -164,6 +174,8 @@ def availability_through_run(ao_runs: list[dict[str, Any]], run: int = 1, *,
         {"name": "availability so far", "role": "line", "tone": "ink", "t": t,
          "y": degraded, "width": 1.6},
     ]
+    y_floor, floor_note = _usable_floor(list(degraded), y_floor)
+    caption += floor_note
     return _spec(f"Availability through run {number}",
                  "the share of time so far spent fully up, degraded and down",
                  units, layers, caption=caption, fmt="percent",
@@ -223,6 +235,8 @@ def interval_availability(ao_runs: list[dict[str, Any]], run: int = 1, *,
         {"name": "availability so far", "role": "line", "tone": "ink",
          "t": line_t, "y": line_y, "width": 1.2, "dash": True},
     ]
+    y_floor, floor_note = _usable_floor(ys + line_y, y_floor)
+    caption += floor_note
     return _spec(f"Availability interval by interval, run {number}",
                  "the share of each recording interval the system was up",
                  units, layers, caption=caption, fmt="percent",
@@ -323,7 +337,10 @@ def availability_band(ao_runs: list[dict[str, Any]], *, units: str = "",
                f"{_pct(width_end, 2)} at the end.")
     if target is not None:
         met = sum(1 for column in samples if column[-1] >= target)
-        caption += f" {met:,} runs ended at or above the target."
+        caption += (f" {met:,} of the {len(usable):,} runs ended at or above "
+                    "the target.")
+    y_floor, floor_note = _usable_floor(bands["max"], y_floor)
+    caption += floor_note
     return _spec("Availability across all runs",
                  "each run's availability so far: where the runs agree",
                  units, _band_layers(grid, bands, what="availability"),

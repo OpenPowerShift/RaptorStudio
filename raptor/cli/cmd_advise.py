@@ -328,6 +328,7 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
     if not args.model:
         raise CliError("explain needs a MODEL (or use --list-charts)", X.USAGE)
     chart_name = args.chart or ("downtime-pareto" if args.chart_svg else None)
+    _warn_unused_chart_options(args, chart_name)
     targets = _targets(args.target)
     from raptor.cli.cmd_run import progress_options
     with workspace_for() as ws:
@@ -370,7 +371,8 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
             story = from_run(ws, result.run_id, requirements=targets)
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
-                           min_share=args.chart_min_share)
+                           min_share=args.chart_min_share,
+                           target=_availability_target(targets))
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -411,16 +413,55 @@ def _explain_output(attribution: dict, story: Any, yearly: Any,
         print("\n".join(story_lines(story)))
         print()
     from raptor.api.insight import drivers
-    print("\n".join(drivers.text_lines(attribution, args.top)))
+    if chart is None or yearly is not None:
+        # --chart alone prints the chart: it came after 30 to 60 lines of
+        # the drivers report
+        print("\n".join(drivers.text_lines(attribution, args.top)))
     if yearly is not None:
         print("\n" + "\n".join(drivers.period_lines(yearly)))
     if chart is not None:
         _print_chart(chart, args)
 
 
+def _warn_unused_chart_options(args: Any, chart_name: str | None) -> None:
+    """Say so when a chart option has nothing to act on: they were ignored
+    without a word."""
+    from raptor.api.insight.timecharts import PER_RUN_CHARTS
+    unused = []
+    if chart_name is None:
+        unused += [flag for flag, set_ in (
+            ("--chart-page", args.chart_page != "screen"),
+            ("--chart-run", args.chart_run != 1),
+            ("--chart-min-share", bool(args.chart_min_share))) if set_]
+    else:
+        if args.chart_run != 1 and chart_name not in PER_RUN_CHARTS:
+            unused.append("--chart-run (only the one-run charts use it)")
+        if args.chart_min_share and chart_name not in _RANKED_CHARTS:
+            unused.append("--chart-min-share (only rankings and treemaps fold "
+                          "small items)")
+        if args.chart_page != "screen" and not args.chart_svg:
+            unused.append("--chart-page (it sizes --chart-svg)")
+    for flag in unused:
+        print(f"warning: {flag} has no effect here", file=sys.stderr)
+
+
+#: The charts `--chart-min-share` folds.
+_RANKED_CHARTS = ("downtime-pareto", "downtime-treemap", "cost-pareto", "cost-treemap",
+                  "lost-capacity-pareto", "lost-capacity-treemap")
+
+
+def _availability_target(targets: list[dict]) -> float | None:
+    """The first availability target, for the charts' target line (the
+    window's Target button draws one; --target drew none)."""
+    from raptor.api.advisor.context import REQUIREMENT_FIELDS
+    return next((float(t["value"]) for t in targets
+                 if REQUIREMENT_FIELDS.get(str(t.get("metric"))) == "availability"), None)
+
+
 def _chart_for(ws: Any, run_id: str, name: str | None,
                attribution: dict, *, run: int = 1,
-               y_floor: float | None = None, min_share: float = 0.0) -> Any:
+               y_floor: float | None = None, min_share: float = 0.0,
+               target: float | None = None) -> Any:
     """Build the requested chart from a finished run, or None; with
     `min_share`, its small items folded into one (`charts.fold_small`)."""
     if not name:
@@ -432,6 +473,7 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     over_time = (stored_inputs(run_dir(ws, run_id)) if name in TIME_CHARTS
                  else {})
+    over_time.pop("units", None)       # passed as units= (it is the run's)
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise CliError("--y-floor must be at least 0 and below 1", X.USAGE)
     if not 0.0 <= min_share < 1.0:
@@ -452,6 +494,7 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
                                periods=periods, costs=costs, run=run,
                                importance=importance, y_floor=y_floor,
                                units=run_units(ws, run_id), surface="cli",
+                               target=target,
                                **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc

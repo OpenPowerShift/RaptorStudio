@@ -132,7 +132,8 @@ def parse_path(text: str) -> ParsedPath:  # noqa: C901
     if kind not in _ELEMENT_KINDS:
         raise PathError(
             f"unknown kind {kind!r} in {text!r}; use one of "
-            f"{', '.join(sorted(_ELEMENT_KINDS))}, system or rate")
+            f"{', '.join(sorted(_ELEMENT_KINDS))}, "
+            f"{', '.join(sorted(_AUX_KINDS))}, system or rate")
     if "." not in rest:
         raise PathError(
             f"path {text!r} needs a field after the element, "
@@ -249,6 +250,9 @@ def _apply_aux(workspace: Workspace, model_id: str, p: ParsedPath,
             f"{', '.join(sorted(columns))}")
     try:
         number = int(value)
+        # 1.5 spares became 1 without a word
+        if isinstance(value, float) and value != number:
+            raise ValueError
     except (TypeError, ValueError):
         raise PathError(f"{path_text}: {value!r} is not a whole number") from None
     low = 1 if p.kind == "resource" else 0

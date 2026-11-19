@@ -2574,7 +2574,10 @@
     "type": "object"
    },
    "met": {
-    "type": "integer"
+    "type": [
+     "integer",
+     "null"
+    ]
    },
    "numbers": {
     "type": "array"
@@ -2598,7 +2601,10 @@
     "type": "array"
    },
    "total": {
-    "type": "integer"
+    "type": [
+     "integer",
+     "null"
+    ]
    },
    "units": {
     "type": "string"
@@ -2721,6 +2727,9 @@
    "note": {
     "type": "string"
    },
+   "screened": {
+    "type": "string"
+   },
    "seed": {
     "type": [
      "integer",
@@ -2739,6 +2748,7 @@
    "inputs",
    "metric",
    "note",
+   "screened",
    "seed",
    "trials"
   ],
@@ -3160,6 +3170,9 @@
    },
    "variance_reduction": {
     "type": "object"
+   },
+   "workers": {
+    "type": "integer"
    }
   },
   "required": [
@@ -3171,7 +3184,8 @@
    "rows",
    "seed",
    "trials",
-   "variance_reduction"
+   "variance_reduction",
+   "workers"
   ],
   "type": "object"
  },

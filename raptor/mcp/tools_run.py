@@ -1085,7 +1085,10 @@ def get_timeseries(
     from raptor.api.limits import MAX_TIMESERIES_POINTS
     from raptor.api.run import get_timeseries as api_series, isolation_metadata
 
-    points = max(1, min(int(points), MAX_TIMESERIES_POINTS))
+    if int(points) < 2:
+        # points=0 came back as one sample with no word
+        raise ValueError("points must be at least 2")
+    points = min(int(points), MAX_TIMESERIES_POINTS)
     data = api_series(ws, run_id, series=series, runs=runs, points=points)
     isolation = isolation_metadata(context.workspace(), run_id)
     if isolation:
@@ -1183,6 +1186,10 @@ async def what_if(
     ws = context.workspace()
     cap = context.max_runs()
     context.check_batch(changes, "changes")
+    if not changes:
+        # an empty list ran Base against itself and "succeeded"
+        raise ValueError("changes is empty: give at least one PATH=VALUE edit, "
+                         "e.g. [\"block:Pump.repair_params=8\"]")
     if precision is None:
         context.check_study(model_id, trials, timeout_s, workers=workers)
     else:

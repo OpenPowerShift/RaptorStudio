@@ -68,8 +68,8 @@ class RecommendJob:
                 workers=self.workers, timeout_s=24 * 3600.0, min_gain=self.min_gain,
                 progress=self._progress, abort=self.abort)
         except Exception as exc:                          # noqa: BLE001
-            self.error = (f"{type(exc).__name__}: {exc}"
-                          if not self.abort.is_set() else "Stopped.")
+            from raptor.api.batch import plain_error
+            self.error = (plain_error(exc) if not self.abort.is_set() else "Stopped.")
         finally:
             self.done = True
 

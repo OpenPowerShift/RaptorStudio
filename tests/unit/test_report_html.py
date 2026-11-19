@@ -34,8 +34,8 @@ def test_the_cover_has_the_title_block_run_info_and_key_figures():
     assert '<h1 id="top">Probe</h1>' in html
     assert "Revision B · 2026-10-21" in html
     assert "<th>Runs</th><td>60</td>" in html
-    # Availability's mean, to six places, as a card.
-    assert '<div class="k">Availability</div><div class="v">0.967796</div>' \
+    # Availability's mean, as a percentage as the Story gives it, as a card.
+    assert '<div class="k">Availability</div><div class="v">96.7796 %</div>' \
         in html
     # plain words on the cover, the acronym kept small under the value
     assert '<div class="k">Time between outages</div>' in html

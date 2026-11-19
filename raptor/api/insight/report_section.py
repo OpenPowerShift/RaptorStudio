@@ -65,12 +65,22 @@ def from_parts(story: Any, per_run: list[dict],
         from raptor.api.insight import measures
         specs.append(chart_data.availability_ladder(
             measures.availability_ladder(per_run)))
+        if len(per_run) >= 2:
+            specs.append(chart_data.convergence(per_run, field_name, target=target))
     if not provided and attribution:
+        capacity = attribution.get("capacity") or {}
+        if capacity.get("elements"):
+            # a capacity model's Story ranks lost capacity: the report
+            # ranked only downtime and drew no capacity chart
+            specs.append(chart_data.lost_capacity_pareto(attribution))
+            specs.append(chart_data.capacity_waterfall(attribution))
         specs.append(chart_data.downtime_pareto(attribution))
         specs.append(chart_data.downtime_waterfall(
             attribution, _operational(per_run)))
         specs.append(chart_data.downtime_treemap(attribution))
         specs.append(chart_data.outage_anatomy(attribution))
+        if (attribution.get("outage_durations") or {}).get("count"):
+            specs.append(chart_data.outage_histogram(attribution))
     story_findings = [finding if isinstance(finding, dict) else asdict(finding)
                       for finding in story_dict.get("findings") or ()]
     if findings is not None:

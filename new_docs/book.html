@@ -12869,8 +12869,19 @@ differences either way, and the <code>Pairing cut the variance by</code> line sa
 what was gained.</p>
 </div>
 <div class="paragraph">
-<p>Use the same seed and the same trial count when you compare two runs by
-hand; otherwise you are reading noise.</p>
+<p>Use the same seed, the same trial count and the same number of cores when
+you compare two runs by hand; otherwise you are reading noise. The numbers
+depend on the cores (<code>-j</code>): one core and several draw different streams, so
+the header says how many were used. The What If window (Analyse ▸ What If)
+uses the cores chosen in the Run panel, so it can differ from a command-line
+<code>whatif</code>, which uses one unless you give <code>-j</code>.</p>
+</div>
+<div class="paragraph">
+<p>A change can have no effect at all, such as a repair time on a block that is
+never repaired. Every trial is then identical to Base: the result says "no
+effect" and the window does not offer Apply. Besides block, node, event,
+hierarchy, link, system and rate paths, a change can set a spare pool&#8217;s
+stock or a crew pool&#8217;s size: <code>pool:Spares.stock=3</code>, <code>resource:Crew.units=2</code>.</p>
 </div>
 </div>
 <div class="sect2">
@@ -12886,7 +12897,12 @@ same seed as Base, and ranks the paired swings:</p>
 </div>
 <div class="paragraph">
 <p>Candidates come from block lives and repair means, PM intervals, finite
-spare stock and crew counts. A swing whose interval contains zero is drawn
+spare stock and crew counts. Only the first <code>--top</code> of them are screened
+(10 by default): after a run with downtime attribution, the elements that
+cause the most downtime come first; without one, the blocks down for the
+largest share of their own time. The output says how many of the inputs
+were screened; raise <code>--top</code> to screen the rest. The Sensitivity window
+(Analyse ▸ Sensitivity) does the same, using the last run&#8217;s attribution. A swing whose interval contains zero is drawn
 as "not distinguishable" rather than promoted. This is a screening view: it
 shows each input alone, so it cannot show interactions.</p>
 </div>

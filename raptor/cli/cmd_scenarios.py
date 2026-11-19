@@ -160,6 +160,12 @@ def _parse_requirement(text: str) -> dict[str, Any]:
 
 
 def _scenario(args: Any) -> dict[str, Any]:
+    if args.change_file and args.change:
+        # the --change options were dropped without a word
+        raise CliError("give --change or --change-file, not both", X.USAGE)
+    if args.trials is not None and args.trials < 1:
+        # -n 0 ran nothing and blamed the time limit
+        raise CliError("-n/--trials must be at least 1", X.USAGE)
     if args.change_file:
         try:
             from pathlib import Path
@@ -236,9 +242,11 @@ def whatif_command(args: Any) -> int:
         emit_json({**comparison.to_dict(), "schema": WHATIF_SCHEMA}, None)
     else:
         _print_comparison(comparison)
-    for row in failed:
-        eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} did not "
-               f"run: {row['error']}")
+    if args.format == "json":
+        # the text already shows each error once (it was printed three times)
+        for row in failed:
+            eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} "
+                   f"did not run: {row['error']}")
     # a pipeline checking the status took a bad change for a finished comparison
     return X.RUNTIME if failed else X.OK
 
