@@ -2685,12 +2685,12 @@ In short:</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Preventive maintenance</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">partial: one planned task per failure model</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">partial: first enabled planned task; inspections and extra tasks are not imported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: first enabled planned task; dormant inspections become a detection delay; other inspections/extra tasks are partial</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Spare holdings</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">partial: level-1 stock and lead time</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level 1 + 2 become one pool; repair shop is not imported</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">partial: level 1 + 2 become one pool that emergency-orders after the level 1 + 2 + 3 delay (AWB never runs out); planned tasks do not wait for spares; repair shop is not imported</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Labour/equipment resources</p></td>

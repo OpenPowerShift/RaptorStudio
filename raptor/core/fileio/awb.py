@@ -605,15 +605,18 @@ def _sidecar_payload(rbd: RbdFile) -> dict[str, Any]:  # noqa: C901, PLR0912, PL
         data["comments"] = [dict(c) for c in _section_list(rbd, "COMMENTS")]
     block_extras = {}
     for b in _section_list(rbd, "BLOCK_DATA"):
-        bid = _text(b.get("ID"))
-        if bid in ("", "0"):
+        if _text(b.get("ID")) in ("", "0"):
             continue
+        # Keyed by name: the export writes the block name as the AWB Id,
+        # the import names the block from it, and apply_sidecar looks the
+        # block up by that name (the RAPTOR ID is renumbered on import).
+        bid = _text(b.get("blockName")) or _text(b.get("ID"))
         extra = {k: b.get(k) for k in (
             "DepType", "DepNum", "DepNothing", "DepIdle", "DepPM",
             "DepFail", "DepPMThresh", "defDepStateIdle", "Phasing",
             "SimStart", "AmtExhausted", "SBStress", "GDType", "GDRate",
             "GDLimit", "_DutyCycle", "_StartAge", "_RestoreFactor",
-            "_RestoreType", "NonOperational", "usesPM", "PMFreq",
+            "_RestoreType", "NonOperational", "usesPM", "PMFreq", "PMSpare",
             "Dist", "Param1#3", "Param2#3", "Param3#3",
             "initial", "Running", "standby", "idle", "repHold",
             "repPerTime", "repFixed", "donePerTime", "doneFixed",
@@ -757,6 +760,10 @@ def apply_sidecar(doc: dict[str, Any], data: dict[str, Any],  # noqa: C901, PLR0
             if key == "phases":
                 target["uses_phasing"] = True
                 target.setdefault("legacy", {}).update(value)
+            elif key == "PMSpare":
+                # The import leaves AWB PM off the spare pool; a RAPTOR
+                # model's own setting comes back from the sidecar.
+                target["pm_spare"] = str(value) == "1"
             elif key not in target:
                 target[key] = value
     for nid, extra in (data.get("node_extras") or {}).items():
@@ -1871,24 +1878,43 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     spare_doc: list[dict[str, Any]] = []
     spare_name: dict[int, str] = {}
     used_spares: set[str] = set()
+    stocked_l1_delay = 0
     for i, sp in enumerate(spare_rows):
         name = _unique(_safe_id(_text(sp.get("Id"), f"Spare{i + 1}"), 20),
                        used_spares, 20)
         stock = max(0, _int(sp.get("CapacityLevel1"), 0)
                     + _int(sp.get("CapacityLevel2"), 0))
-        arrive = max(1.0, _num(sp.get("LogisticDelayLevel2"), 0.0)
-                     or _num(sp.get("LogisticDelayLevel3"), 24.0))
-        emer = max(1.0, _num(sp.get("LogisticDelayLevel3"), arrive))
+        # AWB level 3 is an unlimited manufacturing source: a demand that
+        # level 1 and level 2 cannot meet waits the level 3 -> 2 -> 1 ->
+        # task delays, and AvSim never runs out (manual, "Spares - Level 3
+        # Properties").  RAPTOR's nearest equivalent is emergency ordering
+        # with that summed delay, plus a one-for-one stock-level reorder
+        # (reorder at stock-1, quantity 1) that refills held stock after
+        # the level 3 -> 1 delay.  Without ESO a zero-stock pool would be
+        # permanently empty and every block using it would end "Done".
+        d1 = max(0.0, _num(sp.get("LogisticDelayLevel1"), 0.0))
+        d2 = max(0.0, _num(sp.get("LogisticDelayLevel2"), 0.0))
+        d3 = max(0.0, _num(sp.get("LogisticDelayLevel3"), 0.0))
+        emer = max(1e-6, d1 + d2 + d3)
+        resupply = max(1e-6, d2 + d3)
+        if stock and d1 > 0:
+            stocked_l1_delay += 1
         spare_doc.append({
             "name": name, "stock": stock,
             "new_spares": max(1, _int(sp.get("MinimumReorderQuantity"), 1)),
-            "arrive_every": arrive, "eso": 1 if stock else 0,
-            "emer_time": emer, "slo": 0, "level": 0, "quantity": 1,
-            "slo_time": 24.0, "rso": 0,
+            "arrive_every": resupply, "eso": 1,
+            "emer_time": emer, "slo": 1 if stock else 0,
+            "level": max(0, stock - 1), "quantity": 1,
+            "slo_time": resupply, "rso": 0,
             "spare_cost": max(0.0, _num(sp.get("UnitCost"), 1.0)),
             "emer_ship_cost": max(0.0, _num(sp.get("TransportationCostLevel2"), 1.0)),
         })
         spare_name[i] = name
+    report.add("level-1 spare logistic delay on stocked spares",
+               stocked_l1_delay,
+               "AWB's level-1 delay on a spare drawn from stock is not "
+               "modelled; only a stock-out waits the summed delay",
+               kind="partial")
     if any(_int(sp.get("CapacityLevel2"), 0) for sp in spare_rows):
         report.add("two-level spare holdings", 1,
                    "AWB level-1 and level-2 stock are summed into one "
@@ -1938,6 +1964,14 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             "one RAPTOR PM per block: extra AWB planned tasks, and "
             "inspection tasks, are not imported")
 
+    inspection_by_fm: dict[int, dict[str, Any]] = {}
+    for t in sched_tasks:
+        if _int(t.get("Type"), 0) != 1 or not _int(t.get("Enabled"), 0):
+            continue
+        fm_i = _int(t.get("FailureModel"), -1)
+        if fm_i >= 0 and fm_i not in inspection_by_fm:
+            inspection_by_fm[fm_i] = t
+
     corr_spare_by_fm: dict[int, dict[str, Any]] = {}
     for row in corr_spares:
         fm_i = _int(row.get("FailureModel"), -1)
@@ -1947,6 +1981,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
         fm_i = _int(row.get("FailureModel"), -1)
         corr_labor_by_fm.setdefault(fm_i, row)
     sched_spare_by_fm: dict[int, dict[str, Any]] = {}
+    planned_spares = 0
     for row in sched_spares:
         fm_i = _int(row.get("FailureModel"), -1)
         sched_spare_by_fm.setdefault(fm_i, row)
@@ -1991,6 +2026,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     # ---- ordinary blocks --------------------------------------------------
     block_losses: dict[str, int] = {}
     block_by_row: dict[int, dict[str, Any]] = {}
+    used_inspections = 0
     for i, b in enumerate(blocks):
         if i == root_i or i in super_rows:
             continue
@@ -2013,6 +2049,20 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             "repair_dist": rdist, "repair_params": rparams,
         }
         fm_i = _int(b.get("FailureModel"), -1)
+        inspection = inspection_by_fm.get(fm_i)
+        if (inspection is not None and 0 <= fm_i < len(fms)
+                and _int(fms[fm_i].get("FmDormant"), 0)
+                and _int(b.get("LogicMode"), 0) != 1):
+            repair = next((t for t in tasks
+                           if _int(t.get("FailureModel"), -1) == fm_i), None)
+            block["repair_dist"], block["repair_params"] = _task_repair_law(repair)
+            block["pre_ldt_dist"] = _R_FIXED
+            block["pre_ldt_params"] = [_inspection_delay(inspection), 0.0, 0.0]
+            if block_losses.get("dormant failures"):
+                block_losses["dormant failures"] -= 1
+                if not block_losses["dormant failures"]:
+                    del block_losses["dormant failures"]
+            used_inspections += 1
         pm = pm_by_fm.get(fm_i)
         if pm is not None:
             pm_dist, pm_params = task_law(pm)
@@ -2025,8 +2075,14 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                 "uses_pm": True, "pm_freq": pm_freq,
                 "pm_duration_dist": pm_dist, "pm_params": pm_params,
                 "pm_refresh": _num(pm.get("AgeReductionFactor"), 0.0) >= 0.999,
-                "pm_spare": fm_i in sched_spare_by_fm,
+                # AWB spare logistic delays hold up corrective actions
+                # only; a planned task's spares are on hand (manual,
+                # "Spares - Overview").  RAPTOR's PM would wait the whole
+                # supply chain for a pooled spare, so do not draw one.
+                "pm_spare": False,
             })
+            if fm_i in sched_spare_by_fm:
+                planned_spares += 1
             pm_res = sched_labor_by_fm.get(fm_i)
             if pm_res is not None:
                 kind_i = _int(pm_res.get("Labor"), -1)
@@ -2085,7 +2141,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     for feature, count in sorted(block_losses.items()):
         detail = {
             "multi-mode or buffer failure distribution":
-                "AWB multi-mode/buffer laws kept their first Weibull mode only",
+                "AWB multi-mode laws kept their shortest-life Weibull mode",
             "dormant failures":
                 "a dormant AWB failure is modelled as never repaired",
             "start-up failure probability":
@@ -2094,6 +2150,17 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                 "AWB marks the block non-maintainable; RAPTOR repair is off",
         }.get(feature, "")
         report.add(feature, count, detail)
+    if used_inspections:
+        report.notes.append(
+            f"{used_inspections} dormant failure(s) approximated by the "
+            "expected AWB inspection detection delay")
+    enabled_inspections = [t for t in sched_tasks
+                           if _int(t.get("Type"), 0) == 1
+                           and _int(t.get("Enabled"), 0)]
+    if len(enabled_inspections) > used_inspections:
+        report.add("inspection tasks", len(enabled_inspections) - used_inspections,
+                   "enabled inspections without a dormant failure model "
+                   "were not used", kind="partial")
     dep_count = 0
     for row in rule_rows:
         dep_row = _int(row.get("DependentBlock"), -1)
@@ -2350,6 +2417,10 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     project = _rows(tables, "Project")[0] if _rows(tables, "Project") else {}
     lifetime = max(1.0, _num(project.get("LifeTime"), 87600.0))
     trials = max(1, _int(project.get("AvsimNoSimulationsRequested"), 1000))
+    report.add("planned-task spares", planned_spares,
+               "AWB delays only corrective tasks for spares; imported PM "
+               "does not draw on the spare pool, so planned spare use is "
+               "not counted against stock", kind="partial")
     report.counts.update(blocks=len(elements["blocks"]),
                          nodes=len(elements["nodes"]),
                          hierarchies=len(elements["hierarchies"]),
@@ -2466,6 +2537,102 @@ def _endpoint(kind: int, index: int, block_id: dict[int, int],
     return None
 
 
+def _task_repair_law(task: dict[str, Any] | None) -> tuple[int, list[float]]:
+    """AWB corrective task -> RAPTOR repair law."""
+    if task is None:
+        return _R_FIXED, [0.0, 0.0, 0.0]
+    duration = max(0.0, _num(task.get("TaskDuration"))
+                   + _num(task.get("RampTime")))
+    dist = _int(task.get("Distribution"), 2)
+    std = max(0.0, _num(task.get("Std")))
+    if dist == 0:
+        return _R_EXPO, [max(1e-9, duration), 0.0, 0.0]
+    if dist == 1:
+        return _R_LOGNORM, [max(1e-9, duration), std, 0.0]
+    if dist == 3:
+        return _R_WEIBULL, [max(1e-9, _num(task.get("Beta"), 2.0)),
+                            max(1e-9, duration),
+                            max(0.0, _num(task.get("Gamma")))]
+    if std > 0:
+        return _R_NORM, [max(1e-9, duration), std, 0.0]
+    return _R_FIXED, [max(0.0, duration), 0.0, 0.0]
+
+
+def _inspection_delay(task: dict[str, Any]) -> float:
+    """Expected detection delay for a dormant failure under an inspection."""
+    interval = max(1e-9, _num(task.get("TaskInterval"), 8760.0))
+    first = _num(task.get("Offset"), 0.0)
+    first = interval if first <= 0 else min(interval, first)
+    detection = min(1.0, max(0.01, _num(task.get("DetectionP"), 1.0)))
+    inspection_time = max(0.0, _num(task.get("TaskDuration"))
+                          + _num(task.get("RampTime")))
+    # A failure appears uniformly in the inspection interval; a perfect
+    # inspection finds it on average half an interval later.  A detection
+    # probability below 1 stretches that by 1/p.
+    return first / (2.0 * detection) + inspection_time
+
+
+def _competing_weibull_fit(modes: list[tuple[float, float, float]]
+                           ) -> tuple[float, float, float]:
+    """One Weibull (beta, eta, gamma) approximating competing Weibull modes.
+
+    *modes* are (eta, beta, gamma).  The item's life is the minimum of the
+    mode lives.  This is a moment match, not an exact conversion: the
+    fitted law has the same mean and coefficient of variation (measured
+    from the earliest location parameter), so failure counts agree but the
+    hazard shape, which matters for PM timing, is only approximate.
+    """
+    if len(modes) == 1:
+        eta, beta, gamma = modes[0]
+        return beta, eta, gamma
+    g0 = min(m[2] for m in modes)
+
+    def survival(t: float) -> float:
+        h = 0.0
+        for eta, beta, gamma in modes:
+            x = t + g0 - gamma
+            if x > 0:
+                h += (x / eta) ** beta
+        return math.exp(-h)
+
+    # Integrate on a log grid out to where the longest-lived mode alone
+    # would have near-zero survival.
+    upper = max(gamma - g0 + eta * 40.0 ** (1.0 / beta)
+                for eta, beta, gamma in modes)
+    lo = min(eta for eta, _, _ in modes) * 1e-6
+    n = 4000
+    ratio = (upper / lo) ** (1.0 / n)
+    ts = [0.0] + [lo * ratio ** i for i in range(n + 1)]
+    m1 = m2 = 0.0
+    prev_t, prev_s = ts[0], survival(ts[0])
+    for t in ts[1:]:
+        cur = survival(t)
+        dt = t - prev_t
+        m1 += 0.5 * (prev_s + cur) * dt
+        m2 += (prev_t * prev_s + t * cur) * dt
+        prev_t, prev_s = t, cur
+    var = max(0.0, m2 - m1 * m1)
+    if m1 <= 0:
+        eta, beta, gamma = min(modes, key=lambda m: m[0])
+        return beta, eta, gamma
+    cv2 = var / (m1 * m1)
+
+    def weibull_cv2(b: float) -> float:
+        g1 = math.gamma(1.0 + 1.0 / b)
+        return math.gamma(1.0 + 2.0 / b) / (g1 * g1) - 1.0
+
+    lo_b, hi_b = 0.05, 50.0   # CV^2 falls as beta rises
+    for _ in range(100):
+        mid = math.sqrt(lo_b * hi_b)
+        if weibull_cv2(mid) > cv2:
+            lo_b = mid
+        else:
+            hi_b = mid
+    beta = math.sqrt(lo_b * hi_b)
+    eta = m1 / math.gamma(1.0 + 1.0 / beta)
+    return beta, eta, g0
+
+
 def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901, PLR0912
                 tasks: list[dict[str, Any]],
                 losses: dict[str, int]) -> tuple[int, list[float], int, list[float]]:
@@ -2494,8 +2661,19 @@ def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901,
     elif dist == _AWB_NORMAL:
         fdist, fparams = _R_NORM, [mttf, max(0.0, _num(fm.get("FmStd"))), 0.0]
     else:
-        # Bi-/tri-Weibull, buffer and phased laws have no exact RAPTOR
-        # equivalent in the friendly model.  Keep the first mode and say so.
+        # Bi-/tri-Weibull and phased laws have no exact RAPTOR equivalent.
+        # AWB's modes compete (the item fails at the first of them), so fit
+        # one Weibull to the mean and spread of that competing-risk life.
+        # Only the modes the law uses count: a bi-Weibull's third-mode
+        # columns hold AWB's 8760 h placeholder, not data.
+        n_modes = {_AWB_BI_WEIBULL: 2, _AWB_PHASED_BI: 2,
+                   _AWB_TRI_WEIBULL: 3, _AWB_PHASED_TRI: 3}.get(dist, 1)
+        modes = [(_num(fm.get(f"FmEta{k}"), eta), _num(fm.get(f"FmBeta{k}"), beta),
+                  _num(fm.get(f"FmGamma{k}"), gamma))
+                 for k in range(1, n_modes + 1)]
+        modes = [m for m in modes if m[0] > 0 and m[1] > 0]
+        if modes:
+            beta, eta, gamma = _competing_weibull_fit(modes)
         fdist, fparams = _R_WEIBULL, [beta, eta, gamma]
         losses["multi-mode or buffer failure distribution"] = (
             losses.get("multi-mode or buffer failure distribution", 0) + 1)
@@ -2557,11 +2735,6 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
                    len(planned) - len(fms_with_planned),
                    "RAPTOR has one PM per block; only the first planned "
                    "task per failure model is imported", kind="partial")
-    inspections = [t for t in sched
-                   if _int(t.get("Type"), 0) == 1 and _int(t.get("Enabled"), 0)]
-    if inspections:
-        report.add("inspection tasks", len(inspections),
-                   "AWB inspection tasks are not imported as RAPTOR PM")
     calendar_pm = [t for t in planned if _int(t.get("FixedInterval"), 0)]
     if calendar_pm:
         report.add("calendar-interval PM", len(calendar_pm),

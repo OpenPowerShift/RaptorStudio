@@ -1804,8 +1804,8 @@ In short:
 |Mission phases |partial: durations and block cut/linked rules |partial: durations and cut/linked rules; node/hierarchy and capacity/load rules are not imported
 |Out-of-service states |yes: applied to the AWB copy |yes: AWB global logic state becomes a RAPTOR cut/linked state
 |Block dependencies |not exported |partial: AWB state dependencies become 100% idle dependencies
-|Preventive maintenance |partial: one planned task per failure model |partial: first enabled planned task; inspections and extra tasks are not imported
-|Spare holdings |partial: level-1 stock and lead time |partial: level 1 + 2 become one pool; repair shop is not imported
+|Preventive maintenance |partial: one planned task per failure model |partial: first enabled planned task; dormant inspections become a detection delay; other inspections/extra tasks are partial
+|Spare holdings |partial: level-1 stock and lead time |partial: level 1 + 2 become one pool that emergency-orders after the level 1 + 2 + 3 delay (AWB never runs out); planned tasks do not wait for spares; repair shop is not imported
 |Labour/equipment resources |partial: resource pools and task links |partial: labour/equipment become RAPTOR resources; call-out delay is not imported
 |Capacity products and capacity targets |not exported |not imported
 |Consequence and cost models |not exported |not imported

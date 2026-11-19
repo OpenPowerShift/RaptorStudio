@@ -140,6 +140,64 @@ losses: capacity is preserved in the sidecar, and the repair law is
 mean-matched for AWB.  AWB demonstration mode may still refuse to analyse a
 project of this size; that is its object limit, not a file-format failure.
 
+### Shipped AWB examples
+
+Stored AWB results vs RAPTOR on the imported model (100 trials, AWB's own
+count; same lifetime).  Measured 2026-11-20 with the junction-node fix from
+`main` (#339) applied: without it every AWB fan-out is mis-wired.
+
+| AWB project | AWB Am | RAPTOR A | Result |
+|---|---:|---:|---|
+| OilAndGasExample | 0.9732 | 0.9747 | agrees (+0.15 pp) |
+| SapDemo | 0.6293 | 0.6522 | agrees within the approximations (+2.3 pp) |
+| Example1 | 0.0883 | 0.0959 | agrees within the approximations (+0.8 pp) |
+| MaximoDemo | 0.6118 | 0.3654 | AWB's stored results look stale (below) |
+
+`ALTExample` and the `PumpExample` library example have no RBD blocks.
+
+Three import defects made Example1/SapDemo/MaximoDemo look "not
+comparable" (≈0.5 % available) before this:
+
+* **Spare pools ran dry.**  An AWB spare with no stock came in as a RAPTOR
+  pool with no ordering, so the first demand left the block `Done`
+  (`No_spares`).  AWB level 3 is unlimited; pools now emergency-order after
+  the level 1+2+3 delay.
+* **Planned tasks waited for spares.**  AWB's spare logistic delays hold
+  up corrective actions only; imported PM no longer draws on the pool.
+* **Bi-Weibull picked a placeholder mode.**  The shortest-η rule included
+  the unused third-mode columns (8760 h).  Multi-mode laws are now
+  moment-matched to the competing-risk life.
+
+The per-subsystem figures (top-level superblocks, each run on its own) agree
+to within about 2 pp for Example1 and SapDemo.  The dormant `PO` block,
+modelled with the inspection detection-delay approximation, gives 0.682 vs
+AWB 0.655 (SapDemo) and 0.183 vs 0.175 (Example1, inspection disabled, never
+repaired).  RAPTOR's outage counts run lower than AWB's `W` because AWB
+counts zero-duration PM/inspection outages that RAPTOR does not.
+
+**MaximoDemo.**  Its spares carry level-2/3 delays of 96 h and 480 h, like
+Example1's, but AWB's stored per-block spare downtime is only about the
+level-1 delay (for example 45 h over 1.5 demands for the drive shaft), and its
+subsystem results are almost identical to SapDemo's, which has no level-2/3
+delays.  RAPTOR's MaximoDemo subsystems instead resemble AWB's own Example1
+results (ELEC 0.67 vs 0.73, MON 0.80 vs 0.80).  The stored results were most
+likely computed before those delays were entered.  This has not been checked
+by re-running AWB.
+
+---|---:|---:|---|
+| OilAndGasExample | 0.973217 | 0.974734 | Δ 0.152 pp; agrees |
+| Example1 | 0.088322 | 0.006982 | not comparable |
+| SapDemo | 0.629333 | 0.005037 | not comparable |
+| MaximoDemo | 0.611809 | 0.005037 | not comparable |
+
+`ALTExample` and the `PumpExample` library example have no RBD blocks.
+
+The new inspection approximation improves the model but does not make
+Example1/SapDemo/MaximoDemo comparable: Example1 has its inspection
+disabled, while SapDemo/MaximoDemo still lose PM/inspection timing,
+multi-mode Weibull shape and topology semantics. OilAndGasExample remains
+the clean shipped-AWB comparison.
+
 ---
 
 ## 2. Compatibility screening of all 27 examples
