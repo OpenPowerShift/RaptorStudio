@@ -1319,7 +1319,9 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     size = (f"width='{physical[0]}' height='{physical[1]}'" if physical
             else f"width='{width}' height='{height}'")
     title = _wrap(spec.title, width - 2 * PAD, size=15)
-    subtitle = _wrap(spec.subtitle, width - 2 * PAD) if spec.subtitle else []
+    # a saved picture cannot be clicked
+    static = (spec.subtitle or "").replace("; click a cell to locate", "")
+    subtitle = _wrap(static, width - 2 * PAD) if static else []
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' {size} "
         f"viewBox='0 0 {width} {height}' "
@@ -1334,6 +1336,15 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_lines(width / 2, sub_y, subtitle, anchor="middle", colour=MUTED))
     top = sub_y + LINE_H * (len(subtitle) - 1) + 9.0 if subtitle else sub_y - 8.0
     top = max(top, float(TITLE_H))
+    if not spec.series and not spec.annotations and spec.caption:
+        # nothing to draw: say why where the plot would be, not in small
+        # print under an empty frame (an empty chart read as a broken one)
+        reason = _wrap(spec.caption, min(width - 2 * PAD, 560), size=14)
+        middle = (top + height) / 2 - 10 * (len(reason) - 1)
+        body.append(_lines(width / 2, middle, reason, size=14, anchor="middle",
+                           colour=MUTED, step=20))
+        body.append("</svg>")
+        return _prefixed("\n".join(body), id_prefix)
     x = float(PAD)
     for label, fill in _key(spec):
         w = 18 + _width(label) + 14
@@ -1353,7 +1364,11 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_lines(PAD, height - 9 - LINE_H * (len(caption) - 1), caption,
                            colour=text_colour))
     body.append("</svg>")
-    svg = "\n".join(body)
+    return _prefixed("\n".join(body), id_prefix)
+
+
+def _prefixed(svg: str, id_prefix: str) -> str:
+    """Pattern ids made unique for a page holding several charts."""
     if id_prefix:
         svg = svg.replace("id='pat-", f"id='{id_prefix}pat-").replace(
             "url(#pat-", f"url(#{id_prefix}pat-")

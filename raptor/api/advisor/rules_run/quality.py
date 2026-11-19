@@ -131,6 +131,10 @@ def tail_runs(ctx: RunContext) -> Iterable[Finding]:
     share = sum(down[:k]) / total
     if share <= TAIL_SHARE:
         return
+    with_down = sum(1 for d in down if d > 0)
+    # "100 % came from 150 of 3,000 runs ... 2,922 had no downtime": 150
+    # was the worst 5 %, though only 78 runs had any downtime
+    k = min(k, with_down)
     ordered = sorted(ao)
     median, p10 = ordered[n // 2], ordered[max(0, math.ceil(0.10 * n) - 1)]
     clean = sum(1 for a in ao if a >= 1.0)
@@ -143,8 +147,10 @@ def tail_runs(ctx: RunContext) -> Iterable[Finding]:
     yield Finding(
         rule="R-QUA-005", severity="advice", category="quality",
         title="A few bad runs drive the average",
-        message=(f"{text.fmt_pct(share)} of all downtime came from {k} of {n:,} runs: rare "
-                 f"long outages drive the average. {typical}"),
+        message=((f"All the downtime came from {k:,} of the {n:,} runs: rare "
+                  f"long outages drive the average. {typical}") if k == with_down else
+                 (f"{text.fmt_pct(share)} of all downtime came from the worst {k:,} of "
+                  f"{n:,} runs: rare long outages drive the average. {typical}")),
         why="When the outcome is this lopsided the average describes few real "
             "runs. Quote the typical run and the bad-case run as well as the mean, "
             "and look at what the worst runs have in common.",
@@ -190,14 +196,14 @@ def _verdict(ctx: RunContext, req: dict) -> Finding | None:
     if p_meet >= 0.95:
         return Finding(severity="info", title="Target met",
                        message=(f"Target met: {label} {op} {show(target)}; the runs give "
-                                f"{show(mean)} ± {spread} (95 %). {_confident(p_meet)} confident; "
+                                f"{show(mean)} ± {spread} (95 %). {_confident(p_meet)} sure it is met; "
                                 f"{counted}."),
                        confidence=p_meet, impact=0.2, **common)
     if p_meet <= 0.05:
         return Finding(severity="warning", title="Target missed",
                        message=(f"Target missed: {label} {op} {show(target)}; the runs give "
                                 f"{show(mean)} ± {spread} (95 %){gap_time}. "
-                                f"{_confident(1 - p_meet)} confident; {counted}."),
+                                f"{_confident(1 - p_meet)} sure it is missed; {counted}."),
                        confidence=1 - p_meet, impact=1.0, **common)
     needed = min(MAX_SUGGESTED_RUNS,
                  math.ceil(n * (t_quantile(0.975, n - 1) * sem / abs(margin)) ** 2)

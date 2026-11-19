@@ -44,11 +44,24 @@ RESULT_TIPS = (
     "Mean downtime per trial minus Base's (negative is less downtime)")
 
 
+def _plain(value: float, digits: int = 3, sign: bool = True) -> str:
+    """`digits` significant figures, never in e-notation ("-4.27e-05 pts")."""
+    import math
+    if value == 0 or not math.isfinite(value):
+        return "0" if value == 0 else str(value)
+    places = max(0, digits - 1 - math.floor(math.log10(abs(value))))
+    return f"{value:{'+' if sign else ''}.{places}f}"
+
+
 def _pts(value: float | None, sem: float | None = None) -> str:
     if value is None:
         return "—"
-    text = f"{100 * value:+.3g} pts"
-    return text + (f" ± {100 * sem:.2g}" if sem else "")
+    text = f"{_plain(100 * value)} pts"
+    return text + (f" ± {_plain(100 * sem, 2, sign=False)}" if sem else "")
+
+
+#: Longest error shown in the table; the whole text is in the tooltip.
+_ERROR_CHARS = 90
 
 
 class WhatIfDialog(AnalysisDialog):
@@ -241,30 +254,35 @@ class WhatIfDialog(AnalysisDialog):
 
     def show_result(self, result: Any) -> None:
         base = (result.base.get("metrics") or {}).get("availability") or {}
-        rows: list[tuple[Any, ...]] = [("Base", base.get("mean"), None, None, None, None)]
+        rows: list[tuple[Any, ...]] = [("Base", base.get("mean"), None, None, None, None,
+                                        False)]
         for row in result.rows:
             metric = (row.get("metrics") or {}).get("availability") or {}
             mdt = (row.get("metrics") or {}).get("mdt") or {}
             delta = metric.get("delta") or {}
             rows.append((row["name"], (metric.get("value") or {}).get("mean"),
                          delta, metric.get("p_better"), (mdt.get("delta") or {}).get("mean"),
-                         row.get("error")))
+                         row.get("error"), bool(row.get("no_effect"))))
         units = (self._win._current_units() or "") if hasattr(self._win, "_current_units") else ""
         header = self.table.horizontalHeaderItem(len(RESULT_COLUMNS) - 1)
         if header is not None:
             header.setText(f"{RESULT_COLUMNS[-1]} ({units})" if units else RESULT_COLUMNS[-1])
         self.table.setRowCount(len(rows))
-        for index, (name, value, delta, chance, mdt, error) in enumerate(rows):
+        for index, (name, value, delta, chance, mdt, error, idle) in enumerate(rows):
+            short = error if not error or len(error) <= _ERROR_CHARS else (
+                error[:_ERROR_CHARS].rsplit(" ", 1)[0] + " …")
             texts = (name,
                      "—" if value is None else f"{100 * value:.5g} %",
-                     ("did not run: " + error) if error else
+                     ("did not run: " + short) if error else
+                     "no effect: identical to Base" if idle else
                      ("—" if not delta else _pts(delta.get("mean"), delta.get("sem"))),
-                     "—" if chance is None else f"{100 * chance:.0f} %",
-                     "—" if mdt is None else f"{mdt:+,.4g}")
+                     "—" if chance is None or idle else f"{100 * chance:.0f} %",
+                     "—" if mdt is None or idle else f"{_plain(mdt, 4)}")
             for column, text in enumerate(texts):
                 item = QTableWidgetItem(text)
                 if index:
-                    item.setToolTip("; ".join(result.rows[index - 1]["changes"]))
+                    tip = "; ".join(result.rows[index - 1]["changes"])
+                    item.setToolTip(f"{tip}\n\n{error}" if error else tip)
                 self.table.setItem(index, column, item)
         self.caption.setText(f"{result.caption}\n{result.note}")
         if len(rows) > 1:
@@ -276,7 +294,8 @@ class WhatIfDialog(AnalysisDialog):
         if result is None or not 0 <= index < len(result.rows):
             return None
         row = result.rows[index]
-        if row.get("error"):
+        if row.get("error") or row.get("no_effect"):
+            # nothing to apply: it failed, or it changes nothing
             return None
         return index, row["name"], list(row["changes"])
 

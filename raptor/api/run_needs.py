@@ -105,23 +105,34 @@ def _expanded(keys: Iterable[str]) -> list[str]:
     return out
 
 
-def how(*keys: str) -> str:
+def how(*keys: str, surface: str | None = None) -> str:
     """'turn it on (MCP: …; command line: …; in the window tick … under …)
-    and run again': the switch on every surface."""
+    and run again': the switch on every surface, or on `surface` alone
+    ("mcp", "cli", "gui"): a command-line user was read MCP calls."""
     needs = [NEEDS[k] for k in _expanded(keys)]
+    it = "it" if len(needs) == 1 else "them"
+    if surface == "mcp":
+        calls = ", ".join(dict.fromkeys(n.mcp for n in needs))
+        return f"turn {it} on with {calls} and run again"
+    if surface == "cli":
+        flags = " ".join(dict.fromkeys(n.cli for n in needs))
+        return f"run again with {flags}"
+    if surface == "gui":
+        ticks = " and ".join(f"{n.label} under {n.place}" for n in needs)
+        return f"tick {ticks} and run again"
     mcp = ", ".join(dict.fromkeys(n.mcp for n in needs))
     cli = " ".join(dict.fromkeys(n.cli for n in needs))
     ticks = " and ".join(f"{n.label} under {n.place}" for n in needs)
-    it = "it" if len(needs) == 1 else "them"
     return (f"turn {it} on (MCP: {mcp}; command line: {cli}; in the window "
             f"tick {ticks}) and run again")
 
 
-def message(*keys: str, subject: str = "this chart") -> str:
+def message(*keys: str, subject: str = "this chart",
+            surface: str | None = None) -> str:
     """'this chart needs …: turn it on (…) and run again.' One sentence
-    for every surface."""
+    for every surface, or for `surface` alone."""
     what = " and ".join(NEEDS[k].what for k in _expanded(keys))
-    return f"{subject} needs {what}: {how(*keys)}"
+    return f"{subject} needs {what}: {how(*keys, surface=surface)}"
 
 
 def gui_hint(*keys: str) -> str:

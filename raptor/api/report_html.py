@@ -30,7 +30,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from raptor.api.presentation import OutageRate, RunInfo, display_rows, fmt, kind_of
+from raptor.api.presentation import (OutageRate, RunInfo, display_rows, fmt, kind_of,
+                                     to_number)
 from raptor.api.tables import Table
 
 #: More columns than this and a table goes on a landscape page.
@@ -215,6 +216,12 @@ def _key_figures(content: ReportContent) -> str:
         label, value = hit
         unit = label[len(prefix):].strip(" ()")
         shown = fmt(value, kind_of(label))
+        number = to_number(value)
+        if kind_of(label) == "prob" and number is not None:
+            # the Story and the charts say 98.77 %; the cover said 0.987654
+            from raptor.api.advisor.text import fmt_avail
+            share = float(number)
+            shown = fmt_avail(share) if share >= 0.9999 else f"{100 * share:.6g} %"
         censored = censored or shown.startswith(">")
         under = "mean" + (f", {unit}" if unit else "")
         if title != prefix:

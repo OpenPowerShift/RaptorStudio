@@ -929,6 +929,7 @@
    "render_svg",
    "run",
    "run_id",
+   "target",
    "y_floor"
   ],
   "required": [

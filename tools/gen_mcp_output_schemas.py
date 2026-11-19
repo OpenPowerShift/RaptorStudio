@@ -279,6 +279,8 @@ def more(rec: Recorder, m1: str, run: str | None, attributed_run: str | None) ->
     if attributed_run:
         rec.call("recommend_changes", model_id=m1, run_id=attributed_run, top=1, trials=2)
         rec.call("run_story", run_id=attributed_run)
+        rec.call("run_story", run_id=attributed_run,
+                 targets=[{"metric": "availability", "op": ">=", "value": 0.9}])
     optimisers(rec)
     if run:
         rec.call("get_run_results", run_id=run)
@@ -344,6 +346,16 @@ REQUIRED_OVERRIDE: dict[str, list[str]] = {
 }
 
 
+def _property(types: set[str]) -> dict:
+    """A key's schema from the types seen. A key seen only as null says
+    nothing about its type when it is set: leave it open. Typing it "null"
+    made the official client reject run_story's target (dot_target 0.8 "is
+    not of type 'null'") the first time a user gave one."""
+    if types == {"null"}:
+        return {}
+    return {"type": sorted(types) if len(types) > 1 else next(iter(types))}
+
+
 def infer(seen: dict[str, list[dict]]) -> dict[str, dict]:
     schemas = {}
     for name, results in sorted(seen.items()):
@@ -354,8 +366,7 @@ def infer(seen: dict[str, list[dict]]) -> dict[str, dict]:
                 props.setdefault(k, {"type": set()})["type"].add(_json_type(v))
         schemas[name] = {
             "type": "object",
-            "properties": {k: {"type": sorted(p["type"]) if len(p["type"]) > 1 else next(iter(p["type"]))}
-                           for k, p in sorted(props.items())},
+            "properties": {k: _property(p["type"]) for k, p in sorted(props.items())},
             "required": sorted(set(REQUIRED_OVERRIDE.get(name, keys)) - OPTIONAL.get(name, set())),
         }
     if "analytical_analysis" in schemas:
@@ -365,6 +376,9 @@ def infer(seen: dict[str, list[dict]]) -> dict[str, dict]:
         schemas["analytical_analysis"]["properties"].setdefault(
             "hierarchy", {"type": ["string", "null"]})
     for (tool, key), types in WIDEN.items():
+        if tool in schemas and key in schemas[tool]["properties"] and types is None:
+            schemas[tool]["properties"][key] = {}
+            continue
         if tool in schemas and key in schemas[tool]["properties"]:
             schemas[tool]["properties"][key] = {"type": types}
     return schemas

@@ -119,18 +119,19 @@ def recommend_command(args: Any) -> int:
 
 
 def sensitivity_command(args: Any) -> int:
-    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.scenarios.sensitivity import default_inputs, screening, tornado
 
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         inputs = default_inputs(ws.get(mid).rbd, limit=args.top)
+        screened = screening(ws.get(mid).rbd, inputs)
         if not inputs:
             raise CliError("no input could be varied in this model", X.REFUSED)
         result = tornado(
             ws, mid, inputs, trials=args.trials, metric=args.metric,
             seed=args.seed, workers=max(1, args.jobs),
             progress=study_progress(args),
-            timeout_s=study_timeout(args), asked=args.top)
+            timeout_s=study_timeout(args), asked=args.top, screened=screened)
     if args.format == "json":
         emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
         return X.OK
@@ -159,6 +160,12 @@ def _parse_requirement(text: str) -> dict[str, Any]:
 
 
 def _scenario(args: Any) -> dict[str, Any]:
+    if args.change_file and args.change:
+        # the --change options were dropped without a word
+        raise CliError("give --change or --change-file, not both", X.USAGE)
+    if args.trials is not None and args.trials < 1:
+        # -n 0 ran nothing and blamed the time limit
+        raise CliError("-n/--trials must be at least 1", X.USAGE)
     if args.change_file:
         try:
             from pathlib import Path
@@ -235,9 +242,12 @@ def whatif_command(args: Any) -> int:
         emit_json({**comparison.to_dict(), "schema": WHATIF_SCHEMA}, None)
     else:
         _print_comparison(comparison)
-    for row in failed:
-        eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} did not "
-               f"run: {row['error']}")
+    # on stderr too, for a script that keeps only stdout; the caption no
+    # longer repeats it (it was printed three times)
+    if failed:
+        for row in failed:
+            eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} "
+                   f"did not run: {row['error']}")
     # a pipeline checking the status took a bad change for a finished comparison
     return X.RUNTIME if failed else X.OK
 

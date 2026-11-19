@@ -469,9 +469,11 @@ def _column_targets(section: str, row: dict, field: str) -> list[str]:
                                      n=3, cutoff=0.6)
     hint = (f"  Did you mean {', '.join(repr(n) for n in near)}?"
             if near else "")
+    # still about 90 names: a what-if row or a dialog was buried under them
     raise BuildError(
-        f"Unknown field {field!r} for {section}.{hint}  Known friendly "
-        f"fields: {', '.join(friendly)}")
+        f"Unknown field {field!r} for {section}.{hint}  "
+        + ("`raptor help set-paths` lists every field."
+           if near else f"Known friendly fields: {', '.join(friendly)}"))
 
 
 def _record_formula(rbd: RbdFile, kind: str, elem_id: Any, col: str,
@@ -665,7 +667,11 @@ def _apply_patch(rbd: RbdFile, section: str, row: dict, kind: str,
                 seq = list(value)
                 _check_value_count(row, patch, field, targets, seq)
             else:
-                seq = [value] * len(targets)
+                # one number is the leading parameter, as `raptor set` and
+                # what-if read `fail_params=1000`: copying it into every
+                # column made an Exponential's location 1000 as well, so
+                # the mean life doubled with no warning
+                targets, seq = targets[:1], [value]
             if len(seq) < len(targets):
                 seq = seq + [0] * (len(targets) - len(seq))
             seq = seq[:len(targets)]

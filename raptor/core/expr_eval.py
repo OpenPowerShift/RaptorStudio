@@ -106,9 +106,13 @@ def _eval_node(node: ast.AST) -> float:
                                                      _ALLOWED_UNARYOPS):
         v = _eval_node(node.operand)
         return v if isinstance(node.op, ast.UAdd) else -v
+    # "(got Name)" named the Python syntax node, not what was typed
+    what = (f"the word {node.id!r}" if isinstance(node, ast.Name)
+            else f"{node.value!r}" if isinstance(node, ast.Constant)
+            else "something else")
     raise ExpressionError(
-        f"expressions may only use numbers and + - * / ( ) "
-        f"(got {type(node).__name__})")
+        f"a value must be a number or a sum of numbers (+ - * / ( ) allowed), "
+        f"not {what}")
 
 
 def eval_expression(text: str) -> float:

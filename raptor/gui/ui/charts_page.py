@@ -56,6 +56,9 @@ class _Entry:
 GROUPS = ("The answer", "Over time", "Why it goes down", "Lost capacity",
           "Year by year", "Cost", "What matters most")
 
+#: The smallest height the chart is drawn at; a shorter page scrolls.
+CHART_MIN_HEIGHT = 340
+
 #: The charts that draw a target line, where the Target button is shown.
 TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
                  "interval-availability", "availability-band")
@@ -121,7 +124,10 @@ class ChartsPage(QWidget):
         self.stack = QStackedWidget()
         self.chart = ChartWidget()
         self.chart.locate_requested.connect(self.locate_requested)
-        self.stack.addWidget(self.chart)
+        # a short dock (1280 x 720) squashed the plot to about 100 px with
+        # its legend taking a third: keep a readable height and scroll
+        self.chart_scroll = self._scrolling(self.chart)
+        self.stack.addWidget(self.chart_scroll)
         self.stack.addWidget(self._build_missing_panel())
         rlay.addWidget(self.stack, 1)
         self.note = QLabel("")
@@ -134,6 +140,17 @@ class ChartsPage(QWidget):
         split.setStretchFactor(1, 1)
         split.setSizes([210, 800])
         self._sync_controls(None)
+
+    @staticmethod
+    def _scrolling(chart: QWidget) -> QWidget:
+        """The chart at a readable height, in a scroll area."""
+        from PySide6.QtWidgets import QFrame, QScrollArea
+        chart.setMinimumHeight(CHART_MIN_HEIGHT)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(chart)
+        return scroll
 
     def _build_bar(self) -> QHBoxLayout:
         """Run picker, axis floor and Export: shown only where a chart uses them."""
@@ -366,17 +383,22 @@ class ChartsPage(QWidget):
                                   needs if missing else ()))
 
         no_runs = "" if per_run else "No runs yet: run the model (F5)."
+        # the Story's headline measure: the outcome and chance charts drew
+        # availability beside a dependability Story and convergence chart
+        measure = i.get("measure") or "availability"
+        label = measure.replace("_", " ").capitalize()
         add("trial-outcome", "Run-to-run outcome", "The answer",
-            lambda: _with_run_id(charts.trial_outcome(per_run, target=target,
-                                                      units=units), i), no_runs)
+            lambda: _with_run_id(charts.trial_outcome(
+                per_run, measure, label=label, target=target, units=units), i),
+            no_runs)
         add("ecdf", "Chance of reaching a value", "The answer",
-            lambda: charts.ecdf(per_run, target=target, units=units), no_runs)
+            lambda: charts.ecdf(per_run, measure, label=label, target=target,
+                                units=units), no_runs)
         add("availability-ladder", "Availability ladder", "The answer",
             lambda: _with_run_id(charts.availability_ladder(_ladder(per_run)), i),
             no_runs)
         add("convergence", "Has the run settled?", "The answer",
-            lambda: charts.convergence(per_run, i.get("measure") or "availability",
-                                       target=target),
+            lambda: charts.convergence(per_run, measure, target=target),
             "" if len(per_run) >= 2 else "Needs at least 2 runs.")
 
         ao, cap = self._ao_runs, self._cap_runs
@@ -472,10 +494,10 @@ class ChartsPage(QWidget):
             no_years = ""
         elif drivers_missing():
             no_years = drivers_missing()
-        elif length is not None and length >= 8760 and not str(
-                i.get("units") or "hours").lower().startswith("hour"):
+        elif not str(i.get("units") or "hours").lower().startswith("hour"):
+            # "this run is 480 hours" was said of a 480-minute run
             no_years = ("The year charts need the model's time unit to be "
-                        "hours.")
+                        f"hours; this model counts {str(i.get('units')).lower()}.")
         elif length is not None and length >= 8760:
             no_years = ("No outage was recorded, so every year was fully "
                         "available: there is nothing to draw year by year.")
@@ -560,7 +582,7 @@ class ChartsPage(QWidget):
         self._sync_controls(entry)
         if entry is None:
             self.chart.set_spec(None)
-            self.stack.setCurrentWidget(self.chart)
+            self.stack.setCurrentWidget(self.chart_scroll)
             return
         if entry.missing:
             self._show_missing(entry.title, entry.missing, entry.action)
@@ -577,7 +599,7 @@ class ChartsPage(QWidget):
             spec = charts.fold_small(spec, self.fold_share)
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
-        self.stack.setCurrentWidget(self.chart)
+        self.stack.setCurrentWidget(self.chart_scroll)
 
     def _on_missing_action(self) -> None:
         entry = self._entries.get(self.selected_key() or "")
@@ -670,7 +692,8 @@ class ChartsPage(QWidget):
         from PySide6.QtWidgets import QInputDialog
         value, ok = QInputDialog.getDouble(
             self, "Target line",
-            "Target availability, in % (0 = no target).\nA visual cue only: "
+            f"Target {(self._inputs.get('measure') or 'availability').replace('_', ' ')},"
+            " in % (0 = no target).\nA visual cue only: "
             "the model and the simulation do not change.",
             round(100 * (self.target or 0.0), 6), 0.0, 100.0, 6)
         if not ok:

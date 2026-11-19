@@ -74,7 +74,8 @@ def test_the_caption_says_when_several_scenarios_were_tried(tmp_path):
     ws, mid = _workspace(tmp_path)
     comparison = compare(
         ws, mid, [Scenario("One"), Scenario("Two")], trials=3, seed=1)
-    assert "With several scenarios" in comparison.caption
+    # two scenarios with no change are identical to Base in every trial
+    assert "One and Two had no effect" in comparison.caption
     assert comparison.to_dict()["trials"] == 3
 
 

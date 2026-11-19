@@ -1246,6 +1246,16 @@ def _weak_link_section(runs_dir: Path, *, offset: int, limit: int) -> dict[str, 
 # Public API — timeseries
 # ---------------------------------------------------------------------------
 
+def _need_series(path: Path, key: str) -> None:
+    """A plain "not recorded" for a series the run did not keep: a raw
+    "[Errno 2] No such file or directory: .../cost.txt" came back."""
+    if not path.is_file():
+        from raptor.api.run_needs import message
+        from raptor.api.workspace import RunArtefactsError
+        raise RunArtefactsError(message(f"{key}_plot" if key == "capacity" else key,
+                                        subject=f"the {key} series"))
+
+
 def _parse_cost_runs(text: str) -> list[dict[str, list]]:
     """Interim cost report -> one ``{t, values}`` per run.
 
@@ -1348,6 +1358,7 @@ def get_timeseries(
         envelope_fn = series_mod.mean_envelope
     elif series == "capacity":
         path = runs_dir / "capacity.txt"
+        _need_series(path, "capacity")
         raw_runs = series_mod.parse_capacity_runs(path.read_text())
         # `values` stays the flow column; the capacity column is returned
         # alongside it.
@@ -1359,6 +1370,7 @@ def get_timeseries(
         envelope_fn = series_mod.capacity_envelope
     elif series == "cost":
         path = runs_dir / "cost.txt"
+        _need_series(path, "cost")
         per_run = _parse_cost_runs(path.read_text())
         label = "Cost"
         envelope_fn = series_mod.mean_envelope

@@ -328,6 +328,13 @@ REQUIREMENT_FIELDS.update({key.split(".", 1)[1]: value
                            for key, value in list(REQUIREMENT_FIELDS.items())})
 
 
+#: The comparisons a requirement may use.
+REQUIREMENT_OPS = (">=", ">", "<=", "<")
+#: Requirement fields that are fractions of 1.
+SHARE_FIELDS = {"availability", "reliability", "dependability",
+                "capacity_weighted_availability"}
+
+
 def check_requirements(requirements: list[dict] | None) -> None:
     """Refuse a requirement on a metric the run does not report. An unknown
     name ("ao") used to give no verdict and no word why."""
@@ -336,6 +343,22 @@ def check_requirements(requirements: list[dict] | None) -> None:
         if metric not in REQUIREMENT_FIELDS:
             names = ", ".join(k for k in REQUIREMENT_FIELDS if k.startswith("system."))
             raise ValueError(f"unknown requirement metric {metric!r}; use one of {names}")
+        op = str(req.get("op", ">="))
+        if op not in REQUIREMENT_OPS:
+            # "~" was taken silently and judged as ">="
+            raise ValueError(f"unknown comparison {op!r} for {metric}; use one of "
+                             + ", ".join(REQUIREMENT_OPS))
+        value = req.get("value")
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ValueError(f"the target for {metric} must be a number, not {value!r}")
+        if REQUIREMENT_FIELDS[metric] in SHARE_FIELDS and not 0.0 <= value <= 1.0:
+            # "system.ao>=99" printed "Availability >= 9900 %"
+            raise ValueError(
+                f"{metric} is a fraction: give the target as 0 to 1 (0.99), "
+                f"not {value:g}" + (f"; {value:g} % is {value / 100:g}"
+                                    if 1.0 < value <= 100.0 else ""))
+        if REQUIREMENT_FIELDS[metric] not in SHARE_FIELDS and value < 0:
+            raise ValueError(f"the target for {metric} cannot be negative")
 
 
 class RunContext(ModelContext):

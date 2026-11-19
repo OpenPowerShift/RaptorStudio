@@ -100,6 +100,8 @@ class Outage:
     steps: tuple[tuple[Key, str], ...]
     #: steps past MAX_STEPS, not listed
     more_steps: int = 0
+    #: still going when the run ended: its duration is a lower bound
+    open_at_end: bool = False
 
     @property
     def duration(self) -> float:
@@ -297,6 +299,8 @@ class _Replay:
     def system_line(self, line: Any) -> None:
         t = float(line.time)
         if line.name == "Simulation_Terminate":
+            if self.current is not None:
+                self.current.open_at_end = True
             self.close(t)
         elif line.name == "Phase_change":
             comment = str(line.comment)
@@ -656,7 +660,10 @@ def aggregate(trials: list[TrialAttribution],
                    "span": _stat([t.span for t in trials])},
         "elements": elements,
         "causes": {c: v / all_red for c, v in cause_totals.items() if all_red and v > 0},
-        "outage_durations": {"count": len(durations), "p50": _percentile(durations, 0.5),
+        "outage_durations": {"count": len(durations),
+                             "open_at_end": sum(1 for t in trials for o in t.kept
+                                                if o.open_at_end),
+                             "p50": _percentile(durations, 0.5),
                              "p90": _percentile(durations, 0.9),
                              "max": durations[-1] if durations else None,
                              "hist": _duration_hist(durations)},

@@ -172,10 +172,10 @@ def _run_one(ws: Workspace, source: Any, i: int, entry: dict[str, Any],
             entry["truncated"] = True
             stopped = "cancelled" if own.cancelled() else "time"
     except RunTimeoutError as exc:
-        entry["error"] = f"{type(exc).__name__}: {exc}"
+        entry["error"] = plain_error(exc)
         stopped = "time"
     except Exception as exc:                              # noqa: BLE001
-        entry["error"] = f"{type(exc).__name__}: {exc}"
+        entry["error"] = plain_error(exc)
         if own.cancelled():
             stopped = "cancelled"
         elif own.is_set():
@@ -199,6 +199,18 @@ def require_measured(short: str | None, measured: bool) -> None:
         raise StudyTimeoutError("Nothing was measured. " + short)
 
 
+def plain_error(exc: BaseException) -> str:
+    """An error as a user reads it: the message, without the Python class
+    ("ElementNotFound: No element named ..."). An error the program did not
+    expect keeps its class, which is what a bug report needs."""
+    text = str(exc).strip()
+    expected = (ValueError, LookupError, OSError, TimeoutError)
+    if text and (isinstance(exc, expected)
+                 or type(exc).__module__.startswith("raptor.")):
+        return text
+    return f"{type(exc).__name__}: {text}" if text else type(exc).__name__
+
+
 def cut_short(results: list[dict[str, Any]], timeout_s: float | None = None
               ) -> str | None:
     """A sentence saying a study from :func:`run_variants` did not finish,
@@ -211,7 +223,7 @@ def cut_short(results: list[dict[str, Any]], timeout_s: float | None = None
                                      for row in skipped) and not any(
                row.get("skipped") == "time" for row in skipped)
            else "its time limit"
-           + (f" (timeout_s={timeout_s:g} s)" if timeout_s else "")
+           + (f" (timeout_s={timeout_s:.3g} s)" if timeout_s else "")
            + " ran out")
     parts = []
     for row in short:

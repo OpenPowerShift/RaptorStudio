@@ -315,8 +315,10 @@ def run_story(run_id: str,
 def run_chart(run_id: str, chart: str = "trial-outcome",
               render_svg: bool = False, run: int = 1,
               y_floor: float | None = None, page: str = "screen",
-              min_share: float = 0.0) -> CallToolResult:
+              min_share: float = 0.0, target: float | None = None) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
+
+    `chart` is the chart's name: one of those listed below.
 
     The text gives the caption and the numbers the chart draws (the leading
     rows, or each layer's end value over time). `render_svg=True` adds the
@@ -340,8 +342,9 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     the run has those. Over time: `availability-through-run`,
     `interval-availability` and `availability-band` need the availability
     plot recorded (`availability_plot=true`), `capacity-through-run` and
-    `capacity-band` capacity analysis; `run` picks the run of a one-run
-    chart and `y_floor` (0 to 1) the bottom of an availability axis.
+    `capacity-band` capacity analysis. `run` picks the run a one-run chart
+    shows (1 is the first). `y_floor` (0 to 1) fixes the bottom of an
+    availability axis; leave it out to fit the axis to the data.
 
     For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
     `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names
@@ -350,12 +353,17 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     row or cell (element rankings and treemaps; the caption names them).
     No label is ever shortened: names wrap, and treemap cells too small for
     their name are numbered and listed under the chart.
+
+    `target` (0 to 1, e.g. 0.995) draws a dashed target line on the
+    outcome, chance, convergence and availability-over-time charts, as the
+    window's Target button does. It is a visual cue only.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run
+    from raptor.api.run_tables import read_per_run, run_units
 
     ws = context.workspace()
+    units = run_units(ws, run_id)            # "not found" before an empty chart
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     attribution = None
     try:
@@ -374,17 +382,22 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     over_time = (stored_inputs(run_dir(ws, run_id)) if chart in TIME_CHARTS
                  else {})
+    over_time.pop("units", None)       # passed as units= (it is the run's)
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise ValueError("y_floor must be at least 0 and below 1")
     if not 0.0 <= min_share < 1.0:
         raise ValueError("min_share must be at least 0 and below 1")
+    if target is not None and not 0.0 < target <= 1.0:
+        raise ValueError("target is a fraction: give it as 0 to 1 (0.995), not "
+                         f"{target:g}")
     from raptor.render.charts_svg import PAGES
     if page not in PAGES:
         raise ValueError(f"page must be one of {', '.join(PAGES)}")
     spec = charts.fold_small(
         charts.chart_named(chart, per_run=per_run, attribution=attribution,
                            periods=periods, costs=costs, run=run,
-                           importance=importance, y_floor=y_floor, **over_time),
+                           importance=importance, y_floor=y_floor,
+                           units=units, surface="mcp", target=target, **over_time),
         min_share)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
