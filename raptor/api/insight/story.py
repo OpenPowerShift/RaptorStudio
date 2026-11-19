@@ -20,6 +20,12 @@ from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots, proportion_text, split_at
 from raptor.api.insight.drivers import top as top_drivers
 
+#: A share of the drivers left over below this is rounding, not "others"
+#: ("others 1.11e-14 %").
+NOISE = 0.0005
+#: Fractions whose shortfall is time down: only these become "h a year".
+DOWN_FRACTIONS = {"availability", "dependability"}
+
 #: Requirement metric -> the per-run field that carries it: one table for
 #: the Story, the Advisor's verdict and scenarios.
 from raptor.api.advisor.context import REQUIREMENT_FIELDS  # noqa: E402
@@ -73,6 +79,9 @@ class NumberChip:
     value: float | None
     units: str
     field: str
+    #: the value as words when a number would mislead ("none in 20 runs
+    #: (each 100 hours)"); empty: format `value`
+    text: str = ""
 
 
 @dataclass(frozen=True)
@@ -149,7 +158,9 @@ def _fmt(value: float | None, field_name: str, units: str) -> str:
     if field_name in FRACTION_FIELDS:
         return f"{100 * value:.{_fraction_digits(value)}g} %"
     if field_name in TIME_FIELDS:
-        return f"{value:,.4g}" + (f" {units}" if units else "")
+        # whole units past 10,000: "1.314e+05 hours" read as an error
+        text = f"{value:,.0f}" if abs(value) >= 1e4 else f"{value:,.4g}"
+        return text + (f" {units}" if units else "")
     if field_name == "grand_total":
         # money: whole units with separators, never 1.933e+05
         return f"{value:,.0f}" if abs(value) >= 100 else f"{value:,.2f}"
@@ -182,7 +193,9 @@ def _headline(per_run: list[dict], units: str, requirements: list[dict],
             if values:
                 return _headline_for(per_run, units,
                                      "capacity_weighted_availability", "", None, None)
-        if has_phases:
+        timeless = not (_mean(_values(per_run, "ending_sim_time"))
+                        or _mean(_values(per_run, "total_time")))
+        if has_phases or timeless:
             values = _values(per_run, "reliability")
             if values:
                 return _headline_for(per_run, units, "reliability", "", None, None)
@@ -205,9 +218,12 @@ def _headline_for(per_run: list[dict], units: str, field_name: str,
             if field_name in FRACTION_FIELDS:
                 points = 100.0 * abs(value - target)
                 gap_text = f"{points:.3g} points"
-                # a year is 8,760 hours whatever the run length
-                if units.lower().startswith("hour"):
-                    gap_text += f" = {points / 100 * 8760:,.3g} h a year"
+                # a year is 8,760 hours whatever the run length; only a share
+                # of time is time ("Reliability ... = 4.38e+03 h a year")
+                if units.lower().startswith("hour") and field_name in DOWN_FRACTIONS:
+                    hours = points / 100 * 8760
+                    gap_text += (f" = {hours:,.0f} h a year" if hours >= 100
+                                 else f" = {hours:.3g} h a year")
             else:
                 gap_text = _fmt(abs(value - target), field_name, units)
             gap_text = ("met" if met else "missed by") + (
@@ -241,23 +257,61 @@ def _driver_lines(attribution: dict | None, has_capacity: bool
                 downtime_share=(base.get("dtci") or {}).get("mean") or 0.0,
                 causes=base.get("causes") or {},
                 red_time=(base.get("red_time") or {}).get("mean") or 0.0))
-        return (lines, max(0.0, 1.0 - sum(line.share for line in lines)), 0.0,
+        return (lines, _residue(1.0 - sum(line.share for line in lines)), 0.0,
                 "lost capacity")
+    from raptor.api.insight.drivers import system_label
     rows = top_drivers(attribution, 3)
     lines = [DriverLine(
-        name=row["name"], kind=row["kind"], id=int(row["id"]),
+        name=system_label(attribution) if row["kind"] == "system" else row["name"],
+        kind=row["kind"], id=int(row["id"]),
         share=row["dtci"]["mean"] or 0.0,
         downtime_share=row["dtci"]["mean"] or 0.0,
         causes=row["causes"], red_time=row["red_time"]["mean"] or 0.0)
         for row in rows]
     red = (attribution.get("system") or {}).get("red_time", {}).get("mean") or 0.0
-    return (lines, max(0.0, 1.0 - sum(line.share for line in lines)),
-            max(0.0, red - sum(line.red_time for line in lines)), "downtime")
+    others = _residue(1.0 - sum(line.share for line in lines))
+    return (lines, others,
+            max(0.0, red - sum(line.red_time for line in lines)) if others else 0.0,
+            "downtime")
+
+
+def _residue(share: float) -> float:
+    return share if share >= NOISE else 0.0
+
+
+def _caveats(per_run: list[dict], requested: int | None,
+             why: str) -> list[StoryFinding]:
+    """What the reader must know before trusting any number: a batch cut
+    short was shown as complete ("502 runs" of 100,000 asked for), and
+    one run was read as the answer."""
+    out = []
+    if requested:
+        reason = {"time limit": "the time limit ran out",
+                  "cancelled": "it was stopped"}.get(why, "it was stopped")
+        out.append(StoryFinding(
+            "S-RUN-001", "warning", "Stopped early",
+            f"Only {len(per_run):,} of the {requested:,} runs asked for finished "
+            f"({reason}); every number here is from those {len(per_run):,}."))
+    if len(per_run) == 1:
+        out.append(StoryFinding(
+            "S-RUN-002", "warning", "One run",
+            "This is one run: one possible future, with no spread to judge it "
+            "by. Run at least 30 for an interval."))
+    return out
 
 
 def _finding_list(findings: list[Any]) -> list[StoryFinding]:
     out = []
-    for finding in findings[:3]:
+    picked = list(findings[:3])
+    rule = (lambda f: str(f.get("rule", "") if isinstance(f, dict)
+                          else getattr(f, "rule", "")))
+    if picked and not any(rule(f).startswith("R-DRV") for f in picked):
+        # what to change: "a spare wait keeps it down" lost its place to
+        # three findings on how far to trust the numbers
+        lever = next((f for f in findings[3:] if rule(f) == "R-DRV-002"), None)
+        if lever is not None:
+            picked[-1] = lever
+    for finding in picked:
         if isinstance(finding, dict):
             out.append(StoryFinding(
                 rule=str(finding.get("rule", "")),
@@ -283,23 +337,77 @@ _METRIC_CHOICES = (
 )
 
 
+def pooled_times(per_run: list[dict]) -> tuple[int, float, float]:
+    """(outages, up time, down time) summed over every run.
+
+    The chips divide these: Raptor's MTBDE and MDT are means of each run's
+    own figure, so with rare outages "time between failures" read about the
+    run length (8,759 h for 2 outages in 30 years) and the chips did not
+    equal the "down X a run in N outages" line beside them."""
+    outages, up, down = 0, 0.0, 0.0
+    for row in per_run:
+        outages += int(row.get("num_system_failures") or 0)
+        length = float(row.get("ending_sim_time") or row.get("total_time") or 0.0)
+        red = float(row.get("red_percent") or 0.0) / 100.0
+        uptime = row.get("uptime")
+        up += float(uptime) if isinstance(uptime, (int, float)) else length * (1 - red)
+        down += length * red
+    return outages, up, down
+
+
 def _chips(per_run: list[dict], units: str, has_capacity: bool,
            cost_on: bool, headline_field: str | None = None) -> list[NumberChip]:
     out = []
     choices = list(_METRIC_CHOICES)
     if headline_field:
         choices.sort(key=lambda item: 0 if item[0] == headline_field else 1)
+    outages, up, down = pooled_times(per_run)
+    length = _mean(_values(per_run, "ending_sim_time")) or _mean(
+        _values(per_run, "total_time"))
+    timeless = not length          # an event-only model: no run length
+    runs = f"{len(per_run):,} run{'s' if len(per_run) != 1 else ''}"
     for field_name, label in choices:
         if field_name == "capacity_weighted_availability" and not has_capacity:
             continue
         if field_name == "grand_total" and not cost_on:
             continue
+        if timeless and field_name in ("availability", "mtbde", "mdt"):
+            continue           # "Availability 100 %" of a model with no time
         value = _mean(_values(per_run, field_name))
-        if value is None:
+        text = ""
+        if field_name in ("mtbde", "mdt"):
+            if field_name == "mdt" and not outages:
+                continue
+            label, value, text = _time_chip(field_name, label, outages, up, down,
+                                            length, runs, units)
+        if value is None and not text:
             continue
         out.append(NumberChip(label=label, value=value, units=units,
-                              field=field_name))
+                              field=field_name, text=text))
     return out[:6]
+
+
+def _time_chip(field_name: str, label: str, outages: int, up: float, down: float,
+               length: float | None, runs: str, units: str
+               ) -> tuple[str, float | None, str]:
+    """(label, value, text) of a pooled time chip."""
+    if field_name == "mdt":
+        return label, down / outages, ""
+    value = up / outages if outages and up > 0 else None
+    text = ""
+    if not outages:
+        # not "100 hours", the run length, as if it had been measured
+        text = (f"none in {runs}" + (f" (more than {_fmt(length, 'mtbde', units)})"
+                                      if length else ""))
+    elif outages < 10 and value is not None:
+        text = (f"{_fmt(value, 'mtbde', units)} (from {outages} "
+                f"outage{'s' if outages != 1 else ''}: a rough figure)")
+    return "Time between outages", value, text
+
+
+def chip_text(chip: NumberChip) -> str:
+    """A chip's value as shown on every surface."""
+    return chip.text or _fmt(chip.value, chip.field, chip.units)
 
 
 def _sections(per_run: list[dict], attribution: dict | None, has_capacity: bool,
@@ -374,6 +482,8 @@ def build(
     model_name: str = "",
     run_id: str = "",
     model_hash: str = "",
+    requested_runs: int | None = None,
+    truncated: str = "",
 ) -> Story:
     """Build the Story from a finished batch's per-run dicts.
 
@@ -395,12 +505,15 @@ def build(
     values = _values(per_run, headline.field) if headline else []
     dots = quantile_dots(values, 40)
     target = headline.target if headline else None
-    met, total = split_at(values, target)
+    met, total = split_at(values, target, headline.op if headline else None)
     drivers, others_share, others_time, measure = _driver_lines(
         attribution, bool(has_capacity))
     run_length = _mean(_values(per_run, "total_time"))
+    stopped = bool(requested_runs and requested_runs > len(per_run))
     provenance = {
         "runs": len(per_run),
+        "requested_runs": requested_runs if stopped else None,
+        "truncated": (truncated or "stopped") if stopped else "",
         "run_length": run_length,
         "units": units,
         "model_name": model_name,
@@ -414,7 +527,8 @@ def build(
         proportion=proportion_text(met, total) if target is not None else "",
         drivers=drivers, drivers_available=attribution is not None,
         other_drivers_share=others_share, others_time=others_time,
-        findings=_finding_list(list(findings or [])),
+        findings=_caveats(per_run, requested_runs if stopped else None,
+                          truncated) + _finding_list(list(findings or [])),
         numbers=_chips(per_run, units, bool(has_capacity), bool(cost_on),
                         headline.field if headline else None),
         sections=_sections(per_run, attribution, bool(has_capacity),
@@ -424,9 +538,12 @@ def build(
         units=units, drivers_measure=measure)
 
 
-def from_run(workspace: Any, run_id: str) -> Story:
+def from_run(workspace: Any, run_id: str,
+             requirements: list[dict] | None = None) -> Story:
     """The Story for a stored run, from its summary, per-run rows and
-    attribution.  One implementation for the CLI, MCP and the report."""
+    attribution.  One implementation for the CLI, MCP and the report.
+    `requirements` (``{metric, op, value}``) give the headline its target:
+    no surface passed one, so the target headline could never show."""
     from raptor.api.advisor import advise_run
     from raptor.api.insight import drivers
     from raptor.api.run import run_dir
@@ -440,15 +557,18 @@ def from_run(workspace: Any, run_id: str) -> Story:
     except drivers.NoAttribution:
         attribution = None
     rbd = workspace.get(summary["model_id"]).rbd
-    findings = advise_run(rbd, summary, per_run, attribution=attribution)
+    findings = advise_run(rbd, summary, per_run, requirements=requirements,
+                          attribution=attribution)
     return build(
         per_run, units=str(summary.get("units") or ""),
-        attribution=attribution, findings=findings,
+        attribution=attribution, findings=findings, requirements=requirements,
         has_phases=any(bool(row.get("has_phases")) for row in per_run),
         cost_on=(summary.get("analyses") or {}).get("cost", False),
         model_name=str(summary.get("model_name") or ""),
         model_hash=str(summary.get("model_hash") or ""),
-        run_id=run_id)
+        run_id=run_id,
+        requested_runs=summary.get("requested_runs"),
+        truncated=str(summary.get("truncated") or ""))
 
 
 def text_lines(story: Story) -> list[str]:
@@ -463,9 +583,9 @@ def text_lines(story: Story) -> list[str]:
     if story.drivers:
         lines += ["", f"Where the {story.drivers_measure} comes from:"]
         for line in story.drivers:
-            lines.append(f"  {line.name:<22}{100 * line.share:>7.3g} %")
+            lines.append(f"  {line.name:<22}{pct(line.share):>9}")
         if story.other_drivers_share > 0:
-            lines.append(f"  {'others':<22}{100 * story.other_drivers_share:>7.3g} %")
+            lines.append(f"  {'others':<22}{pct(story.other_drivers_share):>9}")
     if story.findings:
         lines += ["", "What to look at:"]
         for finding in story.findings:
@@ -473,9 +593,12 @@ def text_lines(story: Story) -> list[str]:
     if story.numbers:
         lines += ["", "Key numbers:"]
         for chip in story.numbers:
-            lines.append(f"  {chip.label:<26}{_fmt(chip.value, chip.field, chip.units)}")
+            lines.append(f"  {chip.label:<26}{chip_text(chip)}")
     prov = story.provenance
-    lines += ["", f"{prov['runs']:,} runs"
+    runs = prov["runs"]
+    lines += ["", f"{runs:,} run{'s' if runs != 1 else ''}"
+                  + (f" of {prov['requested_runs']:,} asked for"
+                     if prov.get("requested_runs") else "")
                   + (f" · {prov['run_length']:,.4g} {prov['units']} each"
                      if prov.get("run_length") else "")
                   + f" · model {str(prov.get('model_hash') or '')[:8]}"

@@ -77,6 +77,14 @@ def add_parser(sub: Any) -> None:
                    help="worker processes (default 1; more is reproducible but "
                         "gives different numbers from -j 1)")
     e.add_argument("--seed", type=seed_arg, metavar="N|new")
+    # it ran without any limit: 100,000 runs went on for minutes
+    e.add_argument("--timeout", metavar="DURATION", default="10m",
+                   help="give up after DURATION, e.g. 90s, 10m (default 10m); the "
+                        "runs finished by then are kept and the Story says so")
+    e.add_argument("--target", action="append", metavar="EXPR",
+                   help="a requirement for the Story's headline, e.g. "
+                        "'system.ao>=0.995' or 'mdt<=5' (repeatable; the first "
+                        "is the headline)")
     e.add_argument("--analysis", metavar="LIST",
                    help="weak,cost,capacity for this run (replaces the model's "
                         "setting; the file is untouched): the cost and lost-capacity "
@@ -309,7 +317,7 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
             _text(d, why)
 
 
-def explain_command(args: Any) -> int:
+def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options in turn
     from raptor.api import run as run_api
     from raptor.api.insight import charts, drivers
     if args.list_charts:
@@ -320,6 +328,7 @@ def explain_command(args: Any) -> int:
     if not args.model:
         raise CliError("explain needs a MODEL (or use --list-charts)", X.USAGE)
     chart_name = args.chart or ("downtime-pareto" if args.chart_svg else None)
+    targets = _targets(args.target)
     from raptor.cli.cmd_run import progress_options
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
@@ -331,19 +340,34 @@ def explain_command(args: Any) -> int:
             # capacity plot comes with capacity analysis)
             plot = (True if chart_name in TIME_CHARTS
                     and not chart_name.startswith("capacity") else None)
+            from raptor.cli.common import parse_duration
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
                                  seed=args.seed, attribution=True,
                                  availability_plot=plot,
                                  capacity_rule=args.capacity_rule,
                                  confirm_long_run=True,
+                                 timeout_s=parse_duration(args.timeout),
                                  **progress_options(args.progress))
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
-        attribution = drivers.read(ws, result.run_id)
+        for warning in result.warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+        try:
+            attribution = drivers.read(ws, result.run_id)
+        except drivers.NoAttribution as exc:
+            # the batch stopped before the replay: the Story of the runs that
+            # finished still says what it can, and that it stopped early
+            if args.story or args.target:
+                from raptor.api.insight.story import from_run, text_lines
+                print("\n".join(text_lines(from_run(ws, result.run_id,
+                                                      requirements=targets))))
+                print(f"raptor: {exc}", file=sys.stderr)
+                return X.TIMEOUT
+            raise CliError(str(exc), X.RUNTIME) from exc
         story = None
-        if args.story:
+        if args.story or args.target:
             from raptor.api.insight.story import from_run
-            story = from_run(ws, result.run_id)
+            story = from_run(ws, result.run_id, requirements=targets)
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
                            min_share=args.chart_min_share)

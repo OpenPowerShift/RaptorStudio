@@ -3414,19 +3414,26 @@ the share of runs that met the target, the top three drivers (by lost
 capacity when capacity analysis is on), the top run findings, up to six
 key numbers, sections only for features the model uses, and provenance.
 
+`targets` gives the headline its target, as `advise` takes them, e.g.
+`[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
+the headline; `<=` suits time down per outage).
+
 Needs the run's ordinary artefacts. Needs `attribution=True` for the
 drivers strip and the attribution-based findings; without it the Story
-still renders and says how to turn it on.
+still renders and says how to turn it on. A run stopped early says so
+in its findings and `provenance.requested_runs`.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `run_id` | string | yes | — | — |
+| `targets` | array<object> \| null | no | `null` | — |
 
 Parameter notes:
 
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `targets` — `targets` gives the headline its target, as `advise` takes them, e.g.
 
 **Returns**
 
