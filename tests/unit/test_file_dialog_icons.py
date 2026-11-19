@@ -73,3 +73,18 @@ def test_stock_toolbar_glyphs_are_replaced_with_theme_icons(qapp):
     for name, tb in buttons.items():
         assert not tb.icon().isNull(), name
         assert not tb.icon().pixmap(18, 18).isNull(), name
+
+
+def test_no_static_qt_file_dialog_helpers_in_the_gui():
+    """`QFileDialog.getSaveFileName(...)` and friends build their own dialog
+    with the desktop's icon provider, out of reach of `plain_icons`: the
+    chart and part-library dialogs logged the asciidoctor.svg line from
+    them. Call the wrappers in `filedialogs` instead."""
+    import re
+    from pathlib import Path
+    root = Path(filedialogs.__file__).resolve().parents[1]
+    pattern = re.compile(r"QFileDialog\.get(Open|Save|Existing)\w*\(")
+    found = [f"{path.name}:{n + 1}" for path in root.rglob("*.py")
+             for n, line in enumerate(path.read_text().splitlines())
+             if pattern.search(line) and path.name != "filedialogs.py"]
+    assert found == []

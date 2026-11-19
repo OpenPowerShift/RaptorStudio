@@ -24,7 +24,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPolygonF,
 )
-from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QToolTip, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
@@ -1495,28 +1495,43 @@ class ChartWidget(QWidget):
         menu.exec(self.mapToGlobal(position))
 
     def _ask_png(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save chart", "",
-                                              "PNG image (*.png)")
-        if path:
+        if path := ask_chart_path(self, "Save chart", "", "PNG image", ".png"):
             self.save_png(path)
 
     def _ask_svg(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save chart", "",
-                                              "SVG image (*.svg)")
-        if path:
+        if path := ask_chart_path(self, "Save chart", "", "SVG image", ".svg"):
             self.save_svg(path)
 
     def _ask_pdf(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save chart", "",
-                                              "PDF document (*.pdf)")
-        if path:
+        if path := ask_chart_path(self, "Save chart", "", "PDF document", ".pdf"):
             self.save_pdf(path)
 
     def _ask_csv(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Save chart data", "",
-                                              "CSV (*.csv)")
-        if path:
+        if path := ask_chart_path(self, "Save chart data", "", "CSV", ".csv"):
             self.save_csv(path)
+
+
+def ask_chart_path(parent, caption: str, stem: str, label: str, ext: str) -> str:
+    """Where to save a chart, always with `ext` on the end ("" if cancelled).
+
+    The save dialog returns the name as typed, and "outage" saved as PNG
+    wrote nothing at all: the image format comes from the extension. A
+    name without it gets it added; as the dialog did not check that name,
+    replacing a file of that name is asked here."""
+    import os
+    from raptor.gui.ui.filedialogs import getSaveFileName
+    path, _ = getSaveFileName(parent, caption, stem, f"{label} (*{ext})")
+    if not path:
+        return ""
+    if os.path.splitext(path)[1].lower() != ext:
+        path += ext
+        if os.path.exists(path):
+            from raptor.gui.ui import dialogs
+            if not dialogs.question_box(
+                    parent, caption, f"{os.path.basename(path)} already exists. Replace it?",
+                    yes_text="Replace", no_text="Cancel"):
+                return ""
+    return path
 
 
 def ribbon_reading(rows: Sequence[dict], index: int, t: float) -> str:
