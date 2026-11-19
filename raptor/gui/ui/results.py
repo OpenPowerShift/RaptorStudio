@@ -139,6 +139,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._requested_runs: tuple[int, str] | None = None
         #: the Charts page's target line, as a fraction (a view setting)
         self._target: float | None = None
+        self._target_measure = "availability"
         self._event_logs: list[list[str]] = []
         self._report_data = []
         self._final_lines: list[str] = []
@@ -180,6 +181,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.addTab(self._details_holder, "Final Results")
         self._charts_page.locate_requested.connect(
             lambda _kind, name: self.element_clicked.emit("block", name))
+        self._charts_page.target_changed.connect(self.set_target)
         self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._raw_page, "Report Text")
@@ -1394,6 +1396,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         else:
             self._drivers_stale = True
 
+    @property
+    def target(self) -> float | None:
+        """The target line set on the Charts page (a fraction), or None."""
+        return self._target
+
+    def set_target(self, value: float | None) -> None:
+        """A visual cue for this session: a dashed line on the charts and a
+        verdict in the Story. The model and its results do not change."""
+        self._target = value if value and 0.0 < value <= 1.0 else None
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_target(self._target)
+        self._refresh_story()
+
     def set_requested_runs(self, requested: int | None, why: str = "") -> None:
         """A batch stopped before its end: how many runs were asked for and
         why it stopped, so the Story does not present it as complete."""
@@ -1791,7 +1806,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 run_id=str(manifest.get("run_id") or ""),
                 drivers=drivers,
                 measure="dependability" if dependability else "availability",
-                generated=generated)
+                generated=generated, target=self._target)
+            self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
             logging.getLogger(__name__).exception("could not build the charts")
@@ -1851,17 +1867,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             attribution = (self._drivers_page.attribution()
                            if hasattr(self, "_drivers_page") else None)
             findings = []
+            requirements = ([{"metric": self._target_measure,
+                              "op": ">=", "value": self._target}]
+                            if self._target is not None else None)
             if getattr(self, "_rbd", None) is not None:
                 try:
                     from raptor.api.advisor import advise_run
                     findings = advise_run(self._rbd, {}, per_run,
+                                          requirements=requirements,
                                           attribution=attribution)
                 except Exception:  # noqa: BLE001 - the Story must still show
                     findings = []
             manifest = getattr(self, "_manifest", None) or {}
             story = build_story(
                 per_run, units=self._units, attribution=attribution,
-                findings=findings,
+                findings=findings, requirements=requirements,
                 has_phases=any(bool(getattr(rd, "has_phases", False))
                                for rd in data),
                 cost_on=any(getattr(rd, "cost", None) is not None
@@ -1873,6 +1893,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 requested_runs=(self._requested_runs or (None, ""))[0],
                 truncated=(self._requested_runs or (None, ""))[1])
             page.set_story(story)
+            page.set_target_note("target set on the Charts page (a visual cue; "
+                                 "the model is unchanged)" if self._target is not None
+                                 else "")
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
             logging.getLogger(__name__).exception("could not build the Story")

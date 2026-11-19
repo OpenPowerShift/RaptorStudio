@@ -46,7 +46,9 @@ def test_equal_values_stack_and_a_single_value_is_one_dot():
 def test_split_counts_at_least_and_says_it_in_words():
     met, total = split_at([0.9, 0.95, 0.99], 0.95)
     assert (met, total) == (2, 3)
-    assert proportion_text(2, 3) == "67 runs in 100 met the target"
+    # under 100 runs the real counts, not "67 runs in 100"
+    assert proportion_text(2, 3) == "2 of 3 runs met the target"
+    assert proportion_text(67, 100) == "67 runs in 100 met the target"
     assert proportion_text(3, 3) == "every run met the target"
     assert proportion_text(0, 3) == "no run met the target"
 
@@ -139,8 +141,12 @@ def test_only_the_sections_the_model_uses_are_present():
 def test_at_most_six_key_numbers_and_the_headline_is_first():
     story = build(runs(5, capacity_weighted_availability=0.9,
                        grand_total=1234.0, mean_flow=90.0, lost_flow=10.0))
-    assert len(story.numbers) == 6
+    assert len(story.numbers) <= 6
     assert story.numbers[0].field == story.headline.field
+    # no outage: no time down per outage, and no run length posing as MTBDE
+    assert "mdt" not in [chip.field for chip in story.numbers]
+    between = next(chip for chip in story.numbers if chip.field == "mtbde")
+    assert between.text.startswith("none in 5 runs")
 
 
 def test_findings_are_plain_data_and_capped_at_three():

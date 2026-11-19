@@ -945,7 +945,8 @@
  },
  "run_story": {
   "params": [
-   "run_id"
+   "run_id",
+   "targets"
   ],
   "required": [
    "run_id"

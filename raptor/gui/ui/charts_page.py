@@ -56,6 +56,10 @@ class _Entry:
 GROUPS = ("The answer", "Over time", "Why it goes down", "Lost capacity",
           "Year by year", "Cost", "What matters most")
 
+#: The charts that draw a target line, where the Target button is shown.
+TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
+                 "interval-availability", "availability-band")
+
 _RECORD_AO = ("These charts are drawn from the availability plot. "
               + run_needs.gui_hint("availability_plot"))
 _RECORD_CAP = ("These charts are drawn from the capacity plot. "
@@ -72,6 +76,8 @@ class ChartsPage(QWidget):
     enable_requested = Signal(list)
     #: the reader changed the bottom of the availability axis (saved with the model)
     y_floor_changed = Signal(float)
+    #: the target line, a fraction, or None when cleared
+    target_changed = Signal(object)
     #: "availability" or "capacity": save the recorded plot rows (Raptor's rpt_* file)
     raw_export_requested = Signal(str)
 
@@ -147,6 +153,7 @@ class ChartsPage(QWidget):
             "axis to the data; a value above 0 is a fixed floor used by every "
             "availability chart over time. Saved with the model.")
         self.floor_button.clicked.connect(self._ask_floor)
+        self.target_button = self._target_control()
         self.fold_box = QComboBox()
         for text, share in (("Fold nothing", 0.0), ("Fold items below 1 %", 0.01),
                             ("Fold items below 2 %", 0.02),
@@ -160,6 +167,7 @@ class ChartsPage(QWidget):
             bar.addWidget(widget)
         bar.addStretch(1)
         bar.addWidget(self.fold_box)
+        bar.addWidget(self.target_button)
         bar.addWidget(self.floor_button)
         self.export_button = QToolButton()
         self.export_button.setText("Export")
@@ -599,8 +607,10 @@ class ChartsPage(QWidget):
         floor = key in ("availability-through-run", "interval-availability",
                         "availability-band")
         self.floor_button.setVisible(floor)
+        self.target_button.setVisible(key in TARGET_CHARTS)
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
         self._sync_floor_text()
+        self._sync_target_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
 
@@ -624,6 +634,51 @@ class ChartsPage(QWidget):
         self.floor_button.setText(
             "Axis from: auto" if self._y_floor <= 0
             else f"Axis from: {100 * self._y_floor:.4g} %")
+
+    def _target_control(self) -> QPushButton:
+        button = QPushButton("Target: none")
+        button.setToolTip(
+            "A target availability drawn as a dashed line on these charts and "
+            "judged in the Overview's Story (met or missed, and by how many "
+            "runs). It is only a visual cue: it does not change the model or "
+            "the simulation, and it is not saved with the model.")
+        button.clicked.connect(self._ask_target)
+        return button
+
+    @property
+    def target(self) -> float | None:
+        value = self._inputs.get("target")
+        return float(value) if isinstance(value, (int, float)) else None
+
+    def set_target(self, value: float | None) -> None:
+        """The target line (a fraction; None or 0 clears it). No signal:
+        the dock passes back what the page told it."""
+        value = value if value and 0.0 < value <= 1.0 else None
+        if value == self.target:
+            return
+        self._inputs["target"] = value
+        self._time_cache.clear()
+        self._rebuild()
+        self._sync_target_text()
+
+    def _sync_target_text(self) -> None:
+        target = self.target
+        self.target_button.setText("Target: none" if target is None
+                                   else f"Target: {100 * target:.6g} %")
+
+    def _ask_target(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getDouble(
+            self, "Target line",
+            "Target availability, in % (0 = no target).\nA visual cue only: "
+            "the model and the simulation do not change.",
+            round(100 * (self.target or 0.0), 6), 0.0, 100.0, 6)
+        if not ok:
+            return
+        target = value / 100.0 if value > 0 else None
+        if target != self.target:
+            self.set_target(target)
+            self.target_changed.emit(target)
 
     def _ask_floor(self) -> None:
         from PySide6.QtWidgets import QInputDialog

@@ -180,10 +180,17 @@ class StoryPage(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.findings)
         self._story: Story | None = None
+        self._target_note = ""
         self._clear_story()
 
     def story(self) -> Story | None:
         return self._story
+
+    def set_target_note(self, text: str) -> None:
+        """Where the target came from, after the verdict line."""
+        self._target_note = text
+        if self._story is not None and self._story.headline is not None:
+            self._show_story(self._story)
 
     def set_story(self, story: Story | None) -> None:
         self._story = story
@@ -215,7 +222,8 @@ class StoryPage(QWidget):
             self.headline.setText(
                 f"<b>{html.escape(head.label)}</b> {html.escape(head.value_text)}"
                 f" — {html.escape(head.target_text or '')}")
-            self.target.setText(f"{head.gap_text} · {story.proportion}")
+            self.target.setText(f"{head.gap_text} · {story.proportion}"
+                                + (f" · {self._target_note}" if self._target_note else ""))
         self.dots.set_story(story if has_target else None)
         self.drivers_caption.setText(self._drivers_text(story))
         if story.findings:
