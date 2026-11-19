@@ -26,7 +26,7 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont
 from PySide6.QtWidgets import (
-    QComboBox, QFileDialog, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
+    QComboBox, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
     QSplitter, QStackedWidget, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
@@ -764,25 +764,24 @@ class ChartsPage(QWidget):
     def save_csv(self, path: str) -> None:
         self.chart.save_csv(path)
 
-    def _ask(self, caption: str, filters: str) -> str:
-        stem = (self.selected_key() or "chart")
-        path, _ = QFileDialog.getSaveFileName(self, caption, stem, filters)
-        return path
+    def _ask(self, caption: str, label: str, ext: str) -> str:
+        from raptor.gui.ui.chart_widget import ask_chart_path
+        return ask_chart_path(self, caption, self.selected_key() or "chart", label, ext)
 
     def _ask_svg(self) -> None:
-        if path := self._ask("Save chart", "SVG image (*.svg)"):
+        if path := self._ask("Save chart", "SVG image", ".svg"):
             self.save_svg(path)
 
     def _ask_png(self) -> None:
-        if path := self._ask("Save chart", "PNG image (*.png)"):
+        if path := self._ask("Save chart", "PNG image", ".png"):
             self.save_png(path)
 
     def _ask_pdf(self) -> None:
-        if path := self._ask("Save chart", "PDF document (*.pdf)"):
+        if path := self._ask("Save chart", "PDF document", ".pdf"):
             self.save_pdf(path)
 
     def _ask_csv(self) -> None:
-        if path := self._ask("Save chart data", "CSV (*.csv)"):
+        if path := self._ask("Save chart data", "CSV", ".csv"):
             self.save_csv(path)
 
     def _ask_raw(self) -> None:
