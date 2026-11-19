@@ -381,7 +381,6 @@ documentation.
 |Control |What it does |Shortcut / value
 |New |Create a new blank model (Ctrl+N) |Ctrl+N
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
-|Import Availability Workbench… |Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent |
 |Save |Save (Ctrl+S) |Ctrl+S
 |Save As |Save to a new .rbds or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
 |Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
