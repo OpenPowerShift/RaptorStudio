@@ -1989,7 +1989,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     for feature, count in sorted(block_losses.items()):
         detail = {
             "multi-mode or buffer failure distribution":
-                "AWB multi-mode/buffer laws kept their first Weibull mode only",
+                "AWB multi-mode laws kept their shortest-life Weibull mode",
             "dormant failures":
                 "a dormant AWB failure is modelled as never repaired",
             "start-up failure probability":
@@ -2442,8 +2442,20 @@ def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901,
     elif dist == _AWB_NORMAL:
         fdist, fparams = _R_NORM, [mttf, max(0.0, _num(fm.get("FmStd"))), 0.0]
     else:
-        # Bi-/tri-Weibull, buffer and phased laws have no exact RAPTOR
-        # equivalent in the friendly model.  Keep the first mode and say so.
+        # Bi-/tri-Weibull and phased laws have no exact RAPTOR equivalent.
+        # The earliest (shortest characteristic life) mode drives most of the
+        # failures, so use it rather than always taking the first mode.
+        modes = [
+            (_num(fm.get("FmEta1"), eta), _num(fm.get("FmBeta1"), beta),
+             _num(fm.get("FmGamma1"), gamma)),
+            (_num(fm.get("FmEta2"), eta), _num(fm.get("FmBeta2"), beta),
+             _num(fm.get("FmGamma2"), gamma)),
+            (_num(fm.get("FmEta3"), eta), _num(fm.get("FmBeta3"), beta),
+             _num(fm.get("FmGamma3"), gamma)),
+        ]
+        modes = [m for m in modes if m[0] > 0]
+        if modes:
+            eta, beta, gamma = min(modes, key=lambda m: m[0])
         fdist, fparams = _R_WEIBULL, [beta, eta, gamma]
         losses["multi-mode or buffer failure distribution"] = (
             losses.get("multi-mode or buffer failure distribution", 0) + 1)
