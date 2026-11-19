@@ -89,3 +89,25 @@ def test_maximise_and_restore_the_results(window):
     button.click()
     QTest.qWait(200)
     assert not dock.isFloating() and button.text() == "Maximise"
+
+
+@pytest.mark.parametrize("way", ["restore", "redock"])
+def test_back_from_maximised_fits_the_window(window, way):
+    """Docked while still maximised, the Results kept their full-screen
+    size: the window, its status bar and the chart's foot went off screen,
+    and the next Float reopened full screen."""
+    from PySide6.QtTest import QTest
+    dock = window._results_dock
+    window._maximise_results()
+    QTest.qWait(200)
+    if way == "redock":
+        window._redock(dock)
+    else:
+        window._dock_chrome_entries[dock]["max_btn"].click()
+    QTest.qWait(400)
+    assert not dock.isFloating() and not dock.isMaximized()
+    assert dock.height() <= window._max_bottom_dock_height()
+    assert window.statusBar().geometry().bottom() <= window.height()
+    remembered = window._results_float_geom
+    screen = window.screen().availableGeometry()
+    assert remembered is not None and remembered.size() != screen.size()
