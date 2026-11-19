@@ -105,14 +105,19 @@ class Backstage(QWidget):
         self._home_page = self._build_home_page()
         self._new_page = self._build_new_page()
         self._recent_page = self._build_recent_page()
-        self._share_page = self._build_share_page()
+        self._tiles: list[QPushButton] = []
+        sections = dict(BACKSTAGE)
+        self._import_page = self._build_tile_page("Import", sections["Import"])
+        self._share_page = self._build_tile_page("Print and Export",
+                                                 sections["Print and Export"])
         self._add_page_button(nl, "Home", self._home_page, "home_icon")
         self._add_page_button(nl, "New", self._new_page, "new_file_icon")
         self._add_page_button(nl, "Recent", self._recent_page,
                               "recent_files_icon")
-        for cid in BACKSTAGE[0][1]:
+        for cid in sections["File"]:
             if cid != "file.new":       # the New page's Blank model card
                 nl.addWidget(self._nav_command(cid))
+        self._add_page_button(nl, "Import", self._import_page, "awb_import_icon")
         self._add_page_button(nl, "Print and Export", self._share_page,
                               "printer_icon")
         for cid in BACKSTAGE_ACTIONS:
@@ -502,20 +507,20 @@ class Backstage(QWidget):
         lay.addWidget(self._empty)
         return page
 
-    def _build_share_page(self) -> QWidget:
+    def _build_tile_page(self, heading: str, ids: tuple[str, ...]) -> QWidget:
+        """A page of large command tiles: Import, Print and Export."""
         page = QWidget()
         page.setObjectName("BackstagePage")
         lay = QVBoxLayout(page)
         lay.setContentsMargins(40, 28, 40, 28)
         lay.setSpacing(16)
-        title = QLabel("Print and Export")
+        title = QLabel(heading)
         title.setObjectName("BackstageTitle")
         lay.addWidget(title)
         grid = QGridLayout()
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
-        self._tiles: list[QPushButton] = []
-        for n, cid in enumerate(BACKSTAGE[1][1]):
+        for n, cid in enumerate(ids):
             tile = self._tile(self._win._commands.action(cid))
             grid.addWidget(tile, n // 2, n % 2)
             self._tiles.append(tile)
@@ -570,8 +575,9 @@ class Backstage(QWidget):
     # ---- behaviour ------------------------------------------------------
 
     def open_view(self, page: str = "Home") -> None:
-        """Show the view on `page` ("Home", "New", "Recent", "Print and
-        Export"). Home is the start screen: new, recent and help at once."""
+        """Show the view on `page` ("Home", "New", "Recent", "Import",
+        "Print and Export"). Home is the start screen: new, recent and help
+        at once."""
         self._restyle()
         self.setGeometry(self._win.rect())
         self.reload()
