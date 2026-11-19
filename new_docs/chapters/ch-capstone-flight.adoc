@@ -145,7 +145,7 @@ opsmodel:Flight1[]
 
 image::flight1-loaded.png[Flight1 loaded: dispatch event, twin engines into a thrust manifold, hydraulic pump, generator cold-standby pair, avionics]
 
-Fourteen elements: one dispatch event, two engines feeding a
+Thirteen elements: one dispatch event, two engines feeding a
 capacity-limited thrust manifold, a dependent hydraulic pump, a
 cold-standby generator pair, and an avionics block, strung through
 four fixed-length phases.
@@ -225,7 +225,7 @@ point as the engine can currently express. And as with every earlier
 capstone: every failure here is drawn independently, the dollar
 figures are teaching numbers chosen to make the arithmetic legible,
 not real aircraft economics, and no fault-tree detail from an actual
-airworthiness process is anywhere in this twelve-element model.
+airworthiness process is anywhere in this thirteen-element model.
 ====
 
 === Check yourself
@@ -255,17 +255,19 @@ This chapter has no single answer key — two honest builds can
 legitimately disagree. What follows discusses the reference build's
 own choices, not a scorecard for yours.
 
-. Two real examples from the reference build: the engines'
-   characteristic life (8 operating hours) and the generator's
-   bus-transfer delay (72 seconds) both came from nowhere in the
-   brief's prose — they were picked to make the mechanism visible at
-   2000 trials, the same "compress the numbers" move every earlier
-   capstone has made openly. A shorter characteristic life pushes
-   Reliability down; a shorter transfer delay nudges it up (fewer
-   Red ticks long enough to matter, though this metric is
-   zero-tolerance regardless of duration — see the Limits box).
-   Your own file almost certainly has at least one number in the same
-   position: something the brief left to your judgement.
+. The brief pins down most of the numbers — the engines' 8-hour
+   characteristic life, the 72-second APU spin-up, the 3-minute
+   hydraulic reset — so the open choices are about *how*, not *how
+   much*. Two from the reference build: how hard the hydraulic pump
+   depends on Engine 1 ("driven off the accessory gearbox" says
+   nothing about what is left when the engine stops; this build makes
+   the pump go fully Idle, the most pessimistic reading — a partial
+   dependency would push Reliability up), and whether anything but
+   the engines wears faster in Climb (the brief gives stress factors
+   only for the engines; this build leaves the generators and the pump
+   at a steady rate — phase stress on them too would push Reliability
+   down). Your own file almost certainly made at least one choice of
+   the same kind: something the brief left to your judgement.
 . `redcost` prices the hours the *whole aircraft* is grounded — a
    fixed, lump consequence, modelled as an hourly rate the way every
    earlier capstone has done. `lostcost` prices something continuous
@@ -317,7 +319,7 @@ Reliability. Characteristic life and switch delay both move the
 number too, but neither erases an entire failure mode the way
 finding and cutting one bad dependency does — the same lesson
 <<ch-dependency>> taught with two blocks, now worth defending with
-fourteen.
+thirteen.
 ====
 
 === What you learned
