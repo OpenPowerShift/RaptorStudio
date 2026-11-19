@@ -29,6 +29,18 @@ def fmt_pct(fraction: float, sig: int = 2) -> str:
     return f"{fmt_num(100.0 * fraction, sig)} %"
 
 
+def fmt_avail(fraction: float) -> str:
+    """An availability with two digits of its shortfall: 99.9932 %, not
+    "100 %" beside a headline of 99.9932 % (the Story's own rule)."""
+    if fraction is None or not math.isfinite(fraction):
+        return "n/a"
+    short = 100.0 * (1.0 - fraction)
+    if 0.0 < short < 1.0:
+        decimals = min(7, 1 - math.floor(math.log10(short)))
+        return f"{100.0 * fraction:.{decimals}f} %"
+    return fmt_pct(fraction, 3)
+
+
 def _unit_word(units: str) -> str:
     u = (units or "").strip()
     return {"hours": "h", "hour": "h", "hrs": "h"}.get(u.lower(), u)

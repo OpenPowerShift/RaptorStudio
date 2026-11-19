@@ -280,9 +280,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         cards.setVerticalSpacing(SPACING["sm"])
         specs = [
             ("Availability", "fraction of time working (full precision)"),
-            ("Reliability", "missions completed without a failure / "
-                            "missions attempted"),
-            ("MTBDE", "avg. time between downings"),
+            # plain words: a model with no phases has no "missions", and
+            # "downings" was jargon; MTBDE is each run's own figure averaged
+            # (the summary line below gives the pooled rate)
+            ("Reliability", "share of runs with no system failure"),
+            ("MTBDE", "average of each run's time between outages"),
             ("MDT", "avg. time fully down"),
             ("MTBM", "avg. time between maintenance"),
             ("MMT", "avg. maintenance duration"),
@@ -1388,8 +1390,15 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         else:
             self._drivers_stale = True
 
+    def set_requested_runs(self, requested: int | None, why: str = "") -> None:
+        """A batch stopped before its end: how many runs were asked for and
+        why it stopped, so the Story does not present it as complete."""
+        self._requested_runs = (requested, why) if requested else None
+        self._refresh_story()
+
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
+        self._requested_runs: tuple[int, str] | None = None
         self._manifest = None
         self._rbd = None
         self._period_summary = None
@@ -1856,7 +1865,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 model_name=str(manifest.get("model_name") or ""),
                 model_hash=str(manifest.get("model_hash") or ""),
                 run_id=str(manifest.get("run_id")
-                           or manifest.get("digest") or ""))
+                           or manifest.get("digest") or ""),
+                requested_runs=(getattr(self, "_requested_runs", None) or (None, ""))[0],
+                truncated=(getattr(self, "_requested_runs", None) or (None, ""))[1])
             page.set_story(story)
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
@@ -2025,11 +2036,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         sim_time = _mean([d.ending_sim_time for d in data])
         time_phrase = (f" Each run simulated {_fmt(sim_time)}{time_u}."
                        if sim_time else "")
-        parts = [
-            f"Across {len(data)} run{'s' if len(data) != 1 else ''}, the system was fully "
-            f"working {_pct(g)} of the time, still partially working but "
-            f"degraded {_pct(y)}, and completely down {_pct(r)}."
-        ]
+        runs = f"{len(data)} run{'s' if len(data) != 1 else ''}"
+        if y and y > 0:
+            parts = [f"Across {runs}, the system was fully working {_pct(g)} of the "
+                     f"time, still partially working but degraded {_pct(y)}, and "
+                     f"completely down {_pct(r)}."]
+        else:      # "degraded 0.0 %" on a model with no degraded state
+            parts = [f"Across {runs}, the system was working {_pct(g)} of the time "
+                     f"and completely down {_pct(r)}."]
         if fails_m and fails_m > 0:
             how_often = _how_often_down(fails_m)
             # Pooled over the runs: the MTBDE card's mean is a lower bound
@@ -2046,8 +2060,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         parts.append(time_phrase)
         rel = _mean([d.reliability for d in data])
         if rel is not None and rel > 0:
-            parts.append(f"Missions completed without a failure (reliability): "
-                         f"{rel * 100:.1f}% on average.")
+            parts.append(f"Runs with no system failure (reliability): "
+                         f"{rel * 100:.1f}%.")
         self._summary_sentence.setText(" ".join(parts))
 
         for d in data:

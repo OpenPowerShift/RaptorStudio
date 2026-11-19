@@ -676,6 +676,9 @@ class BackgroundRunMixin(_Base):
                 return
             stopped = state["stop_ev"].is_set()
             importance = state.get("importance")
+            if stopped:
+                requested = int((state.get("progress") or (0, 0))[1] or 0)
+                self._results.set_requested_runs(requested, "cancelled")
             # Same gap as the synchronous run path (see its own comment):
             # results still need parsing/rendering below, which can take a
             # visible moment on a large model -- without this the bar was

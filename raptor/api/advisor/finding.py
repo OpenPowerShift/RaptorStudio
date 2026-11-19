@@ -108,4 +108,12 @@ class Finding:
 
 
 def sort_findings(findings: list[Finding]) -> list[Finding]:
+    """Most important first.  Once a run has been judged, the model's
+    rule-of-thumb run count gives way to it: "200 or more gives steadier
+    results" sat three lines from "About 60 runs would give ± 10 %", two
+    numbers and two one-click fixes for one question."""
+    rules = {f.rule for f in findings}
+    if any(rule.startswith("R-") for rule in rules):
+        drop = {"M-EXP-002"} | ({"M-EXP-001"} if "R-QUA-001" in rules else set())
+        findings = [f for f in findings if f.rule not in drop]
     return sorted(findings, key=Finding.sort_key)
