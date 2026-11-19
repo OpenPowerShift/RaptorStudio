@@ -37,17 +37,35 @@ same shape `InspectorDock` uses — rather than reaching into MainWindow.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDockWidget,
     QDoubleSpinBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
-    QLabel, QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
-    QTabBar, QVBoxLayout, QWidget,
+    QLabel, QMainWindow, QMenu, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
+    QTabBar, QToolButton, QVBoxLayout, QWidget,
 )
 
 from raptor.core import run_experiment as rx
 from raptor.core.model import SystemConfig
 from raptor.gui.resources.design_tokens import SPACING, active_colour
+from raptor.gui.widgets.tidy_spin import TidySpinBox
 
+
+
+def _importance_estimate(blocks: int, mode: str,
+                         trials: int) -> tuple[int, int] | None:
+    """(batches, simulated runs) the importance measures add, or None when
+    the block count is unknown or the estimate fails. It is display-only:
+    a failing estimate must not break the panel, and the run itself
+    reports any real failure."""
+    if not blocks:
+        return None
+    from raptor.api import importance as imp
+    try:
+        return (int(imp.batch_count(blocks, mode)),
+                int(imp.estimate_runs(blocks, mode, trials)))
+    except Exception:  # noqa: BLE001 - display-only estimate
+        return None
 
 class RunPanel(QWidget):
     """The experiment editor.
@@ -91,23 +109,14 @@ class RunPanel(QWidget):
         self._flow_generated = 0
         self._system_red_cost = 0.0
         self._lost_flow_unit_cost = 0.0
-        self._system_rows_visible: tuple[bool, bool] | None = None
+        self._system_rows_visible: tuple[bool, ...] | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(SPACING["sm"], SPACING["sm"],
                                  SPACING["sm"], SPACING["sm"])
         outer.setSpacing(SPACING["xs"])
 
-        # -- readiness line ------------------------------------------------
-        # The design spec requires every disabled action to explain its
-        # unmet condition (`blueprint:125`) and a six-state readiness
-        # machine (`blueprint:484-491`). A bare greyed Run button tells
-        # the user nothing; this line does.
-        self._readiness = QLabel()
-        self._readiness.setObjectName("RunReadiness")
-        self._readiness.setWordWrap(True)
-        self._readiness.setAccessibleName("Run readiness")
-        outer.addWidget(self._readiness)
+        self._build_top_line(outer)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -140,13 +149,63 @@ class RunPanel(QWidget):
             self._build_experiment_box(),
             self._build_analysis_box(),
             self._build_recording_box(),
-            self._build_debugger_box(),
         ]
         self._columns = 0
         self._arrange(1)
 
         self._label_all_controls()
+        # Run is the panel's last stop on Tab, after every setting: it is
+        # built first (it sits on the top line) so it would otherwise be
+        # the FIRST.
+        QWidget.setTabOrder(self._cost_interval, self._run_button)
         self._refresh()
+
+    def _build_top_line(self, outer: QVBoxLayout) -> None:
+        """The readiness line and the Run button."""
+        # -- readiness line ------------------------------------------------
+        # The design spec requires every disabled action to explain its
+        # unmet condition (`blueprint:125`) and a six-state readiness
+        # machine (`blueprint:484-491`). A bare greyed Run button tells
+        # the user nothing; this line does.
+        self._readiness = QLabel()
+        self._readiness.setObjectName("RunReadiness")
+        self._readiness.setWordWrap(True)
+        self._readiness.setAccessibleName("Run readiness")
+        # The Run button sits on the readiness line: a new user set the
+        # trials here and then had to find Run on another ribbon tab (or
+        # know F5). It is the ribbon's own action (`set_run_action`), so it
+        # is enabled, disabled and explained in one place.
+        #
+        # Run is a filled primary button at the right edge, lined up with
+        # the last section (review #286, second round): a fixed place the
+        # eye learns, as on a desktop dialog, which does not move when the
+        # readiness text changes length. (As a flat tool button in the
+        # same corner it had read as a link.) The label's width is capped
+        # so a long warning wraps instead of running under the button.
+        # A QToolButton, not a QPushButton: only a tool button can take
+        # the ribbon's action (`setDefaultAction`), which keeps its
+        # enabled state, text and tooltip in step with the ribbon's Run.
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(SPACING["sm"])
+        self._readiness.setMaximumWidth(760)
+        top.addWidget(self._readiness, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._run_button = QToolButton()
+        self._run_button.setObjectName("RunPanelRun")
+        # Text only: the ribbon's green Run icon does not read on the
+        # filled accent button.
+        self._run_button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self._run_button.setAutoRaise(False)     # a button, not a link
+        self._run_button.setMinimumWidth(96)
+        self._run_button.setVisible(False)
+        self._style_run_button()
+        from raptor.gui.resources.design_tokens import ThemeManager
+        ThemeManager.instance().on_changed(self._on_theme_changed)
+        top.addStretch(1)
+        top.addWidget(self._run_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        outer.addLayout(top)
+
 
     #: Below this width per column a section's notes wrap to one word
     #: a line, so fewer, wider columns read better.
@@ -156,9 +215,6 @@ class RunPanel(QWidget):
         super().resizeEvent(event)
         cols = max(1, min(len(self._sections),
                           self.width() // self.SECTION_MIN_WIDTH))
-        # 3 columns would strand the fourth section alone on a row.
-        if cols == 3:
-            cols = 2
         self._arrange(cols)
         # `body.sizeHint()` still reports the OLD width at this point --
         # the children are resized after this event -- so a fit computed
@@ -182,7 +238,9 @@ class RunPanel(QWidget):
             return super().sizeHint().height()
         m = outer.contentsMargins()
         ready = max(self._readiness.height(),
-                    self._readiness.sizeHint().height())
+                    self._readiness.sizeHint().height(),
+                    self._run_button.sizeHint().height()
+                    if not self._run_button.isHidden() else 0)
         body = self._scroll.widget()
         body_h = body.sizeHint().height() if body is not None else 0
         return (m.top() + m.bottom() + ready + outer.spacing() + body_h
@@ -218,7 +276,7 @@ class RunPanel(QWidget):
 
     # -- construction --------------------------------------------------
 
-    def _build_scope_rows(self, form: QFormLayout) -> None:
+    def _build_scope_rows(self) -> QHBoxLayout:
         """One row: the model-scope selector and, for a hierarchy, Options.
 
         The bottom dock is short, so a hierarchy run adds NO height here:
@@ -238,7 +296,7 @@ class RunPanel(QWidget):
         self._scope.setSizePolicy(QSizePolicy.Policy.Expanding,
                                   QSizePolicy.Policy.Fixed)
 
-        self._scope_button = QPushButton("Options…")
+        self._scope_button = QPushButton("Isolation options…")
         self._scope_button.setToolTip(
             "How the hierarchy's connections to the rest of the model are "
             "treated for this isolated run.")
@@ -254,7 +312,6 @@ class RunPanel(QWidget):
         row.addWidget(self._scope, 1)
         row.addWidget(self._scope_home)
         row.addWidget(self._scope_button)
-        form.addRow("Model scope:", row)
 
         # The explanation and treatments, shown on demand.
         self._scope_dialog = QDialog(self)
@@ -293,6 +350,7 @@ class RunPanel(QWidget):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self._scope_dialog.close)
         dlg.addWidget(buttons)
+        return row
 
     @staticmethod
     def _keep_place_when_hidden(widget) -> None:
@@ -311,23 +369,232 @@ class RunPanel(QWidget):
         self._scope_dialog.raise_()
         self._scope_dialog.activateWindow()
 
-    def _build_trials_cores_row(self, form: QFormLayout) -> None:
+    #: Preferences key: whether the Experiment box's More options are open.
+    MORE_OPTIONS_KEY = "run_panel/more_options"
+
+    #: Fields stop growing at this width: stretched across a 500 px column
+    #: a four-digit number read as a bar, and the box grew no shorter for it.
+    FIELD_MAX_WIDTH = 200
+
+    @staticmethod
+    def _describe(widget: QWidget, text: str) -> None:
+        """A tooltip that keyboard and screen-reader users get too."""
+        widget.setToolTip(text)
+        widget.setAccessibleDescription(text)
+
+    def _cap(self, widget: QWidget, width: int | None = None) -> QWidget:
+        widget.setMaximumWidth(width or self.FIELD_MAX_WIDTH)
+        return widget
+
+    def _build_more_options(self, form: QFormLayout) -> None:
+        """Model scope and Cores, behind a disclosure.
+
+        Review #286: both are for a second look, not a first run, and Scope
+        was the box's FIRST row, ahead of Trials. They are never out of
+        sight, though, because each changes what the numbers mean (a
+        hierarchy run describes that hierarchy alone; one core gives a
+        different random sequence from two or more): the closed header
+        always says both ("Whole model · 8 cores"), the readiness line says
+        both, and choosing a hierarchy opens the section whatever was
+        remembered.
+
+        A checkable QToolButton with an arrow, flat in both states (a
+        filled "pill" read as a selected tab), not a checkable QGroupBox,
+        whose check box means "enabled".
+        """
+        self._more_button = QToolButton()
+        self._more_button.setObjectName("RunMoreOptions")
+        self._more_button.setCheckable(True)
+        self._more_button.setAutoRaise(True)
+        self._more_button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._more_button.setStyleSheet(
+            "QToolButton#RunMoreOptions, QToolButton#RunMoreOptions:checked "
+            "{ background: transparent; border: none; padding: 2px 0; }")
+        self._more_button.setAccessibleName("More run options")
+        self._more_button.setToolTip(
+            "Model scope (the whole model or one hierarchy) and the cores a "
+            "full-speed run uses")
+        self._more_button.toggled.connect(self._on_more_toggled)
+        form.addRow(self._more_button)
+
+        self._more_body = QWidget()
+        more = QFormLayout(self._more_body)
+        more.setContentsMargins(SPACING["md"], 0, 0, 0)
+        more.setVerticalSpacing(SPACING["xs"])
+        more.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+        self._build_scope_and_cores_row(more)
+        self._build_seed_row(more)
+        self._build_streams_row(more)
+        self._more_body.setVisible(False)
+        form.addRow(self._more_body)
+
+        from raptor.gui.ui import settings
+        self._more_button.setChecked(
+            settings.get_bool(self.MORE_OPTIONS_KEY, False))
+        self._refresh_more_options()
+
+    def _build_scope_and_cores_row(self, form: QFormLayout) -> None:
+        """'Model scope: [Whole model ▾] ⌂  Cores: [8 of 8]', one row."""
+        row = self._build_scope_rows()
+        # A fixed width: sized to its text, the picker changed width with
+        # the name shown and moved the home button beside it.
+        self._scope.setFixedWidth(210)
+        self._build_cores_widgets()
+        cores_label = QLabel("Cores:")
+        cores_label.setBuddy(self._cores)
+        # Cores goes beside the scope picker, BEFORE Isolation options:
+        # that button keeps its place while hidden (so nothing jumps when a
+        # hierarchy is chosen), and an empty place before Cores read as a
+        # gap in the row.
+        at = row.indexOf(self._scope_button)
+        row.setStretch(row.indexOf(self._scope), 0)
+        row.insertSpacing(at, SPACING["md"])
+        row.insertWidget(at + 1, cores_label)
+        row.insertWidget(at + 2, self._cores)
+        row.insertSpacing(at + 3, SPACING["md"])
+        row.addStretch(1)
+        form.addRow("Model scope:", row)
+        form.addRow(self._cores_note)
+
+    def _build_seed_row(self, form: QFormLayout) -> None:
+        """'Seed: [Raptor 7 (fixed) ▾] [1234]' (#292).
+
+        Fixed is the default: runs repeat exactly, and paired studies (What
+        If, Sensitivity) stay paired. New draws a seed for each run and the
+        results' run-settings line shows it, so that run can be repeated."""
+        self._seed_mode = QComboBox()
+        for label, mode, tip in (
+                ("Raptor 7 (fixed)", "fixed",
+                 "Raptor 7's seed table: every run draws the same random "
+                 "numbers and matches Raptor 7. Two runs are the same "
+                 "experiment twice, not two independent samples."),
+                ("New each run", "new",
+                 "A fresh seed every run, so each result is an independent "
+                 "sample. The seed is shown in the results; choose Number "
+                 "afterwards to repeat that run."),
+                ("Number", "number",
+                 "A seed you choose, saved with the model: the same number "
+                 "repeats a run. The CLI (raptor run --seed N) and the AI "
+                 "Assistant (seed=N) give the same numbers on the same "
+                 "number of cores.")):
+            self._seed_mode.addItem(label, mode)
+            self._seed_mode.setItemData(self._seed_mode.count() - 1, tip,
+                                        Qt.ItemDataRole.ToolTipRole)
+        self._cap(self._seed_mode, 160)
+        self._seed_value = QSpinBox()
+        self._seed_value.setRange(1, rx.SEED_MAX)
+        self._seed_value.setAccessibleName("Seed number")
+        self._cap(self._seed_value, 130)
+        self._seed_value.setVisible(False)
+        self._seed_mode.currentIndexChanged.connect(self._on_seed_mode)
+        self._seed_value.editingFinished.connect(
+            lambda: self._emit_change("seed", int(self._seed_value.value())))
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(SPACING["xs"])
+        row.addWidget(self._seed_mode)
+        row.addWidget(self._seed_value)
+        row.addStretch(1)
+        form.addRow("Seed:", row)
+        self._describe(self._seed_mode, self._seed_mode.itemData(
+            0, Qt.ItemDataRole.ToolTipRole))
+
+    def _build_streams_row(self, form: QFormLayout) -> None:
+        """'Streams: [As in the model ▾]' (#292): a run-time choice, so the
+        model's own block streams are never rewritten. Data ▸ Bulk Edit ▸
+        Separate Streams writes them into the model instead."""
+        self._streams_mode = QComboBox()
+        for label, mode, tip in (
+                ("As in the model", "model",
+                 "Each block draws from the streams set in its data. By "
+                 "default every block shares one stream, as in Raptor 7, "
+                 "and the results match Raptor 7's."),
+                ("Separate for each block", "separate",
+                 "For this run, every block that shares a stream gets a "
+                 "failure and repair stream of its own (reused after 49 "
+                 "blocks), so changing one block does not shift the "
+                 "others' draws. The model is not edited. Results no "
+                 "longer match Raptor 7's. raptor run --block-streams "
+                 "separate and the AI Assistant (block_streams) give the "
+                 "same numbers.")):
+            self._streams_mode.addItem(label, mode)
+            self._streams_mode.setItemData(
+                self._streams_mode.count() - 1, tip,
+                Qt.ItemDataRole.ToolTipRole)
+        self._streams_mode.setAccessibleName("Block random streams")
+        self._cap(self._streams_mode, 190)
+        self._streams_mode.currentIndexChanged.connect(self._on_streams_mode)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._streams_mode)
+        row.addStretch(1)
+        form.addRow("Streams:", row)
+        self._describe(self._streams_mode, self._streams_mode.itemData(
+            0, Qt.ItemDataRole.ToolTipRole))
+
+    def _on_streams_mode(self, _index: int) -> None:
+        self._describe(self._streams_mode, self._streams_mode.itemData(
+            self._streams_mode.currentIndex(), Qt.ItemDataRole.ToolTipRole))
+        if self._loading:
+            return
+        self._emit_change("streams", str(self._streams_mode.currentData()))
+        self._refresh_more_options()
+
+    def _on_seed_mode(self, _index: int) -> None:
+        mode = str(self._seed_mode.currentData())
+        self._seed_value.setVisible(mode == "number")
+        self._describe(self._seed_mode, self._seed_mode.itemData(
+            self._seed_mode.currentIndex(), Qt.ItemDataRole.ToolTipRole))
+        if self._loading:
+            return
+        if mode == "number":
+            # Start from the last run's seed: choosing Number is how a
+            # New run is repeated.
+            last = int(getattr(self, "last_seed", 0) or 0)
+            value = last or int(self._exp.get("seed") or 0) or 1
+            self._seed_value.setValue(value)
+            self._emit_changes({"seed_mode": "number", "seed": value})
+        else:
+            self._emit_change("seed_mode", mode)
+        self._refresh_more_options()
+
+    def _build_cores_widgets(self) -> None:
         from raptor.gui import cores
         self._cores = QSpinBox()
         self._cores.setRange(1, cores.available())
         self._cores.setSuffix(f" of {cores.available()}")
         self._cores.setAccessibleName("Cores for full-speed runs")
-        self._cores.setMinimumWidth(96)
+        self._cores.setMinimumWidth(80)
+        self._cap(self._cores, 110)
         # The Run panel is the one editor for Cores. The ribbon box is a
         # read-only readout; Preferences shows the same value without a
         # second write path.
         self._cores.editingFinished.connect(
             lambda: self.cores_changed.emit(self._cores.value()))
-        # Trials and Cores share a row: the bottom dock is short, and every
-        # row saved here keeps the last fields above the fold.
+        # Why Cores is greyed, in words (a tooltip alone went unseen),
+        # shown only when there is something to say; the same reason is in
+        # the More options heading and the readiness line.
+        self._cores_note = QLabel()
+        self._cores_note.setObjectName("SectionNote")
+        self._cores_note.setWordWrap(True)
+        self._cores_note.setVisible(False)
+
+    def _build_trials_row(self, form: QFormLayout) -> None:
+        """'Trials: [100] [Precision…] [Presets ▾]'.
+
+        Presets replaced a Profile combo (review #286, second round): a
+        profile is applied ONCE, so a permanent field naming one went stale
+        the moment anything was edited, cost two rows with its hint, and
+        original Raptor had none. A one-shot menu beside the other way of
+        choosing a run's size keeps the guidance (how long to run, when to
+        start the statistics) without the field.
+        """
         trials_row = QHBoxLayout()
         trials_row.setContentsMargins(0, 0, 0, 0)
-        trials_row.addWidget(self._trials, 1)
+        trials_row.setSpacing(SPACING["xs"])
+        trials_row.addWidget(self._cap(self._trials, 120))
         # a precision instead of a count: Simulate > Trials to Precision
         self._precision_btn = QPushButton()
         self._precision_btn.setText("Precision…")
@@ -336,35 +603,34 @@ class RunPanel(QWidget):
             "then use that count")
         self._precision_btn.clicked.connect(self.precision_requested.emit)
         trials_row.addWidget(self._precision_btn)
-        cores_label = QLabel("Cores:")
-        cores_label.setBuddy(self._cores)
-        trials_row.addWidget(cores_label)
-        trials_row.addWidget(self._cores, 1)
+        # A QPushButton with a menu, so it has the same frame as
+        # Precision… beside it (a flat tool button read as a label).
+        self._presets_button = QPushButton("Presets")
+        self._presets_button.setToolTip(
+            "Start from a preset: it sets the run's length, trials and "
+            "statistics start, and adds the analyses it needs. It never "
+            "turns off one you chose.")
+        self._presets_menu = QMenu(self._presets_button)
+        self._preset_actions: dict[str, QAction] = {}
+        for key, spec in rx.PROFILES.items():
+            action = self._presets_menu.addAction(
+                f"{spec['label']} — {spec['hint']}")
+            action.setToolTip(spec["hint"])
+            action.triggered.connect(
+                lambda _checked=False, k=key: self.apply_preset(k))
+            self._preset_actions[key] = action
+        self._presets_button.setMenu(self._presets_menu)
+        trials_row.addWidget(self._presets_button)
+        trials_row.addStretch(1)
         form.addRow("Trials:", trials_row)
-        # Why Cores is greyed, in words (a tooltip alone went unseen). Its
-        # own row, shown only when there is something to say.
-        self._cores_note = QLabel()
-        self._cores_note.setObjectName("SectionNote")
-        self._cores_note.setWordWrap(True)
-        self._cores_note.setVisible(False)
-        form.addRow(self._cores_note)
 
     def _build_experiment_box(self) -> QGroupBox:
         box = QGroupBox("Experiment")
         self._experiment_box = box
         form = QFormLayout(box)
-        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-
-        self._build_scope_rows(form)
-
-        self._profile = QComboBox()
-        for key, spec in rx.PROFILES.items():
-            self._profile.addItem(spec["label"], key)
-        self._profile.setToolTip(
-            "A starting point for these settings. It only overwrites what "
-            "it names, so the rest of your experiment is kept.")
-        self._profile.currentIndexChanged.connect(self._on_profile)
-        form.addRow("Profile:", self._profile)
+        form.setVerticalSpacing(SPACING["xs"])
+        form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
 
         self._trials = QSpinBox()
         self._trials.setRange(1, 1_000_000)
@@ -375,8 +641,13 @@ class RunPanel(QWidget):
         # keystroke would push an undo entry per digit.
         self._trials.editingFinished.connect(
             lambda: self._emit_change("trials", self._trials.value()))
-        self._build_trials_cores_row(form)
+        self._build_trials_row(form)
 
+        # "Stop at: [Time ▾] after [1000] hours" -- one row. The word after
+        # the number says what kind of number it is (hours, system
+        # failures, phase cycles) and changes with the stop type: run
+        # length is a sim time under TimeSim but a plain count under
+        # FailSim/CycleSim, and "1000" with the wrong word is misleading.
         self._term_type = QComboBox()
         for code, words in (("TimeSim", "Time"),
                             ("FailSim", "System failures"),
@@ -384,9 +655,7 @@ class RunPanel(QWidget):
             self._term_type.addItem(words, code)
         self._term_type.currentIndexChanged.connect(
             lambda _i: self._on_term_type())
-        form.addRow("Stop at:", self._term_type)
-
-        self._term_value = QDoubleSpinBox()
+        self._term_value = TidySpinBox()
         self._term_value.setDecimals(6)
         self._term_value.setRange(0.0, 1e15)
         self._term_value.setToolTip("The run length, in the unit named")
@@ -394,16 +663,19 @@ class RunPanel(QWidget):
             lambda: self._commit_time_field(
                 "term_condition", self._term_value,
                 self._exp["termination_type"]))
-        # Keep the label widget itself (QFormLayout::addRow returns it),
-        # so the run-length row can be RELABELLED when the termination
-        # type changes: run length is a sim time under TimeSim but a plain
-        # count under FailSim/CycleSim, and a field labelled "Run length"
-        # holding "10" of failures is actively misleading.
-        self._term_label = QLabel("Run length:")
-        self._term_label.setObjectName("SectionNote")
-        form.addRow(self._term_label, self._term_value)
+        self._term_label = QLabel("hours")
+        stop_row = QHBoxLayout()
+        stop_row.setContentsMargins(0, 0, 0, 0)
+        stop_row.setSpacing(SPACING["xs"])
+        stop_row.addWidget(self._cap(self._term_type, 150))
+        after = QLabel("after")
+        stop_row.addWidget(after)
+        stop_row.addWidget(self._cap(self._term_value, 120))
+        stop_row.addWidget(self._term_label)
+        stop_row.addStretch(1)
+        form.addRow("Stop at:", stop_row)
 
-        self._start_stats = QDoubleSpinBox()
+        self._start_stats = TidySpinBox()
         self._start_stats.setDecimals(6)
         self._start_stats.setRange(0.0, 1e15)
         self._start_stats.setToolTip(
@@ -413,7 +685,15 @@ class RunPanel(QWidget):
         self._start_stats.editingFinished.connect(
             lambda: self._commit_time_field(
                 "start_stats", self._start_stats, "TimeSim"))
-        form.addRow("Statistics from:", self._start_stats)
+        # The same unit as the run length (always a time), said the same way.
+        self._stats_unit = QLabel("time units")
+        stats_row = QHBoxLayout()
+        stats_row.setContentsMargins(0, 0, 0, 0)
+        stats_row.setSpacing(SPACING["xs"])
+        stats_row.addWidget(self._cap(self._start_stats, 120))
+        stats_row.addWidget(self._stats_unit)
+        stats_row.addStretch(1)
+        form.addRow("Statistics from:", stats_row)
 
         # Shown only when the start time is invalid; the rest of what it
         # used to say is in the field tooltips, so it costs no height.
@@ -422,41 +702,114 @@ class RunPanel(QWidget):
         self._unit_note.setWordWrap(True)
         self._unit_note.setVisible(False)
         form.addRow(self._unit_note)
+
+        self._build_more_options(form)
         return box
 
+    def _on_more_toggled(self, on: bool) -> None:
+        self._more_body.setVisible(on)
+        self._more_button.setArrowType(
+            Qt.ArrowType.DownArrow if on else Qt.ArrowType.RightArrow)
+        self._more_button.setAccessibleDescription(
+            "expanded" if on else "collapsed")
+        if not getattr(self, "_forcing_more", False):
+            from raptor.gui.ui import settings
+            settings.set_value(self.MORE_OPTIONS_KEY, bool(on))
+        self.size_changed.emit()
+
+    def more_options_open(self) -> bool:
+        return not self._more_body.isHidden()
+
+    def _cores_words(self) -> str:
+        """'8 cores', or '1 core (Animate)': what the run will use."""
+        if getattr(self, "_cores_animate", False):
+            return "1 core (Animate)"
+        n = int(self._cores.value())
+        return f"{n} core{'s' if n != 1 else ''}"
+
+    def more_options_summary(self) -> str:
+        """The closed header's text: scope and cores, always; the seed
+        too when it is not Raptor 7's fixed table."""
+        scope = (self._scope.currentText().strip() if self._scope_hid
+                 else "Whole model")
+        text = f"{scope} · {self._cores_words()}"
+        exp = getattr(self, "_exp", None)
+        if exp and exp.get("seed_mode", "fixed") != "fixed":
+            text += f" · {rx.seed_words(exp)}"
+        if exp and rx.streams_words(exp):
+            text += f" · {rx.streams_words(exp)}"
+        return text
+
+    def _refresh_more_options(self) -> None:
+        button = getattr(self, "_more_button", None)
+        if button is None:
+            return
+        button.setText(f"More options: {self.more_options_summary()}")
+        button.setArrowType(Qt.ArrowType.DownArrow if button.isChecked()
+                            else Qt.ArrowType.RightArrow)
+        button.setAccessibleDescription(
+            "expanded" if button.isChecked() else "collapsed")
+
     def _build_analysis_box(self) -> QGroupBox:
-        box = QGroupBox("Analysis")
+        # "Results to calculate", not "Analysis": the box is chosen by the
+        # results a user wants, and every note says which (review #286).
+        box = QGroupBox("Results to calculate")
         outer = QVBoxLayout(box)
         outer.setSpacing(2)
         self._analysis_checks: dict[str, QCheckBox] = {}
         grid = self._check_grid(outer)
-        for r, (key, label, hint) in enumerate((
-                ("weak", "Weak Link",
-                 "Track per-element state times, for the Weak Link view"),
-                ("cost", "Cost",
-                 "Accumulate life-cycle cost over the run"),
-                ("capacity", "Capacity",
-                 "Record flow and capacity against the flow limits"))):
+        # The run-wide model values (SYSTEM_DATA) each sit under the
+        # analysis that spends them, and only while it is ticked: flow
+        # generated is the demand Capacity distributes, the red cost prices
+        # failed time, and the lost-flow cost needs Capacity and Cost.
+        self._flow_gen = QSpinBox()
+        self._flow_gen.setRange(0, 1_000_000_000)
+        self._flow_gen.setValue(int(self._flow_generated))
+        self._flow_gen.setToolTip(
+            "Demand offered at the Start node each time unit; the "
+            "capacity analysis distributes it across the network.")
+        self._flow_gen.editingFinished.connect(self._on_flow_generated)
+        self._system_red_cost_field = self._cost_field(
+            "System red cost", self._system_red_cost,
+            self._on_system_red_cost,
+            "Cost per time unit while the whole system is down.")
+        self._lost_flow_cost_field = self._cost_field(
+            "Cost of lost flow", self._lost_flow_unit_cost,
+            self._on_lost_flow_cost,
+            "Price per unit of demand the capacity analysis cannot "
+            "deliver. Needs Capacity and Cost.")
+        self._system_rows: dict[str, QWidget] = {}
+        row = 0
+        for key, label in (("weak", "Weak Link"), ("cost", "Cost"),
+                           ("capacity", "Capacity")):
             cb = QCheckBox(label)
-            cb.setToolTip(hint)
             cb.toggled.connect(
                 lambda on, k=key: self._on_analysis(k, on))
-            self._add_check_row(grid, r, cb, hint)
+            # What it gives is the box's tooltip and accessible
+            # description, not a line of text beside every box: these
+            # start off, and four "will be empty" lines were noise.
+            grid.addWidget(cb, row, 0, 1, 2, Qt.AlignmentFlag.AlignTop)
             self._analysis_checks[key] = cb
+            row += 1
+            values = {"cost": (("red", "System red cost:",
+                                self._system_red_cost_field),),
+                      "capacity": (("flow", "Flow generated:", self._flow_gen),
+                                   ("lost", "Cost of lost flow:",
+                                    self._lost_flow_cost_field))}.get(key, ())
+            for name, text, field in values:
+                self._system_rows[name] = self._value_row(grid, row, text,
+                                                          field)
+                row += 1
 
         # --- importance measures -------------------------------------
         # Its own row because its cost is of a different order: every other
         # analysis adds work INSIDE a run, this one multiplies the number of
-        # runs. The note states that before it is switched on.
+        # runs. The note says so in sight, before it is switched on.
         self._importance_check = QCheckBox("Importance measures")
-        self._importance_check.setToolTip(
-            "IEC 61078 Annex D importance factors, estimated by re-simulation: "
-            "one extra batch per block, two with Birnbaum.")
         self._importance_check.toggled.connect(self._on_importance_toggled)
-        # The cost note is a tooltip (on the box and the mode picker), not
-        # a five-line label: it was the tallest thing in the bottom dock.
-        grid.addWidget(self._importance_check, 3, 0,
+        grid.addWidget(self._importance_check, row, 0, 1, 2,
                        Qt.AlignmentFlag.AlignTop)
+        row += 1
         self._importance_mode = QComboBox()
         for mode, label in (("improvement", "Improvement (RRW, Vesely-Fussell)"),
                             ("risk", "Risk (RAW)"),
@@ -470,50 +823,42 @@ class RunPanel(QWidget):
             self._importance_mode.setCurrentIndex(_default)
         self._importance_mode.currentIndexChanged.connect(
             self._on_importance_mode)
-        # Beside its checkbox, in the note column, so it costs no row.
-        grid.addWidget(self._importance_mode, 3, 1,
-                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._importance_cost = QLabel()
+        self._importance_cost.setObjectName("SectionNote")
+        self._importance_cost.setWordWrap(True)
+        # The mode picker and the run-cost line, under the box and only
+        # while it is ticked: the cost sets how long the run takes.
+        holder = QWidget()
+        self._importance_details = holder
+        lay = QVBoxLayout(holder)
+        lay.setContentsMargins(self.INDENT, 0, 0, 0)
+        lay.setSpacing(2)
+        lay.addWidget(self._importance_mode, 0, Qt.AlignmentFlag.AlignLeft)
+        lay.addWidget(self._importance_cost)
+        grid.addWidget(holder, row, 0, 1, 2, Qt.AlignmentFlag.AlignTop)
         self._importance_blocks = 0
         self._sync_importance_rows()
-
-        # --- system flow/cost values ----------------------------------
-        # These were Project Settings fields. They are run-wide model
-        # values (SYSTEM_DATA) but belong beside the analyses that spend
-        # them: flow generated is the demand Capacity distributes, the
-        # red cost prices failed time, and the lost-flow cost only means
-        # anything when capacity is tracked too.
-        self._system_form = QFormLayout()
-        self._system_form.setContentsMargins(0, 2, 0, 0)
-        self._system_form.setVerticalSpacing(2)
-        self._flow_gen = QSpinBox()
-        self._flow_gen.setRange(0, 1_000_000_000)
-        self._flow_gen.setValue(int(self._flow_generated))
-        self._flow_gen.setAccessibleName("Flow generated")
-        self._flow_gen.setToolTip(
-            "Demand offered at the Start node each time unit; the "
-            "capacity analysis distributes it across the network.")
-        self._flow_gen.editingFinished.connect(self._on_flow_generated)
-        self._system_form.addRow("Flow generated:", self._flow_gen)
-        self._system_red_cost_field = self._cost_field(
-            "System red cost", self._system_red_cost,
-            self._on_system_red_cost,
-            "Cost per time unit while the whole system is down.")
-        self._system_form.addRow("System red cost:",
-                                 self._system_red_cost_field)
-        self._lost_flow_cost_field = self._cost_field(
-            "Cost of lost flow", self._lost_flow_unit_cost,
-            self._on_lost_flow_cost,
-            "Price per unit of demand the capacity analysis cannot "
-            "deliver. Needs Capacity and Cost.")
-        self._system_form.addRow("Cost of lost flow:",
-                                 self._lost_flow_cost_field)
-        outer.addLayout(self._system_form)
         return box
+
+    def _value_row(self, grid: QGridLayout, row: int, text: str,
+                   field: QWidget) -> QWidget:
+        """A value under its option, indented: 'System red cost: [13300]'."""
+        holder = QWidget()
+        lay = QHBoxLayout(holder)
+        lay.setContentsMargins(self.INDENT, 0, 0, 0)
+        label = QLabel(text)
+        label.setBuddy(field)
+        lay.addWidget(label)
+        lay.addWidget(self._cap(field, 140))
+        lay.addStretch(1)
+        grid.addWidget(holder, row, 0, 1, 2, Qt.AlignmentFlag.AlignTop)
+        holder.setVisible(False)
+        return holder
 
     def _cost_field(self, name: str, value: float, on_commit,
                     tooltip: str) -> QDoubleSpinBox:
         """A compact cost field with the dialog's old numeric range."""
-        spin = QDoubleSpinBox()
+        spin = TidySpinBox()
         spin.setDecimals(6)
         spin.setRange(-1e15, 1e15)
         spin.setValue(float(value))
@@ -524,7 +869,7 @@ class RunPanel(QWidget):
 
     def _sync_importance_rows(self) -> None:
         """Show/hide the mode picker and state the cost for this model."""
-        from raptor.api import importance as imp
+        from raptor.api import run_needs
 
         experiment = getattr(self, "_exp", None) or rx.defaults()
         mode = str(experiment.get("importance", "none"))
@@ -532,35 +877,32 @@ class RunPanel(QWidget):
         self._importance_check.blockSignals(True)
         self._importance_check.setChecked(on)
         self._importance_check.blockSignals(False)
-        self._importance_mode.setVisible(on)
-        # The cost is what a user needs BEFORE ticking the box, so it is the
-        # box's tooltip either way.
-        if not on:
-            self._set_importance_note(
-                "One extra batch per block (two for Both), on top of the "
-                "ordinary run. Set Cores above 1.")
-            return
-        idx = self._importance_mode.findData(mode)
-        if idx >= 0 and idx != self._importance_mode.currentIndex():
-            self._importance_mode.blockSignals(True)
-            self._importance_mode.setCurrentIndex(idx)
-            self._importance_mode.blockSignals(False)
+        self._importance_details.setVisible(on)
         blocks = int(getattr(self, "_importance_blocks", 0) or 0)
         trials = int(experiment.get("trials", 1))
-        if blocks:
-            batches = imp.batch_count(blocks, mode)
-            runs = imp.estimate_runs(blocks, mode, trials)
-            self._set_importance_note(
-                f"{blocks} block(s) → {batches} batches, about "
-                f"{runs:,} simulated runs. Set Cores above 1; each batch is "
-                f"a small share of the total. Variant batches record no "
-                f"logs or plots.")
+        if on:
+            idx = self._importance_mode.findData(mode)
+            if idx >= 0 and idx != self._importance_mode.currentIndex():
+                self._importance_mode.blockSignals(True)
+                self._importance_mode.setCurrentIndex(idx)
+                self._importance_mode.blockSignals(False)
+        estimate = _importance_estimate(blocks, mode if on else
+                                        rx.IMPORTANCE_DEFAULT_MODE, trials)
+        if on and estimate:
+            batches, runs = estimate
+            cost = (f"Adds {batches:,} batches for {blocks:,} "
+                    f"block{'s' if blocks != 1 else ''}: about {runs:,} "
+                    f"simulated runs. Variant batches record no logs or "
+                    f"plots.")
+        elif estimate:
+            batches = estimate[0]
+            cost = (f"Adds about {batches:,} batches here (one per block, "
+                    f"two with Birnbaum), on top of the ordinary run.")
         else:
-            self._set_importance_note(
-                "One extra batch per block (two for Both), on top of the "
-                "ordinary run. Set Cores above 1.")
-        # The mode picker and the second note line appear/disappear here, so
-        # the content height changed.
+            cost = ("Adds one batch per block (two with Birnbaum), on top "
+                    "of the ordinary run.")
+        self._set_importance_note(
+            run_needs.feeds_note("importance", on) + " " + cost)
         self.size_changed.emit()
 
     def unit_hint(self) -> str:
@@ -569,12 +911,24 @@ class RunPanel(QWidget):
         return getattr(self, "_unit_hint_text", "")
 
     def _set_importance_note(self, text: str) -> None:
-        """The importance cost estimate, as a tooltip on its controls."""
+        """The importance note: what it gives and what it costs, in sight
+        (it was a tooltip, on the costliest box in the panel)."""
         self._importance_note_text = text
-        self._importance_check.setToolTip(
-            "IEC 61078 Annex D importance factors, estimated by "
-            "re-simulation.\n\n" + text)
+        self._importance_cost.setText(text)
+        self._describe(self._importance_check,
+                       "IEC 61078 Annex D importance factors, estimated by "
+                       "re-simulation.\n\n" + text)
         self._importance_mode.setToolTip(text)
+
+    def importance_runs(self) -> int | None:
+        """Simulated runs the importance batches add, or None when off (or
+        the model's block count is not known yet)."""
+        mode = str(self._exp.get("importance", "none"))
+        blocks = int(getattr(self, "_importance_blocks", 0) or 0)
+        if mode == "none":
+            return None
+        estimate = _importance_estimate(blocks, mode, int(self._exp["trials"]))
+        return estimate[1] if estimate else None
 
     def importance_note(self) -> str:
         return getattr(self, "_importance_note_text", "")
@@ -611,22 +965,32 @@ class RunPanel(QWidget):
         Each row used to lay itself out, so every note started wherever
         its own checkbox's label ended."""
         grid = QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setContentsMargins(0, SPACING["xs"], 0, 0)
         grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(2)
+        # Room between the rows: at 2 px the check boxes crowded each
+        # other and a click could land on the wrong one (user feedback).
+        grid.setVerticalSpacing(SPACING["sm"])
         grid.setColumnStretch(1, 1)
         outer.addLayout(grid)
         return grid
 
-    @staticmethod
-    def _add_check_row(grid: QGridLayout, r: int, cb: QCheckBox,
-                       hint: str) -> QLabel:
-        note = QLabel(hint)
+    #: How far a row that belongs to a check box (its value, its warning)
+    #: is indented under it: past the indicator, to the label's text.
+    INDENT = 24
+
+    def _add_check_row(self, grid: QGridLayout, r: int,
+                       cb: QCheckBox) -> QLabel:
+        """The check box, and under it a warning line (hidden unless there
+        is something to warn about). Two rows: the warning used to sit
+        beside the box in a second column, a paragraph per option."""
+        note = QLabel()
         note.setObjectName("SectionNote")
         note.setWordWrap(True)
+        note.setContentsMargins(self.INDENT, 0, 0, 0)
+        note.setVisible(False)
         top = Qt.AlignmentFlag.AlignTop
-        grid.addWidget(cb, r, 0, top)
-        grid.addWidget(note, r, 1, top)
+        grid.addWidget(cb, r, 0, 1, 2, top)
+        grid.addWidget(note, r + 1, 0, 1, 2, top)
         return note
 
     def _build_recording_box(self) -> QGroupBox:
@@ -642,19 +1006,7 @@ class RunPanel(QWidget):
         # no multi-gigabyte event log" inexpressible.
         self._recording_checks: dict[str, QCheckBox] = {}
         self._recording_notes: dict[str, QLabel] = {}
-        self._recording_hints = {key: hint
-                                 for key, _label, hint in rx.RECORDING_FIELDS}
-        grid = self._check_grid(outer)
-        for r, (key, label, hint) in enumerate(rx.RECORDING_FIELDS):
-            cb = QCheckBox(label)
-            cb.toggled.connect(
-                lambda on, k=key: self._on_recording(k, on))
-            note = self._add_check_row(grid, r, cb, hint)
-            self._recording_checks[key] = cb
-            self._recording_notes[key] = note
-
-        iv = QFormLayout()
-        self._ao_interval = QDoubleSpinBox()
+        self._ao_interval = TidySpinBox()
         self._ao_interval.setDecimals(3)
         self._ao_interval.setRange(0.001, 1e6)
         self._ao_interval.setToolTip(
@@ -662,9 +1014,7 @@ class RunPanel(QWidget):
             "time units. Smaller = smoother, larger files.")
         self._ao_interval.editingFinished.connect(
             self._on_ao_interval)
-        iv.addRow("Ao sample every:", self._ao_interval)
-
-        self._cost_interval = QDoubleSpinBox()
+        self._cost_interval = TidySpinBox()
         self._cost_interval.setDecimals(3)
         self._cost_interval.setRange(0.001, 1e9)
         self._cost_interval.setToolTip(
@@ -672,8 +1022,27 @@ class RunPanel(QWidget):
             "time units.")
         self._cost_interval.editingFinished.connect(
             self._on_cost_interval)
-        iv.addRow("Cost every:", self._cost_interval)
-        outer.addLayout(iv)
+        # Each interval sits under its own plot and is shown only while
+        # that plot is ticked: two greyed rows at the bottom of the box,
+        # away from the boxes they belonged to, read as broken.
+        intervals = {"ao_plot": ("Sample every:", self._ao_interval),
+                     "cost_plot": ("Record every:", self._cost_interval)}
+        self._interval_holders: dict[str, QWidget] = {}
+        grid = self._check_grid(outer)
+        row = 0
+        for key, label, _hint in rx.RECORDING_FIELDS:
+            cb = QCheckBox(label)
+            cb.toggled.connect(
+                lambda on, k=key: self._on_recording(k, on))
+            note = self._add_check_row(grid, row, cb)
+            self._recording_checks[key] = cb
+            self._recording_notes[key] = note
+            row += 2
+            if key in intervals:
+                text, spin = intervals[key]
+                self._interval_holders[key] = self._value_row(
+                    grid, row, text, spin)
+                row += 1
 
         # What the ticked recordings will take on disk for this many trials
         # of this length. A plot sampled every 10 hours over a 20-year run
@@ -684,10 +1053,9 @@ class RunPanel(QWidget):
         self._storage_note.setObjectName("StorageNote")
         self._storage_note.setWordWrap(True)
         self._storage_note.setAccessibleName("Estimated size on disk")
+        outer.addSpacing(SPACING["sm"])
         outer.addWidget(self._storage_note)
 
-        # The two intervals are useless unless their plot is ticked, so
-        # they follow it rather than sitting permanently enabled.
         self._interval_rows = (self._ao_interval, self._cost_interval)
         return box
 
@@ -707,16 +1075,21 @@ class RunPanel(QWidget):
 
     def _label_all_controls(self) -> None:
         pairs = (
-            (self._profile, "Starting experiment"),
+            (self._presets_button, "Experiment presets"),
             (self._trials, "Number of trials"),
+            (self._precision_btn, "Size trials by precision"),
             (self._term_type, "Stop condition"),
             (self._term_value, "Run length"),
             (self._start_stats, "Statistics start time"),
+            (self._scope, "Model scope"),
+            (self._scope_button, "Isolation options"),
             (self._ao_interval, "Availability plot sample interval"),
             (self._cost_interval, "Interim cost sample interval"),
             (self._flow_gen, "Flow generated"),
             (self._system_red_cost_field, "System red cost"),
             (self._lost_flow_cost_field, "Cost of lost flow"),
+            (self._importance_mode, "Importance measure set"),
+            (self._importance_cost, "Importance measures note"),
         )
         for w, name in pairs:
             w.setAccessibleName(name)
@@ -731,99 +1104,14 @@ class RunPanel(QWidget):
                          if k == key)
             note.setAccessibleName(f"{label} note")
         self._readiness.setAccessibleName("Run readiness")
-        # The dependent-plot explanation is the ONLY thing standing
-        # between a screen-reader user and an unexplained disabled box.
-        self._term_label.setAccessibleName("Run length label")
         self._unit_note.setAccessibleName("Unit note")
+        self._sync_term_label_name()
 
-    def _build_debugger_box(self) -> QGroupBox:
-        """The stepping debugger's PARAMETERS.
-
-        These three used to sit on the Simulate ribbon interleaved with
-        the step buttons, which is why that group was the widest on the
-        page: a number on a ribbon has nowhere to be labelled properly
-        and nowhere to explain itself. They are here instead, and the
-        ribbon's More Steps menu names the value each of its items uses.
-        """
-        box = QGroupBox("Stepping (debugger)")
-        box.setToolTip(
-            "Settings for the interactive step debugger. Used by the "
-            "Debug tab's More Steps menu; a stepped session always runs a "
-            "single replication.")
-        form = QFormLayout(box)
-        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-
-        self._step_count = QSpinBox()
-        self._step_count.setRange(1, 100_000)
-        self._step_count.setValue(10)
-        self._step_count.setToolTip(
-            "How many events the Multi command advances")
-        self._step_count.setAccessibleName("Events per multi-step")
-        form.addRow("Multi-step events:", self._step_count)
-
-        self._run_to = QDoubleSpinBox()
-        self._run_to.setDecimals(3)
-        self._run_to.setRange(0.0, 1e12)
-        self._run_to.setValue(100.0)
-        self._run_to.setToolTip(
-            "Sim time the Run-to command advances to")
-        self._run_to.setAccessibleName("Run-to target time")
-        self._run_to_row_note = QLabel()
-        self._run_to_row_note.setObjectName("SectionNote")
-        form.addRow("Run to time:", self._run_to)
-        form.addRow("", self._run_to_row_note)
-
-        self._breakpoint = QComboBox()
-        self._breakpoint.addItem("No breakpoint")
-        self._breakpoint.setToolTip(
-            "Stop stepping when this block enters Repairing (fails)")
-        self._breakpoint.setAccessibleName("Breakpoint block")
-        form.addRow("Breakpoint on:", self._breakpoint)
-        return box
-
-    # -- debugger parameters ---------------------------------------------
-
-    def step_count(self) -> int:
-        return int(self._step_count.value())
-
-    def run_to_time(self) -> float:
-        return float(self._run_to.value())
-
-    def breakpoint_block(self):
-        """The chosen breakpoint, or None. Read from the combo itself, so
-        there is no second copy to fall out of step."""
-        return self._breakpoint.currentData()
-
-    def set_debugger_state(self, *, step_count=None, run_to=None) -> None:
-        """Push the debugger parameters in from the model, without
-        echoing them back as edits."""
-        self._loading = True
-        try:
-            if step_count is not None:
-                self._step_count.setValue(int(step_count))
-            if run_to is not None:
-                self._run_to.setValue(float(run_to))
-        finally:
-            self._loading = False
-        self._refresh()
-
-    def set_breakpoint_options(self, ids_and_names) -> None:
-        """(id, name) pairs for the breakpoint combo, keeping the current
-        selection if it survives a model load.
-
-        The selection is read from the COMBO, not from a shadow
-        attribute: an earlier version read a separate
-        `_breakpoint_id` that the combo's own change never updated, so a
-        re-populate always saw None and reset the choice."""
-        current = self._breakpoint.currentData()
-        self._breakpoint.blockSignals(True)
-        self._breakpoint.clear()
-        self._breakpoint.addItem("No breakpoint", None)
-        for bid, name in ids_and_names:
-            self._breakpoint.addItem(name, bid)
-        idx = self._breakpoint.findData(current)
-        self._breakpoint.setCurrentIndex(idx if idx > 0 else 0)
-        self._breakpoint.blockSignals(False)
+    def _sync_term_label_name(self) -> None:
+        """The run-length unit is read out by what it says ("system
+        failures"), not as "Run length label"."""
+        self._term_label.setAccessibleName(
+            f"Run length unit: {self._term_label.text()}")
 
     # -- state in -------------------------------------------------------
 
@@ -832,11 +1120,8 @@ class RunPanel(QWidget):
         self._loading = True
         try:
             self._exp = rx.normalise(exp)
-            # The profile combo is a PRESETTER, not a read-out: it has no
-            # "current profile" in a model, because a profile is a set of
-            # overrides applied once. Showing it as a value the user
-            # might think is stored would be a lie, so it always reads
-            # as "choose one to start from".
+            # A preset is not stored: it is a set of overrides applied
+            # once, from the Presets menu.
             self._trials.setValue(int(self._exp["trials"]))
             t = self._term_type.findData(self._exp["termination_type"])
             self._term_type.setCurrentIndex(max(0, t))
@@ -852,6 +1137,13 @@ class RunPanel(QWidget):
             self._cost_interval.setValue(
                 float(self._exp["recording"]["cost_interval"]))
             self._sync_importance_rows()
+            mode_index = self._seed_mode.findData(self._exp["seed_mode"])
+            self._seed_mode.setCurrentIndex(max(0, mode_index))
+            if self._exp["seed"]:
+                self._seed_value.setValue(int(self._exp["seed"]))
+            self._seed_value.setVisible(self._exp["seed_mode"] == "number")
+            self._streams_mode.setCurrentIndex(max(0, self._streams_mode.findData(
+                self._exp["streams"])))
         finally:
             self._loading = False
         self.set_enabled(enabled)
@@ -936,6 +1228,16 @@ class RunPanel(QWidget):
         box = self._experiment_box
         box.setTitle("Experiment — one hierarchy, isolated"
                      if hierarchy else "Experiment")
+        if hierarchy and not self._more_button.isChecked():
+            # A hierarchy run describes that hierarchy alone: never leave
+            # the choice folded away, whatever was remembered. Not saved as
+            # the user's preference -- they did not open it.
+            self._forcing_more = True
+            try:
+                self._more_button.setChecked(True)
+            finally:
+                self._forcing_more = False
+        self._refresh_more_options()
         if hierarchy:
             from html import escape
             name = escape(self._scope.currentText().strip())
@@ -977,6 +1279,7 @@ class RunPanel(QWidget):
         self._native_units = units or ""
         self._display_unit = display_unit
         self._shown_units = display_unit or units or ""
+        self._relabel_term()
         # Re-show the converted values. Guarded so setting the units
         # during construction cannot fire the write-back signals.
         if self._loading:
@@ -1031,9 +1334,11 @@ class RunPanel(QWidget):
                 self._display_unit)
         return float(shown)
 
-    def set_cores(self, value: int, enabled: bool, why: str, tip: str) -> None:
+    def set_cores(self, value: int, enabled: bool, why: str, tip: str,
+                  *, animate: bool = False) -> None:
         """Show the cores setting; `why` says why it cannot be changed now
-        (empty when it can)."""
+        (empty when it can). `animate`: the run will use one core whatever
+        the field says, and the summary says so."""
         self._cores.blockSignals(True)
         self._cores.setValue(int(value))
         self._cores.blockSignals(False)
@@ -1041,6 +1346,39 @@ class RunPanel(QWidget):
         self._cores.setToolTip(tip)
         self._cores_note.setText(why)
         self._cores_note.setVisible(bool(why))
+        self._cores_animate = bool(animate)
+        self._refresh_more_options()
+
+    def _on_theme_changed(self, _dark: bool) -> None:
+        """Light/dark switch: the Run button's fill is a stylesheet, so it
+        is re-made; the readiness colour follows on its next update."""
+        self._style_run_button()
+
+    def _style_run_button(self) -> None:
+        """The panel's primary action looks like one: filled with the
+        accent colour, white text (a flat tool button read as a link)."""
+        c = active_colour()
+        self._run_button.setStyleSheet(
+            "QToolButton#RunPanelRun { "
+            f"background: {c.get('accent', '#2563eb')}; "
+            f"color: {self.run_button_text_colour()}; "
+            "font-weight: 600; border: none; border-radius: 4px; "
+            "padding: 4px 14px; } "
+            "QToolButton#RunPanelRun:disabled { "
+            f"background: {c.get('border', '#9ca3af')}; "
+            f"color: {c.get('muted', '#e5e7eb')}; }}")
+
+    @staticmethod
+    def run_button_text_colour() -> str:
+        """White on the light theme's deep blue; near-black on the dark
+        theme's light blue, where white was about 2.9:1."""
+        from raptor.gui.resources.design_tokens import ThemeManager
+        return "#0b1220" if ThemeManager.instance().is_dark else "#ffffff"
+
+    def set_run_action(self, action) -> None:
+        """Show `action` (the ribbon's Run) as this panel's Run button."""
+        self._run_button.setDefaultAction(action)
+        self._run_button.setVisible(True)
 
     def set_readiness(self, ok: bool, message: str, detail: str = "",
                       link=None) -> None:
@@ -1062,8 +1400,25 @@ class RunPanel(QWidget):
             self._readiness.setTextFormat(Qt.TextFormat.PlainText)
         self._readiness.setText(message)
         self._readiness.setToolTip(detail)
+        # A word-wrapped label asks for a narrow width, so it wrapped a
+        # one-line message onto two; ask for the line's own width (to the
+        # cap set in __init__), and wrap only past that.
+        from PySide6.QtGui import QTextDocument
+        plain = message
+        if self._readiness.textFormat() == Qt.TextFormat.RichText:
+            doc = QTextDocument()
+            doc.setHtml(message)
+            plain = doc.toPlainText()
+        bold = self._readiness.font()
+        bold.setWeight(bold.Weight.DemiBold)
+        from PySide6.QtGui import QFontMetrics
+        want = QFontMetrics(bold).horizontalAdvance(plain) + 8
+        self._readiness.setMinimumWidth(
+            min(want, self._readiness.maximumWidth()))
         c = active_colour()
-        colour = c.get("operating") if ok else c.get("failed")
+        # "go", not "operating": the state colour is a bright canvas green,
+        # about 2:1 on the light theme's white -- too faint for text.
+        colour = c.get("go") if ok else c.get("failed")
         self._readiness.setStyleSheet(
             f"QLabel {{ color: {colour}; font-weight: 600; }}")
 
@@ -1081,12 +1436,14 @@ class RunPanel(QWidget):
         locking them would prevent the very use they exist for."""
         self._enabled = enabled
         for w in (self._scope, self._scope_deps, self._scope_pools,
-                  self._scope_streams, self._profile, self._trials, self._precision_btn,
+                  self._scope_streams, self._presets_button, self._trials,
+                  self._precision_btn,
                   self._term_type, self._term_value, self._start_stats,
                   self._ao_interval, self._cost_interval,
                   self._flow_gen, self._system_red_cost_field,
                   self._lost_flow_cost_field,
                   self._importance_check, self._importance_mode,
+                  self._seed_mode, self._seed_value, self._streams_mode,
                   *self._analysis_checks.values(),
                   *self._recording_checks.values()):
             w.setEnabled(enabled)
@@ -1098,12 +1455,17 @@ class RunPanel(QWidget):
     # -- state out ------------------------------------------------------
 
     def _emit_change(self, key, value) -> None:
+        self._emit_changes({key: value})
+
+    def _emit_changes(self, changes: dict) -> None:
+        """Several fields as ONE change (one undo step)."""
         if self._loading or not self._enabled:
             return
         experiment = self.experiment()
-        if experiment.get(key) == value:
+        changes = {k: v for k, v in changes.items() if experiment.get(k) != v}
+        if not changes:
             return
-        experiment[key] = value
+        experiment.update(changes)
         self._exp = experiment
         self._refresh()
         self.experiment_changed.emit(experiment)
@@ -1141,13 +1503,24 @@ class RunPanel(QWidget):
         self._lost_flow_unit_cost = value
         self._emit_system_change("sysLostCost", f"{value:.6f}")
 
-    def _on_profile(self) -> None:
-        if self._loading or not self._enabled:
+    def apply_preset(self, key: str) -> None:
+        """Apply preset `key` once (the Presets menu)."""
+        if self._loading or not self._enabled or key not in rx.PROFILES:
             return
-        name = self._profile.currentData()
-        self._exp = rx.apply_profile(name, self._exp)
+        self._exp = self._with_profile(key, self._exp)
         self.set_experiment(self._exp)
         self.experiment_changed.emit(self.experiment())
+
+    def _relabel_term(self) -> None:
+        """The word after the run length: the time unit, or the count."""
+        t = self._term_type.currentData()
+        label = {"TimeSim": getattr(self, "_shown_units", "") or "time units",
+                 "FailSim": "system failures",
+                 "CycleSim": "phase cycles"}.get(t, "")
+        self._term_label.setText(label)
+        self._stats_unit.setText(
+            getattr(self, "_shown_units", "") or "time units")
+        self._sync_term_label_name()
 
     def _on_term_type(self, update_value: bool = False) -> None:
         """Relabel the run-length row for the chosen termination, and
@@ -1158,9 +1531,7 @@ class RunPanel(QWidget):
         same switch already exists in Sim Options; this is the panel's
         copy of that rule."""
         t = self._term_type.currentData()
-        label = {"TimeSim": "Run length:", "FailSim": "System failures:",
-                 "CycleSim": "Phase cycles:"}.get(t, "Stop at:")
-        self._term_label.setText(label)
+        self._relabel_term()
         if update_value:
             # Re-shown converted, and with the new type's rule: the same
             # stored number is a time under TimeSim and a plain count
@@ -1334,42 +1705,81 @@ class RunPanel(QWidget):
             f"QDoubleSpinBox {{ border: 2px solid {active_colour()['failed']}; }}"
             if bad else "")
 
-        # Dependent plots: disabled AND explained while their analysis is
-        # off, rather than merely annotated in a tooltip.
-        for key, (need, label) in rx.RECORDING_REQUIRES.items():
-            has = need in experiment["analyses"]
-            cb = self._recording_checks.get(key)
-            if cb is None:
-                continue
-            cb.setEnabled(bool(self._enabled and has))
-            note = self._recording_notes.get(key)
-            if note is not None:
-                note.setText(
-                    f"Needs the {label} analysis" if not has
-                    else self._recording_hints.get(key, ""))
-        # Sampling intervals follow their plot.
-        self._ao_interval.setEnabled(
-            bool(self._enabled and experiment["recording"].get("ao_plot")))
-        self._cost_interval.setEnabled(
-            bool(self._enabled and experiment["recording"].get("cost_plot")))
+        self._refresh_notes(experiment)
 
-        # Capacity-dependent values. Flow generation is the demand the
-        # capacity analysis distributes; the lost-flow cost only has a
-        # meaning when both capacity and cost are tracked. Hide rows
-        # rather than disable them: an irrelevant number is still a
-        # misleading one. The red cost stays visible -- it applies to
-        # any run that accumulates cost, including a cost-only run.
-        lost_cost_on = ("capacity" in experiment["analyses"]
-                        and "cost" in experiment["analyses"])
+        # Rows that mean nothing now are hidden, not greyed: an irrelevant
+        # number is still a misleading one. Each sampling interval follows
+        # its plot; the model's flow/cost values follow their analyses (a
+        # new user met "System red cost 13300" on a model with no costs).
+        cost_on = "cost" in experiment["analyses"]
         flow_on = "capacity" in experiment["analyses"]
-        visible = (lost_cost_on, flow_on)
+        visible = (bool(experiment["recording"].get("ao_plot")),
+                   bool(experiment["recording"].get("cost_plot")),
+                   flow_on, cost_on, flow_on and cost_on)
         if visible != self._system_rows_visible:
             self._system_rows_visible = visible
-            self._system_form.setRowVisible(0, flow_on)
-            self._system_form.setRowVisible(2, lost_cost_on)
+            ao, cost_plot, flow, red, lost = visible
+            self._interval_holders["ao_plot"].setVisible(ao)
+            self._interval_holders["cost_plot"].setVisible(cost_plot)
+            self._system_rows["flow"].setVisible(flow)
+            self._system_rows["red"].setVisible(red)
+            self._system_rows["lost"].setVisible(lost)
             # Hiding a row changes the panel's preferred height, and the
             # dock caps itself to that height.
             self.size_changed.emit()
+        self._refresh_more_options()
+
+    def _refresh_notes(self, experiment: dict) -> None:
+        """What each option feeds, from one table (`run_needs.FEEDS`), as
+        its tooltip and accessible description.
+
+        Text stays in sight only where it matters (review #286, second
+        round): a plot that cannot be ticked says what it needs, in its own
+        label ("Capacity plot (needs Capacity)"), and the event log -- on
+        by default, with five results depending on it -- warns on a line
+        of its own when it is off."""
+        from raptor.api import run_needs
+        for key, cb in self._analysis_checks.items():
+            self._describe(cb, run_needs.feeds_note(
+                key, key in experiment["analyses"]))
+        changed = False
+        labels = {k: lbl for k, lbl, _h in rx.RECORDING_FIELDS}
+        for key, note in self._recording_notes.items():
+            on = bool(experiment["recording"].get(key))
+            cb = self._recording_checks[key]
+            requires = rx.RECORDING_REQUIRES.get(key)
+            blocked = bool(requires and requires[0]
+                           not in experiment["analyses"])
+            cb.setText(f"{labels[key]} (needs {requires[1]})"
+                       if blocked and requires else labels[key])
+            self._describe(cb, (
+                f"Needs the {requires[1]} analysis, under Results to "
+                f"calculate. " if blocked and requires else "")
+                + run_needs.feeds_note(key, on))
+            if requires is not None:
+                cb.setEnabled(bool(self._enabled and not blocked))
+            text = (run_needs.feeds_note(key, False)
+                    if key == "event_log" and not on else "")
+            if text != note.text() or bool(text) == note.isHidden():
+                note.setText(text)
+                note.setVisible(bool(text))
+                changed = True
+        if changed:
+            self.size_changed.emit()
+
+    # -- presets ----------------------------------------------------------
+
+    @staticmethod
+    def _with_profile(name: str, experiment: dict) -> dict:
+        """`experiment` with preset `name` applied the panel's way: its
+        run settings replace the current ones, but its analyses are ADDED,
+        so choosing a preset never unticks an analysis the user turned on
+        (Steady state used to drop Cost and Capacity)."""
+        before = rx.normalise(experiment)
+        after = rx.apply_profile(name, before)
+        after["analyses"] = list(dict.fromkeys(
+            [*before["analyses"], *after["analyses"]]))
+        return rx.normalise(after)
 
 
 class RunPanelDock(QDockWidget):
@@ -1411,7 +1821,13 @@ class RunPanelDock(QDockWidget):
             hidden = self.isHidden()
         except RuntimeError:           # C++ object gone (window closing)
             return
-        if self.isFloating() or hidden:
+        win = self.window()
+        # A tab behind Results is moved off screen, not hidden, so
+        # isHidden() alone kept the cap on it, and the shared strip could
+        # not be dragged taller than the Run panel while Results was on show.
+        active = getattr(win, "_bottom_active_dock", None)
+        behind = active is not self if active is not None else self._behind_a_tab(win)
+        if self.isFloating() or hidden or behind:
             self.setMaximumHeight(16777215)
             return
         tb = self.titleBarWidget()
@@ -1427,6 +1843,17 @@ class RunPanelDock(QDockWidget):
         # a user who has dragged it taller keeps their size.
         if not getattr(self, "_growing", False) and self.height() < want:
             self._grow_to(want)
+
+    def _behind_a_tab(self, win) -> bool:
+        """True when a tab bar holds this dock and another tab is on show
+        (a restored layout has no active bottom tab recorded yet)."""
+        from PySide6.QtWidgets import QTabBar
+        title = self.windowTitle()
+        for bar in win.findChildren(QTabBar):
+            titles = [bar.tabText(i) for i in range(bar.count())]
+            if title in titles and bar.parent() is win:
+                return bar.tabText(bar.currentIndex()) != title
+        return False
 
     def _grow_to(self, want: int) -> None:
         """Ask the window for a taller bottom strip (one shared strip)."""

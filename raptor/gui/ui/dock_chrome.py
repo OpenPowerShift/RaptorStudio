@@ -34,6 +34,36 @@ _GLYPH_EXPAND = {"left": "▸", "right": "◂", "bottom": "▴"}
 _SIDE = ("left", "right")
 
 
+
+def _sync_maximise(button: QToolButton, dock: QDockWidget) -> None:
+    """"Restore" while the Results fill the screen in their own window."""
+    try:
+        full = dock.isFloating() and dock.isMaximized()
+    except RuntimeError:              # torn down
+        return
+    button.setText("Restore" if full else "Maximise")
+    button.setToolTip("Put the Results back in the main window" if full
+                      else "Show the Results full screen in their own window")
+
+
+def _maximise_button(win: Any, dock: QDockWidget, layout: QHBoxLayout) -> QToolButton | None:
+    """The Results' Maximise / Restore button (no other dock has one).
+
+    The bottom strip keeps the canvas's own minimum, so on a short screen
+    a chart could not be seen whole: Maximise gives the Results a window
+    of their own at full screen, Restore docks them again."""
+    if dock is not getattr(win, "_results_dock", None):
+        return None
+    button = QToolButton()
+    button.setAutoRaise(True)
+    button.setText("Maximise")
+    button.setToolTip("Show the Results full screen in their own window")
+    button.setAccessibleName("Maximise the Results")
+    button.clicked.connect(lambda _checked=False: win._maximise_results())
+    dock.topLevelChanged.connect(lambda _floating: _sync_maximise(button, dock))
+    layout.addWidget(button)
+    return button
+
 class DockSlotChrome:
     """Title bars, minimise/restore and the closed stub for one dock slot."""
 
@@ -77,6 +107,8 @@ class DockSlotChrome:
         label = QLabel(dock.windowTitle())
         tb.addWidget(label)
         tb.addStretch(1)
+
+        max_btn = _maximise_button(win, dock, tb)
 
         min_btn = QToolButton()
         min_btn.setAutoRaise(True)
@@ -124,7 +156,7 @@ class DockSlotChrome:
         return {"dock": dock, "content": content,
                 "titlebar": titlebar, "icon_label": icon_label,
                 "label": label,
-                "min_btn": min_btn, "float_btn": float_btn,
+                "min_btn": min_btn, "float_btn": float_btn, "max_btn": max_btn,
                 "close_btn": close_btn, "stub": stub,
                 "edge": self.edge,
                 "normal_min_width": max(dock.minimumWidth(), 0),

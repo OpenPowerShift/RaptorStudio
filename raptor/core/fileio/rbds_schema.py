@@ -324,7 +324,9 @@ def _message(error: Any) -> str:
     kind, value, sub = error.validator, error.instance, error.schema
     if kind == "type":
         kinds = sub["type"] if isinstance(sub["type"], list) else [sub["type"]]
-        want = " or ".join("a whole number" if k == "integer" else "a " + k for k in kinds)
+        words = {"integer": "a whole number", "array": "a list", "object": "an object",
+                 "string": "a text", "number": "a number", "boolean": "true or false"}
+        want = " or ".join(words.get(k, "a " + k) for k in kinds)
         return f"must be {want}; got {_show(value)}"
     if kind == "enum":
         return f"must be one of {', '.join(repr(e) for e in sub['enum'])}; got {_show(value)}"
@@ -383,6 +385,38 @@ def check_document(doc: Any) -> list[Finding]:
     # OFF when the file is read (`run_experiment.normalise`), so accepting
     # it here would let the model run without it.
     out.extend(_analysis_findings(doc))
+    out.extend(_experiment_findings(doc))
+    return out
+
+
+def _experiment_findings(doc: Any) -> list[Finding]:
+    """Values `run_experiment.normalise` would quietly clamp or drop: a file
+    asking for -3 trials ran one, and a termination type of "Bogus" ran
+    as a time-limited run, with nothing said."""
+    import math
+
+    experiment = doc.get("experiment")
+    if not isinstance(experiment, dict):
+        return []
+    out: list[Finding] = []
+    trials = experiment.get("trials")
+    if isinstance(trials, (int, float)) and not isinstance(trials, bool) \
+            and not (math.isfinite(trials) and 1 <= trials <= 1_000_000):
+        out.append(Finding("error", "experiment.trials",
+                           f"must be a whole number from 1 to 1,000,000; "
+                           f"got {trials!r}"))
+    term = experiment.get("termination_type")
+    if term is not None and str(term).strip() not in (
+            "TimeSim", "FailSim", "CycleSim"):
+        out.append(Finding("error", "experiment.termination_type",
+                           "must be TimeSim, FailSim or CycleSim; "
+                           f"got {term!r}"))
+    for key in ("term_condition", "start_stats"):
+        value = experiment.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) \
+                and not (math.isfinite(value) and value >= 0):
+            out.append(Finding("error", f"experiment.{key}",
+                               f"must be 0 or more; got {value!r}"))
     return out
 
 

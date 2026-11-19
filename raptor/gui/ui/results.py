@@ -85,6 +85,21 @@ from raptor.gui.ui.results_common import (  # noqa: F401  (names tests and calle
 )
 
 
+def _how_often_down(per_run: float) -> str:
+    """How often the system went fully down, from the mean count per run.
+
+    "about 0 times per run" for 1 failure in 50 runs read as "never", so a
+    rare one says how rare ("about once every 50 runs") -- but only when
+    that rounds to 2 or more: 0.7 a run read "about once every 1 runs"."""
+    every_n = round(1 / per_run)
+    if every_n >= 2:
+        return f"about once every {every_n:,} runs"
+    count = _fmt_count(per_run)
+    if count == "1":
+        return "about once per run"
+    return f"about {count} times per run"
+
+
 def _pooled_time_between_downings(data) -> float | None:
     """Working (not fully down) time over all runs / outages over all runs:
     a rate that stays meaningful when most runs never go down."""
@@ -120,6 +135,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        #: (runs asked for, why it stopped) for a batch stopped early
+        self._requested_runs: tuple[int, str] | None = None
+        #: the Charts page's target line, as a fraction (a view setting)
+        self._target: float | None = None
+        self._target_measure = "availability"
         self._event_logs: list[list[str]] = []
         self._report_data = []
         self._final_lines: list[str] = []
@@ -161,6 +181,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.addTab(self._details_holder, "Final Results")
         self._charts_page.locate_requested.connect(
             lambda _kind, name: self.element_clicked.emit("block", name))
+        self._charts_page.target_changed.connect(self.set_target)
         self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._raw_page, "Report Text")
@@ -265,9 +286,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         cards.setVerticalSpacing(SPACING["sm"])
         specs = [
             ("Availability", "fraction of time working (full precision)"),
-            ("Reliability", "missions completed without a failure / "
-                            "missions attempted"),
-            ("MTBDE", "avg. time between downings"),
+            # plain words: a model with no phases has no "missions", and
+            # "downings" was jargon; MTBDE is each run's own figure averaged
+            # (the summary line below gives the pooled rate)
+            ("Reliability", "share of runs with no system failure"),
+            ("MTBDE", "average of each run's time between outages"),
             ("MDT", "avg. time fully down"),
             ("MTBM", "avg. time between maintenance"),
             ("MMT", "avg. maintenance duration"),
@@ -1196,9 +1219,55 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     # Public API
     # ------------------------------------------------------------------
 
+    def _run_identity(self) -> str:
+        m = self._manifest or {}
+        return str(m.get("run_id") or m.get("digest") or id(m))
+
+    def forget_previous_run(self) -> None:
+        """A different model (or scope): nothing to compare the next run
+        with."""
+        self._shown_figures: tuple[str, dict] | None = None
+        self._previous_figures: tuple[str, dict] | None = None
+        for card in self._cards.values():
+            card.set_change("")
+
+    def _show_changes(self, figures: dict, formats: dict) -> None:
+        """Say on each card what it was in the run before."""
+        from raptor.gui.ui import result_change, settings
+        self._shown_figures = (self._run_identity(), figures)
+        self._change_formats = formats
+        previous: tuple[str, dict] | None = getattr(self, "_previous_figures", None)
+        before: dict = previous[1] if previous else {}
+        on = settings.get_bool(result_change.SETTING, True)
+        for card_key, (key, fmt) in formats.items():
+            diff_fmt = (result_change.short_probability
+                         if fmt is probability_text else None)
+            change = result_change.compare(
+                key, before.get(key), figures.get(key), fmt,
+                diff_fmt) if on else None
+            card = self._cards[card_key]
+            if change is None:
+                card.set_change("")
+            else:
+                card.set_change(change.text, change.verdict, change.tooltip)
+
+    def refresh_changes(self) -> None:
+        """Re-apply the Preferences switch to the cards on screen."""
+        shown = getattr(self, "_shown_figures", None)
+        if shown is not None and self.has_results():
+            self._show_changes(shown[1], getattr(self, "_change_formats", {}))
+
     def has_results(self) -> bool:
         """A result set is on screen (as opposed to the placeholder)."""
         return bool(self._report_data or self._event_logs)
+
+    def ran_without_event_log(self) -> bool:
+        """The results on screen were made with Detailed event log off
+        (from the run's own record, not the panel as it is now)."""
+        if not self.has_results():
+            return False
+        record = (self._manifest or {}).get("recording") or {}
+        return "event_log" in record and not record["event_log"]
 
     def results_bundle(self, model_name: str = "", units: str = ""):
         """The result set on screen, as the plain bundle the table export
@@ -1327,8 +1396,28 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         else:
             self._drivers_stale = True
 
+    @property
+    def target(self) -> float | None:
+        """The target line set on the Charts page (a fraction), or None."""
+        return self._target
+
+    def set_target(self, value: float | None) -> None:
+        """A visual cue for this session: a dashed line on the charts and a
+        verdict in the Story. The model and its results do not change."""
+        self._target = value if value and 0.0 < value <= 1.0 else None
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_target(self._target)
+        self._refresh_story()
+
+    def set_requested_runs(self, requested: int | None, why: str = "") -> None:
+        """A batch stopped before its end: how many runs were asked for and
+        why it stopped, so the Story does not present it as complete."""
+        self._requested_runs = (requested, why) if requested else None
+        self._refresh_story()
+
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
+        self._requested_runs = None
         self._manifest = None
         self._rbd = None
         self._period_summary = None
@@ -1370,6 +1459,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._summary_sentence.setText("")
         for card in self._cards.values():
             card.set_value("—")
+            card.set_change("")
+        # `_shown_figures` is kept: the next run on this model is compared
+        # with it, including after "Discard results & edit".
         for view in self._raw_views.values():
             view.clear()
         # The raw tabs' backing sources belong to the cleared result set;
@@ -1401,6 +1493,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        # The run on screen until now becomes "the run before" -- unless
+        # this is the same run again (importance variants populate twice).
+        shown = getattr(self, "_shown_figures", None)
+        if shown is not None and shown[0] != self._run_identity():
+            self._previous_figures = shown
         #: The model as it was run, for features that need its structure
         #: (the lost-capacity split asks the Failure Effects machinery).
         self._rbd = rbd
@@ -1559,6 +1656,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._details_tabs.addTab(self._scroll_wrap(page), "Importance")
         self._update_hier_filter_visibility()
         self._refresh_theme()
+        # the Charts page's importance quadrant reads the same measures: it
+        # stayed greyed out ("Needs importance measures") after they came
+        self._refresh_charts()
         self.contents_changed.emit()
 
     # ------------------------------------------------------------------
@@ -1644,6 +1744,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if m.get("streams"):
             # one core and several give different, equally valid numbers
             bits.append(f"{m['streams']} streams")
+        if m.get("seed"):
+            bits.append(f"seed {m['seed']}")
         record = m.get("recording") or {}
         if record:
             on = [k for k in ("event_log", "ao_plot", "capacity_plot",
@@ -1707,7 +1809,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 run_id=str(manifest.get("run_id") or ""),
                 drivers=drivers,
                 measure="dependability" if dependability else "availability",
-                generated=generated)
+                generated=generated, target=self._target)
+            self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
             logging.getLogger(__name__).exception("could not build the charts")
@@ -1767,17 +1870,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             attribution = (self._drivers_page.attribution()
                            if hasattr(self, "_drivers_page") else None)
             findings = []
+            requirements = ([{"metric": self._target_measure,
+                              "op": ">=", "value": self._target}]
+                            if self._target is not None else None)
             if getattr(self, "_rbd", None) is not None:
                 try:
                     from raptor.api.advisor import advise_run
                     findings = advise_run(self._rbd, {}, per_run,
+                                          requirements=requirements,
                                           attribution=attribution)
                 except Exception:  # noqa: BLE001 - the Story must still show
                     findings = []
             manifest = getattr(self, "_manifest", None) or {}
             story = build_story(
                 per_run, units=self._units, attribution=attribution,
-                findings=findings,
+                findings=findings, requirements=requirements,
                 has_phases=any(bool(getattr(rd, "has_phases", False))
                                for rd in data),
                 cost_on=any(getattr(rd, "cost", None) is not None
@@ -1785,8 +1892,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 model_name=str(manifest.get("model_name") or ""),
                 model_hash=str(manifest.get("model_hash") or ""),
                 run_id=str(manifest.get("run_id")
-                           or manifest.get("digest") or ""))
+                           or manifest.get("digest") or ""),
+                requested_runs=(self._requested_runs or (None, ""))[0],
+                truncated=(self._requested_runs or (None, ""))[1])
             page.set_story(story)
+            page.set_target_note("target set on the Charts page (a visual cue; "
+                                 "the model is unchanged)" if self._target is not None
+                                 else "")
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
             logging.getLogger(__name__).exception("could not build the Story")
@@ -1905,6 +2017,28 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             _fmt_count(fails_m),
             f"min {fails_lo:,.0f} · max {fails_hi:,.0f}")
 
+        from raptor.gui.ui.result_change import figure
+        avail_key = "Dependability" if use_dependability else "Availability"
+        figures = {
+            avail_key: figure(d.dependability if use_dependability
+                              else d.availability for d in data),
+            "Reliability": figure(d.reliability for d in data),
+            "MTBDE": figure(d.mtbde for d in data),
+            "MDT": figure(d.mdt for d in data),
+            "System_Failures": figure(float(d.num_system_failures)
+                                      for d in data),
+        }
+
+        def time_text(v: float) -> str:
+            return _fmt_si(v) + time_u
+        self._show_changes(figures, {
+            "Availability": (avail_key, probability_text),
+            "Reliability": ("Reliability", probability_text),
+            "MTBDE": ("MTBDE", time_text),
+            "MDT": ("MDT", time_text),
+            "System_Failures": ("System_Failures", _fmt_count),
+        })
+
         g = _mean([d.green_percent for d in data]) or 0.0
         y = _mean([d.yellow_percent for d in data]) or 0.0
         r = _mean([d.red_percent for d in data]) or 0.0
@@ -1932,17 +2066,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         sim_time = _mean([d.ending_sim_time for d in data])
         time_phrase = (f" Each run simulated {_fmt(sim_time)}{time_u}."
                        if sim_time else "")
-        parts = [
-            f"Across {len(data)} run{'s' if len(data) != 1 else ''}, the system was fully "
-            f"working {_pct(g)} of the time, still partially working but "
-            f"degraded {_pct(y)}, and completely down {_pct(r)}."
-        ]
+        runs = f"{len(data)} run{'s' if len(data) != 1 else ''}"
+        if y and y > 0:
+            parts = [f"Across {runs}, the system was fully working {_pct(g)} of the "
+                     f"time, still partially working but degraded {_pct(y)}, and "
+                     f"completely down {_pct(r)}."]
+        else:      # "degraded 0.0 %" on a model with no degraded state
+            parts = [f"Across {runs}, the system was working {_pct(g)} of the time "
+                     f"and completely down {_pct(r)}."]
         if fails_m and fails_m > 0:
-            # "about 0 times per run" for 1 failure in 50 runs read as
-            # "never"; say how rare it is instead.
-            how_often = (f"about once every {1 / fails_m:,.0f} runs"
-                         if fails_m < 0.95 else
-                         f"about {_fmt_count(fails_m)} times per run")
+            how_often = _how_often_down(fails_m)
             # Pooled over the runs: the MTBDE card's mean is a lower bound
             # when runs end with no outage, and quoting it here put "once
             # every 25 runs" beside "once every 8,760 hours" (one run).
@@ -1957,8 +2090,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         parts.append(time_phrase)
         rel = _mean([d.reliability for d in data])
         if rel is not None and rel > 0:
-            parts.append(f"Missions completed without a failure (reliability): "
-                         f"{rel * 100:.1f}% on average.")
+            parts.append(f"Runs with no system failure (reliability): "
+                         f"{rel * 100:.1f}%.")
         self._summary_sentence.setText(" ".join(parts))
 
         for d in data:

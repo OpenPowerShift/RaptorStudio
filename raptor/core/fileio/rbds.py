@@ -516,6 +516,42 @@ def _emit_element(row: dict, section: str, inferred_pid: int | None = None,
     return obj
 
 
+#: `_emit_element` results by row content (see `_emit_element_cached`).
+_EMIT_MEMO: dict = {}
+_EMIT_MEMO_MAX = 60_000
+
+
+def _row_key(row: dict | None) -> Any:
+    if row is None:
+        return None
+    key = tuple(row.items())
+    hash(key)
+    return key
+
+
+def _emit_element_cached(row: dict, section: str, inferred_pid: int | None,
+                         start: dict | None, start_key: Any) -> dict:
+    """`_emit_element`, remembered by the row's content.
+
+    Every edit through the API saves the model, and the save rendered every
+    element again: adding blocks one at a time cost O(model) per add (1,000
+    adds: 73 s), nearly all of it here. An edit changes a row or two, so
+    the rest come from this memo. The result is a fresh top-level dict
+    each time (the caller adds "at" to a defaults row); nothing writes into
+    the values."""
+    try:
+        key = (section, inferred_pid, start_key, _row_key(row))
+    except TypeError:                  # an unhashable cell (`_rbds_extra`)
+        return _emit_element(row, section, inferred_pid, start=start)
+    hit = _EMIT_MEMO.get(key)
+    if hit is None:
+        hit = _emit_element(row, section, inferred_pid, start=start)
+        if len(_EMIT_MEMO) >= _EMIT_MEMO_MAX:
+            _EMIT_MEMO.clear()
+        _EMIT_MEMO[key] = hit
+    return dict(hit)
+
+
 def _emit_keyed(row: dict, section: str) -> dict:
     """Spare pools, resources, triggers, phases: named rows in their
     friendly fields, leaving out what equals the table's template row."""
@@ -582,6 +618,15 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
                                     **(meta or {})}}
     system, experiment = _emit_system(rbd)
     doc["system"] = system
+    # The seed is written only when it is not Raptor 7's fixed table, so a
+    # model that never touched it saves exactly as before (#292).
+    if experiment.get("seed_mode") == "fixed":
+        experiment.pop("seed_mode", None)
+        experiment.pop("seed", None)
+    elif experiment.get("seed_mode") == "new":
+        experiment.pop("seed", None)
+    if experiment.get("streams", "model") == "model":
+        experiment.pop("streams", None)
     doc["experiment"] = experiment
 
     # The ID-0 rows are the defaults a new element starts from (Raptor 7's
@@ -594,12 +639,17 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
         out = []
         own = (None if jkey == "links" else
                next((r for r in rows_of(section) if _row_id(r) == 0), None))
+        try:
+            own_key = _row_key(own)
+        except TypeError:
+            own_key = object()         # unhashable: never matches, no memo
         for i, row in enumerate(rows_of(section)):
             is_default = _row_id(row) == 0 and jkey != "links"
-            obj = _emit_element(row, section,
-                                _shared_parent(row, parents)
-                                if jkey == "links" else None,
-                                start=None if is_default else own)
+            obj = _emit_element_cached(
+                row, section,
+                _shared_parent(row, parents) if jkey == "links" else None,
+                None if is_default else own,
+                ("default",) if is_default else own_key)
             if _row_id(row) == 0 and jkey != "links":
                 if i:              # where Raptor 7 keeps it varies; keep it
                     obj["at"] = i
@@ -944,9 +994,13 @@ def _read_project_meta(doc: dict) -> dict | None:
 def newer_version_message(doc: dict, version: int) -> str:
     """Why a file from a newer RAPTOR Studio will not open, and what to do."""
     generator = (doc.get("meta") or {}).get("generator") if isinstance(doc.get("meta"), dict) else None
-    saved_by = f"was saved by {generator}" if isinstance(generator, str) and generator \
-        else "was saved by a newer RAPTOR Studio"
     from raptor import __version__
+    # a generator naming this very version (a copied or hand-edited file)
+    # made the message say a version is newer than itself
+    saved_by = (f"was saved by {generator}"
+                if isinstance(generator, str) and generator
+                and __version__ not in generator
+                else "was saved by a newer RAPTOR Studio")
     return (f"This file {saved_by} in .rbds format version {version}, which is "
             f"newer than this RAPTOR Studio {__version__} reads (up to version "
             f"{VERSION}). Open it with that version or later, or ask for a copy "
@@ -977,10 +1031,20 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     """Parse .rbds JSON into the same `RbdFile` structure every other
     subsystem already consumes. `default_name` is the model's name when
     the file does not carry one."""
-    doc = json.loads(text)
+    try:
+        doc = json.loads(text)
+    except json.JSONDecodeError as exc:
+        # the parser's own "Expecting value: line 1 column 1 (char 0)"
+        # meant nothing to someone who picked the wrong file
+        raise ValueError(
+            "not a RAPTOR Studio .rbds model: the file is not JSON "
+            f"(line {exc.lineno}, column {exc.colno}: {exc.msg})") from exc
     if not isinstance(doc, dict) or doc.get("format") != FORMAT_ID:
         fmt = doc.get("format") if isinstance(doc, dict) else None
-        raise ValueError(f"not an {FORMAT_ID} file (format={fmt!r})")
+        raise ValueError(
+            "not a RAPTOR Studio .rbds model: "
+            + (f'its "format" is {fmt!r}, not "{FORMAT_ID}"' if fmt is not None
+               else f'it has no "format": "{FORMAT_ID}" entry'))
     version = doc.get("version", 1)
     if isinstance(version, int) and not isinstance(version, bool) and version > VERSION:
         raise ValueError(newer_version_message(doc, version))
@@ -1102,5 +1166,6 @@ def _read_advisor(doc: dict) -> dict:
 
 def load_rbds(path: str) -> RbdFile:
     import os
-    with open(path, encoding="utf-8") as f:
+    # utf-8-sig: a BOM (Notepad, PowerShell `>`) is read past, not refused
+    with open(path, encoding="utf-8-sig") as f:
         return parse_rbds(f.read(), default_name=os.path.basename(path))

@@ -103,6 +103,9 @@ def test_the_home_button_keeps_its_place_when_options_appears(qapp):
     panel.resize(1400, 300)
     panel.show()
     panel.set_hierarchies([(5, "Pumps")])
+    # Model scope sits under More options (#286): open it, as choosing a
+    # hierarchy would, so there is a laid-out row to measure.
+    panel._more_button.setChecked(True)
     qapp.processEvents()
     at_home = panel._scope_home.geometry()
     panel._scope.setCurrentIndex(panel._scope.findData(5))

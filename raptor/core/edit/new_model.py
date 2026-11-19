@@ -24,12 +24,13 @@ Version7_7.0.11 Student        NewModel.rbd        Thu Jan 01 00:00:00 2026
 Blocks=        1
 Events=        0
 Nodes=        2
-Links=        0
+Links=        2
 SpPools=      0
 ResPools=     0
 Phases=       0
 Triggers=     0
-Hierarchies=  0
+Hiers=        0
+HierDepths=   0
 /
 /___SYSTEM_DATA___
 imageString TerminationType TermCondition StartStats NumRuns graphTimeSlice graphYmin graphYmax zoomVal units graphicsUse SysStreamsArray xOrigin yOrigin ShowNegErrMsg IgnoreStartFail flowGenerated systemRedCost sysLostCost weakAnalysis costAnalysis capacityAnalysis nodeAnalType GYthreshold YRthreshold NotUsed

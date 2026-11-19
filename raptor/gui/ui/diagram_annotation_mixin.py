@@ -36,6 +36,7 @@ from raptor.gui.ui.diagram_items import (
     _NodeItem,
     _view_status,
 )
+from raptor.gui.ui import settings as app_settings
 from raptor.gui.ui.diagram_annotations import (
     ANNO_APPLICABLE_PROPS,
     ANNO_DEFAULTS,
@@ -127,18 +128,42 @@ class AnnotationMixin(_Base):
         fields = dict(getattr(part, "fields", {}) or {})
         kind = str(fields.pop("kind", "text") or "text")
         aid = self._next_anno_id()
+        w = float(fields.pop("w", 120) or 120)
+        h = float(fields.pop("h", 40) or 40)
         centre = self.mapToScene(self.viewport().rect().center())
+        x, y = self._free_spot(centre.x(), centre.y(), w, h)
         entry = {
             "kind": kind, "id": aid, "parent": self._current_parent,
-            "x": round(centre.x(), 2), "y": round(centre.y(), 2),
-            "w": float(fields.pop("w", 120) or 120),
-            "h": float(fields.pop("h", 40) or 40),
+            "x": round(x, 2), "y": round(y, 2), "w": w, "h": h,
             "text": str(fields.pop("text", "") or ""),
             "z": self.new_annotation_z(),
             **self._anno_default_props(kind)}
         entry.update(fields)
         self._stack.push(AnnoCmd(self, entry, add=True))
         return aid
+
+    def _free_spot(self, x: float, y: float, w: float, h: float,
+                   step: float = 20.0, rings: int = 15) -> tuple[float, float]:
+        """The nearest (x, y) to the one given where a w x h note covers no
+        element or link: dropped at the view's centre it could sit behind
+        a block, its text hidden. Searched in rings around the point; the
+        point itself when nothing within reach is clear."""
+        from PySide6.QtCore import QRectF
+
+        from raptor.gui.ui.diagram_item_core import _GridBackground
+
+        def clear(px: float, py: float) -> bool:
+            return not any(not isinstance(it, _GridBackground) and it.isVisible()
+                           for it in self._scene.items(QRectF(px, py, w, h)))
+        if clear(x, y):
+            return x, y
+        for ring in range(1, rings + 1):
+            d = ring * step
+            for dx, dy in ((0, d), (0, -d), (d, 0), (-d, 0),
+                           (d, d), (-d, d), (d, -d), (-d, -d)):
+                if clear(x + dx, y + dy):
+                    return x + dx, y + dy
+        return x, y
 
     def _begin_annotation(self, kind: str, scene_pos: QPointF):
         """Create a new text annotation (single click: it grows with its
@@ -364,6 +389,42 @@ class AnnotationMixin(_Base):
         self._refresh_anchor_leader()
         return len(changed_ids)
 
+    # -- View > Annotations: what the canvas draws -------------------------
+    def annotations_visible(self) -> bool:
+        return bool(app_settings.get("appearance/show_annotations", True))
+
+    def comment_notes_visible(self) -> bool:
+        return bool(app_settings.get("appearance/show_comment_notes", True))
+
+    def annotation_shown(self, entry: dict) -> bool:
+        """Whether View > Annotations lets the canvas draw `entry`."""
+        if not self.annotations_visible():
+            return False
+        return bool(self.comment_notes_visible() or not entry.get("comment_of"))
+
+    def set_annotations_visible(self, on: bool) -> None:
+        """Show or hide every annotation on the canvas (a view setting:
+        hidden ones are still in the model and saved)."""
+        app_settings.set_value("appearance/show_annotations", bool(on))
+        self.apply_annotation_visibility()
+
+    def set_comment_notes_visible(self, on: bool) -> None:
+        """Show or hide only the notes linked to an element's comment."""
+        app_settings.set_value("appearance/show_comment_notes", bool(on))
+        self.apply_annotation_visibility()
+
+    def apply_annotation_visibility(self) -> None:
+        by_id = {int(e.get("id", 0) or 0): e
+                 for e in getattr(self, "annotations", []) or []}
+        following = set(getattr(self, "_hidden_following", []) or [])
+        for aid, item in list(getattr(self, "_anno_items", {}).items()):
+            entry = by_id.get(aid)
+            shown = entry is not None and self.annotation_shown(entry)
+            if not shown and item.isSelected():
+                item.setSelected(False)
+            item.setVisible(shown and aid not in following)
+        self._refresh_anchor_leader()
+
     def _hide_following_annotations(self, moved: set[tuple[str, int]]) -> None:
         refs: set[str] = set()
         for kind, oid in moved:
@@ -404,8 +465,10 @@ class AnnotationMixin(_Base):
     def _show_following_annotations(self) -> None:
         for aid in getattr(self, "_hidden_following", []) or []:
             item = self._anno_items.get(aid)
+            entry = next((e for e in getattr(self, "annotations", []) or []
+                          if int(e.get("id", 0) or 0) == aid), None)
             if item is not None:
-                item.setVisible(True)
+                item.setVisible(entry is None or self.annotation_shown(entry))
         self._hidden_following = []
         self._refresh_anchor_leader()
 

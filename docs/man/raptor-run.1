@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-run \- simulate a model
 .SH SYNOPSIS
-\fBraptor run\fR [\-h] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] [\-o DIR] [\-f {text,json,ndjson,csv,markdown,none}] [\-\-json PATH] [\-r NAME] [\-\-legacy\-names] [\-\-metrics LIST] [\-\-progress {auto,bar,json,none}] [\-\-strict] [\-\-workspace DIR] [\-\-hierarchy NAME|ID] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
+\fBraptor run\fR [\-h] [\-n N] [\-t T] [\-\-stop KIND[=VALUE]] [\-\-stats\-start T] [\-\-seed N|new] [\-\-block\-streams {model,separate}] [\-j N] [\-\-timeout DURATION] [\-\-analysis LIST] [\-\-precision P] [\-\-precision\-metric NAME] [\-\-min\-trials N] [\-\-max\-trials N] [\-\-precision\-batch N] [\-\-precision\-confidence C] [\-\-importance MODE] [\-\-weak\-type TYPE] [\-s PATH=VALUE] [\-\-set\-file FILE] [\-\-save\-model PATH] [\-o DIR] [\-f {text,json,ndjson,csv,markdown,none}] [\-\-json PATH] [\-r NAME] [\-\-legacy\-names] [\-\-metrics LIST] [\-\-progress {auto,bar,json,none}] [\-\-strict] [\-\-workspace DIR] [\-\-hierarchy NAME|ID] [\-\-deps {up,system,refuse}] [\-\-pools {full,share,refuse}] [\-\-streams {keep,separate}] [\-\-treat KEY=VALUE] MODEL
 .SH DESCRIPTION
 Simulate MODEL and print or write the results. The model file is never modified.
 .SH OPTIONS
@@ -20,8 +20,11 @@ time | failures=N | cycles=N (default: the model's)
 \fB\-\-stats\-start\fR \fIT\fR
 start statistics at T
 .TP
-\fB\-\-seed\fR \fIN\fR
-salt every random stream (default: Raptor's fixed seed table)
+\fB\-\-seed\fR \fIN|new\fR
+salt every random stream: a number repeats a run (a GUI run's seed with \-j 1 for Cores 1, \-j 2 for more); 'new' draws one and reports it (default: the model's saved seed, else Raptor's fixed table)
+.TP
+\fB\-\-block\-streams\fR \fI{model|separate}\fR
+separate: every block that shares a random stream gets its own for this run, as the GUI's Run panel Streams option (the model file is not changed); model: the blocks' own (default: the model's saved choice)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 parallel workers (default 1; N>1 is reproducible but not draw\-identical to 1)

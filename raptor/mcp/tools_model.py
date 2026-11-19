@@ -246,8 +246,9 @@ def export_awb(model_id: str, path: str, dry_run: bool = False,
     """Write the model as an Isograph Availability Workbench .awb project.
 
     The report names substituted, partially mapped and dropped features.
-    `dry_run=true` writes nothing. `sidecar=true` also writes a
-    `<name>.awb.raptor.json` beside the file with RAPTOR-only metadata.
+    `dry_run=true` writes nothing, not even `normalize_out`.
+    `sidecar=true` also writes a `<name>.awb.raptor.json` beside the file
+    with RAPTOR-only metadata.
     `normalize_out` writes a reduced RAPTOR model carrying only what the AWB
     file represents; that reduced copy is what gets exported.
     """
@@ -261,13 +262,16 @@ def export_awb(model_id: str, path: str, dry_run: bool = False,
     norm_path = None
     if normalize_out:
         norm_path = ws.resolve_output_path(
-            normalize_out, allow_extra=context.allowed_write_dirs())
+            context.require_relative_path(normalize_out, "normalize_out"),
+            allow_extra=context.allowed_write_dirs())
         rbd, actions = awb_api.normalize(rbd)
-        awb_api.save_normalized(rbd, norm_path)
     report = awb_api.export(rbd, dest, source=model_id, write=False,
                             sidecar=sidecar)
     report.notes.extend(f"normalized: {a}" for a in actions)
     if not dry_run:
+        # Only now, so a dry run writes nothing, the reduced model included.
+        if norm_path is not None:
+            awb_api.save_normalized(rbd, norm_path)
         written = awb_api.export(rbd, dest, source=model_id, sidecar=sidecar)
         report.sidecar = written.sidecar
     payload = report.as_dict() | {
@@ -860,7 +864,8 @@ def add_hierarchy(
     the deepest allowed): plan the levels before building. A hierarchy
     whose `parent` is already 8 deep is refused. The result's `depth` is
     the new hierarchy's level (1 = on the home level) and `levels_below`
-    how many more can still go inside it.
+    how many more levels can still go inside it, counting any hierarchies
+    already in it.
 
     Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
     """
@@ -893,9 +898,27 @@ def _depth_fields(ws, model_id: str, hier_id) -> dict[str, int]:
     """`depth` of a new hierarchy (1 = on the home level) and how many
     more levels fit inside it (`input_rules.MAX_HIERARCHY_DEPTH`)."""
     from raptor.core.input_rules import MAX_HIERARCHY_DEPTH, hierarchy_depths
-    depth = hierarchy_depths(ws.get(model_id).rbd).get(int(float(hier_id)), 1)
+    rbd = ws.get(model_id).rbd
+    depths = hierarchy_depths(rbd)
+    hid = int(float(hier_id))
+    depth = depths.get(hid, 1)
+    # What is already inside counts: `collapse_selection` can wrap
+    # hierarchies, and counting only the new one's own depth kept saying
+    # "7 levels below" for a wrapper with 7 levels inside it.
+    sec = rbd.sections.get("HIERARCHY_DATA")
+    parents = {int(float(r.get("ID") or 0)): int(float(r.get("Parent") or 0))
+               for r in (sec.rows if sec is not None else [])}
+    deepest = depth
+    for other, other_depth in depths.items():
+        at, seen = parents.get(other, 0), set()
+        while at and at not in seen:
+            if at == hid:
+                deepest = max(deepest, other_depth)
+                break
+            seen.add(at)
+            at = parents.get(at, 0)
     return {"depth": depth,
-            "levels_below": max(0, MAX_HIERARCHY_DEPTH - depth)}
+            "levels_below": max(0, MAX_HIERARCHY_DEPTH - deepest)}
 
 
 def _depth_sentence(data: dict) -> str:
@@ -1735,6 +1758,7 @@ def auto_layout(model_id: str,
                                    all_levels=all_levels)
     report: dict = {}
     from raptor.api.annotations import ensure_view_transform, follow_layout
+    had_transform = getattr(handle.rbd, "view_transform", None)
     old_transform = ensure_view_transform(handle.rbd)
     if selectors:
         applied = _apply_layout_selection(
@@ -1764,6 +1788,10 @@ def auto_layout(model_id: str,
         direction=direction, max_columns=max_columns)
     if applied or points["removed"] or points["added"]:
         ws.save(model_id)
+    else:
+        # nothing moved: leave the model as it was (freezing a transform
+        # changed its content with no save or undo step)
+        handle.rbd.view_transform = had_transform
     cut = int(report.get("refine_cut_short", 0))
     data = {"model_id": model_id, "moved": bool(applied), "scope": scope,
             "elements_moved": applied, "annotations_moved": annotations_moved,
@@ -1948,6 +1976,9 @@ def configure_phases(
     `unassign` names blocks/events/nodes whose phasing is cleared (flag
     off, per-phase cells dropped) -- previously there was no MCP route
     for this.
+
+    `assignments` with no `phases` assigns against the phases already in
+    the model. A refused call changes nothing.
 
     assignments: {element: [per-phase state]}, one list entry per phase
     (a short list is an error, not padded).  A block/event state is
@@ -2389,7 +2420,8 @@ def duplicate_elements(model_id: str, elements: list[str],
 
     `elements` are names or ids (optionally kind-prefixed). Internal links
     are remapped to the copies, dependencies on copied elements follow them,
-    and block names get the next free suffix. One save.
+    and block and hierarchy names get the next free suffix. One save.
+    `created` lists each new element as {kind, id, name, selector}.
     """
     context.require_write()
     from raptor.api import edit

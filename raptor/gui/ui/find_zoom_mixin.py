@@ -4,13 +4,13 @@ Expects on `self`: the window's docks, `_rbd` and `_statusbar`."""
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 
 
 
 
-from raptor.gui.find_text import find_entries, resolve_find_text
+from raptor.gui.find_text import find_entries, parse_find_text, resolve_find_text
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
@@ -35,13 +35,35 @@ class FindZoomMixin(_Base):
         _find_model: PySide6.QtCore.QStringListModel
         _statusbar: PySide6.QtWidgets.QStatusBar
 
+    #: Find box kind -> (section, name column) of the model's rows
+    _FIND_ROWS = {"Block": ("BLOCK_DATA", "blockName"),
+                  "Node": ("NODE_DATA", "Name"),
+                  "Event": ("EVENT_DATA", "eventName"),
+                  "Hier": ("HIERARCHY_DATA", "hierarchyName")}
+
     def _find_names(self) -> dict[str, dict[int, str]]:
-        """The diagram's current-level elements as the plain tables `find_text` takes."""
+        """Every element in the model, on every level, as the plain tables
+        `find_text` takes. The view's own tables are level-scoped, so Find
+        missed everything inside a hierarchy; they still win for this
+        level, as they can hold edits the rows do not have yet."""
         v = self._diagram_dock.view
-        return {"Block": {i: b.name for i, b in v.blocks.items()},
-                "Node": {i: n.node_name for i, n in v.nodes.items()},
-                "Event": {i: e.name for i, e in v.events.items()},
-                "Hier": {i: h.name for i, h in v.hiers.items()}}
+        names: dict[str, dict[int, str]] = {k: {} for k in self._FIND_ROWS}
+        rbd = getattr(v, "_rbd_ref", None)
+        sections = getattr(rbd, "sections", None) or {}
+        for kind, (section, col) in self._FIND_ROWS.items():
+            sec = sections.get(section)
+            for row in getattr(sec, "rows", None) or []:
+                try:
+                    oid = int(float(row.get("ID", 0) or 0))
+                except (TypeError, ValueError):
+                    continue
+                if oid > 0:
+                    names[kind][oid] = str(row.get(col, "") or "")
+        names["Block"].update({i: b.name for i, b in v.blocks.items()})
+        names["Node"].update({i: n.node_name for i, n in v.nodes.items()})
+        names["Event"].update({i: e.name for i, e in v.events.items()})
+        names["Hier"].update({i: h.name for i, h in v.hiers.items()})
+        return names
 
     def _find_combo_refresh(self, _filter_text: str = ""):
         """Rebuild the Find Item backing list: every block, node, event
@@ -77,31 +99,23 @@ class FindZoomMixin(_Base):
             return
         kind, name = resolved
         v = self._diagram_dock.view
-
-        # Block/Node go through locate_element (navigates into whatever
-        # hierarchy level the element actually lives on first, if not
-        # the one currently shown -- v.blocks/v.nodes are level-scoped,
-        # so a same-level-only lookup would silently do nothing for an
-        # element on another level).
-        if kind in ("Block", "Node"):
-            v.locate_element(kind.lower(), name)
-            self._find_edit.clear()
+        # By id, on whatever level the element lives on (`locate_id` goes
+        # there first). Of two elements with one name, the one on this
+        # level wins.
+        here: dict[str, set[int]] = {
+            "Block": set(v.blocks), "Node": set(v.nodes), "Event": set(v.events),
+            "Hier": {i for i, h in v.hiers.items()
+                     if getattr(h, "parent_id", 0) == v._current_parent}}
+        table = self._find_names().get(kind, {})
+        ids = [i for i, n in table.items() if n.lower() == name.lower()]
+        ids.sort(key=lambda i: (i not in here.get(kind, set()), i))
+        parsed = parse_find_text(text)
+        if parsed is not None and parsed[2] in ids:
+            ids.insert(0, parsed[2])     # the id it was given, exactly
+        if not ids or not v.locate_id(kind.lower(), ids[0]):
+            self._statusbar.showMessage(
+                f"No element matches '{text.strip()}'", 4000)
             return
-
-        target: Any = None     # a _EventItem or a _HierItem
-        if kind == "Event":
-            target = next((it for eid, it in v._event_items.items()
-                           if v.events[eid].name == name), None)
-        elif kind == "Hier":
-            hid = next((h for h in v.hiers if v.hiers[h].name == name),
-                       None)
-            target = v._hier_items.get(hid) if hid is not None else None
-        if target is None:
-            return
-        for it in list(v._scene.selectedItems()):
-            it.setSelected(False)
-        target.setSelected(True)
-        v.centerOn(target)
         self._find_edit.clear()
 
     def _set_zoom_percent(self):

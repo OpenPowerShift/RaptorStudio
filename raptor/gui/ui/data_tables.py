@@ -325,6 +325,8 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         super().__init__(parent)
         self._view = None
         self._bound_rbd = None
+        #: Above 0 while a multi-row edit commits its rows one by one.
+        self._rows_batch = 0
         #: "Whole model": every level's rows, not just the one on screen.
         #: Kept for the session (it is a view of the model, not part of it).
         self._whole = False
@@ -686,7 +688,8 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         win = self.window()
         if hasattr(win, "statusBar"):
             win.statusBar().showMessage(
-                f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
+                "Nothing replaced: the change was refused." if changed < 0
+                else f"Replaced in {changed} cell{'s' if changed != 1 else ''}."
                 if changed else "Nothing to replace: no cell changed.", 5000)
 
     def _replace_cells(self, table: QTableWidget, needle: str,
@@ -734,9 +737,12 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             # No macro: an empty one is still an undo step that does nothing.
             return 0
         stack = getattr(getattr(self, "_view", None), "_stack", None)
+        refused = getattr(stack, "refusals", 0)
         if stack is not None:
             stack.beginMacro("Replace in table")
         changed = 0
+        # each cell's commit emits `model_edited`: act on it once, below
+        self._rows_batch += 1
         try:
             for target, new in edits:
                 target.setText(new)
@@ -745,8 +751,16 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                 if target.text() == new:
                     changed += 1
         finally:
+            self._rows_batch -= 1
             if stack is not None:
                 stack.endMacro()
+        if changed and getattr(stack, "refusals", 0) != refused:
+            # The rule gate refused the lot and put the model back; the
+            # cells still show the refused text until they are re-read
+            self.refresh()
+            return -1
+        if changed:
+            self.model_edited.emit()
         return changed
 
     @staticmethod
@@ -1387,16 +1401,21 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         before = stack.count()
         stack.beginMacro(f"Set {what} on {self._row_count(len(todo))}")
         results: list[bool] = []
+        # each row's commit emits `model_edited`; the window acts on it
+        # once, below, not once per row (`edits_batched`)
+        self._rows_batch += 1
         try:
             for k in todo:
                 results.append(bool(fn(k)))
         finally:
+            self._rows_batch -= 1
             stack.endMacro()
         changed = any(results)
         if changed and stack.count() == before:
             self._refresh_soon()                   # refused: rows revert
             return False
         if changed:
+            self.model_edited.emit()
             note = (f"Set {what} to {value} on "
                     f"{self._row_count(sum(results))}")
             if read_only:

@@ -47,6 +47,11 @@ class RunTimeoutError(RunError):
     """Simulation exceeded its timeout budget."""
 
 
+class StudyTimeoutError(RunTimeoutError):
+    """A study (many runs) reached its time limit before it had measured
+    anything worth showing."""
+
+
 class RunNotFoundError(RunError):
     """Referenced run_id does not exist in the workspace."""
 
@@ -140,6 +145,13 @@ class RunResult:
 # ---------------------------------------------------------------------------
 
 _SAFE_RUN_ID = re.compile(r"[A-Za-z0-9_\-]+")
+
+
+def resolve_seed(experiment: dict | None) -> int:
+    """The seed a run of `experiment` uses (Run panel ▸ Seed, #292): 0 for
+    Raptor 7's fixed table, its Number, or a fresh one for New."""
+    from raptor.core import run_experiment as _rx
+    return int(_rx.resolve_seed(experiment or {}))
 
 
 def run_dir(workspace: Workspace, run_id: str) -> Path:
@@ -316,6 +328,7 @@ def run(
     attribution: bool = False,
     capacity_rule: str = "proportional",
     insight_progress: Any = None,
+    block_streams: str | None = None,
 ) -> RunResult:
     """Execute a simulation and persist artefacts to ``runs/<run_id>/``.
 
@@ -359,6 +372,12 @@ def run(
     model is never mutated.  Unless ``confirm_long_run`` is set, the call
     estimates first and refuses work predicted to exceed ``timeout_s``.
 
+    ``block_streams`` ("model" or "separate") overrides the model's saved
+    Run panel ▸ Streams choice for this run: "separate" gives every block
+    that shares a random stream a pair of its own on the run's copy
+    (`raptor.core.edit.own_streams.separated_for_run`), the same numbers as
+    the GUI. ``None`` (default) follows the model.
+
     ``seed`` (optional, non-negative) salts every random stream so a batch
     can be re-rolled reproducibly; ``None`` (default) keeps the engine's
     fixed RAPTOR seed table, under which the same model and run count
@@ -375,11 +394,30 @@ def run(
             "The run length must be between 0.000001 and "
             "999,999,999.999999.")
     handle = workspace.get(model_id)
+    if seed is None:
+        # A seed saved with the model (Run panel ▸ Seed ▸ Number, #292).
+        # "New each run" is not honoured here: a study calls this once per
+        # variant, and a fresh seed each time would unpair them.
+        from raptor.core import run_experiment as _rx
+        saved = _rx.normalise(getattr(handle.rbd, "experiment", None) or {})
+        if saved["seed_mode"] == "number" and saved["seed"]:
+            seed = int(saved["seed"])
 
     # Work on a copy only when overriding, so the live model is untouched.
     sim_rbd = copy.deepcopy(handle.rbd) if run_length is not None else handle.rbd
     if run_length is not None:
         _set_run_length(sim_rbd, run_length)
+    if block_streams is not None:
+        from raptor.core import run_experiment as _rx
+        mode = str(block_streams).strip().lower()
+        if mode not in _rx.STREAM_MODES:
+            raise ValueError(
+                f"block_streams must be one of {', '.join(_rx.STREAM_MODES)}, "
+                f"got {block_streams!r}")
+        if sim_rbd is handle.rbd:
+            sim_rbd = copy.copy(sim_rbd)   # the experiment only; rows shared
+        sim_rbd.experiment = {**(getattr(sim_rbd, "experiment", None) or {}),
+                              "streams": mode}
 
     # The model's own Experiment recording intervals govern sampling, as
     # they do in the GUI. Ignoring them wrote availability at 10 and cost
@@ -678,20 +716,43 @@ def run(
     if flows is not None:
         # per-node mean flow: the diagram's lost-capacity layer reads it
         (runs_dir / "node_flow.json").write_text(json.dumps(flows))
+    skipped_attribution = ""
+    attributed: dict[str, Any] | None = None
+    if attribution and abort.is_set():
+        # The batch already stopped, and the replay checks the same stop
+        # flag: it raised Cancelled and the finished runs were thrown away,
+        # though partial results are promised to be kept.
+        skipped_attribution = (
+            "Downtime attribution was skipped: the batch stopped before the "
+            "end, and replaying its event log would go past the time limit. "
+            "The finished runs are kept; run again with fewer runs to see "
+            "what drives the downtime.")
+        attribution = False
     if attribution:
         from raptor.api.insight.attribution import (
             attribute_logs, model_hierarchies, model_phases,
         )
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
-        capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
-                                       capacity_rule, abort=abort,
-                                       progress=insight_progress)
-        attributed = attribute_logs(
-            [log if isinstance(log, list) else [log] for log in event_logs],
-            float(experiment.get("start_stats") or 0.0), abort=abort,
-            progress=insight_progress, with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd),
-            hierarchies=model_hierarchies(sim_rbd))
+        from raptor.api.progress import Cancelled
+        try:
+            capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
+                                           capacity_rule, abort=abort,
+                                           progress=insight_progress)
+            attributed = attribute_logs(
+                [log if isinstance(log, list) else [log] for log in event_logs],
+                float(experiment.get("start_stats") or 0.0), abort=abort,
+                progress=insight_progress, with_outages=True, capacity=capacity_runs,
+                phases=model_phases(sim_rbd), hierarchies=model_hierarchies(sim_rbd))
+        except Cancelled:
+            # stopped during the replay: the simulated runs are still kept
+            attributed = None
+            skipped_attribution = (
+                "Downtime attribution was stopped by the time limit or a "
+                "cancel before it finished. The simulated runs are kept; run "
+                "again with fewer runs, or a longer limit, to see what drives "
+                "the downtime.")
+    if attribution and attributed is not None:
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
@@ -706,6 +767,7 @@ def run(
         "model_name": handle.name,
         "model_hash": mhash,
         "num_runs": len(report_data),
+        "requested_runs": effective_runs,
         "units": model_units(sim_rbd),
         "analyses": analyses,
         "metrics": metrics_to_dict(metrics),
@@ -714,10 +776,17 @@ def run(
         "streams": run_metadata.get("streams", "sequential"),
         "seed": int(seed or 0),
     }
+    if effective_runs and len(report_data) < effective_runs:
+        # a cancelled or timed-out batch keeps what it completed; a client
+        # holding only the run id must still be able to tell it is partial
+        summary["truncated"] = ("time limit" if timed_out.is_set()
+                                else "cancelled")
     if importance_data is not None:
         summary["importance"] = importance_data
-    if attribution:
+    if attribution and not skipped_attribution:
         summary["attribution"] = True
+    if skipped_attribution:
+        summary["attribution_skipped"] = skipped_attribution
     (runs_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, default=str)
     )
@@ -731,9 +800,15 @@ def run(
     from raptor.core.fileio.out_of_service import note as _oos_note
     if (_oos := _oos_note(sim_rbd)):
         warnings.append(_oos)
-    if num_runs is not None and len(report_data) < num_runs:
+    if skipped_attribution:
+        warnings.append(skipped_attribution)
+    # Against the count the run was asked for, whether the caller passed it
+    # or the model holds it: `raptor run -n` sets the model's, so testing
+    # `num_runs` alone let a timed-out CLI run report success (exit 0).
+    if effective_runs is not None and len(report_data) < effective_runs:
         warnings.append(
-            f"Completed {len(report_data)}/{num_runs} runs (timeout or abort)"
+            f"Completed {len(report_data)}/{effective_runs} runs "
+            "(timeout or abort)"
         )
     # Sanity-check the pre-run estimate against reality.  Models with
     # non-uniform per-run cost (capacity/events/growth) can beat a short
@@ -1171,6 +1246,16 @@ def _weak_link_section(runs_dir: Path, *, offset: int, limit: int) -> dict[str, 
 # Public API — timeseries
 # ---------------------------------------------------------------------------
 
+def _need_series(path: Path, key: str) -> None:
+    """A plain "not recorded" for a series the run did not keep: a raw
+    "[Errno 2] No such file or directory: .../cost.txt" came back."""
+    if not path.is_file():
+        from raptor.api.run_needs import message
+        from raptor.api.workspace import RunArtefactsError
+        raise RunArtefactsError(message(f"{key}_plot" if key == "capacity" else key,
+                                        subject=f"the {key} series"))
+
+
 def _parse_cost_runs(text: str) -> list[dict[str, list]]:
     """Interim cost report -> one ``{t, values}`` per run.
 
@@ -1273,6 +1358,7 @@ def get_timeseries(
         envelope_fn = series_mod.mean_envelope
     elif series == "capacity":
         path = runs_dir / "capacity.txt"
+        _need_series(path, "capacity")
         raw_runs = series_mod.parse_capacity_runs(path.read_text())
         # `values` stays the flow column; the capacity column is returned
         # alongside it.
@@ -1284,6 +1370,7 @@ def get_timeseries(
         envelope_fn = series_mod.capacity_envelope
     elif series == "cost":
         path = runs_dir / "cost.txt"
+        _need_series(path, "cost")
         per_run = _parse_cost_runs(path.read_text())
         label = "Cost"
         envelope_fn = series_mod.mean_envelope
@@ -1447,9 +1534,12 @@ def streams_note(summary: dict) -> str:
     result that does not say which it was cannot be reproduced."""
     seed = int(summary.get("seed") or 0)
     salt = f" --seed {seed}" if seed else ""
+    mcp_salt = f", seed={seed}" if seed else ""
+    gui_salt = f", Seed ▸ Number {seed}" if seed else ""
     if summary.get("streams") == "parallel":
         return ("Random streams: parallel (any 2 or more cores give these "
-                f"numbers; repeat with `raptor run -j 2{salt}`, MCP workers=2, "
-                "or Cores 2+ in the GUI).")
+                f"numbers; repeat with `raptor run -j 2{salt}`, MCP "
+                f"workers=2{mcp_salt}, or Cores 2+{gui_salt} in the GUI).")
     return ("Random streams: sequential, as Raptor 7 draws them (repeat with "
-            f"`raptor run -j 1{salt}`, MCP workers=1, or Cores 1 in the GUI).")
+            f"`raptor run -j 1{salt}`, MCP workers=1{mcp_salt}, or Cores "
+            f"1{gui_salt} in the GUI).")

@@ -239,6 +239,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: button when the view does the latter -- without it the button
     #: stayed lit and the next click placed another shape.
     tool_mode_changed = Signal(str)
+    #: New blocks that were given a stream pair another block already
+    #: uses, because all 49 were taken (Separate Streams, #292).
+    streams_reused = Signal(int)
+    #: Preferences ▸ Working ▸ New blocks (separate streams); read by
+    #: `AddCmd`.
+    own_streams_for_new_blocks = False
     #: (kind, props | None) -- the saved "style for new <Kind>s" changed.
     #: `None` means the default was cleared. MainWindow persists it (it
     #: owns QSettings); the view only holds and applies it.
@@ -388,6 +394,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.default_annotation_props: dict[str, dict] = {}
         self._paste_buffer: list = []
         self._defer_block_refresh = False   # True while a batch is inserted
+        self._batch_link_ends: set = set()  # link ends to re-route after it
         self._model_token = clipboard_payload.new_model_token()
         self._connect_ghost: QGraphicsLineItem | None = None
         self._anno_drag_start: QPointF | None = None
@@ -1261,6 +1268,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             item = cls(int(a.get("id", 0)), cur, a, self,
                        *_anno_ctor_args(a))
             item.setZValue(float(a.get("z", ANNO_Z_DEFAULT)))
+            if not self.annotation_shown(a):
+                item.setVisible(False)    # View > Annotations hides it
             self._scene.addItem(item)
             self._anno_items[int(a.get("id", 0))] = item
 
@@ -2029,6 +2038,24 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                                  f"{self._endpoint_name(src_kind, src_id)}"
                                  f" -> {self._endpoint_name(kind, eid)}")
                 self._connect_from = None
+
+    def export_rect(self) -> QRectF:
+        """What an exported or printed picture of this level frames: every
+        item drawn now, annotations included, padded by 30.
+
+        Measured live. The cached `_content_rect` is set by a rebuild,
+        before the annotations are added, and not after an edit, so a PNG
+        or a printed page framed by it left out the notes, and anything
+        added or moved since the level was opened. A hidden item (View >
+        Annotations off) does not widen the frame."""
+        content = QRectF()
+        for it in self._scene.items():
+            if isinstance(it, _GridBackground) or not it.isVisible():
+                continue
+            content = content.united(it.sceneBoundingRect())
+        if content.isEmpty():
+            return QRectF(getattr(self, "_content_rect", None) or self.sceneRect())
+        return content.adjusted(-30, -30, 30, 30)
 
     def fit_all(self):
         """Zoom to fit the actual content bounding box. Computed fresh
@@ -3021,7 +3048,15 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         from raptor.gui.ui.quick_add import QuickAdd
         local = self.viewport().mapFromGlobal(QCursor.pos())
         if not self.viewport().rect().contains(local):
-            local = self.viewport().rect().center()
+            # From the ribbon: open under the selected block (its patterns
+            # are what the popup offers), not over it at the centre.
+            chosen = [item for bid, item in self._block_items.items()
+                      if bid != 0 and item.isSelected()]
+            if len(chosen) == 1:
+                rect = chosen[0].sceneBoundingRect()
+                local = self.mapFromScene(rect.left(), rect.bottom() + 8.0)
+            if not self.viewport().rect().contains(local):
+                local = self.viewport().rect().center()
         scene = (at_scene if at_scene is not None
                  else self.mapToScene(local))
         global_pos = self.viewport().mapToGlobal(local)

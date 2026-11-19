@@ -19,7 +19,7 @@ COMMANDS = (
     "convert", "sweep", "compare", "diff", "estimate", "report", "tables", "render",
     "spf", "fev", "step", "extract", "analytic", "whatif", "sensitivity", "recommend",
     "optimise", "fit", "library", "edit", "mcp", "config",
-    "completion", "doctor", "help",
+    "completion", "doctor", "help", "register-file-types",
 )
 
 
@@ -157,6 +157,11 @@ def eprint_once(msg: str) -> None:
         print(msg, file=sys.stderr)
 
 
+#: global options that take a value as the next word
+_GLOBAL_VALUE_OPTIONS = frozenset({"--log-level", "--log-file", "--config",
+                                   "--color", "--dev-features"})
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     argv = _legacy_switches(argv)
@@ -165,8 +170,12 @@ def main(argv: list[str] | None = None) -> int:
     # No command and no argument: the GUI. A first argument that is neither
     # an option nor a command is a model file (open it in the GUI) or an
     # error (a mistyped command).
-    first = next((a for a in argv if not a.startswith("-")), None)
-    only_globals = all(a.startswith("-") for a in argv)
+    # the command word: skip a global option's value (`--dev-features
+    # sim_details run M` read "sim_details" as the command)
+    words = [a for i, a in enumerate(argv) if not a.startswith("-")
+             and not (i and argv[i - 1] in _GLOBAL_VALUE_OPTIONS)]
+    first = words[0] if words else None
+    only_globals = not words
     if first is not None and first not in COMMANDS:
         if os.path.isfile(first):
             i = argv.index(first)
@@ -177,6 +186,15 @@ def main(argv: list[str] | None = None) -> int:
             return X.USAGE
     elif first is None and only_globals and not _is_help_or_version(argv):
         argv = argv + ["gui"]
+    if first in COMMANDS and first not in ("run", "simulate") and "--json" in argv \
+            and "mcp" not in argv[:argv.index("--json")]:
+        # argparse refused it with the top-level usage, which says nothing
+        # about where JSON output is
+        hint = ("use -f json" if _has_json_format(parser, first)
+                else "this command has no JSON output")
+        print(f"{PROG} {first}: there is no --json option here; {hint} "
+              f"(see '{PROG} {first} --help')", file=sys.stderr)
+        return X.USAGE
 
     passthrough: list[str] | None = None
     if first == "mcp":
@@ -194,7 +212,12 @@ def main(argv: list[str] | None = None) -> int:
     _apply_environment(args)
     _setup_logging(args)
     try:
-        return int(args.func(args) or 0)
+        code = int(args.func(args) or 0)
+        # Flush here, where a closed pipe is caught: output still buffered
+        # at exit failed in the interpreter instead ("Exception ignored
+        # while flushing sys.stdout", exit 120) after `raptor info | head`
+        sys.stdout.flush()
+        return code
     except CliError as exc:
         print(f"{PROG}: {exc}", file=sys.stderr)
         return exc.code
@@ -211,8 +234,11 @@ def main(argv: list[str] | None = None) -> int:
         return X.REFUSED
     except Exception as exc:                      # noqa: BLE001
         from raptor.api.build import AmbiguousName, ElementNotFound
-        if isinstance(exc, (ElementNotFound, AmbiguousName)):
-            # a misspelt or ambiguous name is a bad command line, not a crash
+        from raptor.core.input_rules import InputRuleViolation
+        if isinstance(exc, (ElementNotFound, AmbiguousName, InputRuleViolation)):
+            # a misspelt or ambiguous name, or a value the input rules
+            # refuse (-t 0, -n 99999999999), is a bad command line, not a
+            # crash: no "use -vv for the traceback"
             print(f"{PROG}: {exc}", file=sys.stderr)
             return X.USAGE
         if args.verbose >= 2 or args.debug:
@@ -220,6 +246,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{PROG}: error: {exc} (use -vv for the traceback)",
               file=sys.stderr)
         return X.RUNTIME
+
+
+def _has_json_format(parser: Any, command: str) -> bool:
+    """Whether `command` takes `-f json`."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            sub = action.choices.get(command)
+            return sub is not None and any(
+                "-f" in a.option_strings and "json" in (a.choices or ())
+                for a in sub._actions)
+    return False
 
 
 def _is_help_or_version(argv: list[str]) -> bool:

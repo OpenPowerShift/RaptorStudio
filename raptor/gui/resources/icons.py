@@ -11,7 +11,7 @@ from __future__ import annotations
 from math import atan2, cos, pi, sin
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter,
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath,
                            QPixmap, QPen, QPolygonF)
 import itertools
 
@@ -479,6 +479,32 @@ def collapse_all_icon(colour: str) -> QIcon:
 
 def text_annotation_icon(colour: str) -> QIcon:
     return _text_glyph("T", "anno_text", colour)
+
+
+def show_annotations_icon(colour: str) -> QIcon:
+    """View > Annotations: a dashed note with lines of text in it."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        pen = _outline_pen(c)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        p.setPen(pen)
+        p.drawRect(7, 9, 34, 30)
+        p.setPen(_outline_pen(c))
+        for y in (18, 24, 30):
+            p.drawLine(13, y, 35 if y < 30 else 27, y)
+    return _icon("show_annotations", colour, draw)
+
+
+def comment_notes_icon(colour: str) -> QIcon:
+    """View > Annotations: a speech bubble, for the comment notes."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(7, 8, 34, 24), 6, 6)
+        p.drawPath(path)
+        p.drawPolyline([QPointF(15, 32), QPointF(13, 41), QPointF(23, 32)])
+    return _icon("comment_notes", colour, draw)
 
 
 def rect_annotation_icon(colour: str) -> QIcon:
@@ -2394,6 +2420,29 @@ def spread_icon(colour: str) -> QIcon:
         for x in (15, 33):
             p.drawLine(x, 12, x, 38)
     return _icon("spread", colour, draw)
+
+
+def _wave(p: QPainter, x0: float, x1: float, y: float, amp: float = 4.0) -> None:
+    """One wavy stroke from x0 to x1 about y: a random-number stream."""
+    from PySide6.QtGui import QPainterPath
+    path = QPainterPath(QPointF(x0, y))
+    step = (x1 - x0) / 2
+    for i in range(2):
+        a, b = x0 + i * step, x0 + (i + 1) * step
+        path.cubicTo(QPointF(a + step / 3, y - amp),
+                     QPointF(b - step / 3, y + amp), QPointF(b, y))
+    p.drawPath(path)
+
+
+def streams_icon(colour: str) -> QIcon:
+    """Random streams (#292): three separate wavy streams, one faded."""
+    def draw(p: QPainter, c: QColor):
+        for y, alpha in ((12, 255), (24, 140), (36, 255)):
+            col = QColor(c)
+            col.setAlpha(alpha)
+            _stroke(p, col, 3)
+            _wave(p, 6, 42, y)
+    return _icon("streams", colour, draw)
 
 
 def compare_icon(colour: str) -> QIcon:

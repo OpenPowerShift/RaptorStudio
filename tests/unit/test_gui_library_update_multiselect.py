@@ -198,7 +198,9 @@ def test_many_templates_are_one_undo_step_and_one_gate_pass(win, monkeypatch):
     before = len(view.blocks)
     ids = view.add_blocks_from_templates(rows, view.mapToScene(0, 0))
     assert len(ids) == 40 and len(view.blocks) == before + 40
-    assert len(passes) == 1                    # the rule gate ran once
+    # The rule gate checks the 40 new rows once, not the model 40 times
+    # (new unlinked rows get the scoped check, so no whole-model pass).
+    assert len(passes) <= 1
     view._stack.undo()
     assert len(view.blocks) == before
     view._stack.redo()

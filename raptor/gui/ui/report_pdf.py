@@ -62,7 +62,7 @@ def hierarchy_levels(win) -> list[tuple[int, str]]:
 def _render_level(v, folder: Path, hid: int, tiles: int) -> list[str]:
     """One level's diagram as image file(s): one, or *tiles* strips side
     by side when it is to be printed across that many pages."""
-    src = getattr(v, "_content_rect", None) or v.sceneRect()
+    src = v.export_rect()
     w, h = max(src.width(), 1.0), max(src.height(), 1.0)
     factor = min(3.0, DIAGRAM_PX * tiles / max(w, h))
     image = QImage(max(int(w * factor), 1), max(int(h * factor), 1),
@@ -95,7 +95,7 @@ def _tiles_for(v, asked: int) -> int:
     minimum), or more when the level is a long chain whose labels would be
     too small across one page."""
     import math
-    src = getattr(v, "_content_rect", None) or v.sceneRect()
+    src = v.export_rect()
     aspect = src.width() / max(src.height(), 1.0)
     auto = 1
     if aspect >= STRIP_MIN_ASPECT and src.width() > UNITS_PER_STRIP:

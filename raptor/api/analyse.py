@@ -588,8 +588,16 @@ def compare(
             labels[i] = f"{label} ({models_or_runs[i]}) #{i + 1}"
 
     names = sorted({m.name for r in results for m in r.metrics})
+    unknown_metrics: list[str] = []
     if metrics:
         wanted = {m.lower() for m in metrics}
+        have = {n.lower() for n in names}
+        unknown_metrics = [m for m in metrics if m.lower() not in have]
+        if len(unknown_metrics) == len(metrics):
+            # was an empty "No comparison data" table
+            raise ValueError(
+                f"no metric named {', '.join(map(repr, unknown_metrics))}; "
+                f"these runs have: {', '.join(names)}")
         names = [n for n in names if n.lower() in wanted]
 
     values: dict[str, list[float | None]] = {}
@@ -646,7 +654,8 @@ def compare(
         "best": best,
         # Always present: a client can rely on the key, and an empty list
         # means no cached-summary or comparability caveats.
-        "warnings": warnings,
+        "warnings": warnings + [
+            f"no metric named {m!r}; it is left out" for m in unknown_metrics],
     }
 
 

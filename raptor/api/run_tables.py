@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from raptor.api.run import RunNotFoundError, run_dir, section_path
 from raptor.api.tables import ResultsBundle
@@ -171,3 +172,25 @@ def _periods(workspace: Workspace, run_id: str,
         return drivers.periods(workspace, run_id, rows=True)
     except (drivers.NoAttribution, ValueError, OSError):
         return None
+
+
+def partial_note(summary: dict) -> str | None:
+    """A sentence for a stored run that was cut short (`summary.json`'s
+    `truncated`), or None for a complete one."""
+    why = summary.get("truncated")
+    if not why:
+        return None
+    return (f"Partial run: it was stopped ({why}) after "
+            f"{summary.get('num_runs')} of {summary.get('requested_runs')} "
+            "requested replications. The numbers are from those alone.")
+
+
+def run_units(workspace: Any, run_id: str) -> str:
+    """The time unit of a stored run ("hours", "minutes"), or "" when the
+    run does not say. Raises RunNotFoundError for a run that does not
+    exist: a chart of one drew an empty "No runs." figure."""
+    from raptor.api.run import RunNotFoundError, run_dir
+    folder = run_dir(workspace, run_id)
+    if not folder.is_dir():
+        raise RunNotFoundError(f"Run {run_id!r} not found")
+    return str(read_summary(folder, run_id).get("units") or "")

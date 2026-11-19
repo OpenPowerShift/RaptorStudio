@@ -16,7 +16,7 @@ is planned maintenance worthwhile, and when
 \fBresources\fR
 how many crews or tools are needed
 .SH RAPTOR OPTIMISE SPARES
-\fBraptor optimise spares\fR [\-h] [\-\-target EXPR] [\-\-pools NAMES] [\-\-mode {meet,curve}] [\-\-budget N] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+\fBraptor optimise spares\fR [\-h] [\-\-target EXPR] [\-\-pools NAMES] [\-\-mode {meet,curve}] [\-\-budget N] [\-n N] [\-\-seed N|new] [\-j N] [\-\-timeout DURATION] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
 .SS Options
 .TP
 \fB\-\-target\fR \fIEXPR\fR
@@ -34,11 +34,14 @@ most simulation points to evaluate (default 40)
 \fB\-n\fR, \fB\-\-trials\fR \fIN\fR
 runs per point (default: the model's own)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+stop the study after DURATION, e.g. 90s, 10m (default 30m); what it measured by then is reported and marked partial
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
@@ -49,7 +52,7 @@ write the recommended stocks into the model
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 output format (default text)
 .SH RAPTOR OPTIMISE PM
-\fBraptor optimise pm\fR [\-h] [\-\-blocks NAMES] [\-\-objective {availability,cost}] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+\fBraptor optimise pm\fR [\-h] [\-\-blocks NAMES] [\-\-objective {availability,cost}] [\-n N] [\-\-seed N|new] [\-j N] [\-\-timeout DURATION] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
 .SS Options
 .TP
 \fB\-\-blocks\fR \fINAMES\fR
@@ -61,11 +64,14 @@ what to optimise (default availability)
 \fB\-n\fR, \fB\-\-trials\fR \fIN\fR
 runs per point (default: the model's own)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+stop the study after DURATION, e.g. 90s, 10m (default 30m); what it measured by then is reported and marked partial
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)
@@ -76,7 +82,7 @@ write the recommended intervals into the model
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 output format (default text)
 .SH RAPTOR OPTIMISE RESOURCES
-\fBraptor optimise resources\fR [\-h] [\-\-resources NAMES] [\-\-target EXPR] [\-\-extra N] [\-n N] [\-\-seed N] [\-j N] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
+\fBraptor optimise resources\fR [\-h] [\-\-resources NAMES] [\-\-target EXPR] [\-\-extra N] [\-n N] [\-\-seed N|new] [\-j N] [\-\-timeout DURATION] [\-\-progress {auto,bar,json,none}] [\-\-apply] [\-f {text,json}] MODEL
 .SS Options
 .TP
 \fB\-\-resources\fR \fINAMES\fR
@@ -91,11 +97,14 @@ sizes above the seed to try (default 3)
 \fB\-n\fR, \fB\-\-trials\fR \fIN\fR
 runs per point (default: the model's own)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+stop the study after DURATION, e.g. 90s, 10m (default 30m); what it measured by then is reported and marked partial
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)

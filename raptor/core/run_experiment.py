@@ -51,6 +51,16 @@ RUN_DEFAULTS: dict[str, Any] = {
     # The panel default is "both" for a user who switches it on -- see
     # `IMPORTANCE_DEFAULT_MODE` and `gui/ui/run_panel.py`.
     "importance": "none",
+    # Random numbers (#292): "fixed" is Raptor 7's seed table, so a run
+    # repeats exactly; "new" draws a seed for each run and records it;
+    # "number" uses `seed`. The seed salts every stream (`--seed`).
+    "seed_mode": "fixed",
+    "seed": 0,
+    # Block random streams for the run (#292): "model" uses each block's
+    # own stream settings; "separate" gives every block that shares a
+    # stream a pair of its own, on the run's copy only -- the model's
+    # streams are never edited (`own_streams.separated_for_run`).
+    "streams": "model",
     "recording": {
         "event_log": True,
         "ao_plot": False,
@@ -66,10 +76,15 @@ RUN_DEFAULTS: dict[str, Any] = {
 #: (the internal UI blueprint) and the whole reason a user
 #: turns the event log off is memory/disk.
 RECORDING_FIELDS = (
+    # Name everything the log feeds, not just its own tab: Downtime drivers,
+    # the Story's causes, the Advisor's downtime findings and the canvas
+    # downtime layers are all worked out from it, and switching it off
+    # emptied them with no word at the place the switch is.
     ("event_log", "Detailed event log",
-     "Every event, for the Event Log tab."),
+     "Every event. Also needed for Downtime drivers, the Story's causes "
+     "and the Advisor's downtime checks."),
     ("ao_plot", "Availability plot",
-     "Availability over time, for Graphs."),
+     "Availability over time, for Charts."),
     ("capacity_plot", "Capacity plot",
      "Flow vs capacity over time."),
     ("cost_plot", "Interim cost",
@@ -124,6 +139,59 @@ IMPORTANCE_MODES: tuple[str, ...] = ("none", "improvement", "risk", "both")
 
 #: What the panel selects when the user first switches the analysis on.
 IMPORTANCE_DEFAULT_MODE = "both"
+
+#: How a run seeds its random streams (see RUN_DEFAULTS).
+SEED_MODES = ("fixed", "new", "number")
+#: How a run treats block random streams (see RUN_DEFAULTS).
+STREAM_MODES = ("model", "separate")
+#: The largest seed: streams are mod 2**31 - 1.
+SEED_MAX = 2**31 - 2
+
+
+def resolve_seed(experiment: dict) -> int:
+    """The seed a run starting now uses: 0 (Raptor 7's table) for Fixed,
+    the stored number for Number, a fresh one for New."""
+    exp = normalise(experiment)
+    if exp["seed_mode"] == "number":
+        return int(exp["seed"])
+    if exp["seed_mode"] == "new":
+        import secrets
+        return 1 + secrets.randbelow(SEED_MAX)
+    return 0
+
+
+def seed_words(experiment: dict) -> str:
+    """'Raptor 7 seeds', 'new seed each run' or 'seed 1234'."""
+    exp = normalise(experiment)
+    if exp["seed_mode"] == "number":
+        return f"seed {int(exp['seed'])}"
+    if exp["seed_mode"] == "new":
+        return "new seed each run"
+    return "Raptor 7 seeds"
+
+
+def streams_words(experiment: dict) -> str:
+    """'' for the model's own streams, else 'separate block streams'."""
+    if normalise(experiment)["streams"] == "separate":
+        return "separate block streams"
+    return ""
+
+
+def lost_in_rbd(experiment: dict) -> list[str]:
+    """The run settings a `.rbd` has no column for, when they are not the
+    defaults, in words: what saving as `.rbd` drops."""
+    exp = normalise(experiment)
+    out = []
+    if exp["seed_mode"] != "fixed":
+        out.append(seed_words(exp))
+    if exp["streams"] != "model":
+        out.append(streams_words(exp))
+    if exp["importance"] != "none":
+        out.append("importance measures")
+    if exp["recording"] != RUN_DEFAULTS["recording"]:
+        out.append("recording choices")
+    return out
+
 
 _STATS_START_TOOLTIP = "Must be earlier than the run length."
 
@@ -187,9 +255,12 @@ def stats_start_tooltip(experiment: dict) -> str:
 PROFILES: dict[str, dict] = {
     "quick_check": {
         "label": "Quick check",
-        "hint": "A handful of trials — is the model running at all?",
+        "hint": "100 trials: a first estimate in seconds",
         "overrides": {
-            "trials": 10,
+            # 100, not 10: ten trials of a typical model give too few
+            # system failures to time, so a new user's first run met an
+            # Advisor warning about the default itself.
+            "trials": 100,
             "termination_type": "TimeSim",
             "term_condition": 1000.0,
             "start_stats": 0.0,
@@ -389,6 +460,13 @@ def normalise(raw: dict | None) -> dict:
     if mode in IMPORTANCE_MODES:
         out["importance"] = mode
 
+    seed_mode = str(src.get("seed_mode", out["seed_mode"])).strip().lower()
+    if seed_mode in SEED_MODES:
+        out["seed_mode"] = seed_mode
+    num("seed", int, 0, SEED_MAX)
+    streams = str(src.get("streams", out["streams"])).strip().lower()
+    if streams in STREAM_MODES:
+        out["streams"] = streams
     _normalise_recording(src.get("recording"), out["recording"])
     return out
 
@@ -491,7 +569,8 @@ def to_system_row(experiment: dict) -> list[tuple[str, str]]:
 
 
 def manifest(experiment: dict, *, model_hash: str, model_name: str,
-             engine_version: str = "", profile: str = "") -> dict:
+             engine_version: str = "", profile: str = "",
+             seed: int = 0) -> dict:
     """Freeze everything a result set needs to describe its own origin.
 
     This is the object that lets run settings be mutable without making
@@ -516,7 +595,12 @@ def manifest(experiment: dict, *, model_hash: str, model_name: str,
         "start_stats": normalised["start_stats"],
         "analyses": list(normalised["analyses"]),
         "recording": dict(normalised["recording"]),
-        "seed_strategy": "per-model streams (SysStreamsArray), fixed; "
-                         "re-running the same file replays the same "
-                         "draws",
+        # The seed this run USED (a New run draws one): with it, any run
+        # can be repeated by choosing Seed ▸ Number.
+        "seed": int(seed),
+        "seed_strategy": (
+            "Raptor 7 seed table, fixed; re-running the same file replays "
+            "the same draws" if not seed else
+            f"seed {int(seed)} ({normalised['seed_mode']}); choose Seed ▸ "
+            f"Number {int(seed)} to repeat this run"),
     }

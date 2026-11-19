@@ -54,7 +54,7 @@ def test_run_panel_checkbox_sets_both_by_default(qapp):
     assert p.experiment()["importance"] == "both"
     # The cost line has to state the actual work before the user commits.
     note = p.importance_note()
-    assert "6 block(s)" in note and "13 batches" in note
+    assert "6 blocks" in note and "13 batches" in note
     p._importance_check.setChecked(False)
     assert p.experiment()["importance"] == "none"
 

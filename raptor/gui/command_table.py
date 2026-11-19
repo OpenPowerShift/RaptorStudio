@@ -258,11 +258,35 @@ COMMANDS: tuple[CommandSpec, ...] = (
         on="toggled",
         checkable=True),
     CommandSpec(
+        id="view.show_annotations",
+        attr="_show_annotations_action",
+        text="Notes",
+        icon="show_annotations_icon:text",
+        tooltip="Show or hide every annotation (text, shapes, arrows) on "
+                "the canvas. Hidden annotations stay in the model and are "
+                "saved.",
+        handler="_set_annotations_shown",
+        on="toggled",
+        checkable=True,
+        checked=True),
+    CommandSpec(
+        id="view.show_comment_notes",
+        attr="_show_comment_notes_action",
+        text="Comments",
+        icon="comment_notes_icon:text",
+        tooltip="Show or hide only the canvas notes that show an "
+                "element's comment; other annotations stay.",
+        handler="_set_comment_notes_shown",
+        on="toggled",
+        checkable=True,
+        checked=True),
+    CommandSpec(
         id="model.quick_add",
         attr="_quick_add_action",
         text="Quick Add",
         icon="quick_add_icon:accent",
-        tooltip="Add an element at the cursor (Space or / on the canvas)",
+        tooltip="Repeat the selected block in series or parallel, or add a "
+                "copy or a part type (Space or / on the canvas)",
         handler="_diagram_dock.view.show_quick_add"),
     CommandSpec(
         id="view.command_search",
@@ -336,6 +360,20 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_validate_model",
         kwargs=(("quiet", False),),
         shortcut="F7",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="data.own_streams",
+        attr="_own_streams_action",
+        text="Separate Streams",
+        icon="streams_icon:accent",
+        tooltip=(
+            "Give every block that shares a random stream a failure and "
+            "repair stream of its own, saved in the model, so a change to "
+            "one block does not shift the others' draws. After 49 blocks "
+            "the streams are reused. Results then no longer match Raptor "
+            "7's. To try it without editing the model, use the Run "
+            "panel's Streams option. Undoable"),
+        handler="_give_blocks_own_streams",
         enabled_when="model_open"),
     # ---- Model -------------------------------------------------------
     CommandSpec(
@@ -740,8 +778,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Run to time…",
         icon="run_to_time_icon:accent",
         tooltip=(
-            "Advance until the sim time set in the Run panel is reached (or the "
-            "run ends)"),
+            "Advance until the sim time set in Step Settings (Debug tab) is "
+            "reached (or the run ends)"),
         handler="_on_run_to",
         enabled_when="can_start_batch"),
     CommandSpec(
@@ -1458,8 +1496,11 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: left of the tabs, as in Office: (section title, command ids). Commands
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("File", ("file.new", "file.open", "file.import_awb", "file.save",
+    ("File", ("file.new", "file.open", "file.save",
               "file.save_as", "file.close_file", "file.quit", "home.diff")),
+    # Other tools' files opened as a new model: one tile per format, so a
+    # new importer is one more id here.
+    ("Import", ("file.import_awb",)),
     # U22: one Export (the file type picks what is written), then Export
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.
@@ -1525,7 +1566,8 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_rates_button"),
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
-                           Btn("data.mass_edit", True)), priority=2),
+                           Btn("data.mass_edit", True),
+                           Btn("data.own_streams", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),
     _p("Simulate", "_simulate_page_index",
@@ -1561,6 +1603,9 @@ LAYOUT: tuple[Page, ...] = (
                       Custom("_build_step_menu"), Btn("sim.restart_step"),
                       Btn("sim.terminate"), Btn("view.focus_event")),
              priority=4),
+       # The values More Steps uses, beside it (they were a column of the
+       # Run panel, among the settings of an ordinary run).
+       Group("Step Settings", (Custom("_build_step_settings"),), priority=3),
        Group("Failure Effects", (Btn("analyse.fev_view", True),
                                  Btn("analyse.fev_fail"),
                                  Btn("analyse.fev_repair"),
@@ -1582,11 +1627,16 @@ LAYOUT: tuple[Page, ...] = (
        Group("Bands", (Custom("_build_weak_link_settings"),
                        Btn("results.weak_spread", True)), priority=2)),
     _p("View", "_view_page_index",
-       Group("Zoom", (Btn("arrange.fit", True),
+       Group("Zoom and Show", (Btn("arrange.fit", True),
                       Btn("arrange.zoom_selection", True),
                       Btn("arrange.zoom_in"), Btn("arrange.zoom_out"),
                       Btn("arrange.zoom_percent"),
-                      Btn("arrange.zoom_hierarchy")), priority=4),
+                      # the notes toggles fill the column under Hierarchy:
+                      # in a group of their own, or under Focus, the tab
+                      # no longer fitted 1280 px
+                      Btn("arrange.zoom_hierarchy"),
+                      Btn("view.show_annotations"),
+                      Btn("view.show_comment_notes")), priority=4),
        Group("Panels", (Btn("view.explorer_toggle"),
                         Btn("view.inspector_toggle"),
                         Btn("view.fev_inspector_toggle"),

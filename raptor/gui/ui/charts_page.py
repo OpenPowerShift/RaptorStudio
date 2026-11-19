@@ -26,7 +26,7 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont
 from PySide6.QtWidgets import (
-    QComboBox, QFileDialog, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
+    QComboBox, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
     QSplitter, QStackedWidget, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
@@ -56,6 +56,14 @@ class _Entry:
 GROUPS = ("The answer", "Over time", "Why it goes down", "Lost capacity",
           "Year by year", "Cost", "What matters most")
 
+#: The smallest height the chart is drawn at; a shorter page scrolls.
+CHART_MIN_HEIGHT = 340
+
+#: The charts that draw a target line, where the Target button is shown.
+TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
+                 "interval-availability", "availability-band", "availability-ladder",
+                 "downtime-waterfall", "annual-fan", "annual-dots")
+
 _RECORD_AO = ("These charts are drawn from the availability plot. "
               + run_needs.gui_hint("availability_plot"))
 _RECORD_CAP = ("These charts are drawn from the capacity plot. "
@@ -72,6 +80,8 @@ class ChartsPage(QWidget):
     enable_requested = Signal(list)
     #: the reader changed the bottom of the availability axis (saved with the model)
     y_floor_changed = Signal(float)
+    #: the target line, a fraction, or None when cleared
+    target_changed = Signal(object)
     #: "availability" or "capacity": save the recorded plot rows (Raptor's rpt_* file)
     raw_export_requested = Signal(str)
 
@@ -115,7 +125,10 @@ class ChartsPage(QWidget):
         self.stack = QStackedWidget()
         self.chart = ChartWidget()
         self.chart.locate_requested.connect(self.locate_requested)
-        self.stack.addWidget(self.chart)
+        # a short dock (1280 x 720) squashed the plot to about 100 px with
+        # its legend taking a third: keep a readable height and scroll
+        self.chart_scroll = self._scrolling(self.chart)
+        self.stack.addWidget(self.chart_scroll)
         self.stack.addWidget(self._build_missing_panel())
         rlay.addWidget(self.stack, 1)
         self.note = QLabel("")
@@ -128,6 +141,17 @@ class ChartsPage(QWidget):
         split.setStretchFactor(1, 1)
         split.setSizes([210, 800])
         self._sync_controls(None)
+
+    @staticmethod
+    def _scrolling(chart: QWidget) -> QWidget:
+        """The chart at a readable height, in a scroll area."""
+        from PySide6.QtWidgets import QFrame, QScrollArea
+        chart.setMinimumHeight(CHART_MIN_HEIGHT)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(chart)
+        return scroll
 
     def _build_bar(self) -> QHBoxLayout:
         """Run picker, axis floor and Export: shown only where a chart uses them."""
@@ -143,12 +167,13 @@ class ChartsPage(QWidget):
         self.run_of.setObjectName("SectionNote")
         self.floor_button = QPushButton("Axis from: auto")
         self.floor_button.setToolTip(
-            "Where the availability axis starts (0 to 0.999999). Auto fits the "
+            "Where the availability axis starts (0 to 99.9999 %). Auto fits the "
             "axis to the data; a value above 0 is a fixed floor used by every "
             "availability chart over time. Saved with the model.")
         self.floor_button.clicked.connect(self._ask_floor)
+        self.target_button = self._target_control()
         self.fold_box = QComboBox()
-        for text, share in (("Show every item", 0.0), ("Fold items below 1 %", 0.01),
+        for text, share in (("Fold nothing", 0.0), ("Fold items below 1 %", 0.01),
                             ("Fold items below 2 %", 0.02),
                             ("Fold items below 5 %", 0.05)):
             self.fold_box.addItem(text, share)
@@ -160,6 +185,7 @@ class ChartsPage(QWidget):
             bar.addWidget(widget)
         bar.addStretch(1)
         bar.addWidget(self.fold_box)
+        bar.addWidget(self.target_button)
         bar.addWidget(self.floor_button)
         self.export_button = QToolButton()
         self.export_button.setText("Export")
@@ -338,7 +364,7 @@ class ChartsPage(QWidget):
         return next((item for item in self._chart_items()
                      if not self._entries[item.data(0, _KEY)].missing), None)
 
-    def _catalogue(self) -> list[_Entry]:  # noqa: C901 - one table of charts
+    def _catalogue(self) -> list[_Entry]:  # noqa: C901, PLR0915 - one table of charts
         i = self._inputs
         per_run: list[dict] = i.get("per_run") or []
         attribution = i.get("attribution")
@@ -346,6 +372,10 @@ class ChartsPage(QWidget):
         periods = i.get("periods")
         report_data = i.get("report_data") or []
         target, units = i.get("target"), i.get("units") or ""
+        # The ladder, the waterfall and the year charts are availability
+        # whatever the headline measure is: a dependability target is not
+        # drawn on them.
+        a_target = target if (i.get("measure") or "availability") == "availability" else None
         entries: list[_Entry] = []
 
         def add(key: str, title: str, group: str,
@@ -358,26 +388,36 @@ class ChartsPage(QWidget):
                                   needs if missing else ()))
 
         no_runs = "" if per_run else "No runs yet: run the model (F5)."
+        # the Story's headline measure: the outcome and chance charts drew
+        # availability beside a dependability Story and convergence chart
+        measure = i.get("measure") or "availability"
+        label = measure.replace("_", " ").capitalize()
         add("trial-outcome", "Run-to-run outcome", "The answer",
-            lambda: _with_run_id(charts.trial_outcome(per_run, target=target,
-                                                      units=units), i), no_runs)
+            lambda: _with_run_id(charts.trial_outcome(
+                per_run, measure, label=label, target=target, units=units), i),
+            no_runs)
         add("ecdf", "Chance of reaching a value", "The answer",
-            lambda: charts.ecdf(per_run, target=target, units=units), no_runs)
+            lambda: charts.ecdf(per_run, measure, label=label, target=target,
+                                units=units), no_runs)
         add("availability-ladder", "Availability ladder", "The answer",
-            lambda: _with_run_id(charts.availability_ladder(_ladder(per_run)), i),
+            lambda: _with_run_id(charts.availability_ladder(_ladder(per_run), a_target), i),
             no_runs)
         add("convergence", "Has the run settled?", "The answer",
-            lambda: charts.convergence(per_run, i.get("measure") or "availability",
-                                       target=target),
+            lambda: charts.convergence(per_run, measure, target=target),
             "" if len(per_run) >= 2 else "Needs at least 2 runs.")
 
         ao, cap = self._ao_runs, self._cap_runs
         has_interval = any(v is not None for r in ao for v in r.get("interval", []))
+        # recorded, but the run ended before one interval did: "tick the
+        # Availability plot" was said with the plot ticked
+        short_run = ("The run is shorter than one recording interval, so no "
+                     "interval was completed. Lower the availability plot's "
+                     "interval under Run panel ▸ Recording, then run again.")
         for key, title, missing in (
                 ("availability-through-run", "Availability through a run",
                  "" if ao else _RECORD_AO),
                 ("interval-availability", "Availability interval by interval",
-                 "" if has_interval else _RECORD_AO),
+                 "" if has_interval else short_run if ao else _RECORD_AO),
                 ("availability-band", "Availability across all runs",
                  "" if len(ao) >= 2 else (
                      "Needs the availability plot of at least 2 runs." if ao
@@ -413,7 +453,7 @@ class ChartsPage(QWidget):
                 ("downtime-pareto", "Who causes the downtime",
                  lambda: charts.downtime_pareto(a), ""),
                 ("downtime-waterfall", "Where availability is lost",
-                 lambda: charts.downtime_waterfall(a, operational), ""),
+                 lambda: charts.downtime_waterfall(a, operational, a_target), ""),
                 ("downtime-treemap", "Downtime treemap",
                  lambda: charts.downtime_treemap(a), ""),
                 ("phase-downtime", "Downtime by phase",
@@ -452,16 +492,31 @@ class ChartsPage(QWidget):
             add(key, title, "Lost capacity", build, no_capacity,
                 action if not attribution else "", needs=capacity_needs)
 
-        no_years = ("" if periods else drivers_missing() or
-                    "Needs a run at least one whole year long, in hours.")
+        ends = [float(row["ending_sim_time"]) for row in per_run
+                if isinstance(row.get("ending_sim_time"), (int, float))]
+        length = max(ends) if ends else None
+        if periods:
+            no_years = ""
+        elif drivers_missing():
+            no_years = drivers_missing()
+        elif not str(i.get("units") or "hours").lower().startswith("hour"):
+            # "this run is 480 hours" was said of a 480-minute run
+            no_years = ("The year charts need the model's time unit to be "
+                        f"hours; this model counts {str(i.get('units')).lower()}.")
+        elif length is not None and length >= 8760:
+            no_years = ("No outage was recorded, so every year was fully "
+                        "available: there is nothing to draw year by year.")
+        else:
+            no_years = ("Needs a run at least one whole year long (8,760 hours)"
+                        + (f"; this run is {length:,.0f} hours." if length else "."))
         years_needs: tuple[str, ...] = (
             ("attribution",) if not attribution and not action else ())
         p = periods or {}
         add("annual-fan", "Availability year by year", "Year by year",
-            lambda: charts.annual_fan(p), no_years, action if not attribution else "",
+            lambda: charts.annual_fan(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
         add("annual-dots", "A bad year, as a frequency", "Year by year",
-            lambda: charts.annual_dots(p), no_years, action if not attribution else "",
+            lambda: charts.annual_dots(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
         add("annual-capacity-fan", "Capacity delivered year by year", "Year by year",
             lambda: charts.annual_capacity_fan(p),
@@ -532,7 +587,7 @@ class ChartsPage(QWidget):
         self._sync_controls(entry)
         if entry is None:
             self.chart.set_spec(None)
-            self.stack.setCurrentWidget(self.chart)
+            self.stack.setCurrentWidget(self.chart_scroll)
             return
         if entry.missing:
             self._show_missing(entry.title, entry.missing, entry.action)
@@ -549,7 +604,7 @@ class ChartsPage(QWidget):
             spec = charts.fold_small(spec, self.fold_share)
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
-        self.stack.setCurrentWidget(self.chart)
+        self.stack.setCurrentWidget(self.chart_scroll)
 
     def _on_missing_action(self) -> None:
         entry = self._entries.get(self.selected_key() or "")
@@ -579,8 +634,10 @@ class ChartsPage(QWidget):
         floor = key in ("availability-through-run", "interval-availability",
                         "availability-band")
         self.floor_button.setVisible(floor)
+        self.target_button.setVisible(key in TARGET_CHARTS)
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
         self._sync_floor_text()
+        self._sync_target_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
 
@@ -602,13 +659,62 @@ class ChartsPage(QWidget):
 
     def _sync_floor_text(self) -> None:
         self.floor_button.setText(
-            "Axis from: auto" if self._y_floor <= 0 else f"Axis from: {self._y_floor:.4g}")
+            "Axis from: auto" if self._y_floor <= 0
+            else f"Axis from: {100 * self._y_floor:.4g} %")
+
+    def _target_control(self) -> QPushButton:
+        button = QPushButton("Target: none")
+        button.setToolTip(
+            "A target availability drawn as a dashed line on these charts and "
+            "judged in the Overview's Story (met or missed, and by how many "
+            "runs). It is only a visual cue: it does not change the model or "
+            "the simulation, and it is not saved with the model.")
+        button.clicked.connect(self._ask_target)
+        return button
+
+    @property
+    def target(self) -> float | None:
+        value = self._inputs.get("target")
+        return float(value) if isinstance(value, (int, float)) else None
+
+    def set_target(self, value: float | None) -> None:
+        """The target line (a fraction; None or 0 clears it). No signal:
+        the dock passes back what the page told it."""
+        value = value if value and 0.0 < value <= 1.0 else None
+        if value == self.target:
+            return
+        self._inputs["target"] = value
+        self._time_cache.clear()
+        self._rebuild()
+        self._sync_target_text()
+
+    def _sync_target_text(self) -> None:
+        target = self.target
+        self.target_button.setText("Target: none" if target is None
+                                   else f"Target: {100 * target:.6g} %")
+
+    def _ask_target(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getDouble(
+            self, "Target line",
+            f"Target {(self._inputs.get('measure') or 'availability').replace('_', ' ')},"
+            " in % (0 = no target).\nA visual cue only: "
+            "the model and the simulation do not change.",
+            round(100 * (self.target or 0.0), 6), 0.0, 100.0, 6)
+        if not ok:
+            return
+        target = value / 100.0 if value > 0 else None
+        if target != self.target:
+            self.set_target(target)
+            self.target_changed.emit(target)
 
     def _ask_floor(self) -> None:
         from PySide6.QtWidgets import QInputDialog
+        # in percent, as the axis is: it asked for 0.95 under a 95 % axis
         value, ok = QInputDialog.getDouble(
-            self, "Availability axis", "Start the axis at (0 = fit to the data):",
-            self._y_floor, 0.0, 0.999999, 6)
+            self, "Availability axis", "Start the axis at, in % (0 = fit to the data):",
+            round(100 * self._y_floor, 4), 0.0, 99.9999, 4)
+        value /= 100.0
         if ok and 0.0 <= value < 1.0 and value != self._y_floor:
             self.set_y_floor(value)
             self.y_floor_changed.emit(value)
@@ -663,25 +769,24 @@ class ChartsPage(QWidget):
     def save_csv(self, path: str) -> None:
         self.chart.save_csv(path)
 
-    def _ask(self, caption: str, filters: str) -> str:
-        stem = (self.selected_key() or "chart")
-        path, _ = QFileDialog.getSaveFileName(self, caption, stem, filters)
-        return path
+    def _ask(self, caption: str, label: str, ext: str) -> str:
+        from raptor.gui.ui.chart_widget import ask_chart_path
+        return ask_chart_path(self, caption, self.selected_key() or "chart", label, ext)
 
     def _ask_svg(self) -> None:
-        if path := self._ask("Save chart", "SVG image (*.svg)"):
+        if path := self._ask("Save chart", "SVG image", ".svg"):
             self.save_svg(path)
 
     def _ask_png(self) -> None:
-        if path := self._ask("Save chart", "PNG image (*.png)"):
+        if path := self._ask("Save chart", "PNG image", ".png"):
             self.save_png(path)
 
     def _ask_pdf(self) -> None:
-        if path := self._ask("Save chart", "PDF document (*.pdf)"):
+        if path := self._ask("Save chart", "PDF document", ".pdf"):
             self.save_pdf(path)
 
     def _ask_csv(self) -> None:
-        if path := self._ask("Save chart data", "CSV (*.csv)"):
+        if path := self._ask("Save chart data", "CSV", ".csv"):
             self.save_csv(path)
 
     def _ask_raw(self) -> None:

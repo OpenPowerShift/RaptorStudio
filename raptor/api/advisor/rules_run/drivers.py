@@ -9,7 +9,7 @@ import math
 from collections.abc import Iterable
 
 from raptor.api.advisor import text
-from raptor.api.advisor.context import RunContext
+from raptor.api.advisor.context import NONE_DIST, RunContext
 from raptor.api.advisor.finding import Finding, Target
 from raptor.api.advisor.registry import rule
 from raptor.api.insight.attribution import CAUSE_LABELS
@@ -49,21 +49,26 @@ def _share(row: dict) -> float:
 def top_contributors(ctx: RunContext) -> Iterable[Finding]:
     if not ctx.attribution:
         return
-    rows = top(ctx.attribution, 50)
-    if not rows:
-        return
+    # "(no single element)" is not an element: "1 of 2 elements cause 93 %:
+    # (no single element) 93 %" sent people looking for a broken block
+    rows = [r for r in top(ctx.attribution, 50) if r["kind"] != "system"]
+    total = len(ctx.blocks) + len(ctx.events)
+    if not rows or total <= 1:
+        return             # "1 of 1 elements cause 100 %" says nothing
     picked, covered = [], 0.0
     for row in rows[:5]:
         picked.append(row)
         covered += _share(row)
         if covered >= COVER:
             break
+    if len(picked) == total:
+        return             # "2 of 2 elements cause 100 %": every element, no news
     listed = ", ".join(f"{r['name']} {text.fmt_pct(_share(r))}" for r in picked)
-    total = len(ctx.blocks) + len(ctx.events)
+    verb = "causes" if len(picked) == 1 else "cause"
     yield Finding(
         rule="R-DRV-001", severity="info", category="drivers",
         title="A few elements cause most of the downtime",
-        message=(f"{len(picked)} of {total} elements cause {text.fmt_pct(covered)} of system "
+        message=(f"{len(picked)} of {total} elements {verb} {text.fmt_pct(covered)} of system "
                  f"downtime: {listed}."),
         why="Each system outage is charged to the element that started it. The "
             "shares are averages over the runs that had an outage. They describe "
@@ -75,24 +80,110 @@ def top_contributors(ctx: RunContext) -> Iterable[Finding]:
         doc="advisor.html#R-DRV-001")
 
 
+#: Leave out a driver this small next to one holding most of the downtime:
+#: two of three Story lines were about blocks causing 0.1 %.
+MINOR_SHARE = 0.02
+
+
+def _lever(ctx: RunContext, row: dict, cause: str) -> str:
+    """The lever for one element's main cause, in its own terms."""
+    if cause == "done" and row["kind"] == "block":
+        block = ctx.block_by_id.get(int(row["id"])) or {}
+        if str(block.get("sparing_type", "")).lower() == "pooled":
+            # it had a repair: the pool ran dry ("a spare or a repair path
+            # is needed" named neither the pool nor the cause)
+            return (f"Its spare pool {block.get('spare_pool')} ran out, so it was "
+                    "never repaired: more stock or an emergency order there helps most.")
+        if int(block.get("repair_dist") or 0) == NONE_DIST:
+            return ("It has no repair by design, so it stays down for the rest of the "
+                    "run: redundancy, or a longer life, is what helps.")
+    if cause == "done" and row["kind"] == "event":
+        return ("It is an event: once it happens it stays that way for the rest of "
+                "the run, so its probability is the lever.")
+    if cause == "wait_spare" and row["kind"] == "block":
+        pool = (ctx.block_by_id.get(int(row["id"])) or {}).get("spare_pool")
+        if pool and str(pool).lower() != "unnamed":
+            return f"More stock at pool {pool}, or faster delivery, helps most."
+    return _LEVER[cause]
+
+
+def _at_pool(ctx: RunContext, name: str) -> str:
+    """' at pool SP' for a block drawing on a named pool."""
+    block = next((b for b in ctx.blocks if b.get("name") == name), None) or {}
+    pool = block.get("spare_pool")
+    return f" at pool {pool}" if pool and str(pool).lower() != "unnamed" else ""
+
+
+def _held_after(ctx: RunContext, row: dict) -> tuple[float, str, str] | None:
+    """When outages this element starts mostly last because another one is
+    held or waiting, (share of its downtime, that element, its cause): the
+    Story said "hands-on repair 100 %. Shorter repairs help most." while
+    98.9 % of it was a backup held idle by the element it backed up."""
+    kinds = {"block": "RBDBlock", "event": "RBDEvent", "node": "RBDNode"}
+
+    def counts(entry: dict) -> bool:
+        if entry.get("cause") != "dependency":
+            return True
+        # held because it follows THIS element: a block that follows the
+        # whole system goes idle in every outage, and that is no cause
+        block = next((b for b in ctx.blocks if b.get("id") == entry.get("id")), {})
+        return (str(block.get("dep_type") or "") == kinds.get(str(row.get("kind")))
+                and int(block.get("dep_num") or 0) == int(row.get("id") or 0))
+    # this element alone does not stop the system as drawn: what else was
+    # out is why the outage happened (a series element is down by itself)
+    if not ctx.redundant((str(row.get("kind")), int(row.get("id") or 0))):
+        return None
+    best = max((a for a in row.get("alongside") or []
+                if a.get("kind") == "block" and counts(a)),
+               key=lambda a: a.get("share") or 0.0, default=None)
+    if best is None or (best.get("share") or 0.0) < 0.5:
+        return None
+    return float(best["share"]), str(best["element"]), str(best["cause"])
+
+
 @rule("R-DRV-002", title="Where a top contributor's time goes",
       category="drivers", basis="statistical", severity="advice", needs=("model", "run"))
 def main_cause(ctx: RunContext) -> Iterable[Finding]:
     if not ctx.attribution:
         return
     units = ctx.attribution.get("units") or ctx.units
-    for row in top(ctx.attribution, 3):
+    rows = top(ctx.attribution, 3)
+    lead = _share(rows[0]) if rows else 0.0
+    for row in rows:
         cause = row["main_cause"]
         part = row["causes"].get(cause, 0.0) if cause else 0.0
-        if not cause or part < MAIN_CAUSE or cause == "other":
+        if not cause or part < MAIN_CAUSE or cause == "other" or row["kind"] == "system":
+            continue
+        if lead >= 0.5 and _share(row) < MINOR_SHARE:
             continue
         hours = row["red_time"]["mean"] or 0.0
+        if cause == "done":       # not "is all not repairable"
+            cause_text = ("time it stays down for good" if part >= 0.995 else
+                          f"{text.fmt_pct(part)} time it stays down for good")
+        else:
+            cause_text = (f"all {CAUSE_LABELS[cause].lower()}" if part >= 0.995
+                          else f"{text.fmt_pct(part)} {CAUSE_LABELS[cause].lower()}")
+        message = (f"{row['name']}: the {text.fmt_time(hours, units)} of system downtime "
+                   f"it starts each run is {cause_text}. {_lever(ctx, row, cause)}")
+        held = _held_after(ctx, row)
+        if held is not None:
+            part_held, other, how = held
+            name = row["name"]
+            what = {"dependency": f"held down because it follows {name}. That "
+                                  f"dependency takes away the redundancy {name} "
+                                  f"has: check {other}'s dependency",
+                    "wait_spare": "waiting for a spare. More stock"
+                                  + _at_pool(ctx, other) + " or faster delivery helps",
+                    "wait_resource": "waiting for people or equipment. More crews "
+                                     "help"}[how]
+            message = (f"{name} starts {text.fmt_pct(_share(row))} of the system "
+                       f"downtime. {name} alone does not stop the system, but for "
+                       f"{text.fmt_pct(part_held)} of that time {other} was out too, "
+                       f"{what}.")
         yield Finding(
             rule="R-DRV-002", severity="advice", category="drivers",
             title="Where a top contributor's time goes",
-            message=(f"{row['name']}: {text.fmt_pct(part)} of the "
-                     f"{text.fmt_time(hours, units)} of system downtime it starts each run is "
-                     f"{CAUSE_LABELS[cause].lower()}. {_LEVER[cause]}"),
+            message=message,
             why="The time of each outage is split by what the system was waiting "
                 "for at each moment: the repair itself, a spare, a crew, a "
                 "logistics delay, planned maintenance, or another element.",
@@ -297,7 +388,7 @@ def availability_overstates(ctx: RunContext) -> Iterable[Finding]:
     yield Finding(
         rule="R-CAP-103", severity="warning", category="capacity",
         title="Availability overstates the service delivered",
-        message=(f"Availability is {text.fmt_pct(mean_a)} but only "
+        message=(f"Availability is {text.fmt_avail(mean_a)} but only "
                  f"{text.fmt_pct(mean_c)} of the capacity is delivered"
                  + (f"; {top['name']} loses the most." if top else ".")),
         why="A system can be 'up' while delivering less than the demand: "

@@ -85,7 +85,7 @@ def add_parser(sub: Any) -> None:
     c.add_argument("input", metavar="IN")
     c.add_argument("output", metavar="OUT")
     c.add_argument("--to", choices=("rbd", "rbds", "awb"),
-                   help="format to write (default: OUT's extension)")
+                   help="format to write; it must match OUT's extension, which is the default")
     c.add_argument("--allow-lossy", action="store_true",
                    help=".rbds-only content (annotations, experiment "
                         "settings, rate definitions) is dropped in .rbd; "
@@ -233,6 +233,18 @@ def _for_reading(data: dict) -> dict:
     return out
 
 
+def _settable_text(value: Any) -> str:
+    """A value as `raptor set` takes it back: a list of numbers is
+    `400,0,0` (the JSON `[400.0, 0.0, 0.0]` was refused by set)."""
+    if isinstance(value, list) and all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+        return ",".join(str(int(v)) if isinstance(v, float) and v.is_integer()
+                        else repr(v) for v in value)
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    return str(value)
+
+
 def get_command(args: Any) -> int:
     from raptor.api import paths
     values: dict[str, Any] = {}
@@ -248,11 +260,11 @@ def get_command(args: Any) -> int:
     if args.format == "json":
         emit_json(values, None)
     elif len(values) == 1:
-        v = next(iter(values.values()))
-        print(json.dumps(v) if isinstance(v, (list, dict)) else v)
+        # one path: the bare value, as `git config` does, for $(...) use
+        print(_settable_text(next(iter(values.values()))))
     else:
         for k, v in values.items():
-            print(f"{k}={json.dumps(v) if isinstance(v, (list, dict)) else v}")
+            print(f"{k}={_settable_text(v)}")
     return X.OK
 
 
@@ -268,11 +280,18 @@ def set_command(args: Any) -> int:
         raise CliError("refusing to guess where to write: give -o OUT or "
                        "--in-place", X.USAGE)
     src = Path(args.model)
+    if args.output and Path(args.output).suffix.lower() not in (".rbds", ".rbd"):
+        # Checked before anything runs: the save used to fail at the end
+        # with "format='rbds' needs a .rbds path; got '.raptor-tmp'",
+        # naming its own temporary file (exit 1).
+        raise CliError(f"-o {args.output}: the output must be a .rbds or "
+                       ".rbd file", X.USAGE)
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
-        for t in texts:
+        for group in paths.assignment_groups(texts):
+            t = " ".join(group)
             try:
-                paths.apply_assignment(ws, mid, t)
+                paths.apply_group(ws, mid, group)
             except paths.PathError as exc:
                 raise CliError(f"{t!r}: {exc}", X.USAGE) from exc
             except Exception as exc:
@@ -287,14 +306,35 @@ def set_command(args: Any) -> int:
             res = ws.save_model_as(mid, str(dest.with_name(
                 dest.stem + ".raptor-tmp" + dest.suffix)), fmt=fmt)
             Path(res["path"]).replace(dest)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             raise CliError(f"cannot write {dest}: {exc}", X.OUTPUT) from exc
     eprint(f"wrote {dest} ({len(texts)} change(s))")
     return X.OK
 
 
+def _check_convert_output(args: Any, dest: Path) -> None:
+    if args.to and dest.suffix.lower() != f".{args.to}":
+        # was refused only at the write, with exit 6 and "format='rbd'
+        # needs a .rbd path"
+        raise CliError(f"{args.output}: --to {args.to} writes a .{args.to} "
+                       f"file; name the output {dest.stem}.{args.to}", X.USAGE)
+    if dest.suffix.lower() not in (".rbds", ".rbd", ".awb"):
+        raise CliError(f"{args.output}: the output must be a .rbds, .rbd or "
+                       ".awb file", X.USAGE)
+
+
 def convert_command(args: Any) -> int:
     src, dest = Path(args.input), Path(args.output)
+    try:
+        same = dest.exists() and src.resolve() == dest.resolve()
+    except OSError:
+        same = False
+    if same:
+        # Converting a file onto itself rewrote (normalised) the source
+        # with no word; `set --in-place` is the command for that.
+        raise CliError(f"{args.output}: the output is the input file; "
+                       "give a different output path", X.USAGE)
+    _check_convert_output(args, dest)
     if src.suffix.lower() == ".awb":
         fmt = args.to if args.to in ("rbd", "rbds") else (
             "rbd" if dest.suffix.lower() == ".rbd" else "rbds")
@@ -339,28 +379,33 @@ def _convert_to_awb(args: Any, src: Path, dest: Path) -> int:
         mid = open_model(ws, args.input)
         rbd = ws.get(mid).rbd
         actions: list[str] = []
+        norm: Path | None = None
         if getattr(args, "normalize_out", None):
             rbd, actions = awb_api.normalize(rbd)
             norm = Path(args.normalize_out)
             if norm.suffix.lower() not in (".rbds", ".rbd"):
                 norm = norm.with_suffix(".rbds")
+        report = awb_api.export(rbd, dest, source=args.input, write=False,
+                                sidecar=not args.no_sidecar)
+        report.notes.extend(f"normalized: {a}" for a in actions)
+        # Refuse or preview BEFORE anything is written, the reduced model
+        # included: "nothing was written" must be true.
+        if args.strict and report.has_losses:
+            _print_awb_report(report, args)
+            raise CliError(
+                "AWB cannot represent every feature in this model; nothing "
+                "was written (drop --strict to proceed and keep the summary)",
+                X.REFUSED)
+        if args.dry_run:
+            _print_awb_report(report, args)
+            eprint("dry run: nothing written")
+            return X.OK
+        if norm is not None:
             nmid = ws.register_model(rbd, name=norm.stem,
                                      source=str(src))["model_id"]
             ws.save_model_as(nmid, str(norm), fmt=(
                 "rbd" if norm.suffix.lower() == ".rbd" else "rbds"))
             eprint(f"wrote normalized model {norm}")
-        report = awb_api.export(rbd, dest, source=args.input, write=False,
-                                sidecar=not args.no_sidecar)
-        report.notes.extend(f"normalized: {a}" for a in actions)
-    if args.strict and report.has_losses:
-        _print_awb_report(report, args)
-        raise CliError(
-            "AWB cannot represent every feature in this model; nothing was "
-            "written (drop --strict to proceed and keep the summary)", X.REFUSED)
-    if args.dry_run:
-        _print_awb_report(report, args)
-        eprint("dry run: nothing written")
-        return X.OK
     try:
         written_report = awb_api.export(rbd, dest, source=args.input,
                                         sidecar=not args.no_sidecar)

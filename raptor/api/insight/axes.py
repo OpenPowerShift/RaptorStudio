@@ -36,8 +36,32 @@ def nice_ticks(low: float, high: float, count: int = 5) -> list[float]:
     return ticks
 
 
-def nice_range(low: float, high: float, count: int = 5) -> tuple[float, float]:
-    """[low, high] widened to whole tick steps (so the axis ends on a tick)."""
+def nice_range(low: float, high: float, count: int = 5, *,
+               share: bool = False) -> tuple[float, float]:
+    """[low, high] widened to whole tick steps (so the axis ends on a tick).
+
+    `share`: the values are fractions (availability, a share), so the axis
+    never leaves 0..1. Every run at 100 % drew an axis to 101 %, and a
+    spread of 6e-8 gave ticks at 8 decimals, so a spread under a thousandth
+    of a point is drawn one point wide. A larger spread under one point is
+    drawn to fit, with a tenth of it as margin: runs from 99.85 % to
+    99.995 % were drawn on a 99 % to 100 % axis, all in its top sixth.
+    Callers put the target in `low`..`high`, so it is always on the axis."""
+    if share:
+        low, high = max(0.0, min(low, 1.0)), max(0.0, min(high, 1.0))
+        if 1e-5 <= high - low < 0.01:
+            margin = 0.1 * (high - low)
+            low, high = nice_range(max(0.0, low - margin), min(1.0, high + margin), count)
+            return max(0.0, low), min(1.0, high)
+        if high - low < 0.01:
+            middle = (low + high) / 2
+            low, high = middle - 0.005, middle + 0.005
+            if high > 1.0:
+                low, high = 0.99, 1.0
+            elif low < 0.0:
+                low, high = 0.0, 0.01
+        low, high = nice_range(low, high, count)
+        return max(0.0, low), min(1.0, high)
     if high <= low:
         pad = abs(low) * 0.01 or 1.0
         return low - pad, high + pad
@@ -48,6 +72,17 @@ def nice_range(low: float, high: float, count: int = 5) -> tuple[float, float]:
     places = max(0, 2 - math.floor(math.log10(step)))
     return (round(math.floor(low / step + 1e-9) * step, places),
             round(math.ceil(high / step - 1e-9) * step, places))
+
+
+def log_ticks(low: float, high: float) -> list[float]:
+    """Round ticks (1, 2, 5 x a power of ten; only powers past four
+    decades) between `low` and `high`, both above 0."""
+    low, high = max(low, 1e-12), max(high, low * 10)
+    decades = range(math.floor(math.log10(low)), math.ceil(math.log10(high)) + 1)
+    steps = (1, 2, 5) if len(decades) <= 4 else (1,)
+    ticks = [m * 10.0 ** k for k in decades for m in steps
+             if low <= m * 10.0 ** k <= high]
+    return ticks if len(ticks) >= 2 else sorted({low, high})
 
 
 def tick_text(value: float, ticks: Sequence[float], *, percent: bool = False,

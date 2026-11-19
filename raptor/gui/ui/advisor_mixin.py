@@ -106,13 +106,25 @@ class AdvisorMixin:
             log.exception("advisor refresh failed")
             findings, run_findings = [], []
         panel.set_findings(findings, [ignore.describe(self._rbd, entry)
-                                      for entry in ignore.entries(self._rbd)])
+                                      for entry in ignore.entries(self._rbd)],
+                           note=self._advisor_skipped_note())
         self._set_advisor_title(findings)
         sync = getattr(self, "_sync_advisor_overlay", None)
         if sync is not None:
             sync()
         if run_findings:
             self._introduce_advisor()
+
+    def _advisor_skipped_note(self) -> str:
+        """Say so when the downtime checks could not run: they read the
+        event log, and without it they were simply missing."""
+        ran_without = getattr(getattr(self, "_results", None),
+                              "ran_without_event_log", None)
+        if ran_without is None or not ran_without():
+            return ""
+        from raptor.api import run_needs
+        return ("What drives the downtime was not checked: that reads the "
+                "event log. " + run_needs.gui_hint("attribution"))
 
     def _introduce_advisor(self) -> None:
         """The first run with something to say opens the Advisor, once per

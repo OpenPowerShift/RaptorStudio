@@ -80,7 +80,9 @@ class Backstage(QWidget):
         # ---- navigation column ------------------------------------------
         nav = QFrame()
         nav.setObjectName("BackstageNav")
-        nav.setFixedWidth(210)
+        # 280, not 210: "Import Availability Workbench…" was cut to
+        # "Import Availability Wor..."
+        nav.setFixedWidth(280)
         nl = QVBoxLayout(nav)
         nl.setContentsMargins(0, 12, 0, 12)
         nl.setSpacing(2)
@@ -103,14 +105,19 @@ class Backstage(QWidget):
         self._home_page = self._build_home_page()
         self._new_page = self._build_new_page()
         self._recent_page = self._build_recent_page()
-        self._share_page = self._build_share_page()
+        self._tiles: list[QPushButton] = []
+        sections = dict(BACKSTAGE)
+        self._import_page = self._build_tile_page("Import", sections["Import"])
+        self._share_page = self._build_tile_page("Print and Export",
+                                                 sections["Print and Export"])
         self._add_page_button(nl, "Home", self._home_page, "home_icon")
         self._add_page_button(nl, "New", self._new_page, "new_file_icon")
         self._add_page_button(nl, "Recent", self._recent_page,
                               "recent_files_icon")
-        for cid in BACKSTAGE[0][1]:
+        for cid in sections["File"]:
             if cid != "file.new":       # the New page's Blank model card
                 nl.addWidget(self._nav_command(cid))
+        self._add_page_button(nl, "Import", self._import_page, "awb_import_icon")
         self._add_page_button(nl, "Print and Export", self._share_page,
                               "printer_icon")
         for cid in BACKSTAGE_ACTIONS:
@@ -300,28 +307,37 @@ class Backstage(QWidget):
         when the tip names a command, Show me."""
         from PySide6.QtWidgets import QFrame
         from raptor.gui.tips import tip_for_launch
+        # User testing: the tip was in the small default font in a thin
+        # full-width strip, its text stopping half way across. It now uses
+        # the page's body size, more room, and a width the text fills.
         card = QFrame()
         card.setObjectName("BackstageTip")
-        card.setFrameShape(QFrame.Shape.StyledPanel)
+        card.setMaximumWidth(900)
         col = QVBoxLayout(card)
-        col.setContentsMargins(14, 10, 14, 10)
+        col.setContentsMargins(22, 16, 22, 16)
+        col.setSpacing(10)
         head = QLabel("Did you know?")
-        font = head.font()
-        font.setBold(True)
-        head.setFont(font)
+        head.setObjectName("BackstageTipHead")
         col.addWidget(head)
         self._tip_text = QLabel()
+        self._tip_text.setObjectName("BackstageTipText")
         self._tip_text.setWordWrap(True)
         self._tip_text.setTextFormat(Qt.TextFormat.PlainText)
-        self._tip_text.setMaximumWidth(720)
+        self._tip_text.setMinimumHeight(48)
         col.addWidget(self._tip_text)
         row = QHBoxLayout()
+        row.setSpacing(8)
         self._tip_show = QPushButton("Show me")
+        self._tip_show.setObjectName("BackstageTipButton")
         self._tip_show.clicked.connect(self._run_tip)
         nxt = QPushButton("Next tip")
+        nxt.setObjectName("BackstageTipButton")
         nxt.clicked.connect(lambda: self._show_tip(self._tip_index + 1))
         row.addWidget(self._tip_show)
         row.addWidget(nxt)
+        self._tip_count = QLabel()
+        self._tip_count.setObjectName("BackstageNote")
+        row.addWidget(self._tip_count)
         row.addStretch(1)
         col.addLayout(row)
         self._show_tip(tip_for_launch())
@@ -337,7 +353,8 @@ class Backstage(QWidget):
             action = self._win._commands.action(tip.command)
             shortcut = action.shortcut().toString() or ""
         text = tip.text.replace("{shortcut}", shortcut or "its shortcut")
-        self._tip_text.setText(f"{text}  ({self._tip_index + 1} of {len(TIPS)})")
+        self._tip_text.setText(text)
+        self._tip_count.setText(f"  {self._tip_index + 1} of {len(TIPS)}")
         self._tip_show.setVisible(action is not None)
         self._tip_show.setEnabled(action is not None and action.isEnabled())
         self._tip_show.setToolTip(
@@ -490,20 +507,20 @@ class Backstage(QWidget):
         lay.addWidget(self._empty)
         return page
 
-    def _build_share_page(self) -> QWidget:
+    def _build_tile_page(self, heading: str, ids: tuple[str, ...]) -> QWidget:
+        """A page of large command tiles: Import, Print and Export."""
         page = QWidget()
         page.setObjectName("BackstagePage")
         lay = QVBoxLayout(page)
         lay.setContentsMargins(40, 28, 40, 28)
         lay.setSpacing(16)
-        title = QLabel("Print and Export")
+        title = QLabel(heading)
         title.setObjectName("BackstageTitle")
         lay.addWidget(title)
         grid = QGridLayout()
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
-        self._tiles: list[QPushButton] = []
-        for n, cid in enumerate(BACKSTAGE[1][1]):
+        for n, cid in enumerate(ids):
             tile = self._tile(self._win._commands.action(cid))
             grid.addWidget(tile, n // 2, n % 2)
             self._tiles.append(tile)
@@ -558,8 +575,9 @@ class Backstage(QWidget):
     # ---- behaviour ------------------------------------------------------
 
     def open_view(self, page: str = "Home") -> None:
-        """Show the view on `page` ("Home", "New", "Recent", "Print and
-        Export"). Home is the start screen: new, recent and help at once."""
+        """Show the view on `page` ("Home", "New", "Recent", "Import",
+        "Print and Export"). Home is the start screen: new, recent and help
+        at once."""
         self._restyle()
         self.setGeometry(self._win.rect())
         self.reload()
@@ -818,4 +836,24 @@ class Backstage(QWidget):
             #BackstageTile:hover {{
                 border-color: {c['accent']}; background: {c['canvas']};
             }}
+            #BackstageTip {{
+                border: 1px solid {c['border']};
+                border-left: 4px solid {c['accent']}; border-radius: 6px;
+                background: {c['canvas']};
+            }}
+            #BackstageTipHead {{
+                font-size: {TYPE['body'] + 3}px; font-weight: 600;
+                color: {c['text']}; border: none; background: transparent;
+            }}
+            #BackstageTipText {{
+                font-size: {TYPE['body'] + 1}px; color: {c['text']};
+                border: none; background: transparent;
+            }}
+            #BackstageTipButton {{
+                color: {c['text']}; background: {c['surface']};
+                font-size: {TYPE['body']}px; padding: 6px 14px;
+                border: 1px solid {c['border']}; border-radius: 6px;
+            }}
+            #BackstageTipButton:hover {{ border-color: {c['accent']}; }}
+            #BackstageTipButton:disabled {{ color: {c['muted']}; }}
         """)

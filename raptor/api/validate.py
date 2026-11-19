@@ -53,14 +53,44 @@ LAYOUT_WARNING = (
     "layout as it is; run Auto Layout to space them out.")
 
 
-def layout_warning(rbd: RbdFile) -> str | None:
+def layout_warning(rbd: RbdFile, *, for_rbd: bool = False) -> str | None:
     """`LAYOUT_WARNING` when some level's spacing is finer than Raptor 7's
-    grid, else None. Nothing is moved: only Auto Layout changes positions."""
+    grid, else None. Nothing is moved: only Auto Layout changes positions.
+
+    `for_rbd` (a `.rbd` save) also says when elements sit outside Raptor
+    7's 150 x 100 canvas. RAPTOR Studio's own canvas has no edge, so this
+    only matters for a file Raptor 7 will open: a 3,000-block model laid
+    out by `build_model` ran past it with no word in any result."""
     from raptor.core.fileio.legacy_layout import needs_legacy_normalization
     try:
-        return LAYOUT_WARNING if needs_legacy_normalization(rbd) else None
+        crowded = LAYOUT_WARNING if needs_legacy_normalization(rbd) else None
     except Exception:  # noqa: BLE001 - a malformed layout is reported elsewhere
-        return None
+        crowded = None
+    outside = outside_raptor_canvas(rbd) if for_rbd else 0
+    if not outside:
+        return crowded
+    edge = (f"{outside} element(s) lie outside Raptor 7's 150 x 100 canvas, "
+            "so Raptor 7 cannot show them (RAPTOR Studio's own canvas has no "
+            "edge). Split the model into hierarchies to fit it.")
+    return edge if crowded is None else f"{crowded} Also, {edge[0].lower()}{edge[1:]}"
+
+
+def outside_raptor_canvas(rbd: RbdFile) -> int:
+    """How many elements' stored positions are outside Raptor 7's canvas
+    (`legacy_layout`: x 0..150, y 0..100, in the file's units)."""
+    count = 0
+    for section in ("BLOCK_DATA", "NODE_DATA", "EVENT_DATA", "HIERARCHY_DATA"):
+        sec = rbd.sections.get(section)
+        for row in (sec.rows if sec is not None else []):
+            if str(row.get("ID", "")) in ("", "0"):
+                continue
+            try:
+                x, y = float(row.get("xPos", 0)), float(row.get("yPos", 0))
+            except (TypeError, ValueError):
+                continue
+            if not (0.0 <= x <= 150.0 and 0.0 <= y <= 100.0):
+                count += 1
+    return count
 
 
 def rbds_schema() -> dict:
@@ -466,7 +496,7 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "FEmp", element, "fail")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} fail",
+            err = validate_distro_params(dist, params[:n_params], "failure",
                                          _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
@@ -481,7 +511,7 @@ def _check_block_dist_params(rbd: RbdFile) -> list[Issue]:
         if dist == 16:
             result += _check_empirical(row, "REmp", element, "repair")
         elif dist != 0 and n_params > 0:
-            err = validate_distro_params(dist, params[:n_params], f"{element} repair",
+            err = validate_distro_params(dist, params[:n_params], "repair",
                                          _units(rbd))
             if err:
                 result.append(Issue("error", element, err))
@@ -927,10 +957,18 @@ def _check_dependency_targets(rbd: RbdFile) -> list[Issue]:
                 dependency_num = int(float(row.get(num_col, "0") or 0))
             except (TypeError, ValueError):
                 dependency_num = 0
+            name = row.get(name_col) or f"{kind} {row.get('ID')}"
+            if dependency_num < -2:
+                # -1 (its own node) and -2 (the system) are the only
+                # negatives; -5 passed as "valid and runnable"
+                out.append(Issue(
+                    "error", f"{kind} '{name}'",
+                    f"dependency number {dependency_num} names nothing: use an "
+                    "element id, -1 for its own node or -2 for the system"))
+                continue
             if dependency_num <= 0:
                 continue
             target_sec = kind_sec.get(dependency_type)
-            name = row.get(name_col) or f"{kind} {row.get('ID')}"
             if target_sec is None:
                 out.append(Issue(
                     "error", f"{kind} '{name}'",

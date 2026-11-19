@@ -22,12 +22,13 @@ from typing import Any
 from PySide6.QtCore import QEvent, QMimeData, QObject, Qt
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton,
     QRadioButton, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
 )
 
+from raptor.gui.ui import filedialogs as fdg
 from raptor.api.library.assembly import (
     ASSEMBLY, add_local_part, adapted_buffer, assembly_from_buffer, describe,
     renamed_buffer,
@@ -600,7 +601,7 @@ class LibraryDock(QWidget):
         self.status.setText(f"Detached {changed} element(s); values kept.")
 
     def add_library(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
+        path, _ = fdg.getOpenFileName(
             self, "Open part library", "", "Part libraries (*.rbdlib *.json)")
         if path:
             self.open_library(path)
@@ -625,7 +626,7 @@ class LibraryDock(QWidget):
         if not parts:
             self.status.setText("The model holds no parts to export.")
             return
-        path, _ = QFileDialog.getSaveFileName(
+        path, _ = fdg.getSaveFileName(
             self, "Export parts to a library", "", "Part library (*.rbdlib)")
         if not path:
             return

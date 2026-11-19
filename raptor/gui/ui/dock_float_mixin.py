@@ -35,6 +35,7 @@ class DockFloatMixin(_Base):
         _dock_chrome: dict
         _dock_resize_generation: int
         _dock_stubs: dict
+        def _ensure_status_bar_visible(self) -> Any: ...
         _inspector_dock: PySide6.QtWidgets.QDockWidget
         def _release_bottom_strip_ceiling(self) -> None: ...
         def _resize_docks(self, docks: Any, sizes: Any, orientation: Any) -> None: ...
@@ -59,6 +60,23 @@ class DockFloatMixin(_Base):
         """"Results — <model>" for the floated window, so it is told
         apart from the main window in the taskbar and Alt+Tab."""
         return self.windowTitle().replace("RAPTOR Studio", "Results", 1)
+
+    def _maximise_results(self) -> None:
+        """Maximise: the Results in their own window, full screen; pressed
+        again (Restore), back in the main window at their docked size."""
+        dock = self._results_dock
+        if dock.isFloating() and dock.isMaximized():
+            self._float_results_properly(dock, False)
+        else:
+            if not dock.isFloating():
+                self._float_results_properly(dock, True)
+            dock.showMaximized()
+            dock.raise_()
+            dock.activateWindow()
+        entry = (getattr(self, "_dock_chrome_entries", None) or {}).get(dock) or {}
+        if entry.get("max_btn") is not None:
+            from raptor.gui.ui.dock_chrome import _sync_maximise
+            _sync_maximise(entry["max_btn"], dock)
 
     def _float_results(self, checked: bool):
         self._float_results_properly(self._results_dock, checked)
@@ -91,6 +109,8 @@ class DockFloatMixin(_Base):
                 # topLevelChanged handler; do not remember that as the
                 # docked height.
                 entry["_skip_extent_remember"] = True
+        if not floating and dock.isFloating():
+            self._unmaximise_floating_results(dock)
         dock.setFloating(floating)
         if floating:
             # A floated dock is a frameless tool window: no taskbar entry,
@@ -118,25 +138,62 @@ class DockFloatMixin(_Base):
             dock.raise_()
             dock.activateWindow()
         else:
-            # Remember where the user left the floating window before
-            # re-docking, so the next Float restores it.
-            if dock.geometry().isValid():
-                self._results_float_geom = dock.geometry()
             dock.setWindowState(Qt.WindowState.WindowNoState)
             dock.setWindowTitle("Results")      # its tab's text again
             dock.raise_()       # back in front of its tabbed neighbours
             # Re-docked: drop the leftover floated geometry, give the
             # strip a usable height and let the splitter control it
             # from there (not 50-60% of the screen, not a 260px sliver).
-            try:
-                self._update_dock_max_heights()
-                target = getattr(self, "_results_dock_height_before_float",
-                                 None) or 480
-                self._resize_docks([dock],
-                                 [self._clamp_dock_height(target)],
-                                 Qt.Orientation.Vertical)
-            except Exception:
-                pass
+            # Deferred, and asked twice: on the turn of setFloating(False)
+            # the layout has not taken the dock back and discards the
+            # request, and a full-screen dock then pushed the window, its
+            # status bar and the chart's foot off the screen.
+            target = getattr(self, "_results_dock_height_before_float", None) or 480
+            self._settle_docked_results(dock, target)
+            QTimer.singleShot(0, lambda: self._settle_docked_results(dock, target))
+            QTimer.singleShot(120, lambda: self._settle_docked_results(dock, target))
+
+    def _unmaximise_floating_results(self, dock: QDockWidget) -> None:
+        """Before the Results go back in the dock: remember the floating
+        window's own size (not the full screen it was maximised to, which
+        the next Float would reopen at) and take it out of maximised."""
+        full = dock.isMaximized() or dock.isFullScreen()
+        geometry = dock.normalGeometry() if full else dock.geometry()
+        if geometry.isValid() and geometry.width() > 200 and geometry.height() > 120:
+            self._results_float_geom = geometry
+        if full:
+            dock.showNormal()
+            dock.setWindowState(Qt.WindowState.WindowNoState)
+
+    def _fit_window_to_screen(self) -> None:
+        """A window that a full-screen dock stretched past its screen goes
+        back inside it (a maximised one is already held to the screen)."""
+        host = self.window()
+        if host.isMaximized() or host.isFullScreen():
+            return
+        screen = host.screen()
+        if screen is None:
+            return
+        room = screen.availableGeometry()
+        frame = host.frameGeometry()
+        extra = frame.height() - host.height()       # the title bar
+        if frame.height() > room.height() or frame.bottom() > room.bottom():
+            host.resize(host.width(), max(200, room.height() - extra))
+            host.move(host.x(), max(room.top(), host.y()) if
+                      host.y() + room.height() <= room.bottom() + extra else room.top())
+
+    def _settle_docked_results(self, dock: QDockWidget, target: int) -> None:
+        """Size the re-docked Results to `target`, never past what fits."""
+        try:
+            if dock.isFloating():
+                return
+            self._fit_window_to_screen()
+            self._update_dock_max_heights()
+            self._resize_docks([dock], [self._clamp_dock_height(int(target))],
+                               Qt.Orientation.Vertical)
+            self._ensure_status_bar_visible()
+        except (RuntimeError, AttributeError, TypeError):
+            pass
 
     def _show_dock_back_button(self, dock, entry, show: bool) -> None:
         """A detached panel gets "back to the dock" instead of collapse.
@@ -464,10 +521,17 @@ class DockFloatMixin(_Base):
         """Put a floating panel back where it was docked, at its own size."""
         entry = ((getattr(self, "_dock_chrome_entries", None) or {})
                  .get(dock)) or {}
+        results = dock is getattr(self, "_results_dock", None)
+        if results and dock.isFloating():
+            # docked while still maximised, it kept the full screen's size
+            self._unmaximise_floating_results(dock)
         edge = self._current_dock_edge(dock, entry.get("edge"))
         entry["edge"] = edge
         dock.setFloating(False)
         self._restore_dock_extent(dock, entry, edge)
+        if results:
+            QTimer.singleShot(0, self._fit_window_to_screen)
+            QTimer.singleShot(150, self._ensure_status_bar_visible)
         if dock is getattr(self, "_results_dock", None):
             dock.setWindowTitle("Results")
         dock.show()

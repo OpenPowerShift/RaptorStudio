@@ -28,6 +28,10 @@ def main() -> int:
     if len(sys.argv) < 2:
         print("usage: _run_sweep.py <sweep.py>", file=sys.stderr)
         return 2
+    # A native crash (a segfault in Qt or a worker teardown) left only the
+    # last [PASS] line in CI: print the Python stacks when it happens.
+    import faulthandler
+    faulthandler.enable(all_threads=True)
     path = sys.argv[1]
     sweep_dir = str(Path(path).resolve().parent)
     if sweep_dir not in sys.path:

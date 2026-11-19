@@ -684,6 +684,19 @@ def show_preferences(win):
         reset=lambda w: w.setCurrentIndex(
             max(0, w.findData("ask"))), builtins=("Ask before running",))
 
+    # Confirmations switched off with "Don't ask again": one button brings
+    # them all back (applied on OK, like every other row here).
+    from raptor.gui.ui import ask_again as _ask_again
+    off = _ask_again.switched_off()
+    ask_again_btn = QPushButton("Show all confirmations again")
+    ask_again_btn.setCheckable(True)
+    ask_again_btn.setEnabled(bool(off))
+    _pref_row(
+        work_form, "Confirmations:", ask_again_btn,
+        ("Switched off with \"Don't ask again\": " + "; ".join(off) + "."
+         if off else "Every confirmation is shown. A \"Don't ask again\" "
+         "box on one switches it off; this button brings them back."), "app")
+
     open_in = QComboBox()
     open_in.addItem("A new window", "new")
     open_in.addItem("This window (closing the open model)", "this")
@@ -728,6 +741,27 @@ def show_preferences(win):
         "Whether a run animates when you press Run: one core, every "
         "event shown. Off means full speed on the cores above; the speed "
         "dial only applies while animating.", "app")
+    from raptor.gui.ui import result_change as _change
+    show_change = QCheckBox("Compare with the previous run")
+    show_change.setChecked(_settings.get_bool(_change.SETTING, True))
+    _pref_row(
+        work_form, "Results:", show_change,
+        "On: after a re-run, the Overview cards also say what each number "
+        "was in the previous run, and whether the difference is more than "
+        "chance. Off: the cards show only the latest run.", "app",
+        reset=lambda w: w.setChecked(True), builtins=("On",))
+    from raptor.gui.ui.own_streams_mixin import NEW_BLOCKS_KEY
+    new_streams = QCheckBox("Give each new block its own random streams")
+    new_streams.setChecked(_settings.get_bool(NEW_BLOCKS_KEY, False))
+    _pref_row(
+        work_form, "New blocks:", new_streams,
+        "On: a block you add, paste or duplicate gets failure and repair "
+        "random streams no other block uses (reused after 49 blocks), "
+        "instead of the shared stream Raptor 7 gives every block. Changing "
+        "one block then shifts no other block's draws. Blocks already in "
+        "the model keep theirs: Data ▸ Bulk Edit ▸ Separate Streams "
+        "changes those.", "app",
+        reset=lambda w: w.setChecked(False), builtins=("Off",))
     tabs.addTab(work_page, "Working")
 
     # ---- This model -------------------------------------------------
@@ -851,6 +885,8 @@ def show_preferences(win):
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())
     _settings.set_value("files/save_before_run", save_before_run.currentData())
+    if ask_again_btn.isChecked():
+        _ask_again.ask_all_again()
     _settings.set_value("files/open_in", open_in.currentData())
     _settings.set_value(_cores.KEY, workers.value())
     # One sync for every Cores surface (ribbon, Run panel, status chip),
@@ -861,6 +897,16 @@ def show_preferences(win):
     if sync_cores is not None:
         sync_cores()
     _settings.set_value("execution/default_animate", animate.isChecked())
+    set_new_streams = getattr(win, "_set_own_streams_for_new_blocks", None)
+    if set_new_streams is not None:
+        set_new_streams(new_streams.isChecked())
+    else:
+        _settings.set_value(NEW_BLOCKS_KEY, new_streams.isChecked())
+    if show_change.isChecked() != _settings.get_bool(_change.SETTING, True):
+        _settings.set_value(_change.SETTING, show_change.isChecked())
+        results = getattr(win, "_results", None)
+        if results is not None:
+            results.refresh_changes()
     old_exp = _settings.get("editing/exp_mode", "mean")
     old_ln = _settings.get("editing/ln_mode", "mean_sd")
     new_exp = exp_combo.currentData()

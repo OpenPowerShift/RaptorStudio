@@ -326,7 +326,16 @@ class SweepContext:
         self.recorder.skip(tid, reason)
 
     def report(self, stream=None) -> int:
-        return self.recorder.report(msgboxes=self.msgboxes, stream=stream)
+        # A sweep ends without `app.exec()`, so `aboutToQuit` never fires:
+        # hand back a clipboard copy now, or Qt's exit handler deletes its
+        # Python wrapper after the interpreter is gone (segfault).
+        from raptor.gui.clipboard_data import release_clipboard
+        release_clipboard()
+        code = self.recorder.report(msgboxes=self.msgboxes, stream=stream)
+        # Flush now: stdout to a pipe is block-buffered, and a crash later
+        # in teardown would otherwise lose the TOTAL line the wrapper reads.
+        (sys.stdout if stream is None else stream).flush()
+        return code
 
 
 def make_context(*,

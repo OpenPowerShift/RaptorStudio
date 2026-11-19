@@ -28,6 +28,18 @@ from raptor.gui.ui.diagram_items import links_affected_by_moving, routing_batch
 # Save persists whatever state undo/redo leaves behind.
 
 
+def _on_own_level(fn):
+    """Wrap a command's redo/undo to run on the level it was made on."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(self, *args, **kwargs):
+        self._go_to_own_level()
+        return fn(self, *args, **kwargs)
+    run._on_own_level = True  # type: ignore[attr-defined]
+    return run
+
+
 class _ViewCmd(QUndoCommand):
     """Base for every canvas undo command: holds the view and emits
     model_changed after each successful apply (suppressed during
@@ -52,10 +64,43 @@ class _ViewCmd(QUndoCommand):
     def __init__(self, view, text):
         super().__init__(text)
         self._v = view
+        #: The level the edit was made on: the view holds only the level on
+        #: screen, so an undo or redo from another level found no element
+        #: and did nothing -- a rename inside a hierarchy stayed after
+        #: "Undo" from the level above, in the model and the saved file.
+        self._level = getattr(view, "_current_parent", 0)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        for name in ("redo", "undo"):
+            fn = cls.__dict__.get(name)
+            if fn is not None and not getattr(fn, "_on_own_level", False):
+                setattr(cls, name, _on_own_level(fn))
+
+    def _go_to_own_level(self) -> None:
+        v = self._v
+        level = self._level
+        if getattr(v, "_loading", False) or \
+                getattr(v, "_current_parent", 0) == level:
+            return
+        if level and level not in getattr(v, "hiers", {}):
+            return                       # not there (yet): act where we are
+        v._set_level(level)
 
     def _done(self):
-        if not self._v._loading:
-            getattr(self._v, self.changed_signal).emit()
+        if self._v._loading:
+            return
+        pending = getattr(self._v, "_pending_signals", None)
+        if getattr(self, "_in_macro", False) and pending is not None:
+            # One step of a macro (a multi-row Data Tables edit, its undo):
+            # the stack emits the signal once when the macro is done
+            # (`RuleGatedStack.flush_signals`). Each step emitting it
+            # re-ran every listener -- the dirty mark, the live overlay
+            # walk over every block -- and made a 1,000-row edit take 20 s.
+            if self.changed_signal not in pending:
+                pending.append(self.changed_signal)
+            return
+        getattr(self._v, self.changed_signal).emit()
 
 class RenameCmd(_ViewCmd):
     def __init__(self, view, kind, oid, old, new):
@@ -405,6 +450,25 @@ class LayoutCmd(_ViewCmd):
         self._done()
 
 
+def _give_own_streams(view, rows: list[dict]) -> None:
+    """Preferences ▸ Working ▸ New blocks (#292): new block rows draw from
+    streams of their own, chosen ONCE here so redo and undo replay the
+    same numbers. A pasted or duplicated block is new too: keeping its
+    source's stream would give it the very same draws. After 49 blocks
+    the least-used pairs are reused (`own_streams.assign`)."""
+    from raptor.core.edit import own_streams
+    from raptor.gui.ui.own_streams_mixin import sys_streams_of
+    used = [int(s) for b in getattr(view, "blocks", {}).values()
+            for s in (b.fail_stream, b.repair_stream)]
+    used += [int(e.fail_stream) for e in getattr(view, "events", {}).values()]
+    pairs, reused = own_streams.assign(
+        len(rows), used, sys_streams_of(getattr(view, "_rbd_ref", None)))
+    for row, (fail, repair) in zip(rows, pairs, strict=False):
+        row["FStream"], row["RStream"] = str(fail), str(repair)
+    if reused:
+        view.streams_reused.emit(reused)
+
+
 class AddCmd(_ViewCmd):
     """Element creation: re-inserts / removes its cloned file rows."""
 
@@ -413,6 +477,22 @@ class AddCmd(_ViewCmd):
         self.kind = kind
         self.rows = [dict(r) for r in rows]
         self.ids = None
+        if kind == "block" and getattr(view, "own_streams_for_new_blocks",
+                                       False):
+            _give_own_streams(view, self.rows)
+
+    def new_rows(self) -> tuple[str, list[dict]] | None:
+        """(section, rows) when this adds elements with no links, which
+        the rule gate can check on their own (`check_new_rows`) instead of
+        the whole model; None for a link or a hierarchy."""
+        section = {"block": "BLOCK_DATA", "node": "NODE_DATA",
+                   "event": "EVENT_DATA"}.get(self.kind)
+        return None if section is None else (section, self.rows)
+
+    def new_links(self) -> list[dict] | None:
+        """The link rows this adds, for the rule gate's link-end check
+        (`check_link_ends`); None for anything else."""
+        return self.rows if self.kind == "link" else None
 
     def redo(self):
         id_col = {"block": ("BLOCK_DATA", "ID"), "node": ("NODE_DATA", "ID"),
@@ -425,14 +505,10 @@ class AddCmd(_ViewCmd):
             if id(row) not in have:
                 section.rows.append(row)
         inserter = getattr(self._v, f"_insert_{self.kind}")
-        if self.kind == "block" and len(self.rows) > 1:
-            # LOD and link counts once for the batch, not once per block.
-            self._v._defer_block_refresh = True
-            try:
+        if self.kind in ("block", "link") and len(self.rows) > 1:
+            # LOD, link counts and routes once for the batch, not per row.
+            with self._v.batch_insert():
                 self.ids = [inserter(row) for row in self.rows]
-            finally:
-                self._v._defer_block_refresh = False
-            self._v.refresh_after_block_insert()
         else:
             self.ids = [inserter(row) for row in self.rows]
         if self.kind in ("block", "node", "event"):
@@ -454,9 +530,17 @@ class AddCmd(_ViewCmd):
         ids = set(self.ids or [])
         section.rows[:] = [r for r in section.rows
                            if _safe_int(r.get(id_col[1])) not in ids]
-        remover = getattr(self._v, f"_remove_{self.kind}")
-        for oid in ids:
-            remover(oid)
+        if self.kind in ("block", "node", "event") and len(ids) > 1:
+            # one removal pass: per element it rebuilt the link layer and
+            # recounted every link (4 s to undo a 100-block paste)
+            empty: set[int] = set()
+            self._v._remove_ids(ids if self.kind == "block" else empty,
+                                ids if self.kind == "node" else empty,
+                                ids if self.kind == "event" else empty, empty)
+        else:
+            remover = getattr(self._v, f"_remove_{self.kind}")
+            for oid in ids:
+                remover(oid)
         self._done()
 
 def _surviving_names(view, section_name: str, name_col: str,
@@ -483,6 +567,12 @@ def _legacy_names(view, kind: str, section_name: str, name_col: str,
     """
     comments = (view._rbd_ref.sections.get("COMMENTS")
                 if getattr(view, "_rbd_ref", None) is not None else None)
+    if comments is None or not any(is_legacy_comment_row(r)
+                                   for r in comments.rows):
+        # nothing is keyed by name alone, so no name can be dropped; the
+        # survivor scan below compared every deleted name with every
+        # surviving one (seconds for 200 of 1,000 blocks)
+        return set()
     own_id_rows = {
         _safe_int(r.get("ID")) for r in (comments.rows if comments else [])
         if not is_legacy_comment_row(r)}
@@ -615,6 +705,15 @@ class DeleteCmd(_ViewCmd):
         dead_n = {_safe_int(r.get("ID")) for r in self.node_rows}
         dead_e = {_safe_int(r.get("ID")) for r in self.event_rows}
         dead_l = {_safe_int(r.get("ID")) for r in self.link_rows}
+        # where each row sat, so undo puts it back there: appended, a
+        # restored block went to the end of the Data Tables and the file
+        self._at = {}
+        for section, dead in (("BLOCK_DATA", dead_b), ("NODE_DATA", dead_n),
+                              ("EVENT_DATA", dead_e), ("LINK_DATA", dead_l)):
+            rows = v._rbd_ref.sections[section].rows
+            self._at[section] = {_safe_int(r.get("ID")): i
+                                 for i, r in enumerate(rows)
+                                 if _safe_int(r.get("ID")) in dead}
         v._remove_ids(dead_b, dead_n, dead_e, dead_l)
         self._drop_comments()
         self._done()
@@ -622,24 +721,32 @@ class DeleteCmd(_ViewCmd):
     def undo(self):
         v = self._v
         self._restore_comments()
-        for r in self.block_rows:
-            v._rbd_ref.sections["BLOCK_DATA"].rows.append(dict(r))
-        for r in self.node_rows:
-            v._rbd_ref.sections["NODE_DATA"].rows.append(dict(r))
-        for r in self.event_rows:
-            v._rbd_ref.sections["EVENT_DATA"].rows.append(dict(r))
-        for r in self.link_rows:
-            v._rbd_ref.sections["LINK_DATA"].rows.append(dict(r))
+        at = getattr(self, "_at", {})
+        for section, saved in (("BLOCK_DATA", self.block_rows),
+                               ("NODE_DATA", self.node_rows),
+                               ("EVENT_DATA", self.event_rows),
+                               ("LINK_DATA", self.link_rows)):
+            rows = v._rbd_ref.sections[section].rows
+            where = at.get(section, {})
+            placed = sorted(
+                ((where.get(_safe_int(r.get("ID")), len(rows) + n), n, r)
+                 for n, r in enumerate(saved)), key=lambda t: (t[0], t[1]))
+            # ascending, so each index is where the row was before the
+            # delete with every earlier row already back in place
+            for index, _n, r in placed:
+                rows.insert(min(index, len(rows)), dict(r))
         # Insert elements first, then parse the restored LINK rows into
-        # real Link objects + canvas items (_insert_link does both).
-        for r in self.block_rows:
-            v._insert_block(r)
-        for r in self.node_rows:
-            v._insert_node(r)
-        for r in self.event_rows:
-            v._insert_event(r)
-        for r in self.link_rows:
-            v._insert_link(r)
+        # real Link objects + canvas items (_insert_link does both). The
+        # counts, badges and routes are done once for the whole batch.
+        with v.batch_insert():
+            for r in self.block_rows:
+                v._insert_block(r)
+            for r in self.node_rows:
+                v._insert_node(r)
+            for r in self.event_rows:
+                v._insert_event(r)
+            for r in self.link_rows:
+                v._insert_link(r)
         self._done()
 
 class SplitLinkCmd(_ViewCmd):

@@ -596,3 +596,177 @@ def test_bi_weibull_ignores_the_unused_third_mode(tmp_path):
     pump = next(r for r in _rows(back, "BLOCK_DATA") if r["blockName"] == "Pump")
     # The placeholder 8760 h mode would have dragged eta down to 8760.
     assert float(pump["FParam2"]) > 30000.0
+
+# -- review fixes (#288) -------------------------------------------------------
+
+def _twins(**extra):
+    """Two blocks with the same failure and repair laws, plus *extra*
+    per-block fields (a list of two dicts)."""
+    doc = json.loads(json.dumps({
+        "format": "raptor-studio", "version": 4,
+        "system": {"units": "hours"},
+        "experiment": {"trials": 10, "termination_type": "TimeSim",
+                       "term_condition": 1000.0},
+        "elements": {
+            "blocks": [
+                {"id": 1, "name": "A", "x": 0.0, "y": 0.0, "fail_dist": 4,
+                 "fail_params": [1000.0, 0.0, 0.0], "repair_dist": 19,
+                 "repair_params": [10.0, 0.0, 0.0]},
+                {"id": 2, "name": "B", "x": 100.0, "y": 0.0, "fail_dist": 4,
+                 "fail_params": [1000.0, 0.0, 0.0], "repair_dist": 19,
+                 "repair_params": [10.0, 0.0, 0.0]},
+            ],
+            "nodes": [
+                {"id": 3, "name": "start", "type": 1, "x": -50.0, "y": 0.0},
+                {"id": 4, "name": "end", "type": 3, "x": 150.0, "y": 0.0},
+            ],
+            "hierarchies": [],
+        },
+        "links": [
+            {"id": 5, "from": ["Node", 3], "to": ["Block", 1]},
+            {"id": 6, "from": ["Block", 1], "to": ["Block", 2]},
+            {"id": 7, "from": ["Block", 2], "to": ["Node", 4]},
+        ],
+    }))
+    for block, more in zip(doc["elements"]["blocks"],
+                           extra.pop("blocks", [{}, {}]), strict=True):
+        block.update(more)
+    doc.update(extra)
+    return parse_rbds(json.dumps(doc), default_name="twins")
+
+
+def _pool(name):
+    return {"name": name, "stock": 2, "new_spares": 1, "arrive_every": 720.0,
+            "eso": 1, "emer_time": 24.0, "slo": 0, "level": 0, "quantity": 1,
+            "slo_time": 24.0, "rso": 0, "spare_cost": 1.0,
+            "emer_ship_cost": 1.0}
+
+
+def test_blocks_on_different_pools_keep_their_own_spares(tmp_path):
+    """Sharing one failure model linked it to both pools."""
+    rbd = _twins(spare_pools=[_pool("P1"), _pool("P2")], blocks=[
+        {"sparing_type": "Pooled", "spare_pool": "P1", "quantity": 1},
+        {"sparing_type": "Pooled", "spare_pool": "P2", "quantity": 1}])
+    export_awb(rbd, tmp_path / "pools.awb", sidecar=False)
+    tables = read_awb(tmp_path / "pools.awb")
+    assert len(tables["FailureModels"].rows) == 2
+    links = [(r["FailureModel"], r["Spare"])
+             for r in tables["FailureModelCorrTaskSpares"].rows]
+    assert sorted(links) == [(0, 0), (1, 1)]
+
+
+def test_blocks_on_the_same_pool_still_share_one_model(tmp_path):
+    rbd = _twins(spare_pools=[_pool("P1")], blocks=[
+        {"sparing_type": "Pooled", "spare_pool": "P1", "quantity": 1},
+        {"sparing_type": "Pooled", "spare_pool": "P1", "quantity": 1}])
+    export_awb(rbd, tmp_path / "shared.awb", sidecar=False)
+    tables = read_awb(tmp_path / "shared.awb")
+    assert len(tables["FailureModels"].rows) == 1
+    assert len(tables["FailureModelCorrTaskSpares"].rows) == 1
+
+
+def test_a_different_pm_is_not_lost_to_a_shared_model(tmp_path):
+    pm = {"uses_pm": True, "pm_duration_dist": 19,
+          "pm_params": [2.0, 0.0, 0.0]}
+    rbd = _twins(blocks=[dict(pm, pm_freq=500.0), dict(pm, pm_freq=900.0)])
+    report = export_awb(rbd, tmp_path / "pm.awb", sidecar=False)
+    tables = read_awb(tmp_path / "pm.awb")
+    intervals = sorted(r["TaskInterval"]
+                       for r in tables["FailureModelScheduledTasks"].rows)
+    assert intervals == [500.0, 900.0]
+    assert not [x for x in report.not_in_target if "PM" in x.feature]
+
+
+def test_failure_model_descriptions_name_their_block(tmp_path):
+    export_awb(_model(), tmp_path / "d.awb", sidecar=False)
+    names = [r["Description"]
+             for r in read_awb(tmp_path / "d.awb")["FailureModels"].rows]
+    assert names == ["Failure model for Pump", "Failure model for Valve"]
+
+
+def test_a_hierarchy_with_a_missing_parent_is_reported_not_a_crash(tmp_path):
+    rbd = _model()
+    from raptor.core.fileio.rbd import RbdSection
+    rbd.sections["HIERARCHY_DATA"] = RbdSection(
+        "HIERARCHY_DATA",
+        ["ID", "hierarchyName", "Parent", "xPos", "yPos", "level"], rows=[
+        {"ID": "10", "hierarchyName": "Lost", "Parent": "999",
+         "xPos": "0", "yPos": "0", "level": "1"}])
+    report = export_awb(rbd, tmp_path / "orphan.awb", sidecar=False)
+    assert any("not in the model" in w for w in report.warnings)
+    rows = read_awb(tmp_path / "orphan.awb")["RbdBlocks"].rows
+    assert [r["Page"] for r in rows if r["Description"] == "Lost"] == [0]
+
+
+def test_an_exponential_location_is_reported_as_dropped(tmp_path):
+    rbd = _model()
+    _rows(rbd, "BLOCK_DATA")[0]["FParam2"] = "50.0"
+    report = export_awb(rbd, tmp_path / "loc.awb", sidecar=False)
+    features = [x.feature for x in report.not_in_target]
+    assert "exponential failure location (delay) dropped" in features
+    assert not any("simplified to exponential" in f for f in features)
+
+
+def test_a_short_file_cannot_claim_millions_of_rows(tmp_path):
+    """20 bytes used to build 10 million empty rows."""
+    from raptor.core.fileio.awb import _write_string
+    out = bytearray(struct.pack("<I", 1))
+    _write_string(out, "Project")
+    out += struct.pack("<I", 0) + struct.pack("<I", 10_000_000)
+    path = tmp_path / "bomb.awb"
+    path.write_bytes(bytes(out))
+    with pytest.raises(AwbFormatError, match="bad row count"):
+        read_awb(path)
+
+
+def test_format_errors_name_the_table_and_byte(tmp_path):
+    path = tmp_path / "bad.awb"
+    path.write_bytes(struct.pack("<I", 1) + b"\x07Project"
+                     + struct.pack("<I", 1) + b"\x02Id" + struct.pack("<I", 9))
+    with pytest.raises(AwbFormatError, match=r"table 'Project', byte \d+"):
+        read_awb(path)
+
+
+def test_cli_dry_run_does_not_write_the_reduced_model(tmp_path):
+    """#288: the reduced model was written before the dry-run check."""
+    from raptor.cli.main import main
+    src = tmp_path / "model.rbds"
+    save_rbds(_model(), str(src))
+    dest = tmp_path / "model.awb"
+    norm = tmp_path / "reduced.rbds"
+    assert main(["convert", str(src), str(dest), "--dry-run",
+                 "--normalize-out", str(norm), "-f", "json"]) == 0
+    assert not norm.exists() and not dest.exists()
+
+
+def test_awb_branches_without_nodes_get_junction_nodes(tmp_path):
+    """AWB draws parallel paths with no node: several connections leave
+    the start and meet at the end. RAPTOR splits and joins only at a node,
+    the GUI flagged every such import, and the engine got the logic wrong
+    (an AWB example came out more available than a block on every path)."""
+    from raptor.api.validate import issues
+    path = tmp_path / "parallel.awb"
+    export_awb(_model(), path)
+    tables = read_awb(path)
+    template = tables["RbdConnections"].rows[0]
+    blocks = [i for i, b in enumerate(tables["RbdBlocks"].rows) if b["Id"] in ("Pump", "Valve")]
+    block_type = template["OutputObjectType"]
+    node_type = next(c["InputObjectType"] for c in tables["RbdConnections"].rows
+                     if c["InputObjectType"] != block_type)
+    nodes = {n["Id"]: i for i, n in enumerate(tables["RbdNodes"].rows)}
+    start, end = nodes[min(nodes)], nodes[max(nodes)]
+    rows = []
+    for b in blocks:
+        rows.append(dict(template, Id=f"S{b}", InputObjectType=node_type, InputObjectIndex=start,
+                         OutputObjectType=block_type, OutputObjectIndex=b))
+        rows.append(dict(template, Id=f"E{b}", InputObjectType=block_type, InputObjectIndex=b,
+                         OutputObjectType=node_type, OutputObjectIndex=end))
+    tables["RbdConnections"].rows = rows
+    write_awb(path, tables)
+    rbd, _report = import_awb(path)
+    # "Only one link can go from a Start node", "A block can only connect ..."
+    assert [str(i) for i in issues(rbd)
+            if "link" in i.message.lower() or "connect" in i.message.lower()] == []
+    junctions = [n for n in rbd.sections["NODE_DATA"].rows if n["Type"] == "2"]
+    assert len(junctions) == 2
+    assert all(n["k"] == "1" for n in junctions)        # any one path through

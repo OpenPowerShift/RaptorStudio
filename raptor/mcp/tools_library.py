@@ -134,16 +134,32 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
     context.require_write()
     ws = context.workspace()
     if library_path:
-        found = _library(library_path).get(part)
+        found = _library(library_path).get(part)      # by id or by name
     else:
-        found = local_parts(ws.get(model_id).rbd).get(part)
+        parts = local_parts(ws.get(model_id).rbd)
+        found = parts.get(part)
+        # by name, as documented and as list_part_types shows it: only the
+        # id ("pumptype" for "PumpType") was accepted
+        named = [] if found is not None else [
+            p for p in parts.values() if p.name == part]
+        if len(named) > 1:
+            raise ValueError(f"{len(named)} parts are named {part!r}; give "
+                             "the id list_part_types shows")
+        if named:
+            found = named[0]
     if found is None:
         raise ValueError(f"no part {part!r}; list them with list_part_types")
     if not isinstance(found, PartType):
         found = PartType.from_dict(found)
-    results = [link_element(ws, model_id, found.kind, element, found,
-                            library=library_path or "", overrides=overrides)
-               for element in elements]
+    context.check_batch(elements, "elements")
+    # one save and one undo step for the lot, all or nothing: per element
+    # it saved the whole model each time (22 s for 240 blocks) and one
+    # undo took back only the last element
+    with ws.batch(model_id):
+        results = [link_element(ws, model_id, found.kind, element, found,
+                                library=library_path or "",
+                                overrides=overrides)
+                   for element in elements]
     return ok({"part": found.id, "version": found.version,
                "elements": results, "count": len(results)},
               f"Applied **{found.name}** to {len(results)} block(s).")
@@ -272,8 +288,9 @@ def insert_assembly(model_id: str, part: str,
     """Insert a fresh copy of an assembly into a model.
 
     `part` is the assembly's id or name, from `library_path` or the model's
-    own part list.  The copy gets new ids and free names (Pump -> Pump_2);
-    a hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
+    own part list.  The copy gets new ids; a name the model already uses
+    becomes a free one (Pump -> Pump_2), listed in `renamed` {old: new}; a
+    hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
     by default, to the right of the model, and is NOT connected: link it in
     with `connect`.  Spare pools or resources the model lacks are reset and
     listed in `notes`.
@@ -290,6 +307,9 @@ def insert_assembly(model_id: str, part: str,
                      None))
     if found is None:
         raise ValueError(f"no assembly {part!r}; list them with list_part_types")
+    if (x is None) != (y is None):
+        # one of them alone was ignored without a word
+        raise ValueError("give both x and y, or neither")
     at = (x, y) if x is not None and y is not None else None
     result = insert(rbd, found, at=at)
     ws.save(model_id)

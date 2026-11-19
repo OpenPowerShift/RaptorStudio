@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
-from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work, trials_box
+from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
 METRICS = (("availability", "Availability", True), ("mdt", "Mean downtime", False),
            ("mtbde", "Time between outages", False),
@@ -153,7 +153,7 @@ class TornadoDialog(AnalysisDialog):
         self._top = QSpinBox()
         self._top.setRange(1, 60)
         self._top.setValue(10)
-        self._top.setToolTip("How many inputs to vary (the largest downtime causes first)")
+        self._top.setToolTip("How many inputs to vary, the likeliest downtime causes first: by the last run's downtime when there is one, otherwise by each block's own failure and repair data")
         self._trials = trials_box(self._win, "Trials for Base and for each end of every input")
         row = QHBoxLayout()
         for label, widget in (("Metric", self._metric), ("Inputs", self._top),
@@ -174,18 +174,25 @@ class TornadoDialog(AnalysisDialog):
         return area
 
     def make_work(self) -> Work | str:
-        from raptor.api.scenarios.sensitivity import default_inputs
-        inputs = default_inputs(self._win._rbd, limit=self._top.value())
+        from raptor.api.scenarios.sensitivity import default_inputs, screening
+        # the last run's downtime ranking, when the window has one
+        page = getattr(getattr(self._win, "_results", None), "_drivers_page", None)
+        attribution = page.attribution() if page is not None else None
+        attribution = attribution if isinstance(attribution, dict) else None
+        inputs = default_inputs(self._win._rbd, attribution, limit=self._top.value())
+        screened = screening(self._win._rbd, inputs, attribution)
         if not inputs:
             return "This model has no input that can be varied."
         asked = self._top.value()
         metric, trials, workers = self._metric.currentData(), self._trials.value(), cores.chosen()
 
+        seed = study_seed(self._win)
         def work(ws, mid, progress, abort):
             from raptor.api.scenarios.sensitivity import tornado
-            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=None,
+            return tornado(ws, mid, inputs, trials=trials, metric=metric, seed=seed,
                            workers=workers, timeout_s=24 * 3600.0,
-                           progress=progress, abort=abort, asked=asked)
+                           progress=progress, abort=abort, asked=asked,
+                           screened=screened)
         return work
 
     def show_result(self, result: Any) -> None:

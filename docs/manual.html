@@ -48,6 +48,12 @@
 <li><a href="#cores">Cores, Animate and repeatable results</a></li>
 <li><a href="#precision">Trials to Precision: how many trials are enough</a></li>
 <li><a href="#whatif">Out of service: cut or link an element for a what-if</a></li>
+<li><a href="#seeds-and-streams">Random seeds and streams</a>
+<ul class="sectlevel2">
+<li><a href="#_the_seed_run_panel_more_options_seed">The seed (Run panel ▸ More options ▸ Seed)</a></li>
+<li><a href="#_separate_streams_for_each_block">Separate streams for each block</a></li>
+</ul>
+</li>
 <li><a href="#_what_if_compare_changes_with_the_model">What If: compare changes with the model</a></li>
 <li><a href="#sensitivity">Sensitivity: which inputs matter</a></li>
 <li><a href="#optimise">Optimise: spares, maintenance and crews</a></li>
@@ -58,7 +64,11 @@
 <li><a href="#several-models">Several models at once</a></li>
 <li><a href="#ai-assistant">AI assistant (MCP)</a></li>
 <li><a href="#files-and-reports">Recording</a></li>
-<li><a href="#run-manifest">What a result set records about itself</a></li>
+<li><a href="#run-manifest">What a result set records about itself</a>
+<ul class="sectlevel2">
+<li><a href="#change-from-last-run">What changed since the last run</a></li>
+</ul>
+</li>
 <li><a href="#stepping">Debug tab: stepping debugger</a></li>
 <li><a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a></li>
 <li><a href="#export-tables">Exporting tables</a>
@@ -946,7 +956,7 @@ runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <stron
 cannot draw stays in the list, greyed; choosing it names the check box
 to tick and where it is (for example <strong>Detailed event log</strong> under Run
 panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
-Analysis for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
+Results to calculate for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
 that ticks it as one undoable step and runs again. When the event log
 is there but the drivers have not been worked out yet, the button works
 them out instead. The Drivers tab has the same button. Over MCP and on
@@ -1369,11 +1379,16 @@ cycles</strong> the run-length figure is a plain count and is never converted �
 the row label changes to say which kind of number it is.</p>
 </div>
 <div class="paragraph">
-<p>A readiness line at the top says whether the model can run, and <strong>why</strong>
-not when it cannot, rather than presenting a greyed button with no
-explanation. The panel <strong>locks while a run is in progress</strong>: the values
-it holds are the ones the run is actually using, and a 20-minute batch
-must not have its settings changed underneath it.</p>
+<p>The line at the top says what the next run will be and whether the
+model can run, and <strong>why</strong> not when it cannot — for example <strong>✔ Ready ·
+100 trials · 1000 hours · Whole model · 8 cores · about 676 KB</strong>. It
+starts with ✔ or ✖, so the state does not depend on colour, and it
+always names the run&#8217;s scope and cores, the two settings that change
+what the numbers mean. The <strong>Run</strong> button (F5) is at the right-hand end
+of the same line, lined up with the last section. The
+panel <strong>locks while a run is in progress</strong>: the values it holds are the
+ones the run is actually using, and a 20-minute batch must not have its
+settings changed underneath it.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -1389,34 +1404,54 @@ must not have its settings changed underneath it.</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Experiment</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A starting <strong>Profile</strong> (Quick check / Steady state / Endurance /
-Endgame) that seeds the rest, <strong>Trials</strong>, <strong>Stop at</strong> (time, system
-failures or phase cycles — the run-length label and unit follow the
-choice), and <strong>Statistics from</strong>. The <strong>Cores</strong> box is a read-only
-readout of the machine setting (edit it in the Run panel); it is
-greyed, with the reason, while Animate is on or a run is going.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Trials</strong>, with <strong>Precision…</strong> (size the run by a precision instead)
+and <strong>Presets ▾</strong>, a menu of starting points — Quick check, Steady
+state, Endurance, Endgame — each with a line saying what it is for.
+Choosing one sets the run&#8217;s length, trials and statistics start, and
+<strong>adds</strong> the analyses and recordings it needs; it never turns off one you
+chose. <strong>Stop at</strong> is one row: <strong>Stop at [Time] after [1000] hours</strong>; the
+word after the number follows the choice (hours, system failures or
+phase cycles). Then <strong>Statistics from</strong>.</p>
+<p class="tableblock"><strong>More options</strong> holds <strong>Model scope</strong> (the whole model, or one
+hierarchy run on its own — see <a href="#extract-hierarchy">Checking part of a model: Extract Hierarchy</a>), <strong>Cores</strong>,
+<strong>Seed</strong> and <strong>Streams</strong>. It starts closed and remembers whether you left it open, but
+its heading always says the scope and cores (<strong>More options: Whole model
+· 8 cores</strong>), plus the seed and streams when they are not the default, and choosing a
+hierarchy opens it. While Animate is on the run uses one core, and the
+heading and the top line say <strong>1 core (Animate)</strong>. <strong>Seed</strong> chooses the
+random numbers: <strong>Raptor 7 (fixed)</strong>, <strong>New each run</strong> or <strong>Number</strong>;
+<strong>Streams</strong> whether blocks share one random stream or each has its own
+for the run — see <a href="#seeds-and-streams">Random seeds and streams</a>.</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Analysis</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost and Capacity. Each is a switch with its purpose
-written beside it. Flow generated appears here once Capacity is on; the
-system red cost is always editable, and the cost of lost flow appears
-once both Capacity and Cost are on.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Results to calculate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weak Link, Cost, Capacity and Importance measures. Point at one for
+which results it gives (or, while it is off, which will be empty); a
+screen reader reads the same text. The model&#8217;s own values sit under the
+analysis that uses them and appear only while it is on: <strong>System red cost</strong> under Cost, <strong>Flow
+generated</strong> under Capacity, and <strong>Cost of lost flow</strong> once both are on.
+While Importance measures is ticked, a line under it says how many
+extra batches it adds for this model.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Recording</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Which outputs a run collects. Additive rather than a single "level",
 so "state intervals, but no multi-gigabyte event log" is expressible.
-Each dependent plot is <strong>disabled with a stated reason</strong> until its
-analysis is on, and turning an analysis off clears the plot it fed.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Stepping</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Parameters for the interactive debugger: multi-step event count,
-run-to target time, and the breakpoint block.</p></td>
+Point at a recording for what it feeds. The <strong>Detailed event log</strong> feeds
+the Event Log tab, Downtime drivers, the Story&#8217;s causes, the Advisor&#8217;s
+downtime checks and the canvas downtime layers, so while it is off a
+line under it says they will be empty. A sample interval appears under
+its plot while that plot is on. A dependent plot is <strong>disabled and says
+what it needs</strong> — <strong>Capacity plot (needs Capacity)</strong> — until its analysis
+is on, and turning an analysis off clears the plot it fed. The estimated
+size on disk is at the foot.</p></td>
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>The stepping debugger&#8217;s settings are on the <strong>Debug</strong> tab, in the
+<strong>Step Settings</strong> group (see <a href="#stepping">Debug tab: stepping debugger</a>).</p>
+</div>
 <div class="paragraph">
 <p>A stepped session spans the run count the model is configured for. <strong>Jump</strong> lets the current run finish and stops at the next
 run&#8217;s first change; <strong>Finish</strong> completes every run that is left and shows
@@ -1430,7 +1465,7 @@ the results of all of them.</p>
 <div class="paragraph">
 <p><strong>Run</strong> (F5) runs at full speed in the background, splitting the trials
 across the processor cores in the <strong>Cores</strong> box beside it on the Simulate
-tab, and in the Run panel beside Trials (one setting, shown in both). The
+tab, and in the Run panel&#8217;s <strong>More options</strong> (one setting, shown in both). The
 box reads, say, "8 of 8": the cores a run will use, out of the
 cores this computer has. The same count is shown in the status bar, in the
 Run panel&#8217;s readiness line and in the Sweep and Compare windows before they
@@ -1586,6 +1621,112 @@ for it. From the command line: <code>raptor edit MODEL out-of-service Pump_A
 --state cut --in-place</code> (no element lists what is out); over MCP:
 <code>set_out_of_service</code>. <code>raptor render</code> and MCP <code>render_diagram_svg</code> draw the
 same marks.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="seeds-and-streams">Random seeds and streams</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_the_seed_run_panel_more_options_seed">The seed (Run panel ▸ More options ▸ Seed)</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Setting</th>
+<th class="tableblock halign-left valign-top">What a run does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor 7 (fixed)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The default. Uses Raptor 7&#8217;s seed table: every run of
+the same model gives the same numbers, and they match Raptor 7.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New each run</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Draws a fresh seed every time you press <strong>Run</strong>, so each
+result is an independent sample. The seed is shown in the ready line
+and in the results' run-settings line.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Uses the seed you type, saved with the model. The same number
+repeats a run exactly.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Repeating a New run.</strong> Choose <strong>Number</strong> straight after the run: the box
+fills in the seed that run used.</p>
+</li>
+<li>
+<p><strong>Two fixed-seed runs are one experiment.</strong> Re-running on the fixed seed
+gives the same draws, so it tells you nothing about how stable a
+result is. Use <strong>New each run</strong> for that.</p>
+</li>
+<li>
+<p><strong>Studies.</strong> What If, Sensitivity, Recommend, the optimisers and the
+Importance measures use the same setting, with one seed for the whole
+study, so the base and every variant are compared on the same draws.</p>
+</li>
+<li>
+<p><strong>The CLI and the AI Assistant give the same numbers.</strong> Point at the
+results' run-settings line for the exact command. Seed <strong>N</strong> on one core
+is <code>raptor run --seed N -j 1</code> (MCP <code>seed=N, workers=1</code>); on two or
+more cores it is <code>-j 2</code> (<code>workers=2</code>), whatever the core count. Without
+<code>--seed</code> they use a <strong>Number</strong> seed saved in the model, otherwise the
+fixed table. <code>raptor run --seed new</code> draws a fresh seed and reports it.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_separate_streams_for_each_block">Separate streams for each block</h3>
+<div class="paragraph">
+<p>By default every block draws its failure and repair times from one
+shared stream, as in Raptor 7. That is sound, but a change to one block
+shifts the draws of every block after it, which adds noise when you
+compare two versions of a model. Three places give blocks streams of
+their own; none touches a block that already has its own pair.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Run panel ▸ More options ▸ Streams</strong> is a run setting: <strong>As in the
+model</strong> (the default) or <strong>Separate for each block</strong>. Separate gives
+every block that shares a stream its own pair for the run only. The
+blocks' data is not edited, and switching back gives Raptor 7&#8217;s
+numbers again. The choice is saved with the model&#8217;s run settings, and
+the More options heading names it. <code>raptor run --block-streams
+separate</code> and the AI Assistant&#8217;s <code>block_streams="separate"</code> give the
+same numbers.</p>
+</li>
+<li>
+<p><strong>Data ▸ Bulk Edit ▸ Separate Streams</strong> writes the streams into the
+blocks, for a model that should keep them (say, one you hand on). It
+asks first, and <strong>Undo</strong> reverses it in one step.</p>
+</li>
+<li>
+<p><strong>Preferences ▸ Working ▸ New blocks</strong> is a design habit, remembered
+between sessions: while it is on, each block you add, paste or
+duplicate gets separate streams.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Raptor 7 has 110 independent streams and the System streams use 11, so
+there are 49 pairs. From the 50th block the pairs are reused, least-used
+first, and the status bar says how many blocks share one. Sharing a pair
+is still sound, and better than every block sharing one stream. A run
+with separate streams no longer matches Raptor 7&#8217;s numbers. Events and
+the System streams are never changed.</p>
+</div>
 </div>
 </div>
 </div>
@@ -2061,6 +2202,25 @@ phases — so changing the trial count for a convergence sweep does not
 retroactively invalidate results already on screen, while changing a
 failure distribution does.</p>
 </div>
+<div class="sect2">
+<h3 id="change-from-last-run">What changed since the last run</h3>
+<div class="paragraph">
+<p>Run, change something, and run again: each headline card on the
+Overview (Availability, Reliability, MTBDE, MDT, System Failures) then
+says what it was before, for example <strong>was 0.912 · up 0.051</strong>. The line
+is green when the change is for the better and red when it is for the
+worse, but only when the difference is bigger than the run-to-run
+spread (95 %). A smaller difference reads <strong>no clear change</strong> in grey:
+the random draws alone move the numbers that much, so it may not be
+your edit at all. More trials narrow the spread.</p>
+</div>
+<div class="paragraph">
+<p>The comparison is with the run before on the same model; opening
+another model or changing the run scope starts afresh. To see only the
+latest run, untick Preferences ▸ Working ▸ Results ▸ <strong>Compare with the
+previous run</strong>; the cards change as soon as you press OK.</p>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -2072,8 +2232,11 @@ loop: <strong>Step</strong> (F6), <strong>Next Time</strong> (Shift+F6), <strong
 <strong>Terminate</strong> (Shift+F5) and <strong>Restart</strong> (Ctrl+Shift+F5), plus a <strong>More
 Steps</strong> menu for the less common ways to advance (<strong>Step to next change</strong>
 is F10). Starting a stepped run from any tab opens the Debug tab. The <strong>parameters</strong> those need — multi-step count, run-to time,
-breakpoint block — are in the Run panel&#8217;s <strong>Stepping</strong> section, where
-there is room to label and explain them.</p>
+breakpoint block — are beside them in the Debug tab&#8217;s <strong>Step Settings</strong>
+group: <strong>Multi-step events</strong>, <strong>Run to</strong> (in the model&#8217;s display unit,
+for example <strong>Run to (hours)</strong>) and <strong>Pause when fails</strong>, the breakpoint
+block. The More Steps items name the values they will use, for example
+<strong>Multi (10 events)…</strong> and <strong>Run to 100 hours…</strong>.</p>
 </div>
 <div class="paragraph">
 <p>Press <strong>Step</strong> to start an interactive single run: the first press
@@ -2181,8 +2344,8 @@ individual runs.</p>
 </div>
 <div class="paragraph">
 <p>To run the part without saving an extract, use the Run panel&#8217;s <strong>Model
-scope</strong> selector: choose the hierarchy, review the warning and boundary
-treatments there, then Run. The canvas follows the scope, the source model
+scope</strong> selector, under <strong>More options</strong>: choose the hierarchy, review the
+warning and boundary treatments behind <strong>Isolation options…</strong>, then Run. The canvas follows the scope, the source model
 and file are not changed, and the Results dock carries an isolated-hierarchy
 banner. Importance measures in that run rank blocks within the hierarchy
 only.</p>
@@ -2367,6 +2530,14 @@ sessions.</p>
 default) or this window (see <a href="#several-models">Several models at once</a>).</p>
 </div>
 <div class="paragraph">
+<p>The confirmations that come up in ordinary work carry a <strong>Don&#8217;t ask
+again</strong> box: <strong>Results on screen</strong> (editing after a run), <strong>Long
+simulation</strong>, and the save prompt before a run, whose box remembers
+Save or Run Without Saving as the <strong>Unsaved changes before running</strong>
+setting. <strong>Working ▸ Confirmations ▸ Show all confirmations again</strong>
+brings back any you switched off, and says which they are.</p>
+</div>
+<div class="paragraph">
 <p>The <strong>Display unit</strong> setting accepts either one of the built-in choices or a
 unit name of your own (say <code>cycles</code>); durations are then shown in that
 unit and stored in the model&#8217;s own.</p>
@@ -2395,8 +2566,8 @@ first. Import RBD merges a <code>.rbd</code> or <code>.rbds</code> file in as on
 </li>
 <li>
 <p><code>.awb</code> — an Isograph <strong>Availability Workbench 5.0</strong> project (RBD/AvSim).
-<strong>File ▸ Import Availability Workbench…</strong> reads one into a new model and
-<strong>File ▸ Export to Availability Workbench…</strong> writes one; <code>raptor convert</code>
+<strong>File ▸ Import ▸ Import Availability Workbench…</strong> reads one into a new model and
+<strong>File ▸ Print and Export ▸ Export to Availability Workbench…</strong> writes one; <code>raptor convert</code>
 does the same headless. The conversion always prints a summary of the
 features the destination cannot represent, with a count; <code>--strict</code>
 writes nothing when that list is not empty. AWB&#8217;s demonstration mode can
@@ -2844,7 +3015,7 @@ current value).</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Quick Add</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Add an element at the cursor (Space or / on the canvas)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -3175,6 +3346,11 @@ current value).</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Separate Streams</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7&#8217;s. To try it without editing the model, use the Run panel&#8217;s Streams option. Undoable</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -3494,6 +3670,40 @@ current value).</p>
 </table>
 </div>
 <div class="sect3">
+<h4 id="_step_settings">Step Settings</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Events per multi-step</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">How many events More Steps ▸ Multi advances</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 10</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run-to target time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The sim time More Steps ▸ Run to time advances to, in the model&#8217;s display unit</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">number, now 100</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pause when block fails</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stop stepping when the chosen block fails (enters Repairing)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">choice, now No breakpoint</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
 <h4 id="_failure_effects">Failure Effects</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3695,7 +3905,7 @@ current value).</p>
 <div class="sect2">
 <h3 id="_view_tab">View tab</h3>
 <div class="sect3">
-<h4 id="_zoom">Zoom</h4>
+<h4 id="_zoom_and_show">Zoom and Show</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 28.5714%;">
@@ -3738,6 +3948,16 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Hierarchy</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Notes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comments</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show or hide only the canvas notes that show an element&#8217;s comment; other annotations stay.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>
@@ -3995,6 +4215,30 @@ documentation.</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Differences…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">What is different between this model and another: its saved file (what you have changed), any model, or a recent one&#8201;&#8212;&#8201;parameters and wiring. Nothing is run.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_import">Import</h4>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Control</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+<th class="tableblock halign-left valign-top">Shortcut / value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import Availability Workbench…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 </tbody>

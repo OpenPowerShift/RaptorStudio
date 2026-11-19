@@ -111,7 +111,9 @@ def test_R_REQ_001_upper_limits_and_no_requirement():
     f, = run_findings(per_run, "R-REQ-001", [limit])
     assert f.title == "Target met"
     assert not run_findings(per_run, "R-REQ-001")
-    assert not run_findings(per_run, "R-REQ-001", [{"metric": "system.ao", "op": "!=", "value": 1}])
+    # an unknown comparison is refused, not judged as ">=" or dropped
+    with pytest.raises(ValueError, match="unknown comparison"):
+        run_findings(per_run, "R-REQ-001", [{"metric": "system.ao", "op": "!=", "value": 1}])
 
 
 def test_p_meet_is_the_t_probability():

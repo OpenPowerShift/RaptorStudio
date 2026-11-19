@@ -19,6 +19,7 @@ from raptor.core.edit import clipboard_payload
 from raptor.core.edit.clipboard_plan import (
     count_elements, next_free_name, plan_copy, plan_paste, plan_paste_data,
     remap_dependencies)
+from raptor.gui.clipboard_data import set_mime_data
 from raptor.gui.ui.diagram_items import routing_batch
 from raptor.gui.ui.diagram_common import (
     BLOCK_H,
@@ -134,7 +135,7 @@ class ClipboardMixin(_Base):
             clipboard_payload.encode(buffer, source_name=name,
                                      model_token=self._model_token)))
         mime.setText(clipboard_payload.summary_text(buffer, name))
-        QApplication.clipboard().setMimeData(mime)
+        set_mime_data(mime)
 
     def _selection_lists(self):
         """(blocks, regular nodes, events, hierarchies) selected on canvas."""
@@ -420,6 +421,7 @@ class ClipboardMixin(_Base):
         # Pasted content, not typed input: Raptor 7's PasteObject checks only
         # the edition's block limit and hierarchy depth, not the dialog or
         # link rules, so neither does `rule_gate`.
+        steps_before = self._stack.count()
         with self._stack.ungated():
             self._stack.beginMacro("Paste elements")
             try:
@@ -461,6 +463,8 @@ class ClipboardMixin(_Base):
                     self._stack.push(AnnoCmd(self, a2, add=True))
             finally:
                 self._stack.endMacro()
+        if self._stack.count() == steps_before:
+            return 0      # refused as a whole (hierarchy depth): nothing pasted
         if notes:
             sink = getattr(self, "status_message_sink", None)
             if sink is not None:
@@ -729,22 +733,27 @@ class ClipboardMixin(_Base):
         if dead_link_nums:
             self.links[:] = [link for link in self.links
                              if link.object_num not in dead_link_nums]
-        for iid in dead_blocks:
-            item: Any
-            item = self._block_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.blocks.pop(iid, None)
-        for iid in dead_nodes:
-            item = self._node_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.nodes.pop(iid, None)
-        for iid in dead_events:
-            item = self._event_items.pop(iid, None)
-            if item is not None:
-                self._scene.removeItem(item)
-            self.events.pop(iid, None)
+        # Removing a selected item emits the scene's selectionChanged, and
+        # its listeners (the ribbon's command state, the clipboard check,
+        # the layout tooltip) cost milliseconds each: once per deleted
+        # element made deleting 200 blocks take seconds. Say it once.
+        was_selected = False
+        blocked = self._scene.blockSignals(True)
+        try:
+            for table, model, dead in (
+                    (self._block_items, self.blocks, dead_blocks),
+                    (self._node_items, self.nodes, dead_nodes),
+                    (self._event_items, self.events, dead_events)):
+                for iid in dead:
+                    item: Any = table.pop(iid, None)  # type: ignore[attr-defined]
+                    if item is not None:
+                        was_selected = was_selected or item.isSelected()
+                        self._scene.removeItem(item)
+                    model.pop(iid, None)  # type: ignore[attr-defined]
+        finally:
+            self._scene.blockSignals(blocked)
+        if was_selected:
+            self._scene.selectionChanged.emit()
         self._rebuild_link_items()
         self._recount_link_ends()
         if not self._loading:

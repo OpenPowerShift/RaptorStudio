@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-explain \- run a model and say what causes its downtime
 .SH SYNOPSIS
-\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N] [\-\-analysis LIST] [\-\-importance MODE] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-page {screen,slide,a4,a3}] [\-\-chart\-min\-share S] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
+\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N|new] [\-\-timeout DURATION] [\-\-target EXPR] [\-\-analysis LIST] [\-\-importance MODE] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-page {screen,slide,a4,a3}] [\-\-chart\-min\-share S] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
 .SH DESCRIPTION
 Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH OPTIONS
@@ -14,8 +14,14 @@ number of runs (default: the model's own)
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 worker processes (default 1; more is reproducible but gives different numbers from \-j 1)
 .TP
-\fB\-\-seed\fR \fIN\fR
+\fB\-\-seed\fR \fIN|new\fR
 salt every random stream (default: the fixed seed 'raptor run' uses, so the numbers match a plain run)
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+give up after DURATION, e.g. 90s, 10m (default 10m); the runs finished by then are kept and the Story says so
+.TP
+\fB\-\-target\fR \fIEXPR\fR
+a requirement for the Story's headline, e.g. 'system.ao>=0.995' or 'mdt<=5' (repeatable; the first is the headline)
 .TP
 \fB\-\-analysis\fR \fILIST\fR
 weak,cost,capacity for this run (replaces the model's setting; the file is untouched): the cost and lost\-capacity charts need them

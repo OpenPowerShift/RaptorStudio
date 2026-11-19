@@ -341,7 +341,19 @@ class RunExperimentMixin:
             settings.remove(f"reports/{key}")
         settings.set_value("experiments/recording_migrated", True)
 
-    def _build_run_manifest(self, rbd=None, isolation=None) -> dict:
+    def _resolve_run_seed(self) -> int:
+        """The seed the run starting now uses (#292): 0 for Raptor 7's
+        fixed table. A New run draws one here, once, on the GUI thread;
+        the panel keeps it so Seed ▸ Number can repeat that run."""
+        seed = run_experiment.resolve_seed(self._current_experiment())
+        self._last_run_seed = seed
+        panel = getattr(self, "_run_panel", None)
+        if seed and panel is not None:
+            panel.last_seed = seed
+        return seed
+
+    def _build_run_manifest(self, rbd=None, isolation=None,
+                            seed: int = 0) -> dict:
         """Freeze what this run is, for the results to carry.
 
         Built on the calling thread, once, before the engine starts. It
@@ -362,7 +374,7 @@ class RunExperimentMixin:
                 model, self._current_experiment(),
                 profile=self._run_panel_profile()
                 if getattr(self, "_run_panel", None) else "",
-                engine_version=_engine_version())
+                engine_version=_engine_version(), seed=seed)
             if isolation is not None:
                 m["isolation"] = isolation.to_dict()
                 m["model_name"] = (
@@ -445,24 +457,15 @@ class RunExperimentMixin:
         """
         if self._rbd is None:
             return
-        self._rbd.experiment = run_experiment.normalise(experiment)
-        sec = self._rbd.sections.get("SYSTEM_DATA")
-        self._in_run_setting_edit = True
-        try:
-            if sec and sec.rows:
-                row = sec.rows[0]
-                wanted = dict(run_experiment.to_system_row(
-                    self._rbd.experiment))
-                v = self._diagram_dock.view
-                with v._stack.ungated():
-                    apply_row_edits(v, "SYSTEM_DATA", 0, row, wanted.items(),
-                                    "Run settings")
-            self._sync_run_mirrors()
-            self._inspector.show_system_config()
-            self._mark_dirty()
-        finally:
-            self._in_run_setting_edit = False
-        self._carry_validity_across_run_setting_edit()
+        # Through `_set_exp_fields`, the writer with the undo command: this
+        # wrote the experiment directly, so a field with no SYSTEM_DATA
+        # column (seed, streams, importance, recording) changed with no
+        # undo step at all, and Undo skipped it.
+        wanted = run_experiment.normalise(experiment)
+        current = self._current_experiment()
+        changes = {k: v for k, v in wanted.items() if current.get(k) != v}
+        if changes:
+            self._set_exp_fields(changes)
         self._update_readiness()
 
     def _on_panel_dependency(self, key: str, label: str) -> None:
@@ -548,6 +551,10 @@ class RunExperimentMixin:
         # pressing Run could therefore run without the analysis (observed
         # as `mode: none` with the box visibly ticked).
         experiment["importance"] = current.get("importance", "none")
+        # Nor have the seed and the block streams choice (#292).
+        experiment["seed_mode"] = current.get("seed_mode", "fixed")
+        experiment["seed"] = current.get("seed", 0)
+        experiment["streams"] = current.get("streams", "model")
         # A plot whose analysis is off cannot be collected. The modal path
         # used to carry its tick over unconditionally, leaving a checked
         # plot that produced nothing.
@@ -671,7 +678,8 @@ class RunExperimentMixin:
         valid = self._model_is_valid()
         issues = [] if valid else self._validation_issues()
         experiment = self._current_experiment()
-        summary = (f"{experiment['trials']:,} trial(s) · "
+        trials = int(experiment['trials'])
+        summary = (f"{trials:,} trial{'s' if trials != 1 else ''} · "
                    f"{self._term_words(experiment)}")
         if getattr(self, "_run_or_step_active", lambda: False)():
             stepped = (getattr(self, "_step_session", None) is not None
@@ -679,14 +687,14 @@ class RunExperimentMixin:
             if stepped:
                 panel.set_readiness(
                     False,
-                    "Step session in progress — Finish or Terminate to run "
-                    "again.")
+                    "■ Step session in progress — Finish or Terminate to "
+                    "run again.")
                 return
             paused = bool((getattr(self, "_bg_state", None) or {}).get(
                 "paused"))
             panel.set_readiness(
                 False,
-                f"{'Paused' if paused else 'Running'} — {summary}. "
+                f"{'⏸ Paused' if paused else '▶ Running'} — {summary}. "
                 "Run settings are locked until it finishes.")
             return
         if issues:
@@ -696,7 +704,7 @@ class RunExperimentMixin:
             n = len(issues)
             panel.set_readiness(
                 False,
-                f"Not ready — the model has {n} problem"
+                f"✖ Not ready — the model has {n} problem"
                 f"{'s' if n != 1 else ''}. <a href='issues'>Show them</a>",
                 link=lambda _href: self._validate_model(quiet=False))
             return
@@ -713,11 +721,25 @@ class RunExperimentMixin:
         # Model warnings are NOT repeated here: they are the Issues list's
         # (the ribbon's Issues button and the status-bar badge). This line
         # is about the RUN -- its size and its own settings.
-        # How it will run, in plain sight: one core animated, or N cores.
-        from raptor.gui import cores
-        animate = bool(getattr(self, "_live_sim_action", None)
-                       and self._live_sim_action.isChecked())
-        text = f"Ready. {summary} · {cores.describe(animate)}."
+        # What the run will be, in plain sight (review #286): its size, its
+        # scope and its cores -- the two settings that change what the
+        # numbers MEAN are named here even with More options closed -- and
+        # what it will take on disk. ✔/✖ so the state is not colour alone.
+        from raptor.core.storage_estimate import format_bytes
+        scope_cores = panel.more_options_summary()
+        size = panel.storage_estimate().total_bytes
+        # Importance multiplies the work: the line is what a user checks
+        # before pressing Run, so it says the total, not just the trials.
+        extra = panel.importance_runs()
+        if extra:
+            summary = summary.replace(
+                f"{trials:,} trial{'s' if trials != 1 else ''}",
+                f"{trials:,} trial{'s' if trials != 1 else ''} + importance "
+                f"(about {extra:,} runs)", 1)
+        text = f"✔ Ready · {summary} · {scope_cores}"
+        if size:
+            text += f" · about {format_bytes(size)}"
+        text += "."
         if warn:
             text += f" Warning: {warn}"
         panel.set_readiness(not (warn and stats_start_is_blocking()), text)

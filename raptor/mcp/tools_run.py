@@ -223,6 +223,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
     timeout_s: float = 1800.0,
     confirm_long_run: bool = False,
     seed: int | None = None,
+    block_streams: Literal["model", "separate"] | None = None,
     hierarchy: str | int | None = None,
     treatments: dict | None = None,
     importance: Literal["none", "improvement", "risk", "both"] | None = None,
@@ -292,7 +293,14 @@ async def simulate(  # noqa: PLR0912, PLR0915
 
     `seed` (optional, non-negative) re-rolls the batch reproducibly;
     leaving it unset keeps the engine's fixed seeds, under which the same
-    model and run count always return byte-identical numbers.  If a run is
+    model and run count always return byte-identical numbers.
+
+    `block_streams`: `separate` gives every block that shares a random
+    stream (by default all of them share one, as in Raptor 7) a failure
+    and repair stream of its own for this run only -- the model is not
+    edited -- so changing one block does not shift the others' draws;
+    `model` uses the blocks' own settings. Left out, the model's saved
+    choice (the desktop app's Run panel ▸ Streams) decides.  If a run is
     cut short by `timeout_s`, `runs` is below the requested count and
     `truncated` is true -- do not read a truncated batch as complete.
 
@@ -392,7 +400,8 @@ async def simulate(  # noqa: PLR0912, PLR0915
                 abort=abort, timeout_s=timeout_s,
                 confirm_long_run=confirm_long_run, collect_events=collect_events,
                 availability_plot=availability_plot, interim_cost=interim_cost,
-                attribution=attribution, capacity_rule=capacity_rule)
+                attribution=attribution, capacity_rule=capacity_rule,
+                block_streams=block_streams)
             result = outcome.result
             result.precision = outcome.to_dict()
             return result
@@ -400,7 +409,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
             num_runs=num_runs, run_length=run_length, workers=workers,
             timeout_s=timeout_s, collect_events=collect_events,
             confirm_long_run=confirm_long_run, date=date, abort=abort,
-            progress=progress, seed=seed,
+            progress=progress, seed=seed, block_streams=block_streams,
             availability_plot=availability_plot, interim_cost=interim_cost)
         if hierarchy is not None:
             from raptor.api import isolate
@@ -514,6 +523,7 @@ def start_run(
     interim_cost: bool | None = None,
     attribution: bool = False,
     capacity_rule: Literal["proportional", "marginal", "first_failed"] = "proportional",
+    block_streams: Literal["model", "separate"] | None = None,
 ) -> CallToolResult:
     """Start a simulation in the background and return a job id immediately.
 
@@ -573,6 +583,7 @@ def start_run(
                        timeout_s=timeout_s, collect_events=collect_events,
                        confirm_long_run=True, abort=abort, progress=progress,
                        setup_progress=setup_progress, seed=seed,
+                       block_streams=block_streams,
                        insight_progress=insight_progress,
                        availability_plot=availability_plot,
                        attribution=attribution,
@@ -596,8 +607,10 @@ def run_status(job_id: str) -> CallToolResult:
     """Progress of a job started with `start_run`.
 
     Returns {job_id, model_id, state, phase, setup, completed_runs,
-    requested_runs, percent, elapsed_s, wall_seconds, run_id, summary,
-    error}. `state` is queued, running, done, cancelled or failed. `phase`
+    requested_runs, percent, elapsed_s, eta_s, wall_seconds, run_id,
+    summary, error}. `eta_s` is the seconds left at the rate since the first
+    replication finished: an estimate (runs vary), null until two counts
+    are known. `state` is queued, running, done, cancelled or failed. `phase`
     adds what a running job is doing: `setting_up` while a large model is
     prepared (`setup` then has `{stage, done, total, percent}`; it can take
     minutes before the first replication, and `completed_runs` stays 0), then
@@ -617,7 +630,8 @@ def run_status(job_id: str) -> CallToolResult:
     data = job.snapshot()
     md = (f"Job `{job.job_id}`: **{data['state']}** — "
           f"{data['completed_runs']}/{data['requested_runs']} runs, "
-          f"{data['elapsed_s']}s elapsed")
+          f"{data['elapsed_s']}s elapsed"
+          + (f", about {data['eta_s']:.0f}s left" if data.get("eta_s") is not None else ""))
     if data["phase"] == "setting_up" and data["setup"]:
         s = data["setup"]
         md += f"; setting up: {s['stage']} {s['done']}/{s['total']}"
@@ -642,9 +656,16 @@ def cancel_run(job_id: str) -> CallToolResult:
     the job snapshot; poll `run_status` until `state` is `cancelled`.
     """
     from raptor.mcp import async_runs
-    job = async_runs.cancel(job_id)
+    job = async_runs.get(job_id)
     if job is None:
         raise ValueError(f"unknown job {job_id!r}")
+    if job.state in ("done", "failed", "cancelled"):
+        # already over: setting its abort did nothing, and "Cancellation
+        # requested" read as though it had
+        return ok(job.snapshot(),
+                  markdown=f"`{job_id}` had already finished ({job.state}); "
+                           "nothing was cancelled.")
+    async_runs.cancel(job_id)
     return ok(job.snapshot(),
               markdown=f"Cancellation requested for `{job_id}`.")
 
@@ -722,8 +743,14 @@ def get_run_results(run_id: str, top: int = 10,
         "weak_link": weak,
         "files": sorted(p.name for p in runs_dir.iterdir() if p.is_file()),
     }
+    from raptor.api.run_tables import partial_note
+    partial = partial_note(summary)
+    data["requested_runs"] = summary.get("requested_runs")
+    data["truncated"] = bool(partial)
     md = (f"Run `{run_id}` — {data['runs']} replication(s) of "
           f"{data['model_name']}.\n\n")
+    if partial:
+        md = f"**{partial}**\n\n" + md
     if metrics:
         md += "| metric | mean |\n|---|---|\n"
         for name, value in metrics.items():
@@ -783,6 +810,15 @@ def get_report(
     for key in ("columns", "rows"):
         if key in report:
             data[key] = report[key]
+    from raptor.api.run import run_dir
+    from raptor.api.run_tables import partial_note, read_summary
+    try:
+        partial = partial_note(read_summary(run_dir(ws, run_id), run_id))
+    except Exception:  # noqa: BLE001 - the report itself has been read
+        partial = None
+    if partial:
+        data["partial"] = partial
+        md = f"**{partial}**\n\n" + md
     return ok(data, markdown=md)
 
 
@@ -1052,7 +1088,10 @@ def get_timeseries(
     from raptor.api.limits import MAX_TIMESERIES_POINTS
     from raptor.api.run import get_timeseries as api_series, isolation_metadata
 
-    points = max(1, min(int(points), MAX_TIMESERIES_POINTS))
+    if int(points) < 2:
+        # points=0 came back as one sample with no word
+        raise ValueError("points must be at least 2")
+    points = min(int(points), MAX_TIMESERIES_POINTS)
     data = api_series(ws, run_id, series=series, runs=runs, points=points)
     isolation = isolation_metadata(context.workspace(), run_id)
     if isolation:
@@ -1150,6 +1189,10 @@ async def what_if(
     ws = context.workspace()
     cap = context.max_runs()
     context.check_batch(changes, "changes")
+    if not changes:
+        # an empty list ran Base against itself and "succeeded"
+        raise ValueError("changes is empty: give at least one PATH=VALUE edit, "
+                         "e.g. [\"block:Pump.repair_params=8\"]")
     if precision is None:
         context.check_study(model_id, trials, timeout_s, workers=workers)
     else:
@@ -1179,7 +1222,12 @@ async def what_if(
             abort=abort)
 
     comparison = await run_job(ctx, work, label="Comparing scenario")
-    failed = comparison.rows[0].get("error") if comparison.rows else None
+    first = comparison.rows[0] if comparison.rows else {}
+    failed = first.get("error")
+    if failed and first.get("skipped") == "time":
+        from raptor.api.run import StudyTimeoutError
+        raise StudyTimeoutError("The scenario did not run. "
+                                + (comparison.cut_short or failed))
     if failed:
         # an error, not a success whose text says nothing ran: a pipeline
         # checking is_error took a bad change for a finished comparison
@@ -1301,7 +1349,7 @@ async def sensitivity(
     count. This is a screening view: it shows each input alone and cannot
     show interactions.
     """
-    from raptor.api.scenarios.sensitivity import default_inputs, tornado
+    from raptor.api.scenarios.sensitivity import default_inputs, screening, tornado
 
     ws = context.workspace()
     context.whole_number(top, "top", minimum=1, maximum=60)
@@ -1310,13 +1358,14 @@ async def sensitivity(
     inputs = default_inputs(ws.get(model_id).rbd, limit=top)
     if not inputs:
         raise ValueError("no input could be varied in this model")
+    screened = screening(ws.get(model_id).rbd, inputs)
 
     def work(abort, progress):
         return tornado(
             ws, model_id, inputs, trials=trials, metric=metric, seed=seed,
             workers=max(1, workers or 1), timeout_s=timeout_s,
             progress=lambda done, total, label: progress(done, total, label),
-            abort=abort, asked=top)
+            abort=abort, asked=top, screened=screened)
 
     data = await run_job(ctx, work, label="Screening inputs")
     lines = ["| Input | Swing | Low | High | Distinguishable |",

@@ -457,6 +457,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -508,6 +514,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
@@ -1074,6 +1081,9 @@
    "count": {
     "type": "integer"
    },
+   "created": {
+    "type": "array"
+   },
    "elements": {
     "type": "array"
    }
@@ -1081,6 +1091,7 @@
   "required": [
    "copies",
    "count",
+   "created",
    "elements"
   ],
   "type": "object"
@@ -1194,9 +1205,7 @@
    "dry_run": {
     "type": "boolean"
    },
-   "normalized_path": {
-    "type": "null"
-   },
+   "normalized_path": {},
    "not_in_source": {
     "type": "array"
    },
@@ -1534,6 +1543,9 @@
    "per_run": {
     "type": "array"
    },
+   "requested_runs": {
+    "type": "integer"
+   },
    "run_id": {
     "type": "string"
    },
@@ -1542,6 +1554,9 @@
      "integer",
      "null"
     ]
+   },
+   "truncated": {
+    "type": "boolean"
    },
    "units": {
     "type": [
@@ -1560,8 +1575,10 @@
    "model_id",
    "model_name",
    "per_run",
+   "requested_runs",
    "run_id",
    "runs",
+   "truncated",
    "units",
    "weak_link"
   ],
@@ -1711,6 +1728,9 @@
    },
    "part": {
     "type": "string"
+   },
+   "renamed": {
+    "type": "object"
    }
   },
   "required": [
@@ -1719,7 +1739,8 @@
    "elements",
    "name",
    "notes",
-   "part"
+   "part",
+   "renamed"
   ],
   "type": "object"
  },
@@ -1953,6 +1974,7 @@
    "changes": {
     "type": "array"
    },
+   "cut_short": {},
    "metric": {
     "type": "string"
    },
@@ -1968,9 +1990,7 @@
    "rows": {
     "type": "array"
    },
-   "seed": {
-    "type": "null"
-   },
+   "seed": {},
    "trials": {
     "type": [
      "integer",
@@ -1984,6 +2004,7 @@
    "batches",
    "caption",
    "changes",
+   "cut_short",
    "metric",
    "note",
    "objective",
@@ -2011,6 +2032,7 @@
    "confidence": {
     "type": "number"
    },
+   "cut_short": {},
    "metric": {
     "type": "string"
    },
@@ -2026,9 +2048,7 @@
    "rows": {
     "type": "array"
    },
-   "seed": {
-    "type": "null"
-   },
+   "seed": {},
    "target": {
     "type": "number"
    },
@@ -2045,6 +2065,7 @@
    "caption",
    "changes",
    "confidence",
+   "cut_short",
    "metric",
    "note",
    "recommendations",
@@ -2198,6 +2219,7 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {},
    "note": {
     "type": "string"
    },
@@ -2225,6 +2247,7 @@
    "bars",
    "base",
    "caption",
+   "cut_short",
    "note",
    "rows",
    "schema",
@@ -2464,6 +2487,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -2515,6 +2544,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
@@ -2534,7 +2564,10 @@
     "type": "string"
    },
    "dot_target": {
-    "type": "null"
+    "type": [
+     "null",
+     "number"
+    ]
    },
    "dots": {
     "type": "array"
@@ -2555,7 +2588,10 @@
     "type": "object"
    },
    "met": {
-    "type": "integer"
+    "type": [
+     "integer",
+     "null"
+    ]
    },
    "numbers": {
     "type": "array"
@@ -2579,7 +2615,10 @@
     "type": "array"
    },
    "total": {
-    "type": "integer"
+    "type": [
+     "integer",
+     "null"
+    ]
    },
    "units": {
     "type": "string"
@@ -2641,9 +2680,7 @@
    "format": {
     "type": "string"
    },
-   "layout_warning": {
-    "type": "null"
-   },
+   "layout_warning": {},
    "path": {
     "type": "string"
    }
@@ -2694,6 +2731,7 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {},
    "inputs": {
     "type": "array"
    },
@@ -2701,6 +2739,9 @@
     "type": "string"
    },
    "note": {
+    "type": "string"
+   },
+   "screened": {
     "type": "string"
    },
    "seed": {
@@ -2717,9 +2758,11 @@
    "base",
    "batches",
    "caption",
+   "cut_short",
    "inputs",
    "metric",
    "note",
+   "screened",
    "seed",
    "trials"
   ],
@@ -2891,6 +2934,12 @@
      "null"
     ]
    },
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -2948,6 +2997,7 @@
    "completed_runs",
    "elapsed_s",
    "error",
+   "eta_s",
    "job_id",
    "model_id",
    "percent",
@@ -3120,6 +3170,7 @@
    "caption": {
     "type": "string"
    },
+   "cut_short": {},
    "note": {
     "type": "string"
    },
@@ -3140,17 +3191,22 @@
    },
    "variance_reduction": {
     "type": "object"
+   },
+   "workers": {
+    "type": "integer"
    }
   },
   "required": [
    "base",
    "caption",
+   "cut_short",
    "note",
    "requirements",
    "rows",
    "seed",
    "trials",
-   "variance_reduction"
+   "variance_reduction",
+   "workers"
   ],
   "type": "object"
  },

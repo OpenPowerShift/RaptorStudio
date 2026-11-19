@@ -25,7 +25,7 @@
    "ao_plot": false,
    "capacity_plot": false,
    "cost_plot": false,
-   "ao_interval": 10.0,
+   "ao_interval": 0.1,
    "cost_interval": 720.0
   }
  },

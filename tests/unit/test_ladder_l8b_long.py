@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from raptor.core.engine.extended_results import legacy_lines
 from raptor.core.engine.runner import run_simulation_with_reports
 from raptor.core.fileio.rbd import load_rbd
 from tests.unit.log_compare import read_capture_text
@@ -18,7 +19,10 @@ DIR = Path(__file__).resolve().parents[1] / "ladder" / "LadL8B"
 
 
 def _body(path_or_lines) -> list[str]:
-    lines = path_or_lines if isinstance(path_or_lines, list) else read_capture_text(path_or_lines).splitlines()
+    # Ours: only the Raptor 7 part (the ***EXTENDED_RESULTS*** section that
+    # follows it is RAPTOR Studio's own); a capture is all Raptor 7.
+    lines = (legacy_lines(path_or_lines) if isinstance(path_or_lines, list)
+             else read_capture_text(path_or_lines).splitlines())
     return [line.rstrip() for line in lines[3:] if line.strip()]
 
 

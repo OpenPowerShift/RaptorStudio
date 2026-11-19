@@ -46,12 +46,23 @@ def precision(ctx: RunContext) -> Iterable[Finding]:
     if rel <= PRECISION:
         return
     needed = min(MAX_SUGGESTED_RUNS, math.ceil(n * (rel / PRECISION) ** 2))
+    # "± 4.9 %" (points) beside "± 200 %" (of the downtime) read as one unit
+    message = (f"Availability is {text.fmt_pct(mean, 5)} ± {text.fmt_num(100 * half, 2)} "
+               f"points (95 %), so the downtime is known only to within "
+               f"± {text.fmt_pct(rel)} of itself. ")
+    failures = int(sum(ctx.values("num_system_failures")))
+    if needed > 20 * n and failures < FEW_EVENTS:
+        # 11,859 runs for a 30-run model: true, and no use on its own
+        message += (f"It rests on {text.plural(failures, 'system failure')}, so more runs "
+                    f"narrow it only slowly: about {needed:,} would give "
+                    f"± {text.fmt_pct(PRECISION)}. Quote the availability with its "
+                    "interval rather than chase that.")
+    else:
+        message += f"About {needed:,} runs would give ± {text.fmt_pct(PRECISION)}."
     yield Finding(
         rule="R-QUA-001", severity="advice", category="quality",
         title="Downtime is not yet known precisely",
-        message=(f"Availability is {text.fmt_pct(mean, 5)} ± {text.fmt_pct(half, 2)} "
-                 f"(95 %). The downtime estimate is only good to ± {text.fmt_pct(rel)}. "
-                 f"About {needed:,} runs would give ± {text.fmt_pct(PRECISION)}."),
+        message=message,
         why="Each run is one possible future. The spread between runs sets how far "
             "the average can be trusted; the interval narrows with the square root "
             "of the number of runs. Precision is judged on downtime because that is "
@@ -120,14 +131,26 @@ def tail_runs(ctx: RunContext) -> Iterable[Finding]:
     share = sum(down[:k]) / total
     if share <= TAIL_SHARE:
         return
+    with_down = sum(1 for d in down if d > 0)
+    # "100 % came from 150 of 3,000 runs ... 2,922 had no downtime": 150
+    # was the worst 5 %, though only 78 runs had any downtime
+    k = min(k, with_down)
     ordered = sorted(ao)
     median, p10 = ordered[n // 2], ordered[max(0, math.ceil(0.10 * n) - 1)]
+    clean = sum(1 for a in ao if a >= 1.0)
+    if p10 >= 1.0:
+        # "a typical run has availability 100 %; one run in ten is below 100 %"
+        typical = f"{clean:,} of the {n:,} runs had no downtime at all."
+    else:
+        typical = (f"A typical run has availability {text.fmt_avail(median)}; one run "
+                   f"in ten is below {text.fmt_avail(p10)}.")
     yield Finding(
         rule="R-QUA-005", severity="advice", category="quality",
         title="A few bad runs drive the average",
-        message=(f"{text.fmt_pct(share)} of all downtime came from {k} of {n:,} runs: rare "
-                 f"long outages drive the average. A typical run has availability "
-                 f"{text.fmt_pct(median, 5)}; one run in ten is below {text.fmt_pct(p10, 5)}."),
+        message=((f"All the downtime came from {k:,} of the {n:,} runs: rare "
+                  f"long outages drive the average. {typical}") if k == with_down else
+                 (f"{text.fmt_pct(share)} of all downtime came from the worst {k:,} of "
+                  f"{n:,} runs: rare long outages drive the average. {typical}")),
         why="When the outcome is this lopsided the average describes few real "
             "runs. Quote the typical run and the bad-case run as well as the mean, "
             "and look at what the worst runs have in common.",
@@ -173,14 +196,14 @@ def _verdict(ctx: RunContext, req: dict) -> Finding | None:
     if p_meet >= 0.95:
         return Finding(severity="info", title="Target met",
                        message=(f"Target met: {label} {op} {show(target)}; the runs give "
-                                f"{show(mean)} ± {spread} (95 %). {_confident(p_meet)} confident; "
+                                f"{show(mean)} ± {spread} (95 %). {_confident(p_meet)} sure it is met; "
                                 f"{counted}."),
                        confidence=p_meet, impact=0.2, **common)
     if p_meet <= 0.05:
         return Finding(severity="warning", title="Target missed",
                        message=(f"Target missed: {label} {op} {show(target)}; the runs give "
                                 f"{show(mean)} ± {spread} (95 %){gap_time}. "
-                                f"{_confident(1 - p_meet)} confident; {counted}."),
+                                f"{_confident(1 - p_meet)} sure it is missed; {counted}."),
                        confidence=1 - p_meet, impact=1.0, **common)
     needed = min(MAX_SUGGESTED_RUNS,
                  math.ceil(n * (t_quantile(0.975, n - 1) * sem / abs(margin)) ** 2)
@@ -200,3 +223,48 @@ def requirements(ctx: RunContext) -> Iterable[Finding]:
         finding = _verdict(ctx, req)
         if finding is not None:
             yield finding
+
+
+#: Below this mean availability a result is worth checking against the inputs.
+LOW_AVAILABILITY = 0.5
+
+
+@rule("R-DAT-001", title="A very low result explained by the inputs",
+      category="data", basis="exact", severity="warning", needs=("model", "run"))
+def low_from_inputs(ctx: RunContext) -> Iterable[Finding]:
+    """The system was down most of the time and the blocks themselves say
+    why: each takes longer to repair than it lasts. The Story gave "5.6 %"
+    and repair advice, while the likely answer was swapped or mis-scaled
+    failure and repair values."""
+    ao = ctx.values("availability")
+    if not ao:
+        return
+    mean = sum(ao) / len(ao)
+    if mean >= LOW_AVAILABILITY:
+        return
+    slow = []
+    for b in ctx.blocks:
+        life, repair = ctx.mean_life(b), ctx.mean_repair(b)
+        if life and repair and repair >= life:
+            slow.append((b, life, repair))
+    if not slow:
+        return
+    slow.sort(key=lambda item: -(item[2] / item[1]))
+    named = "; ".join(f"{b['name']} (repair {text.fmt_time(repair, ctx.units)}, "
+                      f"life {text.fmt_time(life, ctx.units)})"
+                      for b, life, repair in slow[:4])
+    more = f" and {len(slow) - 4} more" if len(slow) > 4 else ""
+    each = "is" if len(slow) == 1 else "are each"
+    yield Finding(
+        rule="R-DAT-001", severity="warning", category="data",
+        title="A very low result explained by the inputs",
+        message=(f"The system is down {text.fmt_pct(1.0 - mean)} of the time. "
+                 f"{named}{more} {each} down more than up: check whether the "
+                 "failure and repair values are swapped or in different units."),
+        why="When a block takes longer to repair than it lasts, it is down most "
+            "of the time by its own data. That is possible, but a result this "
+            "low usually means an input mistake rather than a design to improve.",
+        targets=tuple(ctx.block_target(b, "repair_params") for b, _l, _r in slow[:4]),
+        evidence={"availability": mean, "blocks": [b["name"] for b, _l, _r in slow]},
+        basis="exact", impact=1.0 - mean,
+        doc="advisor.html#R-DAT-001")

@@ -66,6 +66,16 @@ def _pick_run(runs: list[dict[str, Any]], run: int) -> tuple[int, dict[str, Any]
     return run, runs[run - 1]
 
 
+def _usable_floor(highs: list[float], floor: float | None) -> tuple[float | None, str]:
+    """The axis floor, unless it is above every value: then the plot was
+    blank with no word why.  Returns the floor to use and a caption note."""
+    tops = [v for v in highs if v is not None]
+    if floor is not None and 0 < floor < 1 and tops and floor >= max(tops):
+        return None, (f" The axis floor ({_pct(floor)}) is above every value, so "
+                      "the axis fits the data instead.")
+    return floor, ""
+
+
 def _floor_range(lows: list[float], floor: float | None, *, zoom: bool) -> list[float]:
     """The suggested y range for a fraction chart.
 
@@ -82,6 +92,28 @@ def _floor_range(lows: list[float], floor: float | None, *, zoom: bool) -> list[
     gap = 1.0 - low
     step = 10 ** math.floor(math.log10(gap)) if gap > 0 else 0.001
     return [max(0.0, math.floor(low / step - 1) * step), 1.0]
+
+
+def too_short(t: float, units: str) -> str:
+    """Why a run with a single availability sample has no chart over time:
+    a 2 h run with a 10 h interval drew an empty plot whose five ticks all
+    read "2.00000000"."""
+    return (f"The run is shorter than two recording intervals (one sample, at "
+            f"{_time(t, units)}), so there is nothing to draw over time. Lower "
+            "the availability plot's interval under Run panel ▸ Recording, "
+            "then run again.")
+
+
+def in_key(layer: dict[str, Any]) -> bool:
+    """Whether a layer belongs in the key: not one marked out of it, and
+    not an area with nothing in it (a run that lost no capacity listed
+    "capacity lost" for a band that was never drawn)."""
+    if layer.get("key") is False:
+        return False
+    if layer.get("role") == "area":
+        return any(float(h) - float(lo) > 1e-12
+                   for h, lo in zip(layer.get("hi") or (), layer.get("lo") or ()))
+    return True
 
 
 def _spec(title: str, subtitle: str, units: str, layers: list[dict[str, Any]], *,
@@ -116,6 +148,8 @@ def availability_through_run(ao_runs: list[dict[str, Any]], run: int = 1, *,
     rows = _full_rows(data)
     if not rows:
         raise ValueError("this run's availability plot has no green/yellow/red rows")
+    if len(rows) < 2:
+        raise ValueError(too_short(float(data["t"][rows[0]]), units))
     keep = [rows[i] for i in _stride(len(rows))]
     t = [float(data["t"][i]) for i in keep]
     green = [float(data["green"][i]) for i in keep]
@@ -140,6 +174,8 @@ def availability_through_run(ao_runs: list[dict[str, Any]], run: int = 1, *,
         {"name": "availability so far", "role": "line", "tone": "ink", "t": t,
          "y": degraded, "width": 1.6},
     ]
+    y_floor, floor_note = _usable_floor(list(degraded), y_floor)
+    caption += floor_note
     return _spec(f"Availability through run {number}",
                  "the share of time so far spent fully up, degraded and down",
                  units, layers, caption=caption, fmt="percent",
@@ -165,7 +201,11 @@ def interval_availability(ao_runs: list[dict[str, Any]], run: int = 1, *,
     pairs = [(float(t), float(v)) for t, v in zip(data["t"], data["interval"])
              if v is not None]
     if not pairs:
-        raise ValueError("this run has no interval samples (the availability "
+        # "tick the Availability plot" was said with the plot ticked: the
+        # run was shorter than one interval
+        times = [float(t) for t in data.get("t") or []]
+        raise ValueError(too_short(times[-1], units) if times else
+                         "this run has no interval samples (the availability "
                          "plot needs a recording interval)")
     starts = [0.0] + [t for t, _ in pairs[:-1]]
     spans = [(s, e, v) for s, (e, v) in zip(starts, pairs, strict=True)]
@@ -195,6 +235,8 @@ def interval_availability(ao_runs: list[dict[str, Any]], run: int = 1, *,
         {"name": "availability so far", "role": "line", "tone": "ink",
          "t": line_t, "y": line_y, "width": 1.2, "dash": True},
     ]
+    y_floor, floor_note = _usable_floor(ys + line_y, y_floor)
+    caption += floor_note
     return _spec(f"Availability interval by interval, run {number}",
                  "the share of each recording interval the system was up",
                  units, layers, caption=caption, fmt="percent",
@@ -276,8 +318,13 @@ def availability_band(ao_runs: list[dict[str, Any]], *, units: str = "",
     if len(usable) < 2:
         raise ValueError("this chart needs the availability plot of at least 2 runs")
     horizon = min(float(r["t"][-1]) for r in usable)
+    # from the first sample: the stretch before it was the first value
+    # copied back to 0, drawn as if it had been measured
+    start = max(float(r["t"][0]) for r in usable)
+    if horizon <= start:
+        raise ValueError(too_short(horizon, units))
     count = max(2, points)
-    grid = [horizon * i / (count - 1) for i in range(count)]
+    grid = [start + (horizon - start) * i / (count - 1) for i in range(count)]
     samples = [_sample([float(x) for x in r["t"]], [float(v) for v in r["values"]],
                        grid, step=False) for r in usable]
     bands = _bands([list(col) for col in zip(*samples, strict=True)])
@@ -290,7 +337,10 @@ def availability_band(ao_runs: list[dict[str, Any]], *, units: str = "",
                f"{_pct(width_end, 2)} at the end.")
     if target is not None:
         met = sum(1 for column in samples if column[-1] >= target)
-        caption += f" {met:,} runs ended at or above the target."
+        caption += (f" {met:,} of the {len(usable):,} runs ended at or above "
+                    "the target.")
+    y_floor, floor_note = _usable_floor(bands["max"], y_floor)
+    caption += floor_note
     return _spec("Availability across all runs",
                  "each run's availability so far: where the runs agree",
                  units, _band_layers(grid, bands, what="availability"),
@@ -393,7 +443,9 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
         {"name": "flow delivered", "role": "area", "tone": "accent", "alpha": 0.30,
          "read": "none",
          "t": xs, "lo": [0.0] * len(xs), "hi": fs},
-        {"name": "flow", "role": "line", "tone": "accent", "t": xs, "y": fs, "width": 1.8},
+        # the top edge of "flow delivered": one key entry is enough
+        {"name": "flow", "role": "line", "tone": "accent", "t": xs, "y": fs, "width": 1.8,
+         "key": False},
     ]
     # Raptor writes 999,999,999 for "no limit": with no link or block
     # capacities set the system can carry anything while it is up, which is

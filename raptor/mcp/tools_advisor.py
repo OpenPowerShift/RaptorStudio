@@ -229,7 +229,10 @@ def downtime_drivers(run_id: str, top: int = 10,
 
     ws = context.workspace()
     attribution = drivers.read(ws, run_id)
-    top = max(1, min(int(top), 100))
+    if isinstance(top, bool) or int(top) != top or not 1 <= int(top) <= 100:
+        # was clamped to 1..100 without a word
+        raise ValueError(f"top is a whole number from 1 to 100; got {top!r}")
+    top = int(top)
     rows = drivers.top(attribution, top)
     data = {**attribution, "elements": rows, "run_id": run_id,
             "caption": drivers.caption(attribution)}
@@ -278,7 +281,8 @@ def annual_availability(run_id: str, year_length: float | None = None, offset: f
 
 @mcp.tool(annotations=READ_ONLY("Run story"))
 @guarded
-def run_story(run_id: str) -> CallToolResult:
+def run_story(run_id: str,
+              targets: list[dict[str, Any]] | None = None) -> CallToolResult:
     """The Story of a finished run: answer first, evidence second.
 
     One object the application, command line and report all render: the
@@ -288,13 +292,20 @@ def run_story(run_id: str) -> CallToolResult:
     capacity when capacity analysis is on), the top run findings, up to six
     key numbers, sections only for features the model uses, and provenance.
 
+    `targets` gives the headline its target, as `advise` takes them, e.g.
+    `[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
+    the headline; `<=` suits time down per outage).
+
     Needs the run's ordinary artefacts. Needs `attribution=True` for the
     drivers strip and the attribution-based findings; without it the Story
-    still renders and says how to turn it on.
+    still renders and says how to turn it on. A run stopped early says so
+    in its findings and `provenance.requested_runs`.
     """
+    from raptor.api.advisor.context import check_requirements
     from raptor.api.insight.story import from_run, text_lines
 
-    story = from_run(context.workspace(), run_id)
+    check_requirements(targets)
+    story = from_run(context.workspace(), run_id, requirements=targets)
     data = {**story.to_dict(), "run_id": run_id}
     return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")
 
@@ -304,8 +315,10 @@ def run_story(run_id: str) -> CallToolResult:
 def run_chart(run_id: str, chart: str = "trial-outcome",
               render_svg: bool = False, run: int = 1,
               y_floor: float | None = None, page: str = "screen",
-              min_share: float = 0.0) -> CallToolResult:
+              min_share: float = 0.0, target: float | None = None) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
+
+    `chart` is the chart's name: one of those listed below.
 
     The text gives the caption and the numbers the chart draws (the leading
     rows, or each layer's end value over time). `render_svg=True` adds the
@@ -329,8 +342,9 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     the run has those. Over time: `availability-through-run`,
     `interval-availability` and `availability-band` need the availability
     plot recorded (`availability_plot=true`), `capacity-through-run` and
-    `capacity-band` capacity analysis; `run` picks the run of a one-run
-    chart and `y_floor` (0 to 1) the bottom of an availability axis.
+    `capacity-band` capacity analysis. `run` picks the run a one-run chart
+    shows (1 is the first). `y_floor` (0 to 1) fixes the bottom of an
+    availability axis; leave it out to fit the axis to the data.
 
     For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
     `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names
@@ -339,18 +353,25 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     row or cell (element rankings and treemaps; the caption names them).
     No label is ever shortened: names wrap, and treemap cells too small for
     their name are numbered and listed under the chart.
+
+    `target` (0 to 1, e.g. 0.995) draws a dashed target line on the
+    outcome, chance, convergence and availability-over-time charts, as the
+    window's Target button does. It is a visual cue only.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run
+    from raptor.api.run_tables import read_per_run, run_units
 
     ws = context.workspace()
+    units = run_units(ws, run_id)            # "not found" before an empty chart
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     attribution = None
     try:
         attribution = drivers.read(ws, run_id)
     except Exception:  # noqa: BLE001 - the base charts do not need it
         attribution = None
+    if chart == "ensemble-ribbon":
+        attribution = drivers.with_outages(ws, run_id, attribution)
     periods = None
     if chart in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)
@@ -361,17 +382,22 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     over_time = (stored_inputs(run_dir(ws, run_id)) if chart in TIME_CHARTS
                  else {})
+    over_time.pop("units", None)       # passed as units= (it is the run's)
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise ValueError("y_floor must be at least 0 and below 1")
     if not 0.0 <= min_share < 1.0:
         raise ValueError("min_share must be at least 0 and below 1")
+    if target is not None and not 0.0 < target <= 1.0:
+        raise ValueError("target is a fraction: give it as 0 to 1 (0.995), not "
+                         f"{target:g}")
     from raptor.render.charts_svg import PAGES
     if page not in PAGES:
         raise ValueError(f"page must be one of {', '.join(PAGES)}")
     spec = charts.fold_small(
         charts.chart_named(chart, per_run=per_run, attribution=attribution,
                            periods=periods, costs=costs, run=run,
-                           importance=importance, y_floor=y_floor, **over_time),
+                           importance=importance, y_floor=y_floor,
+                           units=units, surface="mcp", target=target, **over_time),
         min_share)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:

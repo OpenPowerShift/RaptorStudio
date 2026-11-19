@@ -59,7 +59,8 @@ class RunMixin(_Base):
         # a None check at every use, so it stays Any with its real type noted.
         def _apply_hier_status(self, report_data: Any) -> None: ...
         def _begin_importance_progress(self, total: Any) -> None: ...
-        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ...) -> dict: ...
+        def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ..., seed: int = ...) -> dict: ...
+        def _resolve_run_seed(self) -> int: ...
         def _checked_overlay_state(self) -> dict[str, bool]: ...
         def _clear_run_eta(self) -> None: ...
         def _current_experiment(self) -> dict: ...
@@ -186,6 +187,8 @@ class RunMixin(_Base):
             view.clear_result_overlays()
             self._statusbar.showMessage(
                 "Results cleared: the run scope changed", 6000)
+        # Nor be compared as "the run before".
+        self._results.forget_previous_run()
 
     def _prepare_run_model(self, copy: bool = False):
         """The model the next run should use, plus its isolation record.
@@ -396,6 +399,9 @@ class RunMixin(_Base):
             return True
         if horizon <= 0:
             return True
+        from raptor.gui.ui import ask_again
+        if not ask_again.should_ask("confirm/long_run"):
+            return True
         # Importance measures are extra batches after the baseline; the
         # time until completion includes them, so the guard must too.
         importance_batches = 0
@@ -480,8 +486,11 @@ class RunMixin(_Base):
         run_btn = box.addButton("Run", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(run_btn)
+        again = ask_again.add_box(box, "Don't warn me about long runs")
         box.exec()
         if box.clickedButton() is run_btn:
+            if again.isChecked():
+                ask_again.stop_asking("confirm/long_run")
             return True
         self._statusbar.showMessage("Run cancelled — nothing was started", 5000)
         return False
@@ -511,7 +520,9 @@ class RunMixin(_Base):
             return True
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("Unsupported Model Features")
+        # most of these are model problems (a block with no link in), not
+        # features the engine lacks
+        box.setWindowTitle("Model Not Ready to Run")
         box.setDetailedText("\n".join(preflight))
         from raptor.gui.ui.preflight import run_dialog_text
         box.setText(run_dialog_text(preflight))
@@ -519,8 +530,8 @@ class RunMixin(_Base):
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.exec()
         if box.clickedButton() is not run_btn:
-            self._statusbar.showMessage("Run cancelled — unsupported "
-                                        "features present")
+            self._statusbar.showMessage("Run cancelled — fix the model "
+                                        "problems listed, or Run Anyway")
             return False
         return True
 
@@ -599,8 +610,9 @@ class RunMixin(_Base):
         # Freeze the manifest BEFORE the engine is handed anything, so it
         # describes the run that actually happened even if the model is
         # edited while the engine works.
+        run_seed = self._resolve_run_seed()
         run_metadata["manifest"] = self._build_run_manifest(
-            run_model, isolation)
+            run_model, isolation, seed=run_seed)
         hooks = ForegroundRun(
             self, num_runs=num_runs, units=units,
             live_view=self._live_sim_action.isChecked(),
@@ -634,6 +646,7 @@ class RunMixin(_Base):
                 cumulative_trial_interval=self._dev_options().cumulative_by_trial,
                 cumulative_time_path=cumulative_time_path,
                 cumulative_time_mesh=self._dev_options().cumulative_by_time,
+                seed=run_seed or None,
                 keep_partial_logs=True,
             )
         except RunAborted:

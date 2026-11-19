@@ -93,6 +93,11 @@ def default_inputs(rbd: Any, attribution: dict[str, Any] | None = None,
             for element in attribution.get("elements") or []}
         blocks.sort(key=lambda row: -shares.get(
             str(row.get("blockName") or ""), 0.0))
+    else:
+        # no run to rank by: file order screened Utility_A, Generator, UPS
+        # and never the CRAC units the downtime came from
+        score = _own_downtime(rbd)
+        blocks.sort(key=lambda row: -score.get(str(row.get("ID")), 0.0))
     inputs: list[Input] = []
     for row in blocks:
         inputs.extend(_block_inputs(row, limit - len(inputs)))
@@ -103,6 +108,49 @@ def default_inputs(rbd: Any, attribution: dict[str, Any] | None = None,
     if len(inputs) < limit:
         inputs.extend(_resource_inputs(rbd, limit - len(inputs)))
     return inputs[:limit]
+
+
+def _own_downtime(rbd: Any) -> dict[str, float]:
+    """Block ID -> a guess at its share of system downtime from its own
+    data: its own unavailability (repair / (life + repair), or the chance
+    it fails in the run when it is not repaired), squared for a block the
+    diagram backs up (another one must be down too)."""
+    from raptor.api.advisor.context import ModelContext
+    try:
+        ctx = ModelContext(rbd)
+        length = float(ctx.run_length or 0.0)
+    except Exception:  # noqa: BLE001 - a guess: fall back to file order
+        return {}
+    out: dict[str, float] = {}
+    for row in rbd.section("BLOCK_DATA").rows:
+        bid = str(row.get("ID", "0"))
+        if bid == "0":
+            continue
+        life, repair = _mean_of(row, "F"), _mean_of(row, "R")
+        if not life:
+            continue
+        own = (repair / (life + repair) if repair
+               else min(1.0, length / life) if length else 0.5)
+        try:
+            backed = ctx.redundant(("block", int(float(bid))))
+        except (TypeError, ValueError):
+            backed = False
+        out[bid] = own * own if backed else own
+    return out
+
+
+def screening(rbd: Any, inputs: Sequence[Input],
+              attribution: dict[str, Any] | None = None) -> str:
+    """What the screen tried and how it chose: "the largest swing" is only
+    the largest among the inputs screened."""
+    available = len(default_inputs(rbd, attribution, limit=10_000))
+    if len(inputs) >= available:
+        return f"All {available} inputs that can be varied were screened."
+    how = ("by this run's downtime share" if attribution else
+           "by each block's own downtime from its failure and repair data, "
+           "blocks the diagram does not back up first")
+    return (f"Screened {len(inputs)} of the {available} inputs that can be varied, "
+            f"chosen {how}; ask for more to screen the rest.")
 
 
 def _block_inputs(row: dict[str, Any], budget: int) -> list[Input]:
@@ -243,6 +291,7 @@ def tornado(
     progress: Callable[[int, int, str], None] | None = None,
     abort: Any = None,
     asked: int | None = None,
+    screened: str = "",
 ) -> dict[str, Any]:
     """Run Base and the low/high of each input; return the ranked swings.
 
@@ -254,7 +303,7 @@ def tornado(
     `capacity_weighted_availability`, `lost_flow`, ...).  Effects are means
     of paired trial differences against Base, with their SEM.
     """
-    from raptor.api.batch import run_variants
+    from raptor.api.batch import cut_short, require_measured, run_variants
 
     variants = [{"label": "Base", "assignments": []}]
     for item in inputs:
@@ -265,6 +314,7 @@ def tornado(
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    short = cut_short(results, timeout_s)
     base = _rows(workspace, results[0]) if results else []
     base_values = _values(base, metric)
     if base and not base_values:
@@ -296,6 +346,7 @@ def tornado(
             "distinguishable": distinguishable,
             "error": low_row.get("error") or high_row.get("error"),
         })
+    require_measured(short, any(row["swing"] is not None for row in rows))
     rows.sort(key=lambda row: -(row["swing"] or 0.0))
     largest = rows[0]["swing"] if rows and rows[0]["swing"] else 0.0
     for row in rows:
@@ -310,11 +361,15 @@ def tornado(
                  "runs": len(base_values)},
         "inputs": rows,
         "batches": len(results),
-        "caption": _caption(rows, metric, base_mean),
+        "caption": ((short + " " if short else "")
+                    + _caption(rows, metric, base_mean)),
+        "cut_short": short,
+        "screened": screened,
         "note": ("One-at-a-time: each input is shown alone. It cannot show "
                  "interactions between inputs."
                  + (f" This model has only {len(inputs)} inputs that can be "
-                    f"varied, not {asked}." if asked and len(inputs) < asked else "")),
+                    f"varied, not {asked}." if asked and len(inputs) < asked
+                    else f" {screened}" if screened else "")),
     }
 
 
@@ -365,11 +420,12 @@ def _caption(rows: list[dict[str, Any]], metric: str,
     base = ("" if base_mean is None else
             f" from a base of {100 * base_mean:.4g} %" if share else
             f" from a base of {base_mean:.4g}")
-    text = f"{top['input']['name']} has the largest swing on {metric} ({swing}{base})."
     if not any(row.get("distinguishable") for row in usable):
-        text += (" No swing is clear of the run-to-run noise at this many "
-                 "trials: run more before acting on the order.")
-    return text
+        return (f"No swing on {metric} is clear of the run-to-run noise at this "
+                f"many trials (the widest, {top['input']['name']}, is {swing}"
+                f"{base}): run more before acting on the order.")
+    return (f"Of the inputs screened, {top['input']['name']} has the largest "
+            f"swing on {metric} ({swing}{base}).")
 
 
 #: Metrics that are shares, shown in percent and their swings in points.
@@ -382,6 +438,7 @@ def sensitivity_lines(result: dict[str, Any]) -> list[str]:
     copies it."""
     lines: list[str] = []
     base = result["base"]
+    share = result["metric"] in _SHARE_METRICS
     shown = (f"{100 * base['mean']:.5g} %" if result["metric"] in _SHARE_METRICS
              else f"{base['mean']:.6g}")
     lines.append(f"Sensitivity of {result['metric']} (base {shown}), "
@@ -392,9 +449,32 @@ def sensitivity_lines(result: dict[str, Any]) -> list[str]:
             continue
         marks = "" if row["distinguishable"] else "  (not distinguishable)"
         small = "  small" if row.get("small") else ""
-        lines.append(f"  {row['input']['name']:<28} swing {row['swing']:.4g}"
-              f"  low {row['low']['effect']:+.4g}  high "
-              f"{row['high']['effect']:+.4g}{marks}{small}")
+        item = row["input"]
+        values = ""
+        if item.get("low_value") is not None and item.get("high_value") is not None:
+            values = (f"  [{_num(item['low_value'])} .. {_num(item['high_value'])}"
+                      f" from {_num(item.get('base_value'))}]")
+        lines.append(f"  {item['name']:<28} swing {_eff(row['swing'], share, False)}"
+              f"  low {_eff(row['low']['effect'], share)}  high "
+              f"{_eff(row['high']['effect'], share)}{values}{marks}{small}")
+    if any(row["swing"] is not None and not row["distinguishable"]
+           for row in result["inputs"]):
+        lines.append("  (not distinguishable: the swing is within two standard "
+                     "errors of no effect at this many runs)")
     lines.append(f"\n{result['caption']}")
     lines.append(result["note"])
     return lines
+
+
+def _num(value: Any) -> str:
+    return "?" if value is None else f"{float(value):,.4g}"
+
+
+def _eff(value: float | None, share: bool, signed: bool = True) -> str:
+    """An effect in the caption's own units: points for a share metric
+    (the rows printed 0.01254 under a sentence saying 1.25 pts)."""
+    if value is None:
+        return "?"
+    if share:
+        return f"{100 * value:{'+' if signed else ''}.3g} pts"
+    return f"{value:{'+' if signed else ''}.4g}"

@@ -3403,6 +3403,80 @@ noise, sometimes none. The comparison is still fair, and its standard
 error is computed from the paired differences, so it does not flatter
 the result; What If reports how much the pairing actually cut.</p>
 </div>
+<div class="sect3">
+<h4 id="_choosing_the_seed">8.4.1. Choosing the seed</h4>
+<div class="paragraph">
+<p>The <strong>Seed</strong> box under <strong>More options</strong> in the Run panel picks the dice:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Setting</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What it does</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Raptor 7 (fixed)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The default: Raptor 7&#8217;s own seed table. The same model
+always gives the same numbers, and they match Raptor 7.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New each run</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A fresh seed every time you press <strong>Run</strong>. Use it to see
+how much a result moves between honest re-rolls.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A seed you choose, saved with the model. The same number
+repeats the run exactly.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The seed used is in the ready line ("seed 1234") and in the results'
+run-settings line. After a <strong>New each run</strong> run, choosing <strong>Number</strong> fills in
+the seed that run used, so a result you like can be repeated.</p>
+</div>
+<div class="paragraph">
+<p>Two runs on the fixed seed are <strong>not</strong> two independent experiments: they
+are the same experiment twice. To check that a result is stable, re-run
+it with <strong>New each run</strong> and see how far it moves. What If, Sensitivity,
+Recommend and the optimisers use the same setting, with one seed for the
+whole study, so the base and every variant stay paired.</p>
+</div>
+<div class="paragraph">
+<p>The command line and the AI Assistant can repeat a GUI result exactly:
+<code>raptor run --seed 1234 -j 1</code> matches seed 1234 on one core, and <code>-j 2</code>
+matches it on any number of cores (MCP: <code>seed=1234</code>, <code>workers=1</code> or
+<code>2</code>). Point at the results' run-settings line to see the command for
+that run.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_giving_each_block_its_own_streams">8.4.2. Giving each block its own streams</h4>
+<div class="paragraph">
+<p>By default every block draws from one shared stream, as in Raptor 7.
+That is statistically sound, but a change to one block shifts the draws
+of every block after it, which adds noise to a comparison.
+<strong>Run panel ▸ More options ▸ Streams ▸ Separate for each block</strong> gives
+every block its own failure and repair streams for the run, without
+editing the model: switch back to <strong>As in the model</strong> and Raptor 7&#8217;s
+numbers return. To keep separate streams in the model itself, use
+<strong>Data ▸ Bulk Edit ▸ Separate Streams</strong> (<strong>Undo</strong> puts them back). To give
+each block you add, paste or duplicate its own streams from the start,
+turn on <strong>Preferences ▸ Working ▸ New blocks</strong>; Raptor Studio remembers
+the setting.</p>
+</div>
+<div class="paragraph">
+<p>There are 49 pairs of streams. From the 50th block the pairs are reused,
+least-used first, and the status bar says how many blocks share one —
+still sound, and better than one stream for everything. A run with separate
+streams no longer reproduces Raptor 7&#8217;s numbers.</p>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_watching_the_wobble_shrink">8.5. Watching the wobble shrink</h3>
@@ -3603,7 +3677,7 @@ and in the Run panel&#8217;s ready line.</p>
 </div>
 <div class="paragraph">
 <p>If the computer is needed for something else while a long run is going, lower
-the <strong>Cores</strong> field in the Run panel: the run carries on, on fewer cores, within
+the <strong>Cores</strong> field under <strong>More options</strong> in the Run panel: the run carries on, on fewer cores, within
 a run or two, and the numbers are the same. Raise it again, up to the number it
 started with, to spread out once more.</p>
 </div>
@@ -6183,8 +6257,8 @@ whole model, run the whole model and read the weak-link results.</p>
 </table>
 </div>
 <div class="paragraph">
-<p>The quickest route is the Run panel. Set <strong>Model scope</strong> to the hierarchy
-(then the canvas follows you into it). A warning appears with the same
+<p>The quickest route is the Run panel. Under <strong>More options</strong>, set <strong>Model
+scope</strong> to the hierarchy (then the canvas follows you into it). A warning appears with the same
 boundary treatments as Extract Hierarchy, and Run produces the ordinary
 tables, graphs and importance measures scoped to that hierarchy. Nothing
 is written to disk and the source model is not changed; the Results dock
@@ -9499,16 +9573,17 @@ levers:</p>
 <ul>
 <li>
 <p><strong>Multi</strong> — advance a whole batch of events at once. How many is set
-in the <strong>Run</strong> panel&#8217;s <strong>Stepping</strong> section (10 by default). The
-diagram jumps to the end state.</p>
+in <strong>Multi-step events</strong>, in the <strong>Step Settings</strong> group beside it on
+the Debug tab (10 by default). The diagram jumps to the end state.</p>
 </li>
 <li>
-<p><strong>Run to time</strong> — advance until the clock reaches a target time, also
-set in the Run panel. "Run to 720" is the whole mission in one press.</p>
+<p><strong>Run to time</strong> — advance until the clock reaches a target time, set
+in <strong>Run to</strong> in the same group. "Run to 720 hours" is the whole mission
+in one press.</p>
 </li>
 <li>
-<p><strong>Breakpoint</strong> — pick a block in the Run panel&#8217;s <strong>Breakpoint on</strong>
-field (say, <code>Power</code>) and stepping stops dead the instant that block
+<p><strong>Breakpoint</strong> — pick a block in <strong>Pause when fails</strong>, in the same
+group (say, <code>Power</code>), and stepping stops dead the instant that block
 enters Repairing. This is the classic debugger breakpoint, aimed at
 hardware.</p>
 </li>
@@ -12794,8 +12869,19 @@ differences either way, and the <code>Pairing cut the variance by</code> line sa
 what was gained.</p>
 </div>
 <div class="paragraph">
-<p>Use the same seed and the same trial count when you compare two runs by
-hand; otherwise you are reading noise.</p>
+<p>Use the same seed, the same trial count and the same number of cores when
+you compare two runs by hand; otherwise you are reading noise. The numbers
+depend on the cores (<code>-j</code>): one core and several draw different streams, so
+the header says how many were used. The What If window (Analyse ▸ What If)
+uses the cores chosen in the Run panel, so it can differ from a command-line
+<code>whatif</code>, which uses one unless you give <code>-j</code>.</p>
+</div>
+<div class="paragraph">
+<p>A change can have no effect at all, such as a repair time on a block that is
+never repaired. Every trial is then identical to Base: the result says "no
+effect" and the window does not offer Apply. Besides block, node, event,
+hierarchy, link, system and rate paths, a change can set a spare pool&#8217;s
+stock or a crew pool&#8217;s size: <code>pool:Spares.stock=3</code>, <code>resource:Crew.units=2</code>.</p>
 </div>
 </div>
 <div class="sect2">
@@ -12811,7 +12897,12 @@ same seed as Base, and ranks the paired swings:</p>
 </div>
 <div class="paragraph">
 <p>Candidates come from block lives and repair means, PM intervals, finite
-spare stock and crew counts. A swing whose interval contains zero is drawn
+spare stock and crew counts. Only the first <code>--top</code> of them are screened
+(10 by default): after a run with downtime attribution, the elements that
+cause the most downtime come first; without one, the blocks down for the
+largest share of their own time. The output says how many of the inputs
+were screened; raise <code>--top</code> to screen the rest. The Sensitivity window
+(Analyse ▸ Sensitivity) does the same, using the last run&#8217;s attribution. A swing whose interval contains zero is drawn
 as "not distinguishable" rather than promoted. This is a screening view: it
 shows each input alone, so it cannot show interactions.</p>
 </div>
@@ -13236,7 +13327,7 @@ actually described.</p>
 </div>
 </div>
 <div class="paragraph">
-<p>Fourteen elements: one dispatch event, two engines feeding a
+<p>Thirteen elements: one dispatch event, two engines feeding a
 capacity-limited thrust manifold, a dependent hydraulic pump, a
 cold-standby generator pair, and an avionics block, strung through
 four fixed-length phases.</p>
@@ -13382,7 +13473,7 @@ point as the engine can currently express. And as with every earlier
 capstone: every failure here is drawn independently, the dollar
 figures are teaching numbers chosen to make the arithmetic legible,
 not real aircraft economics, and no fault-tree detail from an actual
-airworthiness process is anywhere in this twelve-element model.</p>
+airworthiness process is anywhere in this thirteen-element model.</p>
 </div>
 </td>
 </tr>
@@ -13436,17 +13527,19 @@ own choices, not a scorecard for yours.</p>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
-<p>Two real examples from the reference build: the engines'
-characteristic life (8 operating hours) and the generator&#8217;s
-bus-transfer delay (72 seconds) both came from nowhere in the
-brief&#8217;s prose — they were picked to make the mechanism visible at
-2000 trials, the same "compress the numbers" move every earlier
-capstone has made openly. A shorter characteristic life pushes
-Reliability down; a shorter transfer delay nudges it up (fewer
-Red ticks long enough to matter, though this metric is
-zero-tolerance regardless of duration — see the Limits box).
-Your own file almost certainly has at least one number in the same
-position: something the brief left to your judgement.</p>
+<p>The brief pins down most of the numbers — the engines' 8-hour
+characteristic life, the 72-second APU spin-up, the 3-minute
+hydraulic reset — so the open choices are about <strong>how</strong>, not <strong>how
+much</strong>. Two from the reference build: how hard the hydraulic pump
+depends on Engine 1 ("driven off the accessory gearbox" says
+nothing about what is left when the engine stops; this build makes
+the pump go fully Idle, the most pessimistic reading — a partial
+dependency would push Reliability up), and whether anything but
+the engines wears faster in Climb (the brief gives stress factors
+only for the engines; this build leaves the generators and the pump
+at a steady rate — phase stress on them too would push Reliability
+down). Your own file almost certainly made at least one choice of
+the same kind: something the brief left to your judgement.</p>
 </li>
 <li>
 <p><code>redcost</code> prices the hours the <strong>whole aircraft</strong> is grounded — a
@@ -13510,7 +13603,7 @@ Reliability. Characteristic life and switch delay both move the
 number too, but neither erases an entire failure mode the way
 finding and cutting one bad dependency does — the same lesson
 <a href="#ch-dependency">Chapter 4, <em>Dependency: The Backup That Wasn&#8217;t</em></a> taught with two blocks, now worth defending with
-fourteen.</p>
+thirteen.</p>
 </div>
 </div>
 </details>

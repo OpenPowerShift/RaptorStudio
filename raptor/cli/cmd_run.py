@@ -37,6 +37,25 @@ REPORTS = {
     "domain-tree": ("domain_tree", "rpt_domain_tree"),
     "core-file": ("core_file", "rpt_core_file"),
 }
+#: How to get each report that is only written on request: the note
+#: said only "not collected or not enabled"
+_DEV_REPORTS = {"sim-details": "sim_details", "mission-file": "mission_file",
+                "diagnostics": "diagnostics_log", "domain-tree": "domain_tree",
+                "core-file": "core_file",
+                "cumulative-by-trial": "cumulative_by_trial=N (every N trials)",
+                "cumulative-by-time": "cumulative_by_time=T (every T time units)"}
+
+
+def _report_hint(key: str) -> str:
+    if key in _DEV_REPORTS:
+        return (f"it is a developer report: run with --dev-features "
+                f"{_DEV_REPORTS[key]}")
+    if key == "interim-cost":
+        from raptor.api.run_needs import how
+        return "it needs cost analysis: " + how("cost")
+    return "this model and run gave it nothing to report"
+
+
 #: Reports Raptor 7 writes with CRLF line ends (the data files).
 _CRLF_SECTIONS = frozenset({"key_parameters", "failure_times", "down_times",
                             "end_times", "domain_tree", "core_file",
@@ -314,11 +333,22 @@ def insight_callback(mode: str):
 
 
 def add_study_progress(parser: Any) -> None:
-    """`--progress` for a study (what-if, sensitivity, an optimiser)."""
+    """`--progress` and `--timeout` for a study (what-if, sensitivity, an
+    optimiser)."""
+    parser.add_argument(
+        "--timeout", metavar="DURATION", default="30m",
+        help="stop the study after DURATION, e.g. 90s, 10m (default 30m); "
+             "what it measured by then is reported and marked partial")
     parser.add_argument(
         "--progress", choices=("auto", "bar", "json", "none"), default="auto",
         help="progress on stderr (auto: only on a terminal; json: one object per "
              "line; none, or -q, for silence)")
+
+
+def study_timeout(args: Any) -> float:
+    """`--timeout` in seconds, as the study APIs' `timeout_s`."""
+    from raptor.cli.common import parse_duration
+    return parse_duration(getattr(args, "timeout", None) or "30m")
 
 
 def study_progress(args: Any):
@@ -354,6 +384,7 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
     """The structured results (schema raptor-results/1)."""
     import raptor
     from raptor.api.presentation import pooled_outages
+    from raptor.core import run_experiment as _rx
     handle = ws.get(model_id)
     sec = handle.rbd.sections.get("SYSTEM_DATA")
     row = sec.rows[0] if sec and sec.rows else {}
@@ -367,9 +398,14 @@ def results_document(result: Any, ws: Any, model_id: str, model_path: str,
             "termination": row.get("TerminationType"),
             "term_condition": _num(row.get("TermCondition")),
             "stats_start": _num(row.get("StartStats")),
-            "seed": getattr(args, "seed", None),
+            # The seed the run USED: `--seed new` draws one, and a Number
+            # seed saved in the model applies without `--seed` (#292).
+            "seed": getattr(result, "seed", 0) or getattr(args, "seed", None),
             "jobs": getattr(args, "jobs", 1),
             "streams": getattr(result, "streams", "sequential"),
+            # Run panel ▸ Streams / --block-streams: "model" or "separate".
+            "block_streams": _rx.normalise(
+                getattr(handle.rbd, "experiment", None) or {})["streams"],
             "applied": applied,
         },
         "summary": {m.name: _null_nan(m.to_dict())
@@ -409,7 +445,9 @@ def summary_text(doc: dict, metrics: list[str] | None) -> str:
     names = [n for n in rows if not metrics or n in metrics]
     head = (f"{doc['model']['name']}: {doc['options']['runs']} run(s), "
             f"{doc['wall_seconds']:.1f}s, "
-            f"{doc['options'].get('streams', 'sequential')} streams")
+            f"{doc['options'].get('streams', 'sequential')} streams"
+            + (f", seed {doc['options']['seed']}"
+               if doc["options"].get("seed") else ""))
     lines = [head, ""]
     if doc.get("isolation"):
         lines.insert(0, doc["isolation"]["banner"])
@@ -474,8 +512,7 @@ def write_reports(ws: Any, result: Any, wanted: list[str], out_dir: Path,
         src = section_path(runs_dir, section)
         text = src.read_text() if src and src.is_file() else ""
         if not text.strip():
-            eprint(f"note: no {key} data for this model "
-                   f"(not collected or not enabled)")
+            eprint(f"note: no {key} data for this run; {_report_hint(key)}")
             continue
         dest = out_dir / f"{stem}_{model_name}.txt"
         if section in _CRLF_SECTIONS:
@@ -505,6 +542,26 @@ def _summary(doc: dict, metrics: Any, fmt: str) -> str:
     return summary_text(doc, metrics) + "\n"
 
 
+def _resolve_metrics(metrics: list[str] | None, summary: dict
+                     ) -> list[str] | None:
+    """`--metrics` names matched to the summary's, ignoring case. A name
+    the run does not have used to give an empty table and exit 0."""
+    if not metrics:
+        return metrics
+    known = {name.lower(): name for name in summary}
+    found = [known[m.lower()] for m in metrics if m.lower() in known]
+    unknown = [m for m in metrics if m.lower() not in known]
+    if unknown:
+        listing = ", ".join(summary)
+        if not found:
+            raise CliError(f"--metrics: no metric named "
+                           f"{', '.join(unknown)}; this run has: {listing}",
+                           X.USAGE)
+        eprint(f"warning: --metrics: no metric named {', '.join(unknown)} "
+               f"(this run has: {listing})")
+    return found
+
+
 def run_command(args: Any) -> int:
     wanted = _wanted_reports(args.report)
     metrics = [m.strip() for m in args.metrics.split(",")] if args.metrics \
@@ -513,7 +570,8 @@ def run_command(args: Any) -> int:
         model_id = open_model(ws, args.model)
         result, applied, warns = run_model(ws, model_id, args, wanted=wanted)
         for w in warns:
-            eprint(f"warning: {w}")
+            # the validator's own "WARN: " made "warning: WARN: ..."
+            eprint(f"warning: {w.removeprefix('WARN: ')}")
         if args.workspace:
             eprint(f"run id: {result.run_id} (raptor report "
                    f"{result.run_id} --workspace {args.workspace})")
@@ -537,9 +595,12 @@ def run_command(args: Any) -> int:
                             f".{_SUMMARY_EXT[args.format]}")
             files.append(str(summary_path))
         elif args.output and not files:
-            eprint(f"warning: nothing written to {args.output}: -f none and no -r report")
+            why = ("the -r report(s) had no data for this run" if wanted
+                   else "-f none and no -r report")
+            eprint(f"warning: nothing written to {args.output}: {why}")
         doc = results_document(result, ws, model_id, args.model, applied,
                                warns, files, args)
+        metrics = _resolve_metrics(metrics, doc["summary"])
         if summary_path is not None:
             write_text(summary_path, _summary(doc, metrics, args.format))
         if args.json_path:

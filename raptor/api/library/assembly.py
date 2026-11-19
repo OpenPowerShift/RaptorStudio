@@ -107,9 +107,9 @@ _NAME_COLUMNS = {"block": ("BLOCK_DATA", "blockName"),
 
 def renamed_buffer(rbd: Any, buffer: Sequence[tuple[str, dict]]
                    ) -> list[tuple[str, dict]]:
-    """The buffer with each block, event and hierarchy given a name `rbd`
-    does not use yet (``Pump`` -> ``Pump_2``), so an inserted assembly never
-    duplicates a name. The canvas and the command line both insert through
+    """The buffer with each block, event and hierarchy whose name `rbd`
+    already uses given a free one (``Pump`` -> ``Pump_2``), so an inserted
+    assembly never duplicates a name; a free name is kept. The canvas and the command line both insert through
     this, so they name the copy alike."""
     from raptor.core.edit.clipboard_plan import next_free_name
     existing = {kind: {str(row.get(column) or "")
@@ -120,8 +120,11 @@ def renamed_buffer(rbd: Any, buffer: Sequence[tuple[str, dict]]
         row = dict(row)
         if kind in _NAME_COLUMNS:
             column = _NAME_COLUMNS[kind][1]
-            name = next_free_name(existing[kind],
-                                  str(row.get(column) or kind.title()))
+            name = str(row.get(column) or kind.title())
+            if name in existing[kind]:
+                # only a name already taken changes: renaming every element
+                # turned B_HI2_0 into B_HI2_1 in a model with no B_HI2_0
+                name = next_free_name(existing[kind], name)
             existing[kind].add(name)
             row[column] = name
         out.append((kind, row))
@@ -134,15 +137,23 @@ def insert_assembly(rbd: Any, part: PartType, *,
     """Insert a fresh copy of an assembly into `rbd` (no save).
 
     `at` puts the copy's top-left at that model position; by default it
-    goes to the right of everything already in the model.  Blocks get free
-    names (``Pump`` -> ``Pump_2``) and the copy's dependencies on elements
+    goes to the right of everything already in the model.  A name the model
+    already uses is changed to a free one (``Pump`` -> ``Pump_2``; listed
+    in ``renamed``) and the copy's dependencies on elements
     outside it are dropped (they named elements of another model).
     """
     from raptor.api.edit import _append, _int, _live
     from raptor.core.edit.clipboard_plan import plan_paste, remap_dependencies
 
     buffer, notes = adapted_buffer(rbd, part)
-    buffer = renamed_buffer(rbd, buffer)
+    named = renamed_buffer(rbd, buffer)
+    renamed = {}
+    for (kind, before), (_kind, after) in zip(buffer, named):
+        if kind in _NAME_COLUMNS:
+            column = _NAME_COLUMNS[kind][1]
+            if before.get(column) != after.get(column):
+                renamed[str(before.get(column) or "")] = str(after.get(column))
+    buffer = named
     elements = [(kind, row) for kind, row in buffer
                 if kind not in ("link", "annotation")]
     if not elements:
@@ -172,7 +183,7 @@ def insert_assembly(rbd: Any, part: PartType, *,
     annotations = [dict(row) for kind, row in buffer if kind == "annotation"]
     return {"part": part.id, "name": part.name, "elements": made,
             "count": sum(len(ids) for ids in made.values()),
-            "annotations": annotations, "notes": notes}
+            "renamed": renamed, "annotations": annotations, "notes": notes}
 
 
 def add_local_part(rbd: Any, part: PartType) -> None:

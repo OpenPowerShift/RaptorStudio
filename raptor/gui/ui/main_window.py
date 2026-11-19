@@ -28,6 +28,7 @@ from raptor.gui.ui.background_run_mixin import BackgroundRunMixin
 from raptor.gui.ui.overlay_mixin import OverlayMixin
 from raptor.gui.ui.status_summary_mixin import StatusSummaryMixin
 from raptor.gui.ui.autosave_mixin import AutosaveMixin
+from raptor.gui.ui.own_streams_mixin import OwnStreamsMixin
 from raptor.gui.ui.advisor_mixin import AdvisorMixin
 from raptor.gui.ui.run_progress_mixin import RunProgressMixin
 from raptor.gui.ui.file_io_mixin import FileIoMixin
@@ -180,10 +181,27 @@ _TERMINATION_CHOICES = [
 
 
 
+
+def ensure_fusion(app: QApplication) -> None:
+    """Make Fusion the application style, once.
+
+    Only before the theme's application stylesheet is set: from then on
+    `app.style()` is Qt's stylesheet style, whose name is empty, so a
+    check by name called `setStyle` again for every new window. That
+    re-styles every widget in the application, and a message box being
+    torn down at the time crashed Qt (a segmentation fault opening a model
+    in a second window)."""
+    from PySide6.QtWidgets import QStyleFactory
+    if app.property("raptorFusion") or app.styleSheet():
+        return
+    if app.style().objectName().lower() != "fusion":
+        app.setStyle(QStyleFactory.create("Fusion"))
+    app.setProperty("raptorFusion", True)
+
 class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixin, SelectionMixin, FindZoomMixin, RecentFilesMixin, ExportMixin, HelpMixin, RibbonBuilders, RunExperimentMixin, FevMixin, IsolateMixin,
                  ValidationMixin, DockLayoutMixin, StepMixin, FileIoMixin,
                  RunProgressMixin, AutosaveMixin, StatusSummaryMixin, OverlayMixin,
-                 BackgroundRunMixin, AdvisorMixin, QMainWindow):
+                 BackgroundRunMixin, AdvisorMixin, OwnStreamsMixin, QMainWindow):
     """The application shell.
 
     `RunExperimentMixin` supplies every read and write of the run
@@ -330,10 +348,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Safety net for entry points that build a MainWindow without
         # app.main() (test harnesses, embedding): same rationale as
         # app.py's own setStyle call just above.
-        from PySide6.QtWidgets import QStyleFactory
         qapp = cast(QApplication | None, QApplication.instance())
-        if qapp is not None and qapp.style().objectName().lower() != "fusion":
-            qapp.setStyle(QStyleFactory.create("Fusion"))
+        if qapp is not None:
+            ensure_fusion(qapp)
 
         self._setup_ribbon()
         self._setup_central()
@@ -677,6 +694,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # ...but the speed dial still follows it (off by default now, so a
         # launch with Animate off left the dial looking usable).
         self._set_speed_state_enabled(self._live_sim_action.isChecked())
+        self._sync_annotation_toggles()
         # Controls that exist but are not on the ribbon.
         self._init_find_box()
         self._init_report_stream_actions()
@@ -1296,7 +1314,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
     def _build_data_tables_dock(self):
         self._data_tables = DataTablesDock()
-        self._data_tables.model_edited.connect(self._mark_dirty)
+        self._data_tables.model_edited.connect(self._on_tables_edited)
         self._data_tables.export_tables_requested.connect(self._export_tables)
         self._data_tables.element_locate_requested.connect(
             self._on_result_element_clicked)
@@ -1330,13 +1348,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._run_dock = RunPanelDock(self)
         self._set_dock_icon(self._run_dock, "run_panel_icon")
         self._run_panel = self._run_dock.panel
-        # The stepping debugger's parameters moved to the panel; point the
-        # attributes the existing code (and tests) read at the panel's
-        # real widgets, so there is ONE of each rather than a ribbon
-        # spinner and a panel spinner that could disagree.
-        self._step_count_spin = self._run_panel._step_count
-        self._run_to_time_spin = self._run_panel._run_to
-        self._breakpoint_combo = self._run_panel._breakpoint
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._run_dock)
         self.tabifyDockWidget(self._data_tables_dock, self._run_dock)
         # Results, Data Tables and Run share one physical strip, and the
@@ -1354,11 +1365,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results_dock.raise_()
         self._setup_dock_toggle(self._run_toggle_action, self._run_dock)
         self._run_panel.experiment_changed.connect(self._on_panel_experiment)
+        self._init_own_streams_toggle()
         self._run_panel.system_config_changed.connect(
             self._on_system_config_changed)
         self._run_panel.dependency_blocked.connect(self._on_panel_dependency)
         self._run_panel.cores_changed.connect(self._on_cores_changed)
         self._run_panel.precision_requested.connect(self._open_precision_dialog)
+        self._run_panel.set_run_action(self._run_action)
         self._run_panel.scope_changed.connect(self._on_run_scope_changed)
         self._sync_cores_box()
         self._run_dock.setMinimumHeight(120)
@@ -2239,6 +2252,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_canvas_event_selected)
         self._diagram_dock.view.selection_changed.connect(
             self._results.refresh_weak_selection)
+        self._diagram_dock.view.selection_changed.connect(
+            self._inspector_forward_on_click)
 
     def _wire_widget_hooks(self):
         # The Inspector's Anchor controls list this level's elements.
@@ -2426,6 +2441,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return
         self._dirty = True
         self._update_title()
+
+    def _on_tables_edited(self) -> None:
+        """A Data Tables edit. A multi-row edit's rows each report one;
+        the table reports the lot once at the end, and marking the window
+        dirty per row (which re-walks every block's live overlay) made a
+        1,000-row edit take 20 s."""
+        if getattr(self._data_tables, "_rows_batch", 0):
+            return
+        self._mark_dirty()
 
     def _mark_dirty(self):
         # First, before any early return: whatever the run guard does
@@ -3029,10 +3053,22 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             _proceed_btn = box.addButton("Run Without Saving", QMessageBox.ButtonRole.ActionRole)
         cancel_btn = box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(save_btn)
+        # Before a run the answer is already a preference
+        # (`files/save_before_run`), so the box remembers it there. Closing
+        # always asks: there, not saving loses the edits.
+        remember = None
+        if not closing:
+            from raptor.gui.ui import ask_again
+            remember = ask_again.add_box(box, "Remember my choice for every run")
+            remember.setToolTip("Preferences ▸ Working ▸ Unsaved changes "
+                                "before running changes it back")
         box.exec()
         clicked = box.clickedButton()
         if clicked is cancel_btn:
             return False
+        if remember is not None and remember.isChecked():
+            settings.set_value("files/save_before_run",
+                               "always" if clicked is save_btn else "never")
         if clicked is save_btn:
             self._save_file()
             return not self._dirty  # False if the save failed or was cancelled.
@@ -3043,6 +3079,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         Run, since results otherwise silently reflect a different model
         than what's on disk. Returns True if it's OK to proceed."""
         if not self._dirty:
+            return True
+        if not self._current_file:
+            # Never saved (a new model, or an example opened from the
+            # Start page): there is no file on disk for the results to
+            # differ from. User testing: a new user's first change to an
+            # example met this prompt (Save opened Save As) before every
+            # run. Closing still asks.
             return True
         mode = self._prefs().get("save_before_run", "ask")
         if mode == "never":
@@ -3232,6 +3275,29 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """
         from raptor.gui.ui import dialogs
         dialogs.show_system_config(self)
+
+    def _inspector_forward_on_click(self) -> None:
+        """Clicking an element on the canvas shows its properties.
+
+        User testing: the first run with findings brings the Advisor
+        forward over the Inspector (its tab), and a new user then clicked
+        a block to change it and saw nothing happen. Only a click on the
+        canvas does this -- the Advisor's own "go to element" selects
+        without the mouse on the canvas and keeps its tab in front -- and
+        only when the Inspector is open but covered by another tab."""
+        from PySide6.QtWidgets import QApplication
+        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            return
+        view = self._diagram_dock.view
+        if not view.viewport().underMouse():
+            return
+        if not view._scene.selectedItems():
+            return
+        dock = self._inspector_dock
+        if dock.isHidden() or dock.isFloating():
+            return
+        if dock.visibleRegion().isEmpty():
+            dock.raise_()
 
     def _open_project_settings(self):
         """Project Settings is the Inspector page, not a modal.
@@ -3447,11 +3513,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 (self._anno_ellipse_tool, "anno_ellipse"),
                 (self._anno_arrow_tool, "anno_arrow"))
 
+    # View > Annotations ------------------------------------------------
+    def _sync_annotation_toggles(self) -> None:
+        """The two toggles show the saved settings (signals blocked: this
+        only reflects them), and Comment Notes is moot while every
+        annotation is hidden."""
+        show_all = settings.get_bool("appearance/show_annotations", True)
+        for attr, key in (("_show_annotations_action", "appearance/show_annotations"),
+                          ("_show_comment_notes_action", "appearance/show_comment_notes")):
+            action = getattr(self, attr, None)
+            if action is None:
+                continue
+            action.blockSignals(True)
+            action.setChecked(settings.get_bool(key, True))
+            action.blockSignals(False)
+        notes = getattr(self, "_show_comment_notes_action", None)
+        if notes is not None:
+            notes.setEnabled(show_all)
+
+    def _set_annotations_shown(self, on: bool) -> None:
+        self._diagram_dock.view.set_annotations_visible(bool(on))
+        self._sync_annotation_toggles()
+        self.statusBar().showMessage(
+            "Notes shown" if on else
+            "Notes hidden (still in the model and saved)", 4000)
+
+    def _set_comment_notes_shown(self, on: bool) -> None:
+        self._diagram_dock.view.set_comment_notes_visible(bool(on))
+        self._sync_annotation_toggles()
+        self.statusBar().showMessage(
+            "Comments shown" if on else
+            "Comments hidden (still in the model and saved)", 4000)
+
     def _set_tool(self, mode: str, on: bool):
         """Exclusive build-tool selection; 'select' is the fallback."""
         v = self._diagram_dock.view
         if on:
             v.tool_mode = mode
+            if mode.startswith("anno_") and not v.annotations_visible():
+                # a note placed while annotations are hidden would vanish
+                self._set_annotations_shown(True)
         elif v.tool_mode == mode:
             # Unchecking the armed tool falls back to Select. Unchecking
             # Select itself leaves the mode at "select": there is no
@@ -3640,7 +3741,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 # arrived clipped to the 150 px startup strip (reported:
                 # "ok when I click the Run panel, not when I open the
                 # Simulate ribbon"). Measure it here, the way the tab click
-                # does.
+                # does, as the tab on show (fit_height lifts its cap for a
+                # tab behind another).
+                self._bottom_active_dock = run
                 if hasattr(run, "fit_height"):
                     run.fit_height()
                 sync = (getattr(self, "_dock_state_sync", None) or {}).get(run)

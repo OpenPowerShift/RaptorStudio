@@ -517,6 +517,26 @@
    "text": "Export\u2026",
    "tooltip": "Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG) (Ctrl+E)\n\nUnavailable: open or create a model first"
   },
+  "_export_awb_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export to Availability Workbench\u2026",
+   "tooltip": "Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent\n\nUnavailable: open or create a model first"
+  },
+  "_export_awb_normalized_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Export Reduced AWB Model\u2026",
+   "tooltip": "Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison\n\nUnavailable: open or create a model first"
+  },
   "_export_library_action": {
    "checkable": false,
    "checked": false,
@@ -851,6 +871,16 @@
    "text": "Up",
    "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
   },
+  "_import_awb_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Import Availability Workbench\u2026",
+   "tooltip": "Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent"
+  },
   "_import_library_action": {
    "checkable": false,
    "checked": false,
@@ -1017,6 +1047,16 @@
    "text": "Spares\u2026",
    "tooltip": "The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.\n\nUnavailable: open or create a model first"
   },
+  "_own_streams_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Separate Streams",
+   "tooltip": "Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable\n\nUnavailable: open or create a model first"
+  },
   "_paste_action": {
    "checkable": false,
    "checked": false,
@@ -1113,6 +1153,16 @@
    "text": "Preferences\u2026",
    "tooltip": "Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,)"
   },
+  "_preview_awb_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Check Availability Workbench Export\u2026",
+   "tooltip": "Report what an Availability Workbench export would substitute, partially map or drop, without writing a file\n\nUnavailable: open or create a model first"
+  },
   "_print_action": {
    "checkable": false,
    "checked": false,
@@ -1133,7 +1183,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Quick Add",
-   "tooltip": "Add an element at the cursor (Space or / on the canvas)"
+   "tooltip": "Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)"
   },
   "_quit_action": {
    "checkable": false,
@@ -1315,8 +1365,8 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Run to time\u2026",
-   "tooltip": "Advance until the sim time set in the Run panel is reached (or the run ends)\n\nUnavailable: open or create a model first"
+   "text": "Run to time 100\u2026",
+   "tooltip": "Advance until the sim time set in Step Settings (Debug tab) is reached (or the run ends)\n\nUnavailable: open or create a model first"
   },
   "_run_toggle_action": {
    "checkable": true,
@@ -1396,6 +1446,26 @@
    "shortcuts": [],
    "text": "Keyboard Shortcuts",
    "tooltip": "Every shortcut key, one page"
+  },
+  "_show_annotations_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Notes",
+   "tooltip": "Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved."
+  },
+  "_show_comment_notes_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Comments",
+   "tooltip": "Show or hide only the canvas notes that show an element's comment; other annotations stay."
   },
   "_snap_action": {
    "checkable": true,
@@ -1530,8 +1600,8 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Multi (10)\u2026",
-   "tooltip": "Advance the number of events set in the Run panel (stops early at the breakpoint)\n\nUnavailable: open or create a model first"
+   "text": "Multi (10 events)\u2026",
+   "tooltip": "Advance the number of events set in Step Settings (stops early at the breakpoint)\n\nUnavailable: open or create a model first"
   },
   "_step_next_time_action": {
    "checkable": false,
@@ -1759,6 +1829,8 @@
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
    "_export_action": false,
+   "_export_awb_action": false,
+   "_export_awb_normalized_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
@@ -1792,6 +1864,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,
    "_importance_overlay_action": false,
@@ -1808,6 +1881,7 @@
    "_optimise_crews_action": false,
    "_optimise_pm_action": false,
    "_optimise_spares_action": false,
+   "_own_streams_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -1817,6 +1891,7 @@
    "_pool_actions[TRIGGERS]": false,
    "_precision_action": false,
    "_prefs_action": true,
+   "_preview_awb_action": false,
    "_print_action": false,
    "_quick_add_action": true,
    "_quit_action": true,
@@ -1843,6 +1918,8 @@
    "_select_all_action": false,
    "_sensitivity_action": false,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -1921,6 +1998,8 @@
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
    "_export_action": true,
+   "_export_awb_action": true,
+   "_export_awb_normalized_action": true,
    "_export_library_action": true,
    "_export_ods_action": true,
    "_export_pdf_action": true,
@@ -1954,6 +2033,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_import_awb_action": true,
    "_import_library_action": true,
    "_import_rbd_action": true,
    "_importance_overlay_action": false,
@@ -1970,6 +2050,7 @@
    "_optimise_crews_action": true,
    "_optimise_pm_action": true,
    "_optimise_spares_action": true,
+   "_own_streams_action": true,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -1979,6 +2060,7 @@
    "_pool_actions[TRIGGERS]": true,
    "_precision_action": true,
    "_prefs_action": true,
+   "_preview_awb_action": true,
    "_print_action": true,
    "_quick_add_action": true,
    "_quit_action": true,
@@ -2005,6 +2087,8 @@
    "_select_all_action": true,
    "_sensitivity_action": true,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": true,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -2083,6 +2167,8 @@
    "_duplicate_parallel_action": false,
    "_explorer_toggle_action": true,
    "_export_action": false,
+   "_export_awb_action": false,
+   "_export_awb_normalized_action": false,
    "_export_library_action": false,
    "_export_ods_action": false,
    "_export_pdf_action": false,
@@ -2116,6 +2202,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,
    "_importance_overlay_action": false,
@@ -2132,6 +2219,7 @@
    "_optimise_crews_action": false,
    "_optimise_pm_action": false,
    "_optimise_spares_action": false,
+   "_own_streams_action": false,
    "_paste_action": false,
    "_paste_data_action": false,
    "_pause_action": false,
@@ -2141,6 +2229,7 @@
    "_pool_actions[TRIGGERS]": false,
    "_precision_action": false,
    "_prefs_action": true,
+   "_preview_awb_action": false,
    "_print_action": false,
    "_quick_add_action": true,
    "_quit_action": true,
@@ -2167,6 +2256,8 @@
    "_select_all_action": false,
    "_sensitivity_action": false,
    "_shortcuts_action": true,
+   "_show_annotations_action": true,
+   "_show_comment_notes_action": true,
    "_snap_action": false,
    "_spares_overlay_action": false,
    "_speed_action": true,
@@ -2528,6 +2619,11 @@
        "kind": "action",
        "large": true,
        "text": "Mass Edit\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Separate Streams"
       }
      ],
      "title": "Bulk Edit"
@@ -2744,6 +2840,44 @@
     {
      "items": [
       {
+       "children": [
+        "QLabel",
+        "QSpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QLabel",
+        "TidySpinBox"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      },
+      {
+       "children": [
+        "QComboBox",
+        "QFrame",
+        "QLabel",
+        "QListView",
+        "QScrollBar",
+        "QScrollBar",
+        "QWidget",
+        "QWidget"
+       ],
+       "class": "QWidget",
+       "kind": "widget",
+       "large": false
+      }
+     ],
+     "title": "Step Settings"
+    },
+    {
+     "items": [
+      {
        "kind": "action",
        "large": true,
        "text": "Failure Effects"
@@ -2939,9 +3073,19 @@
        "kind": "action",
        "large": false,
        "text": "Hierarchy"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Notes"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Comments"
       }
      ],
-     "title": "Zoom"
+     "title": "Zoom and Show"
     },
     {
      "items": [

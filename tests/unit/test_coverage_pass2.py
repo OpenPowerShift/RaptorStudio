@@ -452,7 +452,7 @@ def test_run_to_time_respects_display_unit(qapp):
     rbd = load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd"))
     rbd.display_unit = "years"
     w._load_into_app(rbd, "x")
-    assert w._run_to_label.text() == "Years:"
+    assert w._run_to_label.text() == "Run to (years)"
 
     w._run_to_time_spin.setValue(2.0)
     captured = {}

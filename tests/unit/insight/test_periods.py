@@ -67,7 +67,8 @@ def test_summary_pools_and_goes_by_index():
     assert s["by_index"][2]["mean"] == pytest.approx(0.85)
     assert s["worst"][0] == {"run": 2, "index": 3, "value": 0.80}
     text = sentence(s, "hours")
-    assert "A typical year" in text and "25 % of them fall below 93 %" in text
+    assert "A typical year" in text and "2 of the 8 years (25 %) fall below 93 %" in text
+    assert "not independent" in text
     assert "nothing to slice" in sentence(summarise([[]], spec=PeriodSpec(10)))
 
 

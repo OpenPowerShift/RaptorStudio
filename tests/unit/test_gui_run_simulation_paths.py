@@ -137,7 +137,7 @@ def test_cancelling_the_unsupported_features_dialog_stops_the_run(
     monkeypatch.setattr(run_mixin, "QMessageBox", type("Cancel", (_Box,), {"run_anyway": False}))
     monkeypatch.setattr(type(win), "_preflight_issues", lambda self, rbd: ["x is unsupported"])
     win._run_simulation()
-    assert "unsupported features present" in _status(win)
+    assert "fix the model problems listed" in _status(win)
     assert engine_calls == [] and not win._run_in_progress
 
 

@@ -259,8 +259,9 @@ allow-write directories, same containment `save_model_as` enforces.
 Write the model as an Isograph Availability Workbench .awb project.
 
 The report names substituted, partially mapped and dropped features.
-`dry_run=true` writes nothing. `sidecar=true` also writes a
-`<name>.awb.raptor.json` beside the file with RAPTOR-only metadata.
+`dry_run=true` writes nothing, not even `normalize_out`.
+`sidecar=true` also writes a `<name>.awb.raptor.json` beside the file
+with RAPTOR-only metadata.
 `normalize_out` writes a reduced RAPTOR model carrying only what the AWB
 file represents; that reduced copy is what gets exported.
 
@@ -277,7 +278,7 @@ file represents; that reduced copy is what gets exported.
 Parameter notes:
 
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `normalize_out` — `normalize_out` writes a reduced RAPTOR model carrying only what the AWB file represents; that reduced copy is what gets exported.
+- `normalize_out` — `dry_run=true` writes nothing, not even `normalize_out`.
 
 **Returns**
 
@@ -286,7 +287,7 @@ Parameter notes:
 | `counts` | object | yes |
 | `direction` | string | yes |
 | `dry_run` | boolean | yes |
-| `normalized_path` | null | yes |
+| `normalized_path` | any | yes |
 | `not_in_source` | array<any> | yes |
 | `not_in_target` | array<any> | yes |
 | `notes` | array<any> | yes |
@@ -491,7 +492,7 @@ Parameter notes:
 | `bytes` | integer | yes |
 | `dropped` | array<any> | yes |
 | `format` | string | yes |
-| `layout_warning` | null | yes |
+| `layout_warning` | any | yes |
 | `path` | string | yes |
 
 **Example**
@@ -741,7 +742,8 @@ have, use `collapse_selection` instead -- it does all the rewiring.
 the deepest allowed): plan the levels before building. A hierarchy
 whose `parent` is already 8 deep is refused. The result's `depth` is
 the new hierarchy's level (1 = on the home level) and `levels_below`
-how many more can still go inside it.
+how many more levels can still go inside it, counting any hierarchies
+already in it.
 
 Returns {hier_id, name, in_id, out_id, parent, depth, levels_below}.
 
@@ -1227,6 +1229,9 @@ the phases named in `remove` and shifts the rest down.
 off, per-phase cells dropped) -- previously there was no MCP route
 for this.
 
+`assignments` with no `phases` assigns against the phases already in
+the model. A refused call changes nothing.
+
 assignments: {element: [per-phase state]}, one list entry per phase
 (a short list is an error, not padded).  A block/event state is
 `"<code>: <value>"` -- code `A` (Active), `C` (Cut) or `L` (Linked),
@@ -1249,10 +1254,11 @@ for that phase.  Phase rows are always built through rbdlib.make_phase_row.
 
 Parameter notes:
 
+- `assignments` — `assignments` with no `phases` assigns against the phases already in the model.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `phases` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
 - `remove` — `mode='replace'` (default) makes `phases` the whole list; `mode='add'` appends them to the phases already there (cells for the new phase are filled with Raptor's default); `mode='remove'` deletes the phases named in `remove` and shifts the rest down.
-- `unassign` — `unassign` names blocks/events/nodes whose phasing is cleared (flag off, per-phase cells dropped) -- previously there was no MCP route for this. assignments: {element: [per-phase state]}, one list entry per phase (a short list is an error, not padded).
+- `unassign` — `unassign` names blocks/events/nodes whose phasing is cleared (flag off, per-phase cells dropped) -- previously there was no MCP route for this.
 
 **Returns**
 
@@ -1839,7 +1845,8 @@ Copy blocks, nodes, events or hierarchies with fresh ids and names.
 
 `elements` are names or ids (optionally kind-prefixed). Internal links
 are remapped to the copies, dependencies on copied elements follow them,
-and block names get the next free suffix. One save.
+and block and hierarchy names get the next free suffix. One save.
+`created` lists each new element as {kind, id, name, selector}.
 
 **Parameters**
 
@@ -1860,6 +1867,7 @@ Parameter notes:
 | --- | --- | --- |
 | `copies` | integer | yes |
 | `count` | integer | yes |
+| `created` | array<any> | yes |
 | `elements` | array<any> | yes |
 
 **Example**
@@ -2670,7 +2678,7 @@ Parameter notes:
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `only` — `only` limits the rules by id or prefix (`["M-SPR", "M-PM-003"]`).
 - `run_id` — With `run_id` (a finished run of this model) it adds what the run says: how precisely downtime is known and how many runs would fix it, too few system failures, and, for a run made with `attribution=True`, which elements cause the downtime and which lever fits.
-- `targets` — `targets` judges the run against requirements, e.g.
+- `targets` — `targets` judges the run against requirements, e.g. `[{"metric": "system.ao", "op": ">=", "value": 0.995}]`: each is met, missed or too close to call.
 
 **Returns**
 
@@ -3312,6 +3320,8 @@ No parameters.
 
 One chart of a finished run, as data and optionally as SVG.
 
+`chart` is the chart's name: one of those listed below.
+
 The text gives the caption and the numbers the chart draws (the leading
 rows, or each layer's end value over time). `render_svg=True` adds the
 figure as `svg`; it is off by default because the SVG is most of the
@@ -3334,8 +3344,9 @@ cost analysis; ask for them only when
 the run has those. Over time: `availability-through-run`,
 `interval-availability` and `availability-band` need the availability
 plot recorded (`availability_plot=true`), `capacity-through-run` and
-`capacity-band` capacity analysis; `run` picks the run of a one-run
-chart and `y_floor` (0 to 1) the bottom of an availability axis.
+`capacity-band` capacity analysis. `run` picks the run a one-run chart
+shows (1 is the first). `y_floor` (0 to 1) fixes the bottom of an
+availability axis; leave it out to fit the axis to the data.
 
 For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
 `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names
@@ -3344,6 +3355,10 @@ more room and declare their size in mm) and `min_share` (0 to 1, e.g.
 row or cell (element rankings and treemaps; the caption names them).
 No label is ever shortened: names wrap, and treemap cells too small for
 their name are numbered and listed under the chart.
+
+`target` (0 to 1, e.g. 0.995) draws a dashed target line on the
+outcome, chance, convergence and availability-over-time charts, as the
+window's Target button does. It is a visual cue only.
 
 **Parameters**
 
@@ -3355,15 +3370,18 @@ their name are numbered and listed under the chart.
 | `render_svg` | boolean | no | `false` | — |
 | `run` | integer | no | `1` | — |
 | `run_id` | string | yes | — | — |
+| `target` | number \| null | no | `null` | — |
 | `y_floor` | number \| null | no | `null` | — |
 
 Parameter notes:
 
+- `chart` — `chart` is the chart's name: one of those listed below.
 - `min_share` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
 - `page` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
-- `run` — Over time: `availability-through-run`, `interval-availability` and `availability-band` need the availability plot recorded (`availability_plot=true`), `capacity-through-run` and `capacity-band` capacity analysis; `run` picks the run of a one-run chart and `y_floor` (0 to 1) the bottom of an availab…
+- `run` — `run` picks the run a one-run chart shows (1 is the first).
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
-- `y_floor` — Over time: `availability-through-run`, `interval-availability` and `availability-band` need the availability plot recorded (`availability_plot=true`), `capacity-through-run` and `capacity-band` capacity analysis; `run` picks the run of a one-run chart and `y_floor` (0 to 1) the bottom of an availab…
+- `target` — `target` (0 to 1, e.g. 0.995) draws a dashed target line on the outcome, chance, convergence and availability-over-time charts, as the window's Target button does.
+- `y_floor` — `y_floor` (0 to 1) fixes the bottom of an availability axis; leave it out to fit the axis to the data.
 
 **Returns**
 
@@ -3406,33 +3424,40 @@ the share of runs that met the target, the top three drivers (by lost
 capacity when capacity analysis is on), the top run findings, up to six
 key numbers, sections only for features the model uses, and provenance.
 
+`targets` gives the headline its target, as `advise` takes them, e.g.
+`[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
+the headline; `<=` suits time down per outage).
+
 Needs the run's ordinary artefacts. Needs `attribution=True` for the
 drivers strip and the attribution-based findings; without it the Story
-still renders and says how to turn it on.
+still renders and says how to turn it on. A run stopped early says so
+in its findings and `provenance.requested_runs`.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `run_id` | string | yes | — | — |
+| `targets` | array<object> \| null | no | `null` | — |
 
 Parameter notes:
 
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
+- `targets` — `targets` gives the headline its target, as `advise` takes them, e.g. `[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is the headline; `<=` suits time down per outage).
 
 **Returns**
 
 | Field | Type | Always present |
 | --- | --- | --- |
 | `caption` | string | yes |
-| `dot_target` | null | yes |
+| `dot_target` | null \| number | yes |
 | `dots` | array<any> | yes |
 | `drivers` | array<any> | yes |
 | `drivers_available` | boolean | yes |
 | `drivers_measure` | string | yes |
 | `findings` | array<any> | yes |
 | `headline` | object | yes |
-| `met` | integer | yes |
+| `met` | integer \| null | yes |
 | `numbers` | array<any> | yes |
 | `other_drivers_share` | number | yes |
 | `others_time` | number | yes |
@@ -3440,7 +3465,7 @@ Parameter notes:
 | `provenance` | object | yes |
 | `run_id` | string | yes |
 | `sections` | array<any> | yes |
-| `total` | integer | yes |
+| `total` | integer \| null | yes |
 | `units` | string | yes |
 
 **Example**
@@ -3621,8 +3646,9 @@ Parameter notes:
 Insert a fresh copy of an assembly into a model.
 
 `part` is the assembly's id or name, from `library_path` or the model's
-own part list.  The copy gets new ids and free names (Pump -> Pump_2);
-a hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
+own part list.  The copy gets new ids; a name the model already uses
+becomes a free one (Pump -> Pump_2), listed in `renamed` {old: new}; a
+hierarchy keeps everything inside it.  It is placed at (`x`, `y`) or,
 by default, to the right of the model, and is NOT connected: link it in
 with `connect`.  Spare pools or resources the model lacks are reset and
 listed in `notes`.
@@ -3655,6 +3681,7 @@ Parameter notes:
 | `name` | string | yes |
 | `notes` | array<any> | yes |
 | `part` | string | yes |
+| `renamed` | object | yes |
 
 **Example**
 
@@ -3900,6 +3927,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -3948,7 +3976,7 @@ Parameter notes:
 
 - `metrics` — Returns per-metric values (`metrics`, in `models`/`labels` order), deltas against the first entry, and which entry is best per metric, plus a Markdown comparison table.
 - `models` — Returns per-metric values (`metrics`, in `models`/`labels` order), deltas against the first entry, and which entry is best per metric, plus a Markdown comparison table.
-- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `num_runs` — Replications (trials); 5 when left out.
 
 **Returns**
 
@@ -4016,7 +4044,7 @@ Parameter notes:
 
 - `importance` — `importance` overrides the model experiment's importance setting for the estimate.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `num_runs` — Replications (trials); 10 when left out.
 - `run_length` — Simulated time per run, in the model's units. Leave out for the model's own setting.
 - `workers` — `workers` is taken into account with a contention-aware speed-up: parallel replications on a large model scale at roughly ``w / (1 + 0.25 (w - 1))``, not ``w`` (8 workers measured 2.8x on an 8-core box).
 
@@ -4075,7 +4103,8 @@ Returns `params` (named), `slots` (in the model's parameter order),
 law is nearly a fixed age). With `block`, also `changes` (PATH=VALUE, for `raptor
 set`) and `update` (the fields to pass to `update_element`, law and
 parameters together) for its failure (`use="fail"`) or repair law.
-Nothing is changed here.
+`block` is only the name written into those; no model is read, so it is
+not checked. Nothing is changed here.
 
 **Parameters**
 
@@ -4177,12 +4206,13 @@ Parameter notes:
 | `batches` | integer | yes |
 | `caption` | string | yes |
 | `changes` | array<any> | yes |
+| `cut_short` | any | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
 | `objective` | string | yes |
 | `recommendations` | array<any> | yes |
 | `rows` | array<any> | yes |
-| `seed` | null | yes |
+| `seed` | any | yes |
 | `trials` | integer \| null | yes |
 
 **Example**
@@ -4249,12 +4279,13 @@ Parameter notes:
 | `caption` | string | yes |
 | `changes` | array<any> | yes |
 | `confidence` | number | yes |
+| `cut_short` | any | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
 | `recommendations` | array<any> | yes |
 | `resources` | array<any> | yes |
 | `rows` | array<any> | yes |
-| `seed` | null | yes |
+| `seed` | any | yes |
 | `target` | number | yes |
 | `trials` | integer \| null | yes |
 
@@ -4414,6 +4445,7 @@ Parameter notes:
 | `bars` | object | yes |
 | `base` | object | yes |
 | `caption` | string | yes |
+| `cut_short` | any | yes |
 | `note` | string | yes |
 | `rows` | array<any> | yes |
 | `schema` | string | yes |
@@ -4441,8 +4473,10 @@ Parameter notes:
 Progress of a job started with `start_run`.
 
 Returns {job_id, model_id, state, phase, setup, completed_runs,
-requested_runs, percent, elapsed_s, wall_seconds, run_id, summary,
-error}. `state` is queued, running, done, cancelled or failed. `phase`
+requested_runs, percent, elapsed_s, eta_s, wall_seconds, run_id,
+summary, error}. `eta_s` is the seconds left at the rate since the first
+replication finished: an estimate (runs vary), null until two counts
+are known. `state` is queued, running, done, cancelled or failed. `phase`
 adds what a running job is doing: `setting_up` while a large model is
 prepared (`setup` then has `{stage, done, total, percent}`; it can take
 minutes before the first replication, and `completed_runs` stays 0), then
@@ -4471,6 +4505,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4536,9 +4571,11 @@ Parameter notes:
 | `base` | object | yes |
 | `batches` | integer | yes |
 | `caption` | string | yes |
+| `cut_short` | any | yes |
 | `inputs` | array<any> | yes |
 | `metric` | string | yes |
 | `note` | string | yes |
+| `screened` | string | yes |
 | `seed` | integer \| null | yes |
 | `trials` | integer | yes |
 
@@ -4618,7 +4655,14 @@ Cores box, `raptor run -j`).
 
 `seed` (optional, non-negative) re-rolls the batch reproducibly;
 leaving it unset keeps the engine's fixed seeds, under which the same
-model and run count always return byte-identical numbers.  If a run is
+model and run count always return byte-identical numbers.
+
+`block_streams`: `separate` gives every block that shares a random
+stream (by default all of them share one, as in Raptor 7) a failure
+and repair stream of its own for this run only -- the model is not
+edited -- so changing one block does not shift the others' draws;
+`model` uses the blocks' own settings. Left out, the model's saved
+choice (the desktop app's Run panel ▸ Streams) decides.  If a run is
 cut short by `timeout_s`, `runs` is below the requested count and
 `truncated` is true -- do not read a truncated batch as complete.
 
@@ -4644,6 +4688,7 @@ boundary node reports no lost flow.
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `block_streams` | string \| null | no | `null` | `model`, `separate` |
 | `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `confirm_long_run` | boolean | no | `false` | — |
@@ -4664,6 +4709,7 @@ Parameter notes:
 
 - `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
 - `availability_plot` — `availability_plot` / `interim_cost`: record the availability-over-time plot (needed by `get_timeseries(series="availability")`) or the interim cost report for this run.
+- `block_streams` — `block_streams`: `separate` gives every block that shares a random stream (by default all of them share one, as in Raptor 7) a failure and repair stream of its own for this run only -- the model is not edited -- so changing one block does not shift the others' draws; `model` uses the blocks' own se…
 - `capacity_rule` — `capacity_rule` (with attribution on a capacity-analysis model) shares the lost flow among the elements that were down: `proportional` sums to the engine's own lost flow, `marginal` answers "what would fixing this one buy?" (shares need not add up), `first_failed` is for comparison.
 - `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
 - `confirm_long_run` — True runs even when the estimate exceeds timeout_s.
@@ -4755,6 +4801,7 @@ shows `phase` (`setting_up` while a big model is being prepared, then
 | --- | --- | --- | --- | --- |
 | `attribution` | boolean | no | `false` | — |
 | `availability_plot` | boolean \| null | no | `null` | — |
+| `block_streams` | string \| null | no | `null` | `model`, `separate` |
 | `capacity_rule` | string | no | `proportional` | `proportional`, `marginal`, `first_failed` |
 | `collect_events` | boolean | no | `false` | — |
 | `interim_cost` | boolean \| null | no | `null` | — |
@@ -4769,6 +4816,7 @@ Parameter notes:
 
 - `attribution` — Also work out which element caused each system outage and why; read it with downtime_drivers and advise.
 - `availability_plot` — Record the availability-over-time plot for this run. Leave out for the model's setting.
+- `block_streams` — separate: each block that shares a random stream gets its own for this run (the model is not edited); model: the blocks' own. Leave out for the model's setting.
 - `capacity_rule` — `capacity_rule` chooses how the lost flow is shared, as in `simulate`.
 - `collect_events` — Keep the event log of every run (larger output; needed for event-level analysis).
 - `interim_cost` — Record the interim cost report for this run. Leave out for the model's setting.
@@ -4790,6 +4838,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4848,7 +4897,7 @@ Parameter notes:
 
 - `field` — `field` may be a friendly field or an indexed form like `repair_params[0]`.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `num_runs` — Replications (trials). Leave out to use the model's own setting.
+- `num_runs` — Replications (trials); 5 when left out.
 - `selector` — One element: its name, or Kind:id such as Block:3, Node:2, Event:1, Hier:4 or Link:7.
 
 **Returns**
@@ -4921,7 +4970,7 @@ cancelled by the client.
 
 Parameter notes:
 
-- `changes` — `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g.
+- `changes` — `changes` are PATH=VALUE edits (the grammar of `raptor set`), e.g. `["block:Pump.repair_params=8,0,0"]`.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `precision` — `trials` sets the fixed count; `precision` (`{relative: 0.1, min_trials: 50, max_trials: 20000}`) sizes Base first with run-to-precision.
 - `requirements` — `requirements` are `{metric, op, value, label}` rows judged for Base and the scenario.
@@ -4936,12 +4985,14 @@ Parameter notes:
 | --- | --- | --- |
 | `base` | object | yes |
 | `caption` | string | yes |
+| `cut_short` | any | yes |
 | `note` | string | yes |
 | `requirements` | array<any> | yes |
 | `rows` | array<any> | yes |
 | `seed` | integer \| null | yes |
 | `trials` | integer | yes |
 | `variance_reduction` | object | yes |
+| `workers` | integer | yes |
 
 **Example**
 
@@ -5549,7 +5600,7 @@ Parameter notes:
 - `at` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
 - `at` — Defaults to the model's time-terminated run length.
 - `bx` — Reliability-only settings (`at`, `times`, `bx`, `tau`, ignoring repairs) apply to the reliability solve only.
-- `folder` — `Plant_analytical_reliability_availability.xlsx`, in `folder` (inside the workspace; default `Tables/<model>`).
+- `folder` — The file is `<model>[_h<hierarchy>]_analytical_<modes>[_all_phases | _phase<N>].xlsx` (`.ods` with `file_format="ods"`, an OpenDocument spreadsheet), e.g. `Plant_analytical_reliability_availability.xlsx`, in `folder` (inside the workspace; default `Tables/<model>`).
 - `folder` — Defaults to `Tables/<model>` when omitted. The file name adds `_h<hierarchy>` and/or `_phase<N>`/`_all_phases` for a hierarchy or phase solve; an existing file of that name is replaced.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `modes` — `modes` (default `["reliability"]`): one or both of reliability and availability, solved with the same settings into ONE workbook, a set of sheets per mode (Summary, Elements with the importance measures, Curve, Equation, Assumptions).
@@ -5800,8 +5851,10 @@ Parameter notes:
 | `model_id` | string \| null | yes |
 | `model_name` | string \| null | yes |
 | `per_run` | array<any> | yes |
+| `requested_runs` | integer | yes |
 | `run_id` | string | yes |
 | `runs` | integer \| null | yes |
+| `truncated` | boolean | yes |
 | `units` | string \| null | yes |
 | `weak_link` | array<any> | yes |
 

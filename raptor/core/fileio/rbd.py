@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -395,7 +396,13 @@ def parse_rbd(text: str) -> RbdFile:
 
     header_parts = lines[0].split(None, 2)
     if not header_parts or not header_parts[0].startswith("Version"):
-        raise ValueError(f"unrecognized .rbd header line: {lines[0]!r}")
+        first_line = lines[0][:40]
+        if not first_line.isprintable():
+            # a binary file put raw bytes on the terminal
+            raise ValueError("not a .rbd model: the file does not start with a "
+                             "'Version' line (it looks like binary data)")
+        raise ValueError(f"not a .rbd model: the first line should start with "
+                         f"'Version'; it is {first_line!r}")
     version = header_parts[0]
     if not version.startswith("Version7"):
         # Version 5/6 files have separate readers + `UpdateVersion`
@@ -557,12 +564,34 @@ def _is_protected(sections: dict[str, RbdSection]) -> bool:
 def load_rbd(path: str) -> RbdFile:
     with open(path, encoding="latin-1") as f:
         parsed = parse_rbd(f.read())
+    short = _missing_rows(parsed)
+    if short:
+        # a file cut off part way (a failed copy, a full disk) used to load
+        # and then fail later on a bare KeyError naming a section
+        raise ValueError(f"{os.path.basename(path)} looks truncated: "
+                         f"{short}; the file ends before the model does")
     # Raptor 7's reports title themselves with the DISK filename that was
     # opened, not the header's internal file_name. The internal name is
     # only a fallback when no path is known (GUI paste).
-    import os
     parsed.file_name = os.path.basename(path)
     return parsed
+
+
+def _missing_rows(parsed: RbdFile) -> str | None:
+    """What the header promises that the file lacks, or None."""
+    counts = getattr(parsed, "counts", None) or {}
+    for key in ("Blocks", "Events", "Nodes", "Links"):
+        declared = counts.get(key)
+        if not isinstance(declared, int) or declared <= 0:
+            continue
+        section, offset = _COUNT_SECTIONS[key]
+        found = parsed.sections.get(section)
+        have = len(found.rows) + offset if found is not None else 0
+        if found is None:
+            return f"the header lists {declared} {key.lower()} but there is no {section} section"
+        if have < declared:
+            return f"the header lists {declared} {key.lower()} but {section} has {max(have, 0)}"
+    return None
 
 
 #: Order the header count lines appear in, in every Raptor 7 fixture seen.
@@ -892,6 +921,23 @@ def ensure_legacy_system_image(f: RbdFile) -> None:
         row["imageString"] = LEGACY_SYSTEM_IMAGE
 
 
+def _latin1_refusal(rbd: RbdFile) -> str:
+    """Which names a `.rbd` (Latin-1) cannot store."""
+    bad: list[str] = []
+    for sec in rbd.sections.values():
+        for row in sec.rows:
+            for value in row.values():
+                if isinstance(value, str):
+                    try:
+                        value.encode("latin-1")
+                    except UnicodeEncodeError:
+                        if value not in bad:
+                            bad.append(value)
+    shown = ", ".join(repr(b) for b in bad[:5]) + (" ..." if len(bad) > 5 else "")
+    return (f"a .rbd file can only hold Latin-1 text, and this model has "
+            f"{shown or 'text outside it'}. Rename those, or save as .rbds.")
+
+
 def save_rbd(f: RbdFile, path: str) -> None:
     # Raptor 7's reports title themselves with the DISK filename that was
     # opened (see load_rbd) — same rule on save, so the header's
@@ -923,5 +969,12 @@ def save_rbd(f: RbdFile, path: str) -> None:
     # convention, with ~n distinguishers on truncated collisions. The
     # .rbds keeps the full names.
     cap_legacy_names(out)
-    with open(path, "w", encoding="latin-1") as fh:
-        fh.write(render_rbd(out))
+    text = render_rbd(out)
+    try:
+        data = text.encode("latin-1")
+    except UnicodeEncodeError:
+        # Encoded before the file is opened, so a refusal leaves no 0-byte
+        # file behind, and the message names what cannot be stored.
+        raise ValueError(_latin1_refusal(out)) from None
+    with open(path, "wb") as fh:
+        fh.write(data)

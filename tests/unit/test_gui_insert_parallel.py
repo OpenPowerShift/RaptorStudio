@@ -316,3 +316,26 @@ def test_duplicate_in_parallel_honours_a_chosen_k(qapp):
     view.duplicate_parallel(2, 2)
     join = max(view.nodes)
     assert view.nodes[join].good_paths == 2
+
+
+def test_parallel_copies_do_not_overlap_on_a_blank_model(qapp):
+    """User testing: on a Blank model (drawn at 8 px per model unit, not
+    64) Duplicate in Parallel squeezed the group: the copies overlapped and
+    the split and join nodes sat on the blocks."""
+    from raptor.gui.ui.main_window import MainWindow
+    window = MainWindow()
+    window.resize(1400, 900)
+    window.show()
+    window._new_file()
+    view = window._diagram_dock.view
+    view._scene.clearSelection()
+    bid = next(b for b in view._block_items if b != 0)
+    view._block_items[bid].setSelected(True)
+    assert view.duplicate_parallel(2, 1)
+    items = ([i.sceneBoundingRect() for b, i in view._block_items.items() if b]
+             + [i.sceneBoundingRect() for i in view._node_items.values()])
+    for i, one in enumerate(items):
+        for other in items[i + 1:]:
+            assert not one.intersects(other), (one, other)
+    window._dirty = False
+    window.close()

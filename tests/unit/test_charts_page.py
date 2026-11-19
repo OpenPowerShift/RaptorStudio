@@ -91,7 +91,7 @@ def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
     assert "Where the money goes" in _all_titles(page)
     assert "Where the money goes" not in drawable
     # the control's own label and where it is
-    assert "<b>Cost</b> under Run panel ▸ Analysis" in page.missing_reason("cost-pareto")
+    assert "<b>Cost</b> under Run panel ▸ Results to calculate" in page.missing_reason("cost-pareto")
     assert "<b>Availability plot</b> under Run panel ▸ Recording" in page.missing_reason(
         "availability-band")
     page.select("cost-pareto")
@@ -132,7 +132,10 @@ def test_every_drawable_chart_paints_and_exports(qapp, tmp_path):
         csv = tmp_path / f"chart-{index}.csv"
         page.save_csv(str(csv))
         header = csv.read_text(encoding="utf-8").splitlines()[0]
-        assert header.startswith("layer," if spec.kind == "timeline" else "series,")
+        if spec.kind == "timeline":
+            assert header.startswith("layer,")
+        else:                                  # named for what the rows hold
+            assert header and "note" not in header.split(","), (title, header)
 
 
 def test_only_the_controls_a_chart_uses_are_shown(qapp):

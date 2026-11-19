@@ -20,9 +20,33 @@ def read(workspace: Any, run_id: str) -> dict[str, Any]:
     from raptor.api.run import run_dir
     path = run_dir(workspace, run_id) / "attribution.json"
     if not path.is_file():
+        summary = run_dir(workspace, run_id) / "summary.json"
+        try:
+            skipped = json.loads(summary.read_text()).get("attribution_skipped")
+        except (OSError, ValueError):
+            skipped = None
+        if skipped:       # asked for, but the batch was stopped first
+            raise NoAttribution(f"run {run_id!r}: {skipped}")
         raise NoAttribution(
             f"run {run_id!r} has no downtime attribution: {how('attribution')}")
     return json.loads(path.read_text())
+
+
+def with_outages(workspace: Any, run_id: str,
+                 attribution: dict[str, Any] | None) -> dict[str, Any] | None:
+    """`attribution` with the run's per-run outage record attached, as the
+    window does: the run stores it apart (outages.json), so the ensemble
+    ribbon drawn from MCP or the command line was always empty."""
+    if attribution is None or attribution.get("outages"):
+        return attribution
+    from raptor.api.run import run_dir
+    path = run_dir(workspace, run_id) / "outages.json"
+    if not path.is_file():
+        return attribution
+    try:
+        return {**attribution, "outages": json.loads(path.read_text())}
+    except (OSError, ValueError):
+        return attribution
 
 
 def periods(workspace: Any, run_id: str, length: float | None = None, *,
@@ -37,6 +61,11 @@ def periods(workspace: Any, run_id: str, length: float | None = None, *,
     ``rows``, one entry per (run, period), for an export."""
     from raptor.api.insight.periods import HOURS_PER_YEAR, PeriodSpec, period_summary
     from raptor.api.run import run_dir
+    if below is not None and not (isinstance(below, (int, float))
+                                  and not isinstance(below, bool)
+                                  and 0.0 <= below <= 1.0):
+        # 1.5 read as "100 % of periods fall below 150 %"
+        raise ValueError(f"below is an availability, 0 to 1 (e.g. 0.97); got {below!r}")
     attribution = read(workspace, run_id)
     units = str(attribution.get("units") or "")
     if length is None:
@@ -73,19 +102,89 @@ def top(attribution: dict[str, Any], n: int = 10) -> list[dict[str, Any]]:
     return rows[:n]
 
 
+def is_system(row: dict[str, Any]) -> bool:
+    """The "(no single element)" row: downtime no element started."""
+    return str(row.get("kind", "")).lower() == "system"
+
+
+def chain_text(seq: dict[str, Any]) -> str:
+    """One outage sequence in words. Two elements handing the outage back
+    and forth read as that, not as six arrows: "A (hands-on repair) and
+    B (hands-on repair) in turn, 5 hand-overs"."""
+    steps = [f"{s['element']} ({CAUSE_LABELS.get(s['cause'], s['cause']).lower()})"
+             for s in seq.get("steps") or []]
+    more = float(seq.get("more_steps") or 0.0)
+    if not steps:
+        return "(unknown)"
+    alternating = (len(steps) >= 3 and len(set(steps)) == 2
+                   and all(steps[i] == steps[i - 2] for i in range(2, len(steps))))
+    if alternating:
+        handovers = len(steps) - 1 + more
+        text = (f"{steps[0]} and {steps[1]} in turn, "
+                f"{'about ' if more else ''}{handovers:,.0f} hand-overs")
+        return text
+    text = " -> ".join(steps)
+    if more:
+        text += f" -> … ({more:,.0f} more step{'s' if round(more) != 1 else ''} on average)"
+    return text
+
+
+def system_label(attribution: dict[str, Any]) -> str:
+    """The "(no single element)" row's name in a short list."""
+    if any(row.get("mission") is False and row.get("share_of_downtime")
+           for row in attribution.get("phases") or []):
+        return "(non-mission phase)"
+    return "(no single element)"
+
+
+def system_sentence(attribution: dict[str, Any], share: float) -> str:
+    """What the "(no single element)" downtime is, in words: a phased car
+    wash spent 93 % of its downtime in a non-mission phase and the Story
+    counted "(no single element)" as an element whose outages were "other"."""
+    idle = [row["name"] for row in attribution.get("phases") or []
+            if row.get("mission") is False and (row.get("down") or row.get("share_of_downtime"))]
+    if idle:
+        return (f"{_pct(share)} of system downtime is time in a non-mission phase "
+                f"({', '.join(idle)}), counted as down by design, not a failure.")
+    return (f"{_pct(share)} of system downtime is not started by any one element "
+            "(a phase change or a node, not a block failure).")
+
+
+def _agree(count: int, noun: str = "element") -> str:
+    """'1 element causes', '2 elements cause'."""
+    return f"{count} {noun} causes" if count == 1 else f"{count} {noun}s cause"
+
+
 def caption(attribution: dict[str, Any]) -> str:
     """One sentence a report can quote."""
     drivers = top(attribution, 3)
     if not drivers:
+        if (attribution.get("system") or {}).get("outages", {}).get("mean"):
+            # an event-only model: a failure with no down time (the Story
+            # said "No system outage" beside "1 system failure")
+            return (f"No down time was recorded in {attribution['runs']:,} runs "
+                    "(the model has no run length, so a failure takes no time).")
         return f"No system outage occurred in {attribution['runs']:,} runs."
-    share = sum(e["dtci"]["mean"] or 0.0 for e in drivers)
-    names = ", ".join(f"{e['name']} {_pct(e['dtci']['mean'])}" for e in drivers)
-    lead = drivers[0]
-    cause = CAUSE_LABELS.get(lead["main_cause"] or "", "").lower()
-    tail = (f" {lead['name']}'s outages are mostly {cause} "
-            f"({_pct(lead['causes'].get(lead['main_cause'], 0))})." if cause else "")
-    return (f"{len(drivers)} element{'s' if len(drivers) != 1 else ''} cause "
-            f"{_pct(share)} of system downtime: {names}.{tail}")
+    elements = [e for e in drivers if not is_system(e)]
+    system = sum(e["dtci"]["mean"] or 0.0 for e in drivers if is_system(e))
+    parts = []
+    if elements:
+        share = sum(e["dtci"]["mean"] or 0.0 for e in elements)
+        names = ", ".join(f"{e['name']} {_pct(e['dtci']['mean'])}" for e in elements)
+        lead = elements[0]
+        cause = CAUSE_LABELS.get(lead["main_cause"] or "", "").lower()
+        lead_share = lead["causes"].get(lead["main_cause"], 0) if cause else 0
+        tail = ""
+        if cause and lead_share >= 0.995:
+            tail = f" All of {lead['name']}'s downtime is {cause}."
+        elif cause:
+            tail = f" {lead['name']}'s outages are mostly {cause} ({_pct(lead_share)})."
+        parts.append(f"{_agree(len(elements))} {_pct(share)} of system downtime: "
+                     f"{names}.{tail}")
+    if system > 0:
+        parts.insert(0 if system >= 0.5 else len(parts),
+                     system_sentence(attribution, system))
+    return " ".join(parts)
 
 
 def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
@@ -94,15 +193,19 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
     system = attribution["system"]
     lines = [caption(attribution), ""]
     red, outs = system["red_time"]["mean"], system["outages"]["mean"]
+    runs = attribution["runs"]
     lines.append(f"System down {red:,.4g} {units} a run in {outs:,.3g} outages "
-                 f"({attribution['runs']:,} runs)".replace("  ", " "))
+                 f"({runs:,} run{'s' if runs != 1 else ''})".replace("  ", " "))
     by_cause = sorted(attribution["causes"].items(), key=lambda kv: -kv[1])
     if by_cause:
         lines.append("By cause: " + ", ".join(
             f"{CAUSE_LABELS[c].lower()} {_pct(v)}" for c, v in by_cause))
-    lines.append("")
-    lines.append(f"{'Element':<22}{'Downtime':>10}{'±':>11}{'Outages':>10}{'Failures':>10}  Main cause")
-    for e in top(attribution, n):
+    rows = top(attribution, n)
+    if rows:        # no header over an empty table when nothing went down
+        lines.append("")
+        lines.append(f"{'Element':<22}{'Downtime':>10}{'±':>11}{'Outages':>10}"
+                     f"{'Failures':>10}  Main cause")
+    for e in rows:
         sem = e["dtci"]["sem"]
         lines.append(
             f"{e['name'][:21]:<22}{_pct(e['dtci']['mean']):>10}"
@@ -111,11 +214,10 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
             f"{CAUSE_LABELS.get(e['main_cause'] or '', '')}")
     sequences = attribution.get("sequences") or []
     if sequences:
-        lines += ["", "What the outages look like (share of downtime):"]
+        lines += ["", "What the outages look like (share of downtime; each arrow is "
+                      "the next thing that kept the system down):"]
         for seq in sequences[:5]:
-            path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
-                               for s in seq["steps"]) or "(unknown)"
-            lines.append(f"  {_pct(seq['share']):>7}  {path}")
+            lines.append(f"  {_pct(seq['share']):>7}  {chain_text(seq)}")
     if attribution.get("hierarchies"):
         lines += [""] + hierarchy_lines(attribution, n)
     if attribution.get("phases"):

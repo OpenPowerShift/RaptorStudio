@@ -76,3 +76,17 @@ def test_a_replace_that_changes_nothing_leaves_no_undo_step(win):
     assert tables._replace_cells(table, "valve", "Seal", False, False) == 0
     assert tables._replace_cells(table, "pump", "Pump", False, False) == 0
     assert stack.count() == before
+
+
+def test_a_refused_replace_puts_the_cells_back(win, monkeypatch):
+    """Round-3 GUI F4: a replace the rule gate refused left the refused text
+    in the cells and the status bar said it had replaced them."""
+    from raptor.gui.ui import msgbox
+    monkeypatch.setattr(msgbox, "warning", lambda *a, **k: None)
+    tables = win._data_tables
+    tables.refresh()
+    table = tables._blocks_table
+    names = [table.item(r, 0).text() for r in range(table.rowCount())]
+    needle = names[0]
+    assert tables._replace_cells(table, needle, "X" * 40, False, True) == -1
+    assert [table.item(r, 0).text() for r in range(table.rowCount())] == names

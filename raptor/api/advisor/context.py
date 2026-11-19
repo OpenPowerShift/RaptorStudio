@@ -200,6 +200,26 @@ class ModelContext:
     def outputs_of(self, kind: str, id: int) -> list[tuple[str, int]]:
         return self._edges[1].get((kind, id), [])
 
+    def redundant(self, element: tuple[str, int]) -> bool:
+        """Whether a path from the start to the end avoids `element` (a
+        hierarchy counts as one step): whether, drawn as it is, the system
+        could carry on with `element` alone down. k-of-n nodes are read as
+        1-of-n here, so this is about the drawing, not the vote."""
+        starts = [("node", int(n["id"])) for n in self.nodes if int(n.get("type") or 0) == 1]
+        ends = {("node", int(n["id"])) for n in self.nodes if int(n.get("type") or 0) == 3}
+        outs = self._edges[1]
+        seen = {s for s in starts if s != element}
+        todo = list(seen)
+        while todo:
+            here = todo.pop()
+            if here in ends:
+                return True
+            for nxt in outs.get(here, ()):
+                if nxt != element and nxt not in seen:
+                    seen.add(nxt)
+                    todo.append(nxt)
+        return False
+
     @cached_property
     def groups(self) -> list[Group]:
         out = []
@@ -308,6 +328,13 @@ REQUIREMENT_FIELDS.update({key.split(".", 1)[1]: value
                            for key, value in list(REQUIREMENT_FIELDS.items())})
 
 
+#: The comparisons a requirement may use.
+REQUIREMENT_OPS = (">=", ">", "<=", "<")
+#: Requirement fields that are fractions of 1.
+SHARE_FIELDS = {"availability", "reliability", "dependability",
+                "capacity_weighted_availability"}
+
+
 def check_requirements(requirements: list[dict] | None) -> None:
     """Refuse a requirement on a metric the run does not report. An unknown
     name ("ao") used to give no verdict and no word why."""
@@ -316,6 +343,22 @@ def check_requirements(requirements: list[dict] | None) -> None:
         if metric not in REQUIREMENT_FIELDS:
             names = ", ".join(k for k in REQUIREMENT_FIELDS if k.startswith("system."))
             raise ValueError(f"unknown requirement metric {metric!r}; use one of {names}")
+        op = str(req.get("op", ">="))
+        if op not in REQUIREMENT_OPS:
+            # "~" was taken silently and judged as ">="
+            raise ValueError(f"unknown comparison {op!r} for {metric}; use one of "
+                             + ", ".join(REQUIREMENT_OPS))
+        value = req.get("value")
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ValueError(f"the target for {metric} must be a number, not {value!r}")
+        if REQUIREMENT_FIELDS[metric] in SHARE_FIELDS and not 0.0 <= value <= 1.0:
+            # "system.ao>=99" printed "Availability >= 9900 %"
+            raise ValueError(
+                f"{metric} is a fraction: give the target as 0 to 1 (0.99), "
+                f"not {value:g}" + (f"; {value:g} % is {value / 100:g}"
+                                    if 1.0 < value <= 100.0 else ""))
+        if REQUIREMENT_FIELDS[metric] not in SHARE_FIELDS and value < 0:
+            raise ValueError(f"the target for {metric} cannot be negative")
 
 
 class RunContext(ModelContext):

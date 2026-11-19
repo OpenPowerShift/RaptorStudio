@@ -6,7 +6,7 @@ import sys
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, eprint, open_model, workspace_for
+from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, job_count
 from raptor.cli.exitcodes import CliError
 from raptor.core.run_experiment import IMPORTANCE_MODES
 
@@ -45,7 +45,7 @@ def add_parser(sub: Any) -> None:
     a.add_argument("--target", action="append", metavar="EXPR",
                    help="a requirement to judge the run against, e.g. "
                         "'system.ao>=0.995' (implies --simulate; repeatable)")
-    a.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    a.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N",
                    help="worker processes for --simulate (default 1)")
     a.add_argument("--progress", choices=_PROGRESS, default="auto",
                    help="progress of --simulate on stderr (json: one object per line)")
@@ -73,10 +73,18 @@ def add_parser(sub: Any) -> None:
     e.add_argument("model", metavar="MODEL", nargs="?")
     e.add_argument("-n", "--runs", type=int, metavar="N",
                    help="number of runs (default: the model's own)")
-    e.add_argument("-j", "--jobs", type=int, default=1, metavar="N",
+    e.add_argument("-j", "--jobs", type=job_count, default=1, metavar="N",
                    help="worker processes (default 1; more is reproducible but "
                         "gives different numbers from -j 1)")
-    e.add_argument("--seed", type=int, metavar="N")
+    e.add_argument("--seed", type=seed_arg, metavar="N|new")
+    # it ran without any limit: 100,000 runs went on for minutes
+    e.add_argument("--timeout", metavar="DURATION", default="10m",
+                   help="give up after DURATION, e.g. 90s, 10m (default 10m); the "
+                        "runs finished by then are kept and the Story says so")
+    e.add_argument("--target", action="append", metavar="EXPR",
+                   help="a requirement for the Story's headline, e.g. "
+                        "'system.ao>=0.995' or 'mdt<=5' (repeatable; the first "
+                        "is the headline)")
     e.add_argument("--analysis", metavar="LIST",
                    help="weak,cost,capacity for this run (replaces the model's "
                         "setting; the file is untouched): the cost and lost-capacity "
@@ -309,7 +317,7 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
             _text(d, why)
 
 
-def explain_command(args: Any) -> int:
+def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options in turn
     from raptor.api import run as run_api
     from raptor.api.insight import charts, drivers
     if args.list_charts:
@@ -320,6 +328,8 @@ def explain_command(args: Any) -> int:
     if not args.model:
         raise CliError("explain needs a MODEL (or use --list-charts)", X.USAGE)
     chart_name = args.chart or ("downtime-pareto" if args.chart_svg else None)
+    _warn_unused_chart_options(args, chart_name)
+    targets = _targets(args.target)
     from raptor.cli.cmd_run import progress_options
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
@@ -331,22 +341,38 @@ def explain_command(args: Any) -> int:
             # capacity plot comes with capacity analysis)
             plot = (True if chart_name in TIME_CHARTS
                     and not chart_name.startswith("capacity") else None)
+            from raptor.cli.common import parse_duration
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
                                  seed=args.seed, attribution=True,
                                  availability_plot=plot,
                                  capacity_rule=args.capacity_rule,
                                  confirm_long_run=True,
+                                 timeout_s=parse_duration(args.timeout),
                                  **progress_options(args.progress))
         except run_api.RunError as exc:
             raise CliError(f"cannot simulate: {exc}", X.RUNTIME) from exc
-        attribution = drivers.read(ws, result.run_id)
+        for warning in result.warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+        try:
+            attribution = drivers.read(ws, result.run_id)
+        except drivers.NoAttribution as exc:
+            # the batch stopped before the replay: the Story of the runs that
+            # finished still says what it can, and that it stopped early
+            if args.story or args.target:
+                from raptor.api.insight.story import from_run, text_lines
+                print("\n".join(text_lines(from_run(ws, result.run_id,
+                                                      requirements=targets))))
+                print(f"raptor: {exc}", file=sys.stderr)
+                return X.TIMEOUT
+            raise CliError(str(exc), X.RUNTIME) from exc
         story = None
-        if args.story:
+        if args.story or args.target:
             from raptor.api.insight.story import from_run
-            story = from_run(ws, result.run_id)
+            story = from_run(ws, result.run_id, requirements=targets)
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
-                           min_share=args.chart_min_share)
+                           min_share=args.chart_min_share,
+                           target=_availability_target(targets))
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -387,16 +413,55 @@ def _explain_output(attribution: dict, story: Any, yearly: Any,
         print("\n".join(story_lines(story)))
         print()
     from raptor.api.insight import drivers
-    print("\n".join(drivers.text_lines(attribution, args.top)))
+    if chart is None or yearly is not None:
+        # --chart alone prints the chart: it came after 30 to 60 lines of
+        # the drivers report
+        print("\n".join(drivers.text_lines(attribution, args.top)))
     if yearly is not None:
         print("\n" + "\n".join(drivers.period_lines(yearly)))
     if chart is not None:
         _print_chart(chart, args)
 
 
+def _warn_unused_chart_options(args: Any, chart_name: str | None) -> None:
+    """Say so when a chart option has nothing to act on: they were ignored
+    without a word."""
+    from raptor.api.insight.timecharts import PER_RUN_CHARTS
+    unused = []
+    if chart_name is None:
+        unused += [flag for flag, set_ in (
+            ("--chart-page", args.chart_page != "screen"),
+            ("--chart-run", args.chart_run != 1),
+            ("--chart-min-share", bool(args.chart_min_share))) if set_]
+    else:
+        if args.chart_run != 1 and chart_name not in PER_RUN_CHARTS:
+            unused.append("--chart-run (only the one-run charts use it)")
+        if args.chart_min_share and chart_name not in _RANKED_CHARTS:
+            unused.append("--chart-min-share (only rankings and treemaps fold "
+                          "small items)")
+        if args.chart_page != "screen" and not args.chart_svg:
+            unused.append("--chart-page (it sizes --chart-svg)")
+    for flag in unused:
+        print(f"warning: {flag} has no effect here", file=sys.stderr)
+
+
+#: The charts `--chart-min-share` folds.
+_RANKED_CHARTS = ("downtime-pareto", "downtime-treemap", "cost-pareto", "cost-treemap",
+                  "lost-capacity-pareto", "lost-capacity-treemap")
+
+
+def _availability_target(targets: list[dict]) -> float | None:
+    """The first availability target, for the charts' target line (the
+    window's Target button draws one; --target drew none)."""
+    from raptor.api.advisor.context import REQUIREMENT_FIELDS
+    return next((float(t["value"]) for t in targets
+                 if REQUIREMENT_FIELDS.get(str(t.get("metric"))) == "availability"), None)
+
+
 def _chart_for(ws: Any, run_id: str, name: str | None,
                attribution: dict, *, run: int = 1,
-               y_floor: float | None = None, min_share: float = 0.0) -> Any:
+               y_floor: float | None = None, min_share: float = 0.0,
+               target: float | None = None) -> Any:
     """Build the requested chart from a finished run, or None; with
     `min_share`, its small items folded into one (`charts.fold_small`)."""
     if not name:
@@ -404,17 +469,20 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     from raptor.api.insight import charts
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run
+    from raptor.api.run_tables import read_per_run, run_units
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     over_time = (stored_inputs(run_dir(ws, run_id)) if name in TIME_CHARTS
                  else {})
+    over_time.pop("units", None)       # passed as units= (it is the run's)
     if y_floor is not None and not 0.0 <= y_floor < 1.0:
         raise CliError("--y-floor must be at least 0 and below 1", X.USAGE)
     if not 0.0 <= min_share < 1.0:
         raise CliError("--chart-min-share must be at least 0 and below 1", X.USAGE)
     periods = None
+    from raptor.api.insight import drivers
+    if name == "ensemble-ribbon":
+        attribution = drivers.with_outages(ws, run_id, attribution) or attribution
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
-        from raptor.api.insight import drivers
         periods = drivers.periods(ws, run_id)
     try:
         costs = (charts.stored_element_costs(ws, run_id)
@@ -425,6 +493,8 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
             charts.chart_named(name, per_run=per_run, attribution=attribution,
                                periods=periods, costs=costs, run=run,
                                importance=importance, y_floor=y_floor,
+                               units=run_units(ws, run_id), surface="cli",
+                               target=target,
                                **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc

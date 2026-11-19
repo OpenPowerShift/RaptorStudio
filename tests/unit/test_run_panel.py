@@ -101,7 +101,7 @@ class TestDependencyEnforcement:
 
     def test_refusal_says_what_is_missing(self, panel):
         panel.set_experiment(rx.normalise({"analyses": []}))
-        assert "Capacity" in panel._recording_notes["capacity_plot"].text()
+        assert "needs Capacity" in _rec(panel, "capacity_plot").text()
 
     def test_dependent_plot_allowed_once_the_analysis_is_on(self, panel):
         panel.set_experiment(rx.normalise({"analyses": ["capacity"]}))
@@ -125,17 +125,22 @@ class TestDependencyEnforcement:
 
 
 class TestIntervalsFollowTheirPlot:
+    """Each interval sits under its own plot and is shown only while that
+    plot is ticked (#286): greyed rows at the foot of the box read as
+    broken."""
+
     def test_ao_interval_follows_the_ao_plot(self, panel):
         panel.set_experiment(rx.normalise(
-            {"recording": {"ao_plot": False, "cost_plot": True}}))
-        assert not panel._ao_interval.isEnabled()
-        assert panel._cost_interval.isEnabled()
+            {"analyses": ["cost"],
+             "recording": {"ao_plot": False, "cost_plot": True}}))
+        assert panel._interval_holders["ao_plot"].isHidden()
+        assert not panel._interval_holders["cost_plot"].isHidden()
 
-    def test_turning_the_plot_on_enables_the_interval(self, panel):
+    def test_turning_the_plot_on_shows_the_interval(self, panel):
         panel.set_experiment(rx.normalise(
             {"recording": {"ao_plot": False}}))
         _rec(panel, "ao_plot").setChecked(True)
-        assert panel._ao_interval.isEnabled()
+        assert not panel._interval_holders["ao_plot"].isHidden()
 
 
 class TestSystemValues:
@@ -178,28 +183,31 @@ class TestSystemValues:
         assert got == [{"systemRedCost": "12.500000"},
                        {"sysLostCost": "3.750000"}]
 
-    def test_system_red_cost_is_always_visible(self, panel):
+    def test_system_red_cost_needs_cost(self, panel):
+        """It prices failed time; with Cost off nothing is priced."""
         panel.set_experiment(rx.normalise({"analyses": []}))
-        assert panel._system_form.isRowVisible(1)
+        assert panel._system_rows["red"].isHidden()
+        panel.set_experiment(rx.normalise({"analyses": ["cost"]}))
+        assert (not panel._system_rows["red"].isHidden())
 
     def test_flow_generated_needs_capacity(self, panel):
         panel.set_experiment(rx.normalise({"analyses": []}))
-        assert not panel._system_form.isRowVisible(0)
+        assert panel._system_rows["flow"].isHidden()
         panel.set_experiment(rx.normalise({"analyses": ["capacity"]}))
-        assert panel._system_form.isRowVisible(0)
+        assert (not panel._system_rows["flow"].isHidden())
 
     def test_lost_flow_cost_needs_capacity_and_cost(self, panel):
         panel.set_experiment(rx.normalise({"analyses": ["capacity"]}))
-        assert not panel._system_form.isRowVisible(2)
+        assert panel._system_rows["lost"].isHidden()
         panel._analysis_checks["cost"].setChecked(True)
-        assert panel._system_form.isRowVisible(2)
+        assert (not panel._system_rows["lost"].isHidden())
 
     def test_turning_capacity_off_hides_its_values_again(self, panel):
         panel.set_experiment(
             rx.normalise({"analyses": ["capacity", "cost"]}))
         panel._analysis_checks["capacity"].setChecked(False)
-        assert not panel._system_form.isRowVisible(0)
-        assert not panel._system_form.isRowVisible(2)
+        assert panel._system_rows["flow"].isHidden()
+        assert panel._system_rows["lost"].isHidden()
 
     def test_a_locked_panel_does_not_write_system_values(self, panel):
         got = []
@@ -212,13 +220,13 @@ class TestSystemValues:
 
 class TestTerminationRelabelling:
     @pytest.mark.parametrize("term,label", [
-        ("TimeSim", "Run length:"),
-        ("FailSim", "System failures:"),
-        ("CycleSim", "Phase cycles:"),
+        ("TimeSim", "time units"),
+        ("FailSim", "system failures"),
+        ("CycleSim", "phase cycles"),
     ])
     def test_label_follows_the_termination_type(self, panel, term, label):
-        """A field labelled "Run length" holding a count of failures is
-        misleading, and the label is the only thing that can fix it."""
+        """'Stop at [System failures] after [10] ___': the word after the
+        number says what kind of number it is."""
         panel.set_experiment(rx.normalise({"termination_type": term}))
         assert panel._term_label.text() == label
 
@@ -267,15 +275,6 @@ class TestRunTimeLock:
         panel._trials.editingFinished.emit()
         assert not got
 
-    def test_debugger_parameters_stay_editable(self, panel):
-        """Locking must not break stepping: a session in progress is
-        stepped by hand, and the step parameters are for the NEXT press
-        within that same session."""
-        panel.set_enabled(False)
-        assert panel._step_count.isEnabled()
-        assert panel._run_to.isEnabled()
-        assert panel._breakpoint.isEnabled()
-
     def test_reenable_restores(self, panel):
         panel.set_enabled(False)
         panel.set_enabled(True)
@@ -302,8 +301,9 @@ class TestAccessibility:
         screen-reader descriptions mandatory, not polish
         (the internal UI strategy notes)."""
         widgets = [panel._trials, panel._term_type, panel._term_value,
-                   panel._start_stats, panel._profile, panel._step_count,
-                   panel._run_to, panel._breakpoint, panel._ao_interval,
+                   panel._start_stats, panel._presets_button, panel._precision_btn,
+                   panel._scope, panel._importance_mode, panel._more_button,
+                   panel._ao_interval, panel._term_label,
                    panel._cost_interval, panel._readiness,
                    panel._flow_gen, panel._system_red_cost_field,
                    panel._lost_flow_cost_field,
@@ -316,32 +316,6 @@ class TestAccessibility:
         panel.set_experiment(rx.normalise({"analyses": []}))
         note = panel._recording_notes["capacity_plot"]
         assert "capacity" in note.accessibleName().lower()
-
-
-class TestDebuggerParameters:
-    def test_step_count_and_run_to_round_trip(self, panel):
-        panel.set_debugger_state(step_count=42, run_to=1234.5)
-        assert panel.step_count() == 42
-        assert panel.run_to_time() == 1234.5
-
-    def test_setting_debugger_state_does_not_emit(self, panel):
-        got = []
-        panel.experiment_changed.connect(got.append)
-        panel.set_debugger_state(step_count=7, run_to=9.0)
-        assert not got
-
-    def test_breakpoint_options_keep_a_surviving_selection(self, panel):
-        panel.set_breakpoint_options([("Power", "Power"), ("Pump", "Pump")])
-        panel._breakpoint.setCurrentIndex(
-            panel._breakpoint.findData("Pump"))
-        # Re-populating (as a model load does) must not silently reset it.
-        panel.set_breakpoint_options([("Power", "Power"), ("Pump", "Pump")])
-        assert panel._breakpoint.currentData() == "Pump"
-
-    def test_breakpoint_defaults_to_none(self, panel):
-        panel.set_breakpoint_options([("Power", "Power")])
-        assert panel._breakpoint.currentData() is None
-        assert panel.breakpoint_block() is None
 
 
 def test_panel_constructs_without_a_qapplication_error(qapp):
@@ -405,12 +379,12 @@ class TestSectionColumns:
         p.close()
         return cols
 
-    def test_wide_dock_uses_four_columns(self, qapp):
-        assert self._cols(qapp, 1900) == 4
+    def test_wide_dock_uses_three_columns(self, qapp):
+        # Three sections since Stepping moved to the Debug tab (#286).
+        assert self._cols(qapp, 1900) == 3
 
-    def test_medium_dock_uses_two_not_three(self, qapp):
-        # Three would strand the fourth section alone on a second row.
-        assert self._cols(qapp, 1100) == 2
+    def test_medium_dock_uses_two(self, qapp):
+        assert self._cols(qapp, 800) == 2
 
     def test_narrow_dock_stacks(self, qapp):
         assert self._cols(qapp, 400) == 1

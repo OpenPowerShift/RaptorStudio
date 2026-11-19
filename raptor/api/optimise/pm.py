@@ -194,7 +194,7 @@ def optimise_pm(  # noqa: C901, PLR0912
     abort: Any = None,
 ) -> dict[str, Any]:
     """Screen each block, then simulate around its analytic interval."""
-    from raptor.api.batch import run_variants
+    from raptor.api.batch import cut_short, require_measured, run_variants
     from raptor.api.run import run_dir
     from raptor.api.run_tables import read_per_run
 
@@ -235,6 +235,7 @@ def optimise_pm(  # noqa: C901, PLR0912
     results = run_variants(
         workspace, model_id, variants, num_runs=trials, workers=workers,
         timeout_s=timeout_s, seed=seed, progress=progress, abort=abort)
+    short = cut_short(results, timeout_s)
 
     def rows_for(result: dict) -> list[dict]:
         run_id = result.get("run_id")
@@ -256,6 +257,7 @@ def optimise_pm(  # noqa: C901, PLR0912
                      "mean": mean, "sem": sem, "delta": _paired(base_values, values),
                      "run_id": result.get("run_id"), "error": result.get("error"),
                      "_values": values})
+    require_measured(short, any(row["mean"] is not None for row in rows))
     by_block: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         by_block.setdefault(row["block"], []).append(row)
@@ -274,7 +276,9 @@ def optimise_pm(  # noqa: C901, PLR0912
         "rows": rows, "recommendations": recommendations,
         # PATH=VALUE edits for the recommendations worth making
         "changes": [c for r in recommendations for c in r["changes"]],
-        "caption": _caption(recommendations, objective),
+        "caption": ((short + " " if short else "")
+                    + _caption(recommendations, objective)),
+        "cut_short": short,
         "note": ("The analytic screen assumes age replacement on one block; "
                  "the recommendation comes from the paired simulation, not "
                  "from the formula, and is worth making only when its paired "

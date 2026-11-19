@@ -109,7 +109,7 @@ Everything above runs on a copy of the model and changes nothing until you apply
 | **Sweeps and comparisons**           | Vary any field over a list of values, or run two or more models side by side. **Differences** shows what is different between two models, and runs nothing.                                                                    |
 | **AI assistant (MCP)**               | 96 tools (95 with `--no-render`) to build, edit, run, explain and improve models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
-| **Faster editing**                   | Command search finds any command by name; Quick Add places an element by typing its kind; Duplicate in Parallel adds a redundant copy with the nodes it needs; several models open at once, each with its own undo history.    |
+| **Faster editing**                   | Command search finds any command by name; Quick Add repeats the selected block in series or parallel (1 of 2, 2 of 3, 1 of 3); Duplicate in Parallel adds a redundant copy with the nodes it needs; several models open at once, each with its own undo history.    |
 | **Charts and reports**               | One Charts view (availability through the run, run-to-run system state you can zoom into, downtime, cost, capacity); presentation-ready export; reports as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema). |
 | **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips, a "Did you know?" tip on the Start page, and a diagram renderer for documents (`raptor render`, with the result layers).                                 |
 | **Safer files**                      | Validation catches the model shapes that crash Raptor 7 on open (a node's declared path count, a stale phase header) before you save them.                                                                                       |
@@ -167,6 +167,11 @@ or give the full path, such as `.venv/bin/raptor --help`. `pipx` and `uv tool in
 you. Requirements: Python 3.12+. The PDF export uses WeasyPrint, which needs system Pango — Linux:
 `sudo apt install libpango-1.0-0 libpangocairo-1.0-0`, macOS: `brew install pango`. The Windows/macOS installers
 bundle it.
+
+The installers make double-clicking a `.rbds` or `.rbd` file open RAPTOR Studio. After a pip install, run
+`raptor register-file-types` once to do the same for your user (Windows and Linux; `--dry-run` lists the changes,
+`--unregister` undoes them). `.rbd` is Raptor 7's extension, so it is left alone when another program already opens
+it, unless you add `--force`.
 
 **Windows note (path too long):** Qt for Python (PySide6) installs some very deeply nested files. If `pip` stops with
 `OSError: [Errno 2] No such file or directory` and a hint about *Windows Long Path support*, the install folder's path

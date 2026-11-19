@@ -345,8 +345,11 @@ def _resolve_name(rbd: RbdFile, section: str, name: str) -> dict:
             f"No element named {name!r} in {section}.{hint}"
         )
     if len(matches) > 1:
+        kind = _SECTION_KIND_TITLE.get(section, section)
+        forms = ", ".join(f"{kind}:{m.get('ID')}" for m in matches[:6])
         raise AmbiguousName(
-            f"Name {name!r} matches {len(matches)} elements in {section}"
+            f"Name {name!r} matches {len(matches)} elements in {section}; "
+            f"name one by id: {forms}"
         )
     return matches[0]
 
@@ -466,9 +469,11 @@ def _column_targets(section: str, row: dict, field: str) -> list[str]:
                                      n=3, cutoff=0.6)
     hint = (f"  Did you mean {', '.join(repr(n) for n in near)}?"
             if near else "")
+    # still about 90 names: a what-if row or a dialog was buried under them
     raise BuildError(
-        f"Unknown field {field!r} for {section}.{hint}  Known friendly "
-        f"fields: {', '.join(friendly)}")
+        f"Unknown field {field!r} for {section}.{hint}  "
+        + ("`raptor help set-paths` lists every field."
+           if near else f"Known friendly fields: {', '.join(friendly)}"))
 
 
 def _record_formula(rbd: RbdFile, kind: str, elem_id: Any, col: str,
@@ -554,13 +559,7 @@ def _set_field(rbd: RbdFile, section: str, row: dict, kind: str,
             raise BuildError(
                 f"{col} must be a finite number; got {value!r}")
     if col == "Type" and section == "NODE_DATA":
-        if isinstance(value, str):
-            key = value.strip().lower()
-            if key in _NODE_TYPE_MAP:
-                value = _NODE_TYPE_MAP[key]
-            else:
-                raise BuildError(f"unknown node type {value!r}")
-        set_fields(row, **{col: value})
+        set_fields(row, **{col: _node_type_code(value)})
         return
     if isinstance(value, bool):
         set_fields(row, **{col: value})
@@ -579,8 +578,10 @@ def _set_field(rbd: RbdFile, section: str, row: dict, kind: str,
         _require_dist_code(col, value)
     elif col in _DIST_CODE_COLS:
         raise BuildError(f"{col} must be a distribution code, not a flag")
-    if col == "SpType" and isinstance(value, str):
-        value = _SPARING_MODE_TO_FILE.get(value.strip().lower(), value)
+    if col == "SpType":
+        value = _sparing_type(value)
+    elif col == "DepType":
+        value = _dependency_type(value)
     if isinstance(value, str) and col not in _STRING_COLUMNS \
             and not _is_plain_number(value):
         from raptor.api.rates import resolve_value
@@ -666,7 +667,11 @@ def _apply_patch(rbd: RbdFile, section: str, row: dict, kind: str,
                 seq = list(value)
                 _check_value_count(row, patch, field, targets, seq)
             else:
-                seq = [value] * len(targets)
+                # one number is the leading parameter, as `raptor set` and
+                # what-if read `fail_params=1000`: copying it into every
+                # column made an Exponential's location 1000 as well, so
+                # the mean life doubled with no warning
+                targets, seq = targets[:1], [value]
             if len(seq) < len(targets):
                 seq = seq + [0] * (len(targets) - len(seq))
             seq = seq[:len(targets)]
@@ -892,11 +897,34 @@ def _apply_system_patch(rbd: RbdFile, row: dict,
         if patch else {}
     streams = spec.get("system_streams", spec.get("sys_streams"))
     if streams is not None:
-        if isinstance(streams, (list, tuple)):
-            row["SysStreamsArray"] = " ".join(str(int(x)) for x in streams)
-        else:
-            row["SysStreamsArray"] = str(streams)
+        row["SysStreamsArray"] = _system_streams_text(streams)
     return changed
+
+
+def _system_streams_text(value: Any) -> str:
+    """The SysStreamsArray text for `value`: the 11 shared streams, each a
+    stream number 1..110 (negative for its antithetic draw). A list, or
+    the numbers in a string. Anything else was stored as given ("abc")
+    and reported as applied, then failed to load."""
+    items = (list(value) if isinstance(value, (list, tuple))
+             else str(value).replace(",", " ").split())
+    numbers: list[int] = []
+    for item in items:
+        if isinstance(item, bool):
+            raise BuildError(f"system_streams: {item!r} is not a stream number")
+        try:
+            number = int(str(item))
+        except ValueError:
+            raise BuildError(
+                f"system_streams: {item!r} is not a stream number; give 11 "
+                "whole numbers, each 1 to 110 (negative = antithetic)") from None
+        if not 1 <= abs(number) <= 110:
+            raise BuildError(f"system_streams: stream {number} is out of range; "
+                             "each is 1 to 110 (negative = antithetic)")
+        numbers.append(number)
+    if len(numbers) != 11:
+        raise BuildError(f"system_streams: give 11 stream numbers, not {len(numbers)}")
+    return " ".join(str(n) for n in numbers)
 
 
 #: Friendly spec key -> the rbdlib row constructor for the four "auxiliary"
@@ -987,7 +1015,7 @@ def _add_aux_sections(rbd: RbdFile, spec: dict[str, Any]) -> None:
                 name=p.get("name", f"Phase{i}"),
                 num=i,
                 mission=bool(int(p.get("mission", 1))),
-                dist=int(p.get("duration_dist", p.get("dist", 8))),
+                dist=_phase_dist_code(p),
                 params=tuple(p.get("params", (5.0, 0.1, 0.0))),
             ))
         _set_cols(sec)
@@ -1353,6 +1381,8 @@ def build_from_spec(spec: dict[str, Any],
 
     hiers_sec = rbd.sections["HIERARCHY_DATA"]
     hier_seen: dict[str, str] = {}
+    hier_map: dict[str, int] = {}
+    level_given: set[int] = set()
     for h in spec.get("hierarchies") or []:
         hid = _coerce_id(h.get("id", h.get("ID")))
         if hid is None:
@@ -1366,9 +1396,24 @@ def build_from_spec(spec: dict[str, Any],
         _apply_patch(rbd, "HIERARCHY_DATA", row, "hier", patch)
         hiers_sec.rows.append(row)
         hier_seen[name] = str(hid)
+        hier_map[str(name).lower()] = hid
+        hier_map[str(hid)] = hid
+        if "level" in h or "Level" in h:
+            level_given.add(hid)
+    # A hierarchy's level is how deep it sits, so a spec need not say: one
+    # nested 3 deep was left at level 1 and drew a wrong-level warning per
+    # hierarchy. A level the spec gives is kept (validate reports it if it
+    # disagrees).
+    from raptor.core.input_rules import hierarchy_depths
+    for hid, depth in hierarchy_depths(rbd).items():
+        if hid not in level_given:
+            for row in hiers_sec.rows:
+                if str(row.get("ID")) == str(hid):
+                    row["level"] = str(depth)
 
     # --- links ------------------------------------------------------------
-    maps = {"block": block_map, "node": node_map, "event": event_map}
+    maps = {"block": block_map, "node": node_map, "event": event_map,
+            "hier": hier_map}
     links_sec = rbd.sections["LINK_DATA"]
     for link in spec.get("links") or []:
         lid = _coerce_id(link.get("id", link.get("ID")))
@@ -1528,6 +1573,22 @@ def template_spec(template: str, *, n: int = 2, k: int = 1) -> RbdFile:
     if name in ("blank", "new", ""):
         from raptor.core.edit.new_model import build_new_model
         return build_new_model()
+    if name in ("series", "parallel", "k_of_n", "kofn", "k-out-of-n",
+                "koutofn"):
+        # The same limits `Workspace.create_model` applies: `n=0` built a
+        # model with a dangling link ("cannot resolve link endpoint
+        # 'Block1'"), and `k=0` a node no run can use.
+        from raptor.api.limits import MAX_TEMPLATE_BLOCKS
+        if isinstance(n, bool) or not isinstance(n, int) \
+                or not 1 <= n <= MAX_TEMPLATE_BLOCKS:
+            raise BuildError(
+                f"template n must be a whole number from 1 to "
+                f"{MAX_TEMPLATE_BLOCKS}, got {n!r}")
+        if name not in ("series", "parallel") and (
+                isinstance(k, bool) or not isinstance(k, int)
+                or not 1 <= k <= n):
+            raise BuildError(f"template k must be a whole number from 1 to "
+                             f"n ({n}), got {k!r}")
     if name == "series":
         return build_from_spec(series(n))
     if name == "parallel":
@@ -1906,6 +1967,43 @@ def _check_parent(rbd: RbdFile, parent: Any) -> None:
     return
 
 
+def _block_distro_error(rbd: RbdFile, row: dict, *,
+                        unusable_only: bool = False) -> str | None:
+    """What the block dialog would say about this block's failure or
+    repair parameters, or None. `update_element` applies every rule.
+
+    With `unusable_only` (`add_block`) only a negative or non-finite
+    value is refused: adding a block reported success for a -5 mean and
+    left a model that failed later, at validate or simulate. A spec still
+    builds with one (validate reports it; the behaviour suite builds
+    negative lives on purpose to pin the engine's clamp). The dialog's other limits (a
+    1e12 "never fails" mean, a standard deviation of 0) run as they are,
+    and built models and scripts rely on them, so validate reports them
+    instead of the build refusing them."""
+    from raptor.api.run import model_units
+    from raptor.core.distro_rules import validate_distro_params
+    for prefix, use in (("F", "fail"), ("R", "repair")):
+        try:
+            dist = int(float(row.get(f"{prefix}Dist", "0")))
+            n = int(float(row.get(f"#{prefix}Param", "0")))
+            params = [float(row.get(f"{prefix}Param{i}", "0"))
+                      for i in (1, 2, 3)]
+        except (TypeError, ValueError):
+            continue
+        if dist == 0 or n <= 0:
+            continue
+        if unusable_only and all(math.isfinite(v) and v >= 0.0
+                                 for v in params[:n]):
+            continue
+        err = validate_distro_params(
+            dist, params[:n],
+            f"Block '{row.get('blockName', row.get('ID'))}' {use}",
+            model_units(rbd))
+        if err:
+            return err
+    return None
+
+
 def add_block(
     workspace: Workspace,
     model_id: str,
@@ -1934,8 +2032,17 @@ def add_block(
     row = _append_new_row(rbd, "BLOCK_DATA", lambda: make_block_row(bid, name=name),
                           ID=bid, blockName=name)
     _require_dist_params_on_new_block(kwargs)
-    _apply_patch(rbd, "BLOCK_DATA", row, "block", kwargs)
-    _fix_dist_param_counts(row, kwargs)
+    try:
+        _apply_patch(rbd, "BLOCK_DATA", row, "block", kwargs)
+        _fix_dist_param_counts(row, kwargs)
+        err = _block_distro_error(rbd, row, unusable_only=True)
+        if err:
+            raise BuildError(err)
+    except BuildError:
+        rows = rbd.sections["BLOCK_DATA"].rows
+        if row in rows:
+            rows.remove(row)
+        raise
     if after is not None:
         _link_from(rbd, after, "Block", bid)
     _fix_link_counts(rbd)
@@ -2477,6 +2584,33 @@ def add_trigger(workspace: Workspace, model_id: str, name: str, *,
         name, ("TriggerName",))
 
 
+#: The block column that names a row of each named-only table.
+_REFERENCE_COLS = {"SPARE_POOL_DATA": "SparePoolName",
+                   "RESOURCE_DATA": "Resource1Name",
+                   "TRIGGERS": "pmTrig"}
+
+
+def _rename_references(rbd: RbdFile, section: str, before: dict,
+                       row: dict) -> int:
+    """Carry a spare pool's, resource's or trigger's new name to the blocks
+    that use it. Renamed alone, every block kept the old name, and the
+    model stopped being runnable; deleting one in use is refused for the
+    same reason."""
+    column = _REFERENCE_COLS.get(section)
+    if column is None:
+        return 0
+    name_col = _NAME_COLS[section][0]
+    old, new = before.get(name_col), row.get(name_col)
+    if not old or old == new:
+        return 0
+    changed = 0
+    for block in rbd.section("BLOCK_DATA").rows:
+        if block.get(column) == old:
+            block[column] = str(new)
+            changed += 1
+    return changed
+
+
 def delete_named_row(workspace: Workspace, model_id: str,
                      selector: str) -> dict:
     """Delete a spare pool, resource or trigger by name.
@@ -2556,11 +2690,19 @@ def _node_type_code(value: Any) -> int:
         key = value.strip().lower()
         if key in _NODE_TYPE_MAP:
             return int(_NODE_TYPE_MAP[key])
-        raise BuildError(f"unknown node type {value!r}")
+        if not key.isdigit():
+            raise BuildError(f"unknown node type {value!r}")
     try:
-        return int(value)
+        code = int(value)
     except (TypeError, ValueError):
         raise BuildError(f"unknown node type {value!r}") from None
+    inexact = isinstance(value, float) and code != value
+    if inexact or isinstance(value, bool) or not 1 <= code <= 5:
+        # 0 (and the like) built and validated clean, then every later
+        # edit was refused by the file schema
+        raise BuildError(f"unknown node type {value!r}; use 1 start, "
+                         "2 regular, 3 end, 4 in or 5 out (or the name)")
+    return code
 
 
 def _check_node_type_change(rbd: RbdFile, row: dict, new_type: int) -> None:
@@ -2687,28 +2829,14 @@ def update_element(
         row.clear()
         row.update(before)
         raise
+    _rename_references(rbd, section, before, row)
     if section == "BLOCK_DATA":
         _fix_dist_param_counts(row, patch)
-        from raptor.core.distro_rules import validate_distro_params
-        for prefix, use in (("F", "fail"), ("R", "repair")):
-            try:
-                dist = int(float(row.get(f"{prefix}Dist", "0")))
-                n = int(float(row.get(f"#{prefix}Param", "0")))
-                params = [float(row.get(f"{prefix}Param{i}", "0"))
-                          for i in (1, 2, 3)]
-            except (TypeError, ValueError):
-                continue
-            if dist == 0 or n <= 0:
-                continue
-            from raptor.api.run import model_units
-            err = validate_distro_params(
-                dist, params[:n],
-                f"Block '{row.get('blockName', row.get('ID'))}' {use}",
-                model_units(rbd))
-            if err:
-                row.clear()
-                row.update(before)
-                raise BuildError(err)
+        err = _block_distro_error(rbd, row)
+        if err:
+            row.clear()
+            row.update(before)
+            raise BuildError(err)
     sync_counts(rbd)
     workspace.save(model_id)
     return row
@@ -2814,6 +2942,43 @@ def _reconnect_on_delete(rbd: RbdFile, kind: str, elem_id: str) -> None:
 # configure_sparing / configure_maintenance / configure_phases /
 # configure_system
 # ---------------------------------------------------------------------------
+
+def _sparing_type(value: Any) -> str:
+    """A block's sparing type as the file spells it. Refuses anything
+    else: the .rbds reader rejects an unknown one, so accepting it here
+    saved a model that could not be opened again, and Raptor 7 reads it
+    as no sparing at all."""
+    text = str(value).strip()
+    named = _SPARING_MODE_TO_FILE.get(text.lower())
+    if named is None or isinstance(value, bool):
+        allowed = ", ".join(sorted(set(_SPARING_MODE_TO_FILE.values())))
+        raise BuildError(
+            f"sparing type {value!r} is not one of {allowed} (a name, not a "
+            "number)")
+    return named
+
+
+_DEP_TYPE_TO_FILE = {
+    "none": "None", "": "None",
+    "rbdblock": "RBDBlock", "block": "RBDBlock",
+    "rbdnode": "RBDNode", "node": "RBDNode",
+    "rbdevent": "RBDEvent", "event": "RBDEvent",
+    "rbdhier": "RBDHier", "hier": "RBDHier", "hierarchy": "RBDHier",
+}
+
+
+def _dependency_type(value: Any) -> str:
+    """A block's dependency type as the file spells it (RBDBlock, ...).
+    "Block", "Node", "Event" and "Hierarchy" are accepted too. Anything
+    else is refused: the engine read it as no dependency, and the .rbds
+    reader refuses the saved file."""
+    named = _DEP_TYPE_TO_FILE.get(str(value).strip().lower())
+    if named is None or isinstance(value, bool):
+        raise BuildError(
+            f"dependency type {value!r} is not one of None, Block, Node, "
+            "Event, Hierarchy")
+    return named
+
 
 _SPARING_MODE_TO_FILE = {
     "infinite": "Infinite",
@@ -3120,6 +3285,23 @@ def _refuse_stale_phase_tokens(rbd: RbdFile, new_count: int, assignments: dict |
             "`assignments` for each of them, or delete phases with configure_phases(mode='remove')")
 
 
+def _phase_dist_code(phase: dict[str, Any]) -> int:
+    """A phase's duration distribution as its code; a name ("Fixed",
+    "Normal") is accepted in every mode, not only `add`."""
+    code = phase.get("duration_dist", phase.get("dist", 8))
+    if isinstance(code, str) and not _is_plain_number(code):
+        from raptor.core.fileio.rbds import dist_code
+        try:
+            return int(dist_code(code))
+        except ValueError as exc:
+            raise BuildError(str(exc)) from None
+    try:
+        return int(float(code))
+    except (TypeError, ValueError):
+        raise BuildError(f"phase duration_dist {code!r} is not a "
+                         "distribution name or code") from None
+
+
 def configure_phases(
     workspace: Workspace,
     model_id: str,
@@ -3149,6 +3331,25 @@ def configure_phases(
     ``unassign`` names elements whose phasing is cleared entirely (flag
     off and per-phase cells dropped), which previously had no MCP route.
     """
+    # all or nothing: a refused assignment used to leave its element
+    # flagged as phased with blank cells, a model that validated clean and
+    # then failed every run
+    with workspace.batch(model_id):
+        return _configure_phases(workspace, model_id, phases,
+                                 assignments=assignments, mode=mode,
+                                 remove=remove, unassign=unassign)
+
+
+def _configure_phases(  # noqa: C901, PLR0912, PLR0915
+    workspace: Workspace,
+    model_id: str,
+    phases: list[dict[str, Any]] | None,
+    *,
+    assignments: dict[str, list] | None,
+    mode: str,
+    remove: list[str] | None,
+    unassign: list[str] | None,
+) -> dict:
     handle = workspace.get(model_id)
     rbd = handle.rbd
     from raptor.core.fileio.phase_edit import (delete_phase,
@@ -3158,8 +3359,12 @@ def configure_phases(
         raise BuildError(
             f"unknown phase mode {mode!r}; use replace, add or remove")
     phases = list(phases or [])
-    if mode != "remove" and not phases and not unassign:
+    if mode != "remove" and not phases and not unassign and not assignments:
         raise BuildError(f"mode={mode!r} needs at least one phase")
+    if not phases and assignments and mode != "remove" \
+            and phase_count(rbd) == 0:
+        raise BuildError("the model has no phases to assign to; pass `phases` "
+                         "first")
     if mode == "remove" and not remove:
         raise BuildError("mode='remove' needs the phase names in `remove`")
     if len(phases) > MAX_PHASES:
@@ -3190,17 +3395,10 @@ def configure_phases(
     elif mode == "add":
         base = phase_count(rbd)
         for i, p in enumerate(phases, 1):
-            code = p.get("duration_dist", p.get("dist", 8))
-            if isinstance(code, str) and not _is_plain_number(code):
-                from raptor.core.fileio.rbds import dist_code
-                try:
-                    code = dist_code(code)
-                except ValueError as exc:
-                    raise BuildError(str(exc)) from None
             insert_phase(
                 rbd, base + i,
                 name=p.get("name", f"Phase{base + i}"),
-                dist=int(code),
+                dist=_phase_dist_code(p),
                 params=tuple(p.get("params", (5.0, 0.1, 0.0))),
                 mission=bool(int(p.get("mission", 1))),
             )
@@ -3214,7 +3412,7 @@ def configure_phases(
                 name=p.get("name", f"Phase{i}"),
                 num=i,
                 mission=p.get("mission", 1),
-                dist=p.get("duration_dist", p.get("dist", 8)),
+                dist=_phase_dist_code(p),
                 params=p.get("params", (5.0, 0.1, 0.0)),
             ))
 
@@ -3257,6 +3455,10 @@ _EXPERIMENT_COLUMNS = frozenset({
 })
 
 
+#: The run terminations the engine knows (`run_experiment`).
+_TERMINATION_TYPES = ("TimeSim", "FailSim", "CycleSim")
+
+
 def configure_system(
     workspace: Workspace,
     model_id: str,
@@ -3291,14 +3493,40 @@ def configure_system(
     if run_length is not None:
         updates["TermCondition"] = float(run_length)
     if num_runs is not None:
-        updates["NumRuns"] = float(num_runs)   # Raptor 7 writes "50.000000"
+        # A run count is whole: 1.5 used to become 1 with no word.
+        try:
+            runs = float(num_runs)
+        except (TypeError, ValueError):
+            raise BuildError(f"num_runs must be a whole number, got {num_runs!r}") from None
+        if isinstance(num_runs, bool) or not runs.is_integer() or runs < 1:
+            raise BuildError(f"num_runs must be a whole number of at least 1, "
+                             f"got {num_runs!r}")
+        updates["NumRuns"] = runs   # Raptor 7 writes "50.000000"
+    # checked before anything is written
+    streams_text = (_system_streams_text(system_streams)
+                    if system_streams is not None else None)
     term = termination if termination is not None else term_type
     if term is not None:
-        updates["TerminationType"] = term
+        # An unknown name was stored and then read as TimeSim, while the
+        # change was reported as made.
+        canon = {t.lower(): t for t in _TERMINATION_TYPES}
+        key = str(term).strip().lower()
+        key = {"time": "timesim", "failures": "failsim", "failure": "failsim",
+               "cycles": "cyclesim", "cycle": "cyclesim"}.get(key, key)
+        if key not in canon:
+            raise BuildError(f"termination {term!r} is not one of "
+                             f"{', '.join(_TERMINATION_TYPES)}")
+        updates["TerminationType"] = canon[key]
     if start_stats is not None:
         updates["StartStats"] = float(start_stats)
     if units is not None:
-        updates["units"] = units
+        from raptor.core.distro_rules import _UNIT_HOURS
+        # "units" is Raptor 7's unitless choice (three golden files).
+        known = ("units", *_UNIT_HOURS)
+        if str(units).strip().lower() not in known:
+            raise BuildError(f"units {units!r} is not one of "
+                             f"{', '.join(known)}")
+        updates["units"] = str(units).strip()
     if weak_link is not None:
         updates["weakAnalysis"] = weak_link
     if cost is not None:
@@ -3340,12 +3568,8 @@ def configure_system(
         rbd.experiment = run_experiment.normalise(
             run_experiment.from_system_row(row))
 
-    if system_streams is not None:
-        if isinstance(system_streams, (list, tuple)):
-            row["SysStreamsArray"] = " ".join(
-                str(int(x)) for x in system_streams)
-        else:
-            row["SysStreamsArray"] = str(system_streams)
+    if streams_text is not None:
+        row["SysStreamsArray"] = streams_text
     if display_unit is not None:
         # `display_unit` lives on the RbdFile, not SYSTEM_DATA; keep it
         # in `applied`/`previous` so a caller can see the change.

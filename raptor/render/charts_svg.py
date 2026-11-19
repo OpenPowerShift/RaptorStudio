@@ -19,8 +19,8 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, pct, period_axis,
-    place_labels, tick_text,
+    FAN_LINE_MIN, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    period_axis, place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec
 
@@ -318,6 +318,12 @@ def _target(spec: ChartSpec) -> float | None:
                  if m.get("kind") == "target" and _number(m.get("value"))), None)
 
 
+def _target_word(spec: ChartSpec) -> str:
+    """"target" for the Charts page's target, "threshold" for a summary's."""
+    return next((str(m["label"]) for m in spec.marks
+                 if m.get("kind") == "target" and m.get("label")), "threshold")
+
+
 def _target_line(out: list[str], frame: _Frame, value: float, *,
                  horizontal: bool, label: str) -> None:
     box = frame.box
@@ -376,7 +382,8 @@ def _dot_plot(spec: ChartSpec, area: _Box) -> list[str]:
     target = _target(spec)
     fmt = _fmt_of(spec)
     low, high = nice_range(min(values + ([target] if target is not None else [])),
-                           max(values + ([target] if target is not None else [])), 5)
+                           max(values + ([target] if target is not None else [])), 5,
+                           share=fmt == "percent")
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(low, high), y_range=(0, 1),
                    x_fmt=fmt, y_ticks=[], y_label="", y_axis=False)
@@ -408,7 +415,8 @@ def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
     target = _target(spec)
     values = [float(p["value"]) for p in points]
     low, high = nice_range(min(values + ([target] if target is not None else [])),
-                           max(values + ([target] if target is not None else [])), 5)
+                           max(values + ([target] if target is not None else [])), 5,
+                           share=fmt == "percent")
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(0.0, 1.0), y_range=(low, high),
                    x_fmt="percent", y_fmt=fmt,
@@ -438,13 +446,45 @@ _FIXED_KEYS = {"capacity_pareto": [("lost capacity", ACCENT), ("downtime", MUTED
                "ribbon": [("system up", UP), ("system down", DOWN)]}
 
 
+def _swatch(x: float, y: float, fill: str, colour: str) -> str:
+    """One key swatch. `fill` is a colour, or "line:<colour>[:dash]",
+    "area:<colour>:<opacity>" or "whisker" for what is drawn that way."""
+    if fill == "whisker":
+        mid = y + 8.5
+        return (f"<path d='M{x:.1f},{mid:.1f}h14M{x:.1f},{mid - 4:.1f}v8"
+                f"M{x + 14:.1f},{mid - 4:.1f}v8' stroke='{colour}' "
+                "stroke-width='1.2' fill='none'/>")
+    if fill.startswith("line:"):
+        parts = fill.split(":")
+        dash = " stroke-dasharray='4,2'" if parts[2:] == ["dash"] else ""
+        return (f"<line x1='{x:.1f}' y1='{y + 8.5:.1f}' x2='{x + 14:.1f}' "
+                f"y2='{y + 8.5:.1f}' stroke='{parts[1]}' stroke-width='2'{dash}/>")
+    if fill.startswith("area:"):
+        _, tone, opacity = fill.split(":")
+        return (f"<rect x='{x:.1f}' y='{y + 3:.1f}' width='14' height='11' "
+                f"fill='{tone}' fill-opacity='{opacity}'/>")
+    return _rect(x, y + 3, 14, 11, fill)
+
+
 def _key(spec: ChartSpec) -> list[tuple[str, str]]:
-    """(label, fill) for every cause, series or layer the chart shows."""
+    """(label, fill) for every cause, series or layer the chart shows
+    (`_swatch` says how a fill is drawn)."""
     if spec.kind in _FIXED_KEYS:
         return list(_FIXED_KEYS[spec.kind])
     if spec.kind == "timeline":
-        return [(str(layer.get("name", "")), _TONES.get(str(layer.get("tone")), ACCENT))
-                for layer in spec.series]
+        # the bands share a colour and differ in opacity: two plain swatches
+        # of one colour could not be told apart
+        from raptor.api.insight.timecharts import in_key
+        out = []
+        for layer in filter(in_key, spec.series):
+            tone = _TONES.get(str(layer.get("tone")), ACCENT)
+            if layer.get("role") == "area":
+                alpha = layer.get("alpha")
+                fill = f"area:{tone}:{_fmt(float(alpha)) if isinstance(alpha, (int, float)) else '0.85'}"
+            else:
+                fill = f"line:{tone}" + (":dash" if layer.get("dash") else "")
+            out.append((str(layer.get("name", "")), fill))
+        return out
     seen: list[str] = []
     if spec.kind == "pareto":
         causes = [str(c) for row in spec.series for c in (row.get("causes") or {})]
@@ -457,7 +497,10 @@ def _key(spec: ChartSpec) -> list[tuple[str, str]]:
         if cause not in seen:
             seen.append(cause)
     labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
-    return [(labels.get(c, c), _cause_fill(c)) for c in seen]
+    out = [(labels.get(c, c), _cause_fill(c)) for c in seen]
+    if spec.kind == "pareto" and any(_number(r.get("sem")) for r in spec.series):
+        out.append(("± 2 standard errors", "whisker"))   # the whiskers, explained
+    return out
 
 
 def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
@@ -541,6 +584,9 @@ def _points(fraction: float) -> str:
     value = 100 * abs(fraction)
     if value == 0:
         return "0"
+    if value >= 1e-3:
+        # three figures, as the caption: "-25 pts" sat beside "24.7 points"
+        return f"{value:.3g}"
     places = max(0, min(9, 1 - math.floor(math.log10(value))))
     return f"{value:.{places}f}"
 
@@ -611,8 +657,8 @@ def _ladder(spec: ChartSpec, area: _Box) -> list[str]:
     values = [float(r["value"]) for r in rows]
     top_value = 1.0 if max(values) <= 1.0 else max(values)
     span = max(top_value - min(values), 1e-9)
-    low, high = nice_range(min(values) - 0.6 * span, top_value, 4)
-    low, high = max(0.0, low), (min(1.0, high) if top_value <= 1.0 else high)
+    low, high = nice_range(min(values) - 0.6 * span, top_value, 4,
+                           share=top_value <= 1.0)
     labels, previous = [], None
     for value in values:
         text = format_value(value, "percent", 6)
@@ -686,11 +732,22 @@ def _scatter_frame(out: list[str], spec: ChartSpec, area: _Box, points: list[dic
                    x_fmt: str | None = None, y_fmt: str | None = None) -> _Frame:
     xs = [float(p["x"]) for p in points] + [x for x, _y in include]
     ys = [float(p["y"]) for p in points] + [y for _x, y in include]
+    fmt = _fmt_of(spec)
     x_high = nice_range(0.0, max(xs) * 1.08 or 1.0, 5)[1]
     y_high = nice_range(0.0, max(ys) * 1.12 or 1.0, 5)[1]
+    if fmt == "percent":
+        # shares stop at 100 % (the axes ran to 125 %)
+        x_high = min(x_high, 1.0) if max(xs) <= 1.0 else x_high
+        y_high = min(y_high, 1.0) if max(ys) <= 1.0 else y_high
     if square:
         x_high = y_high = max(x_high, y_high)
-    fmt = _fmt_of(spec)
+    if spec.provenance.get("x_log") and min(xs) > 0:
+        lo, hi = min(xs) / 1.5, max(xs) * 1.5
+        return _frame(out, spec, area, x_range=(lo, hi), y_range=(0.0, y_high),
+                      x_log=True, x_ticks=log_ticks(lo, hi),
+                      x_label=f"{spec.x_label} (log scale)",
+                      x_fmt=fmt if x_fmt is None else x_fmt,
+                      y_fmt=fmt if y_fmt is None else y_fmt)
     return _frame(out, spec, area, x_range=(0.0, x_high), y_range=(0.0, y_high),
                   x_fmt=fmt if x_fmt is None else x_fmt,
                   y_fmt=fmt if y_fmt is None else y_fmt)
@@ -792,14 +849,16 @@ def _convergence(spec: ChartSpec, area: _Box) -> list[str]:
     spreads = [2 * float(p["sem"]) if _number(p.get("sem")) else 0.0 for p in points]
     upper = [m + s for m, s in zip(means, spreads, strict=True)]
     lower = [m - s for m, s in zip(means, spreads, strict=True)]
-    low, high = nice_range(min(lower), max(upper), 5)
-    if fmt == "percent":
-        low = max(0.0, low)
-        high = min(1.0, high) if max(upper) <= 1.0 else high
+    # a share's +/- 2 SE band stops at 0 and 100 % (it drew a 125 % tick)
+    low, high = nice_range(min(lower), max(upper), 5,
+                           share=fmt == "percent" and max(means) <= 1.0)
     n = len(points)
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(1.0, max(2.0, float(n))),
                    y_range=(low, high), x_fmt="count", y_fmt=fmt,
+                   # whole runs only: one run gave ticks 1.2, 1.4
+                   x_ticks=[t for t in nice_ticks(1.0, max(2.0, float(n)), 6)
+                            if float(t).is_integer()],
                    y_label="running mean")
 
     def pt(i: int, value: float) -> tuple[float, float]:
@@ -874,7 +933,7 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
     mids = [float(r["p50"]) for r in rows]
     low = min(lows + mids + ([target] if target is not None else []))
     high = max(highs + mids + ([target] if target is not None else []))
-    low, high = nice_range(low, high, 5)
+    low, high = nice_range(low, high, 5, share=fmt == "percent")
     if fmt == "percent":
         low, high = max(0.0, low), min(1.0, high)
     n = len(rows)
@@ -889,7 +948,7 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
         _fan_bands(out, rows, frame)
     if target is not None:
         _target_line(out, frame, target, horizontal=True,
-                     label=f"threshold {format_value(target, fmt, 5)}")
+                     label=f"{_target_word(spec)} {format_value(target, fmt, 5)}")
     return out
 
 
@@ -926,7 +985,7 @@ def _fan_bands(out: list[str], rows: list[dict[str, Any]], frame: Any) -> None:
     out.append(_polyline([pt(i, mids[i]) for i in range(n)], ACCENT))
 
 
-def _timeline(spec: ChartSpec, area: _Box) -> list[str]:
+def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pass per layer kind
     """Areas and lines over simulated time (`raptor.api.insight.timecharts`)."""
     layers = [layer for layer in spec.series if layer.get("t")]
     if not layers:
@@ -939,9 +998,14 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:
         high = low + 1.0
     if fmt != "percent":
         low, high = nice_range(low, high, 5)
+    ticks = nice_ticks(low, high, 5)
+    if fmt == "percent" and high >= 1.0:
+        # room above 100 %: a run that never went down drew its line on
+        # the frame's top edge, and the chart looked empty
+        high += (high - low) * 0.04
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(t_start, max(t_end, t_start + 1e-9)),
-                   y_range=(low, high), y_fmt=fmt, y_ticks=nice_ticks(low, high, 5))
+                   y_range=(low, high), y_fmt=fmt, y_ticks=ticks)
 
     def pt(t: float, value: float) -> tuple[float, float]:
         return frame.x(t), frame.y(min(high, max(low, value)))
@@ -1010,9 +1074,10 @@ def _footnote(missing: list[_Unlabelled], limit: int) -> list[str]:
     entries: list[str] = []
     rest: list[_Unlabelled] = []
     for item in sorted(missing, key=lambda m: (m.number == 0, m.number, -m.share)):
-        if item.number or (len(entries) < limit and item.share >= 0.005):
+        if len(entries) < limit and (item.number or item.share >= 0.005):
             entries.append(f"({item.number}) {item.text}" if item.number else item.text)
         else:
+            item.number = 0          # not in the footnote: no number drawn
             rest.append(item)
     if rest:
         entries.append(f"+ {len(rest)} smaller cells, together "
@@ -1041,11 +1106,32 @@ def _pack(entries: list[str], width: float, *, size: int = 10,
     return lines
 
 
-def _with_footnote(area: _Box,
+def _with_footnote(area: _Box,  # noqa: C901 - fit, then fall back in steps
                    draw: Callable[[_Box], tuple[list[str], list[_Unlabelled]]],
                    limit: int = 40) -> list[str]:
     """Draw cells in `area` less room for the footnote naming the cells too
     small to label, re-drawing until the footnote's height settles."""
+    # The footnote keeps at most about a third of the height: with 186
+    # cells it took the whole page and the cells were drawn 0 high.
+    max_lines = max(2, int(area.height * 0.3 // LINE_H))
+
+    def numbered(found: list[_Unlabelled]) -> None:
+        number = 0
+        for item in found:
+            item.number = 0
+            if item.marker is not None:
+                number += 1
+                item.number = number
+
+    def footnote(found: list[_Unlabelled]) -> list[str]:
+        cap = limit
+        while True:
+            numbered(found)
+            packed = _pack(_footnote(found, cap), area.width) if found else []
+            if len(packed) <= max_lines or cap <= 1:
+                return packed
+            cap = max(1, cap * 2 // 3)
+
     lines: list[str] = []
     out: list[str] = []
     missing: list[_Unlabelled] = []
@@ -1053,16 +1139,11 @@ def _with_footnote(area: _Box,
         body = _Box(area.left, area.top, area.right,
                     area.bottom - (len(lines) * LINE_H + 6 if lines else 0))
         out, missing = draw(body)
-        number = 0
-        for item in missing:
-            if item.marker is not None:
-                number += 1
-                item.number = number
-        new = _pack(_footnote(missing, limit), area.width) if missing else []
+        new = footnote(missing)
         if len(new) <= len(lines):
             break
         lines = new
-    lines = _pack(_footnote(missing, limit), area.width) if missing else []
+    lines = footnote(missing)
     for item in missing:
         if item.marker is not None and item.number:
             mx, my = item.marker
@@ -1167,7 +1248,10 @@ def _ribbon(spec: ChartSpec, area: _Box) -> list[str]:
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(start, end),
                    y_range=(0.0, float(len(rows))), y_ticks=[],
-                   y_label=f"{len(rows)} runs, best at the top")
+                   y_label=(f"{len(rows)} of {spec.provenance['runs']:,} runs, best at the top"
+                            if isinstance(spec.provenance.get("runs"), int)
+                            and spec.provenance["runs"] > len(rows)
+                            else f"{len(rows)} runs, best at the top"))
     box = frame.box
     height = box.height / len(rows)
     for i, row in enumerate(rows):
@@ -1241,7 +1325,9 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     size = (f"width='{physical[0]}' height='{physical[1]}'" if physical
             else f"width='{width}' height='{height}'")
     title = _wrap(spec.title, width - 2 * PAD, size=15)
-    subtitle = _wrap(spec.subtitle, width - 2 * PAD) if spec.subtitle else []
+    # a saved picture cannot be clicked
+    static = (spec.subtitle or "").replace("; click a cell to locate", "")
+    subtitle = _wrap(static, width - 2 * PAD) if static else []
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' {size} "
         f"viewBox='0 0 {width} {height}' "
@@ -1256,12 +1342,21 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_lines(width / 2, sub_y, subtitle, anchor="middle", colour=MUTED))
     top = sub_y + LINE_H * (len(subtitle) - 1) + 9.0 if subtitle else sub_y - 8.0
     top = max(top, float(TITLE_H))
+    if not spec.series and not spec.annotations and spec.caption:
+        # nothing to draw: say why where the plot would be, not in small
+        # print under an empty frame (an empty chart read as a broken one)
+        reason = _wrap(spec.caption, min(width - 2 * PAD, 560), size=14)
+        middle = (top + height) / 2 - 10 * (len(reason) - 1)
+        body.append(_lines(width / 2, middle, reason, size=14, anchor="middle",
+                           colour=MUTED, step=20))
+        body.append("</svg>")
+        return _prefixed("\n".join(body), id_prefix)
     x = float(PAD)
     for label, fill in _key(spec):
         w = 18 + _width(label) + 14
         if x + w > width - PAD and x > PAD:
             x, top = float(PAD), top + KEY_H
-        body.append(_rect(x, top + 3, 14, 11, fill))
+        body.append(_swatch(x, top, fill, text_colour))
         body.append(_text(x + 18, top + 13, label, size=11, colour=text_colour))
         x += w
     if _key(spec):
@@ -1275,7 +1370,11 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_lines(PAD, height - 9 - LINE_H * (len(caption) - 1), caption,
                            colour=text_colour))
     body.append("</svg>")
-    svg = "\n".join(body)
+    return _prefixed("\n".join(body), id_prefix)
+
+
+def _prefixed(svg: str, id_prefix: str) -> str:
+    """Pattern ids made unique for a page holding several charts."""
     if id_prefix:
         svg = svg.replace("id='pat-", f"id='{id_prefix}pat-").replace(
             "url(#pat-", f"url(#{id_prefix}pat-")

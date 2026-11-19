@@ -226,7 +226,8 @@ def fit_from_experience(
     law is nearly a fixed age). With `block`, also `changes` (PATH=VALUE, for `raptor
     set`) and `update` (the fields to pass to `update_element`, law and
     parameters together) for its failure (`use="fail"`) or repair law.
-    Nothing is changed here.
+    `block` is only the name written into those; no model is read, so it is
+    not checked. Nothing is changed here.
     """
     from raptor.api.distributions import fit_document, from_quantiles
     try:
@@ -234,6 +235,14 @@ def fit_from_experience(
     except (KeyError, TypeError, ValueError):
         raise ValueError("each answer needs a numeric 'probability' and "
                          "'age', e.g. {\"probability\": 0.1, \"age\": 100}") from None
+    if len(answers) < len(quantiles):
+        # two answers with one share collapsed into one, and the refusal
+        # then said "give at least two quantiles"
+        shares = [float(q["probability"]) for q in quantiles]
+        repeated = sorted({p for p in shares if shares.count(p) > 1})
+        raise ValueError("each share may be given once; "
+                         + ", ".join(f"{p:g}" for p in repeated)
+                         + " is given more than once")
     fit = from_quantiles(law, answers)
     out = fit_document(fit, block, use)
     params = ", ".join(f"{name} {value:.6g}" for name, value in fit["params"].items())

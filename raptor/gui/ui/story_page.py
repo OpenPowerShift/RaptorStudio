@@ -22,6 +22,7 @@ from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from raptor.api.insight.attribution import CAUSE_LABELS
+from raptor.api.insight.dots import meets
 from raptor.api.insight.story import Story
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.api.insight.axes import pct, nice_range, nice_ticks, stack_dots, tick_text
@@ -84,7 +85,8 @@ class DotPlot(QWidget):
         step = min(diameter, (DOT_AREA_H - diameter) / max(1, tallest - 1))
         out = []
         for value, (x, level) in zip(values, levels, strict=True):
-            met = target is None or value >= target
+            met = target is None or meets(value, target,
+                                          story.headline.op if story.headline else None)
             out.append((x, DOT_AREA_H - diameter / 2 - level * step, met))
         return out, diameter, (low, high)
 
@@ -161,6 +163,7 @@ class StoryPage(QWidget):
         lay.addWidget(self.headline)
         self.target = QLabel("")
         self.target.setWordWrap(True)
+        self.target.setTextFormat(Qt.TextFormat.PlainText)   # "< 0.01 %" is text
         self.target.setObjectName("SectionNote")
         lay.addWidget(self.target)
         self.dots = DotPlot()
@@ -177,10 +180,17 @@ class StoryPage(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.findings)
         self._story: Story | None = None
+        self._target_note = ""
         self._clear_story()
 
     def story(self) -> Story | None:
         return self._story
+
+    def set_target_note(self, text: str) -> None:
+        """Where the target came from, after the verdict line."""
+        self._target_note = text
+        if self._story is not None and self._story.headline is not None:
+            self._show_story(self._story)
 
     def set_story(self, story: Story | None) -> None:
         self._story = story
@@ -212,7 +222,8 @@ class StoryPage(QWidget):
             self.headline.setText(
                 f"<b>{html.escape(head.label)}</b> {html.escape(head.value_text)}"
                 f" — {html.escape(head.target_text or '')}")
-            self.target.setText(f"{head.gap_text} · {story.proportion}")
+            self.target.setText(f"{head.gap_text} · {story.proportion}"
+                                + (f" · {self._target_note}" if self._target_note else ""))
         self.dots.set_story(story if has_target else None)
         self.drivers_caption.setText(self._drivers_text(story))
         if story.findings:
@@ -225,8 +236,9 @@ class StoryPage(QWidget):
     @staticmethod
     def _drivers_text(story: Story) -> str:
         if not story.drivers_available:
-            return ("What drives the downtime: switch on <i>Event Log</i> "
-                    "recording and run again.")
+            from raptor.api import run_needs
+            return ("What drives the downtime: worked out from the event "
+                    "log. " + run_needs.gui_hint("attribution"))
         if not story.drivers:
             return "No system outage in these runs."
         ranked = story.drivers_measure
@@ -238,10 +250,10 @@ class StoryPage(QWidget):
             link = (f"el:{driver.kind}:{driver.id}:"
                     f"{html.escape(driver.name, quote=True)}")
             parts.append(f'<a href="{link}">{html.escape(driver.name)}</a> '
-                         f"{_pct(driver.share)}"
+                         f"{html.escape(_pct(driver.share))}"
                          + (f" ({html.escape(reason)})" if reason else ""))
         if story.other_drivers_share > 0:
-            parts.append(f"others {_pct(story.other_drivers_share)}")
+            parts.append(f"others {html.escape(_pct(story.other_drivers_share))}")
         return (f"<b>What drives the {ranked}:</b> " + " · ".join(parts)
                 + ' &nbsp; <a href="drivers">Open Drivers ›</a>')
 

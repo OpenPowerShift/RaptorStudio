@@ -63,7 +63,7 @@ def test_the_histogram_reads_the_log_bins_and_quantiles():
                  {"lo": 2.0, "hi": 4.0, "count": 2.0}]}}
     spec = charts.outage_histogram(attribution)
     assert len(spec.series) == 2
-    assert [mark["label"] for mark in spec.marks] == ["P50", "P90"]
+    assert [mark["label"].split(" (")[0] for mark in spec.marks] == ["median", "1 in 10 longer"]
     assert spec.provenance["count"] == 4
 
 
@@ -209,8 +209,8 @@ def test_the_annual_fan_keeps_the_bands_and_the_threshold():
     periods["by_index"] = periods["by_index"] * 2
     spec = charts.annual_fan(periods)
     assert spec.kind == "fan" and len(spec.series) == 4
-    assert spec.marks == [{"kind": "target", "value": 0.95}]
-    assert "median moves" in spec.caption and "bands" in spec.subtitle
+    assert spec.marks == [{"kind": "target", "value": 0.95, "label": "threshold"}]
+    assert "median moves" in spec.caption and "band" in spec.subtitle
 
 
 def test_two_periods_are_boxes_not_a_trend():
@@ -239,7 +239,7 @@ def test_the_annual_dots_are_equal_shares_when_the_run_has_them():
 
 
 def test_an_annual_chart_without_periods_says_what_is_missing():
-    with pytest.raises(ValueError, match="period-by-period"):
+    with pytest.raises(ValueError, match="needs downtime attribution"):
         charts.chart_named("annual-fan")
 
 
@@ -291,7 +291,8 @@ def test_the_exceedance_curve_counts_runs_at_least_each_value():
         {"value": 0.90, "share": 1.0}]
     assert spec.provenance["format"] == "percent"
     assert "75 % of runs reached the target 95 %" in spec.caption
-    assert "half reached at least 95 %" in spec.caption
+    # four runs are too few for "9 runs in 10" and "half": say what they did
+    assert "All 4 runs reached at least 90 %" in spec.caption
 
 
 def test_a_lower_is_better_measure_reads_at_most():
@@ -360,10 +361,11 @@ def test_phase_downtime_keeps_phase_order_and_names_the_weakest():
          "drivers": [{"name": "Valve", "share": 0.6}]}]}
     spec = charts.phase_downtime(attribution)
     assert [r["name"] for r in spec.series] == ["Launch", "Cruise"]
-    assert spec.caption == ("Launch is the weakest phase: availability 50 %, "
-                            "25 % of all downtime, mostly started by Pump.")
+    assert spec.caption == ("Launch has the lowest availability of the phases (50 %) "
+                            "and 25 % of all downtime, mostly started by Pump. "
+                            "Cruise holds the most downtime (75 %).")
     from raptor.render.charts_svg import render
-    assert "availability 50 %" in render(spec)
+    assert "lowest availability" in render(spec)
 
 
 # -- folding the small items (presentation setting) ------------------------

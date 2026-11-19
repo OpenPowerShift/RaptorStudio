@@ -487,6 +487,19 @@
    "model_id"
   ]
  },
+ "export_awb": {
+  "params": [
+   "dry_run",
+   "model_id",
+   "normalize_out",
+   "path",
+   "sidecar"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
  "export_report": {
   "params": [
    "path",
@@ -626,6 +639,14 @@
   "required": [
    "model_id",
    "rule"
+  ]
+ },
+ "import_awb": {
+  "params": [
+   "path"
+  ],
+  "required": [
+   "path"
   ]
  },
  "insert_assembly": {
@@ -908,6 +929,7 @@
    "render_svg",
    "run",
    "run_id",
+   "target",
    "y_floor"
   ],
   "required": [
@@ -924,7 +946,8 @@
  },
  "run_story": {
   "params": [
-   "run_id"
+   "run_id",
+   "targets"
   ],
   "required": [
    "run_id"
@@ -1012,6 +1035,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "block_streams",
    "capacity_rule",
    "collect_events",
    "confirm_long_run",
@@ -1047,6 +1071,7 @@
   "params": [
    "attribution",
    "availability_plot",
+   "block_streams",
    "capacity_rule",
    "collect_events",
    "interim_cost",

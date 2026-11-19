@@ -66,6 +66,11 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # View > Annotations: whether the canvas draws the annotations, and
+    # the notes that show an element's comment. A view of the model, not
+    # part of it: hidden notes are still saved.
+    "appearance/show_annotations": True,
+    "appearance/show_comment_notes": True,
     # Digits after the decimal point on Weak Link canvas labels.
     "appearance/weak_link_digits": 3,
     # The two lines under a block's name on the canvas: one of
@@ -94,6 +99,19 @@ DEFAULTS: dict[str, Any] = {
     # Off: a run goes at full speed on several cores. Animate is the
     # one-core run you watch.
     "execution/default_animate": False,
+    # confirm/ -- the confirmations a "Don't ask again" box can switch
+    # off (see `raptor.gui.ui.ask_again`). True = ask.
+    "confirm/results_on_screen": True,
+    "confirm/long_run": True,
+    # results/ -- the Overview cards say what each number was in the run
+    # before (see `raptor.gui.ui.result_change`).
+    "results/show_change": True,
+    # run_panel/ -- whether the Run panel's More options (Model scope,
+    # Cores) are open. Closed: its heading still names both.
+    "run_panel/more_options": False,
+    # model/ -- a block added while this is on gets its own random streams
+    # (Preferences ▸ Working ▸ New blocks, #292).
+    "model/own_streams_new_blocks": False,
     # tables/ -- the Export Tables dialog: which formats were last chosen
     "tables/xlsx": True,
     "tables/ods": False,
