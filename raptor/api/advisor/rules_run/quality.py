@@ -46,12 +46,23 @@ def precision(ctx: RunContext) -> Iterable[Finding]:
     if rel <= PRECISION:
         return
     needed = min(MAX_SUGGESTED_RUNS, math.ceil(n * (rel / PRECISION) ** 2))
+    # "± 4.9 %" (points) beside "± 200 %" (of the downtime) read as one unit
+    message = (f"Availability is {text.fmt_pct(mean, 5)} ± {text.fmt_num(100 * half, 2)} "
+               f"points (95 %), so the downtime is known only to within "
+               f"± {text.fmt_pct(rel)} of itself. ")
+    failures = int(sum(ctx.values("num_system_failures")))
+    if needed > 20 * n and failures < FEW_EVENTS:
+        # 11,859 runs for a 30-run model: true, and no use on its own
+        message += (f"It rests on {text.plural(failures, 'system failure')}, so more runs "
+                    f"narrow it only slowly: about {needed:,} would give "
+                    f"± {text.fmt_pct(PRECISION)}. Quote the availability with its "
+                    "interval rather than chase that.")
+    else:
+        message += f"About {needed:,} runs would give ± {text.fmt_pct(PRECISION)}."
     yield Finding(
         rule="R-QUA-001", severity="advice", category="quality",
         title="Downtime is not yet known precisely",
-        message=(f"Availability is {text.fmt_pct(mean, 5)} ± {text.fmt_pct(half, 2)} "
-                 f"(95 %). The downtime estimate is only good to ± {text.fmt_pct(rel)}. "
-                 f"About {needed:,} runs would give ± {text.fmt_pct(PRECISION)}."),
+        message=message,
         why="Each run is one possible future. The spread between runs sets how far "
             "the average can be trusted; the interval narrows with the square root "
             "of the number of runs. Precision is judged on downtime because that is "
@@ -122,12 +133,18 @@ def tail_runs(ctx: RunContext) -> Iterable[Finding]:
         return
     ordered = sorted(ao)
     median, p10 = ordered[n // 2], ordered[max(0, math.ceil(0.10 * n) - 1)]
+    clean = sum(1 for a in ao if a >= 1.0)
+    if p10 >= 1.0:
+        # "a typical run has availability 100 %; one run in ten is below 100 %"
+        typical = f"{clean:,} of the {n:,} runs had no downtime at all."
+    else:
+        typical = (f"A typical run has availability {text.fmt_avail(median)}; one run "
+                   f"in ten is below {text.fmt_avail(p10)}.")
     yield Finding(
         rule="R-QUA-005", severity="advice", category="quality",
         title="A few bad runs drive the average",
         message=(f"{text.fmt_pct(share)} of all downtime came from {k} of {n:,} runs: rare "
-                 f"long outages drive the average. A typical run has availability "
-                 f"{text.fmt_pct(median, 5)}; one run in ten is below {text.fmt_pct(p10, 5)}."),
+                 f"long outages drive the average. {typical}"),
         why="When the outcome is this lopsided the average describes few real "
             "runs. Quote the typical run and the bad-case run as well as the mean, "
             "and look at what the worst runs have in common.",

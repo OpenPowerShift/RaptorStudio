@@ -284,8 +284,14 @@ def sentence(summary: dict[str, Any], units: str = "") -> str:
             f"{100 * pooled['min']:.4g} %")
     threshold = summary.get("threshold")
     if threshold is not None:
-        lead += (f". {pct(pooled['p_below'])} of them fall below "
-                 f"{100 * threshold:.4g} % ({pooled['below']:,} of {pooled['n']:,})")
+        # "61 % of them ... (61 of 100)": no referent, the count said twice,
+        # and the years of one run are not independent draws
+        periods = f"{period}s" if period == "year" else "periods"
+        lead += (f". {pooled['below']:,} of the {pooled['n']:,} {periods} "
+                 f"({pct(pooled['p_below'])}) fall below {100 * threshold:.4g} %")
+        if summary.get("periods_per_run", 0) > 1:
+            lead += (f"; the {periods} of one run follow each other, so they "
+                     "are not independent samples")
     capacity = (summary.get("capacity") or {}).get("pooled") or {}
     if capacity.get("n"):
         lead += (f". Weighted by capacity, a typical {period} delivers "

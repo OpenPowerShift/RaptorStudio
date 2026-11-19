@@ -716,20 +716,43 @@ def run(
     if flows is not None:
         # per-node mean flow: the diagram's lost-capacity layer reads it
         (runs_dir / "node_flow.json").write_text(json.dumps(flows))
+    skipped_attribution = ""
+    attributed: dict[str, Any] | None = None
+    if attribution and abort.is_set():
+        # The batch already stopped, and the replay checks the same stop
+        # flag: it raised Cancelled and the finished runs were thrown away,
+        # though partial results are promised to be kept.
+        skipped_attribution = (
+            "Downtime attribution was skipped: the batch stopped before the "
+            "end, and replaying its event log would go past the time limit. "
+            "The finished runs are kept; run again with fewer runs to see "
+            "what drives the downtime.")
+        attribution = False
     if attribution:
         from raptor.api.insight.attribution import (
             attribute_logs, model_hierarchies, model_phases,
         )
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
-        capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
-                                       capacity_rule, abort=abort,
-                                       progress=insight_progress)
-        attributed = attribute_logs(
-            [log if isinstance(log, list) else [log] for log in event_logs],
-            float(experiment.get("start_stats") or 0.0), abort=abort,
-            progress=insight_progress, with_outages=True, capacity=capacity_runs, phases=model_phases(sim_rbd),
-            hierarchies=model_hierarchies(sim_rbd))
+        from raptor.api.progress import Cancelled
+        try:
+            capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
+                                           capacity_rule, abort=abort,
+                                           progress=insight_progress)
+            attributed = attribute_logs(
+                [log if isinstance(log, list) else [log] for log in event_logs],
+                float(experiment.get("start_stats") or 0.0), abort=abort,
+                progress=insight_progress, with_outages=True, capacity=capacity_runs,
+                phases=model_phases(sim_rbd), hierarchies=model_hierarchies(sim_rbd))
+        except Cancelled:
+            # stopped during the replay: the simulated runs are still kept
+            attributed = None
+            skipped_attribution = (
+                "Downtime attribution was stopped by the time limit or a "
+                "cancel before it finished. The simulated runs are kept; run "
+                "again with fewer runs, or a longer limit, to see what drives "
+                "the downtime.")
+    if attribution and attributed is not None:
         attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
@@ -760,8 +783,10 @@ def run(
                                 else "cancelled")
     if importance_data is not None:
         summary["importance"] = importance_data
-    if attribution:
+    if attribution and not skipped_attribution:
         summary["attribution"] = True
+    if skipped_attribution:
+        summary["attribution_skipped"] = skipped_attribution
     (runs_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, default=str)
     )
@@ -775,6 +800,8 @@ def run(
     from raptor.core.fileio.out_of_service import note as _oos_note
     if (_oos := _oos_note(sim_rbd)):
         warnings.append(_oos)
+    if skipped_attribution:
+        warnings.append(skipped_attribution)
     # Against the count the run was asked for, whether the caller passed it
     # or the model holds it: `raptor run -n` sets the model's, so testing
     # `num_runs` alone let a timed-out CLI run report success (exit 0).

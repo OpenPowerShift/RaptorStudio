@@ -281,7 +281,8 @@ def annual_availability(run_id: str, year_length: float | None = None, offset: f
 
 @mcp.tool(annotations=READ_ONLY("Run story"))
 @guarded
-def run_story(run_id: str) -> CallToolResult:
+def run_story(run_id: str,
+              targets: list[dict[str, Any]] | None = None) -> CallToolResult:
     """The Story of a finished run: answer first, evidence second.
 
     One object the application, command line and report all render: the
@@ -291,13 +292,20 @@ def run_story(run_id: str) -> CallToolResult:
     capacity when capacity analysis is on), the top run findings, up to six
     key numbers, sections only for features the model uses, and provenance.
 
+    `targets` gives the headline its target, as `advise` takes them, e.g.
+    `[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
+    the headline; `<=` suits time down per outage).
+
     Needs the run's ordinary artefacts. Needs `attribution=True` for the
     drivers strip and the attribution-based findings; without it the Story
-    still renders and says how to turn it on.
+    still renders and says how to turn it on. A run stopped early says so
+    in its findings and `provenance.requested_runs`.
     """
+    from raptor.api.advisor.context import check_requirements
     from raptor.api.insight.story import from_run, text_lines
 
-    story = from_run(context.workspace(), run_id)
+    check_requirements(targets)
+    story = from_run(context.workspace(), run_id, requirements=targets)
     data = {**story.to_dict(), "run_id": run_id}
     return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")
 
