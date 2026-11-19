@@ -505,6 +505,72 @@ def _has_rows(tables: dict[str, AwbTable], name: str) -> int:
 _SIDECAR_SUFFIX = ".raptor.json"
 
 
+
+#: RAPTOR node types that take one link at most on a side: a Start or a
+#: hierarchy's In has a single outgoing link, an End or Out a single
+#: incoming one.  Ordinary nodes (2) are where branches split and join.
+_ONE_OUT_NODES = (1, 4)
+_ONE_IN_NODES = (3, 5)
+
+
+def _positions(elements: dict[str, Any]) -> dict[tuple[str, int], tuple[float, float, int]]:
+    """(x, y, parent) of every block, hierarchy and node, by link end."""
+    where: dict[tuple[str, int], tuple[float, float, int]] = {}
+    for kind, rows in (("Block", elements["blocks"]), ("Hier", elements["hierarchies"]),
+                       ("Node", elements["nodes"])):
+        for row in rows:
+            where[(kind, row["id"])] = (row.get("x", 0.0), row.get("y", 0.0), row["parent"])
+    return where
+
+
+def _rewire_through(item: tuple[str, int], side: str, group: list[dict[str, Any]],
+                    junction: int, parent: int, links: list[dict[str, Any]],
+                    add_link: Any) -> None:
+    """Send `group` (the links on `side` of `item`) through `junction`."""
+    for link in group:
+        links.remove(link)
+        if side == "out":
+            add_link(("Node", junction), tuple(link["to"]), link["parent"])
+        else:
+            add_link(tuple(link["from"]), ("Node", junction), link["parent"])
+    if side == "out":
+        add_link(item, ("Node", junction), parent)
+    else:
+        add_link(("Node", junction), item, parent)
+
+
+def _split_shared_ends(elements: dict[str, Any], links: list[dict[str, Any]],
+                       add_link: Any, add_junction: Any) -> int:
+    """Route every AWB branch point through an ordinary node.
+
+    AWB lets several connections leave a block or the start, and several
+    arrive at a block or the end.  RAPTOR splits and joins only at a node:
+    a block, hierarchy, Start, End, In or Out takes one link on each side.
+    The GUI flagged every such import ("A block can only connect to one
+    object"), and the engine's answer was wrong: OilAndGasExample came out
+    99.989 % available with a 97.33 % block on every path.  A 1-of-n node in
+    between keeps the meaning of a plain AWB junction, any one path through.
+    Returns the number of nodes added."""
+    kinds = {n["id"]: n["type"] for n in elements["nodes"]}
+    where = _positions(elements)
+    added = 0
+    for side in ("out", "in"):
+        one_only = _ONE_OUT_NODES if side == "out" else _ONE_IN_NODES
+        groups: dict[tuple[str, int], list[dict[str, Any]]] = {}
+        for link in links:
+            key = tuple(link["from"] if side == "out" else link["to"])
+            groups.setdefault(key, []).append(link)        # type: ignore[arg-type]
+        for item, group in groups.items():
+            shared_end = item[0] != "Node" or kinds.get(item[1]) in one_only
+            if len(group) < 2 or not shared_end or item not in where:
+                continue
+            x, y, parent = where[item]
+            junction = add_junction(parent, "split" if side == "out" else "join",
+                                    x + (60.0 if side == "out" else -60.0), y)
+            _rewire_through(item, side, group, junction, parent, links, add_link)
+            added += 1
+    return added
+
 def sidecar_path(path: str | Path) -> Path:
     p = Path(path)
     return p.with_name(p.name + _SIDECAR_SUFFIX)
@@ -2256,6 +2322,8 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             for it in open_out:
                 add_link(it, ("Node", j), owner)
             add_link(("Node", j), ("Node", outs[0]), owner)
+
+    _split_shared_ends(elements, links, add_link, add_junction)
 
     # ---- annotations from AWB labels -------------------------------------
     annotations: list[dict[str, Any]] = []
