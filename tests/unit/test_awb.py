@@ -378,8 +378,19 @@ def test_pm_spares_resources_phases_and_out_of_service_round_trip(tmp_path):
     assert pump["Resource1Name"]
     assert pump["P 001"].startswith("C:")
     assert back.out_of_service.get("block:2") == "cut"
-    assert "non-maintainable blocks" not in {
-        loss.feature for loss in report.not_in_target}
+    features = {loss.feature for loss in report.not_in_target}
+    assert "non-maintainable blocks" not in features
+    # The sidecar restores RAPTOR's own PM-spare setting on a round trip.
+    assert pump["PMSpare"] == "1"
+    # A plain AWB project (no sidecar): AWB delays only corrective tasks for
+    # spares, so the imported PM must not wait on the pool.
+    path.with_name(path.name + ".raptor.json").unlink()
+    plain, plain_report = import_awb(path)
+    plain_pump = next(r for r in _rows(plain, "BLOCK_DATA")
+                      if r["blockName"] == "Pump")
+    assert plain_pump.get("PMSpare", "0") in ("0", "")
+    assert "planned-task spares" in {
+        loss.feature for loss in plain_report.not_in_target}
 
 
 def test_sidecar_preserves_raptor_only_metadata(tmp_path):

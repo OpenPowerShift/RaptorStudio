@@ -513,15 +513,18 @@ def _sidecar_payload(rbd: RbdFile) -> dict[str, Any]:  # noqa: C901, PLR0912, PL
         data["comments"] = [dict(c) for c in _section_list(rbd, "COMMENTS")]
     block_extras = {}
     for b in _section_list(rbd, "BLOCK_DATA"):
-        bid = _text(b.get("ID"))
-        if bid in ("", "0"):
+        if _text(b.get("ID")) in ("", "0"):
             continue
+        # Keyed by name: the export writes the block name as the AWB Id,
+        # the import names the block from it, and apply_sidecar looks the
+        # block up by that name (the RAPTOR ID is renumbered on import).
+        bid = _text(b.get("blockName")) or _text(b.get("ID"))
         extra = {k: b.get(k) for k in (
             "DepType", "DepNum", "DepNothing", "DepIdle", "DepPM",
             "DepFail", "DepPMThresh", "defDepStateIdle", "Phasing",
             "SimStart", "AmtExhausted", "SBStress", "GDType", "GDRate",
             "GDLimit", "_DutyCycle", "_StartAge", "_RestoreFactor",
-            "_RestoreType", "NonOperational", "usesPM", "PMFreq",
+            "_RestoreType", "NonOperational", "usesPM", "PMFreq", "PMSpare",
             "Dist", "Param1#3", "Param2#3", "Param3#3",
             "initial", "Running", "standby", "idle", "repHold",
             "repPerTime", "repFixed", "donePerTime", "doneFixed",
@@ -665,6 +668,10 @@ def apply_sidecar(doc: dict[str, Any], data: dict[str, Any],  # noqa: C901, PLR0
             if key == "phases":
                 target["uses_phasing"] = True
                 target.setdefault("legacy", {}).update(value)
+            elif key == "PMSpare":
+                # The import leaves AWB PM off the spare pool; a RAPTOR
+                # model's own setting comes back from the sidecar.
+                target["pm_spare"] = str(value) == "1"
             elif key not in target:
                 target[key] = value
     for nid, extra in (data.get("node_extras") or {}).items():
@@ -1855,6 +1862,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
         fm_i = _int(row.get("FailureModel"), -1)
         corr_labor_by_fm.setdefault(fm_i, row)
     sched_spare_by_fm: dict[int, dict[str, Any]] = {}
+    planned_spares = 0
     for row in sched_spares:
         fm_i = _int(row.get("FailureModel"), -1)
         sched_spare_by_fm.setdefault(fm_i, row)
@@ -1948,8 +1956,14 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                 "uses_pm": True, "pm_freq": pm_freq,
                 "pm_duration_dist": pm_dist, "pm_params": pm_params,
                 "pm_refresh": _num(pm.get("AgeReductionFactor"), 0.0) >= 0.999,
-                "pm_spare": fm_i in sched_spare_by_fm,
+                # AWB spare logistic delays hold up corrective actions
+                # only; a planned task's spares are on hand (manual,
+                # "Spares - Overview").  RAPTOR's PM would wait the whole
+                # supply chain for a pooled spare, so do not draw one.
+                "pm_spare": False,
             })
+            if fm_i in sched_spare_by_fm:
+                planned_spares += 1
             pm_res = sched_labor_by_fm.get(fm_i)
             if pm_res is not None:
                 kind_i = _int(pm_res.get("Labor"), -1)
@@ -2282,6 +2296,10 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     project = _rows(tables, "Project")[0] if _rows(tables, "Project") else {}
     lifetime = max(1.0, _num(project.get("LifeTime"), 87600.0))
     trials = max(1, _int(project.get("AvsimNoSimulationsRequested"), 1000))
+    report.add("planned-task spares", planned_spares,
+               "AWB delays only corrective tasks for spares; imported PM "
+               "does not draw on the spare pool, so planned spare use is "
+               "not counted against stock", kind="partial")
     report.counts.update(blocks=len(elements["blocks"]),
                          nodes=len(elements["nodes"]),
                          hierarchies=len(elements["hierarchies"]),

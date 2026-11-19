@@ -187,22 +187,26 @@ the `Id` label.
 |---:|---|---|
 | 0 | Exponential | `FmMttf` = mean time to failure |
 | 1 | Weibull | `FmEta1` = scale, `FmBeta1` = shape, `FmGamma1` = location |
-| 2 | Bi-Weibull | three modes; RAPTOR keeps the first |
-| 3 | Tri-Weibull | three modes; RAPTOR keeps the first |
+| 2 | Bi-Weibull | two competing modes (mode-3 columns are an unused placeholder); RAPTOR moment-matches one Weibull |
+| 3 | Tri-Weibull | three competing modes; RAPTOR moment-matches one Weibull |
 | 4 | Fixed | `FmMttf` = fixed time |
 | 5 | Lognormal | `FmMttf` = mean, `FmStd` = standard deviation |
 | 6 | Normal | `FmMttf` = mean, `FmStd` = standard deviation |
 | 7 | Buffer | stored capacity; no RAPTOR equivalent |
-| 8 | Phased Bi-Weibull | phased; RAPTOR keeps the first mode |
-| 9 | Phased Tri-Weibull | phased; RAPTOR keeps the first mode |
+| 8 | Phased Bi-Weibull | phased; RAPTOR moment-matches the two modes |
+| 9 | Phased Tri-Weibull | phased; RAPTOR moment-matches the three modes |
 
 All times in AWB are **hours**.  RAPTOR converts from its model unit with
 `raptor/core/units_conv.py` (`days` = 24, `years` = 8760, etc.) and records
 the conversion in the summary.
 
-RAPTOR reads the same enum in reverse.  A multi-mode or buffer law becomes
-its first Weibull mode and is listed under "multi-mode or buffer failure
-distribution".  A dormant AWB failure (`FmDormant = 1`) becomes a RAPTOR
+RAPTOR reads the same enum in reverse.  AWB's Weibull modes compete (the
+item fails at the first of them), so a bi-/tri-Weibull law becomes one
+Weibull with the same mean and coefficient of variation as the competing-risk
+life, located at the earliest mode's location.  This is an approximation:
+failure counts agree, but the hazard shape, and so the effect of PM, is only
+close.  A buffer law becomes its first mode.  Both are listed under
+"multi-mode or buffer failure distribution".  A dormant AWB failure (`FmDormant = 1`) becomes a RAPTOR
 block with no repair.  A non-zero start-up failure probability is reported
 but cannot be modelled by RAPTOR.
 
@@ -289,6 +293,8 @@ AWB field was written; the `.raptor.json` sidecar keeps the RAPTOR copy).
 | inspection tasks | a dormant failure with an enabled inspection uses the expected detection delay; other inspections remain partial |
 | extra planned tasks | RAPTOR has one PM per block; extra AWB tasks are not imported |
 | two-level spare holdings | AWB level-1 and level-2 stock are summed |
+| spare supply chain | AWB level 3 never runs out: every RAPTOR pool emergency-orders after level 1 + 2 + 3 delays, and stocked pools reorder one-for-one after the level 3 + 2 delay |
+| level-1 spare logistic delay on stocked spares | the per-draw level-1 delay on a spare taken from stock is not modelled |
 | spare repair shop | AWB spare repair/recycling is not imported |
 | labour call-out delay | AWB labour logistics delay is not imported |
 | phase capacity/load rules | only AWB phase logic/out-of-service rules are imported |
@@ -300,7 +306,7 @@ AWB field was written; the `.raptor.json` sidecar keeps the RAPTOR copy).
 | standby and NOT logic | RAPTOR nodes have no equivalent |
 | block consequence links | not imported |
 | dormant failures | modelled as never repaired |
-| multi-mode/buffer failure laws | only the first Weibull mode is kept |
+| multi-mode/buffer failure laws | moment-matched to one Weibull (buffer: first mode) |
 | non-maintainable blocks | RAPTOR repair is off |
 | start-up failure probability | not modelled by RAPTOR |
 
