@@ -12,6 +12,7 @@ comes from `per_run` rows, an `Attribution` dict or the measure registry.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from collections.abc import Callable
 from typing import Any
 
 from raptor.api.insight.attribution import CAUSES, CAUSE_LABELS
@@ -44,6 +45,39 @@ class ChartSpec:
         return asdict(self)
 
 
+def runs_text(n: int) -> str:
+    """`1 run`, `5 runs`, `1,200 runs`: captions said "1 runs"."""
+    return f"{n:,} run{'' if n == 1 else 's'}"
+
+
+def nothing_down(attribution: dict[str, Any]) -> str:
+    """The one sentence every downtime chart gives when the system never
+    went down: three charts said three different things ("No system
+    outage.", "No loss to attribute.", "No outage sequences recorded.")."""
+    runs = int(attribution.get("runs") or 0)
+    where = f" in {runs_text(runs)}" if runs else ""
+    return f"The system never went down{where}, so there is nothing to show."
+
+
+def cut_note(shown: int, total: int, rest: float | None = None) -> str:
+    """`top 10 of 220; the other 210 together 95.4 %`, for a chart that
+    draws only its largest items (it cut to 10 without a word)."""
+    if total <= shown:
+        return ""
+    note = f"top {shown} of {total:,}"
+    if rest is not None and rest > 0:
+        note += f"; the other {total - shown:,} together {pct(rest)}"
+    return note
+
+
+def _with_note(subtitle: str, note: str) -> str:
+    return f"{subtitle} ({note})" if note else subtitle
+
+
+def _number_value(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
 
@@ -63,23 +97,117 @@ def text_lines(chart: ChartSpec, top: int = 10) -> list[str]:
 
     lines = [f"{chart.title} — {chart.caption}"]
     if chart.kind == "timeline":
-        for layer in chart.series:
-            if layer.get("read") == "none" or not layer.get("t"):
-                continue
-            if layer.get("role") != "area":
-                text = shown(float(layer["y"][-1]))
-            elif layer.get("read") == "range":
-                text = f"{shown(float(layer['lo'][-1]))} to {shown(float(layer['hi'][-1]))}"
-            else:
-                text = shown(float(layer["hi"][-1]) - float(layer["lo"][-1]))
-            lines.append(f"  {layer.get('name', '')}: {text} at the end")
-        return lines
+        return lines + _timeline_lines(chart, shown)
+    extra = _kind_lines(chart, row_value)
+    if extra is not None:
+        return lines + extra
     for row in chart.series[:top]:
         name = row.get("name") or row.get("label") or ""
         value = row.get("value", row.get("count", row.get("mean")))
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if name and isinstance(value, (int, float)) and not isinstance(value, bool):
             lines.append(f"  {name}: {row_value(float(value))}")
     return lines
+
+
+def _timeline_lines(chart: ChartSpec, shown: Callable[[float], str]) -> list[str]:
+    """Each layer's value at the end of a chart over time."""
+    out = []
+    for layer in chart.series:
+        if layer.get("read") == "none" or not layer.get("t"):
+            continue
+        if layer.get("role") != "area":
+            text = shown(float(layer["y"][-1]))
+        elif layer.get("read") == "range":
+            text = f"{shown(float(layer['lo'][-1]))} to {shown(float(layer['hi'][-1]))}"
+        else:
+            text = shown(float(layer["hi"][-1]) - float(layer["lo"][-1]))
+        out.append(f"  {layer.get('name', '')}: {text} at the end")
+    return out
+
+
+def csv_table(chart: ChartSpec) -> tuple[list[str], list[list[Any]]]:  # noqa: C901 - one walk of every row shape
+    """The chart's numbers as a header and rows, for a CSV file.
+
+    The columns are what the rows carry, named for what they hold: the
+    export had a fixed "series,name,x,y,value,note" header, left x, y and
+    note empty, wrote a share as 0.3349 with no word of what it was, and
+    dropped the error bars and the per-cause split drawn on the chart."""
+    if chart.kind == "timeline":
+        out: list[list[Any]] = []
+        for layer in chart.series:
+            for k, t in enumerate(layer.get("t") or []):
+                out.append([layer.get("name", ""), t,
+                            *[(layer.get(key) or [""] * (k + 1))[k]
+                              for key in ("y", "lo", "hi")]])
+        return ["layer", "time", "value", "low", "high"], out
+    percent = chart.provenance.get("format") == "percent"
+    measure = (chart.y_label if chart.kind in ("pareto", "capacity_pareto", "ladder",
+                                               "waterfall") else "") or "value"
+    unit = " (fraction: 1 = 100 %)" if percent else ""
+    names = {"value": f"{measure}{unit}", "sem": f"standard error{unit}",
+             "share": f"share{unit}", "n": "runs", "count": "count",
+             "lo": "from", "hi": "to"}
+    flat: list[dict[str, Any]] = []
+    for series in chart.series:
+        nested = series.get("dots") or series.get("points")
+        for row in (nested if isinstance(nested, list) else [series]):
+            item: dict[str, Any] = {}
+            if nested is not None:
+                item["series"] = series.get("name", "")
+            for key, value in row.items():
+                if key == "causes" and isinstance(value, dict):
+                    for cause, amount in value.items():
+                        item[f"cause: {CAUSE_LABELS.get(cause, cause)}{unit}"] = amount
+                elif value is None or isinstance(value, (str, int, float, bool)):
+                    item[names.get(key, key)] = value
+            flat.append(item)
+    header: list[str] = []
+    for item in flat:
+        header += [k for k in item if k not in header]
+    return header, [[item.get(k, "") for k in header] for item in flat]
+
+
+def _kind_lines(chart: ChartSpec,  # noqa: C901 - one branch per chart kind
+                row_value: Callable[[float], str]) -> list[str] | None:
+    """The numbers of the charts whose rows are not (name, value) pairs:
+    the text gave blank-labelled rows ("  : 179") or nothing for them."""
+    rows = chart.series
+    if chart.kind == "dot_plot":
+        values = sorted(float(v) for r in rows for v in r.get("values") or ())
+        if not values:
+            return []
+        return [f"  runs: {len(values):,}",
+                f"  lowest: {row_value(values[0])}",
+                f"  median: {row_value(_quartile(values, 0.5))}",
+                f"  highest: {row_value(values[-1])}"]
+    if chart.kind == "exceedance":
+        out = []
+        for r in rows:
+            points = r.get("points") or []
+            for share in (0.1, 0.5, 0.9):
+                hit = next((p for p in points if float(p["share"]) >= share - 1e-9), None)
+                if hit is not None:
+                    out.append(f"  {round(100 * share)} % of runs reached at least "
+                               f"{row_value(float(hit['value']))}")
+        return out
+    if chart.kind == "convergence":
+        if not rows:
+            return []
+        last = rows[-1]
+        sem = last.get("sem")
+        spread = (f" (± {row_value(2 * float(sem))} at 2 standard errors)"
+                  if isinstance(sem, (int, float)) else "")
+        return [f"  after {int(last['n']):,} runs: {row_value(float(last['mean']))}{spread}"]
+    if chart.kind == "histogram":
+        from raptor.api.insight.axes import format_value
+        unit = str(chart.provenance.get("time_units") or "")
+        return [f"  {format_value(float(r['lo']), '', 3)} to "
+                f"{format_value(float(r['hi']), '', 3)}{(' ' + unit) if unit else ''}: "
+                f"{int(r['count']):,}" for r in rows if _number_value(r.get("count"))]
+    if chart.kind == "scatter":
+        return [f"  {r.get('name', '')}: x {r['x']:,.4g}, y {r['y']:,.4g}"
+                for r in rows[:10] if _number_value(r.get("x")) and _number_value(r.get("y"))]
+    return None
 
 
 def _values(per_run: list[dict], field_name: str) -> list[float]:
@@ -118,7 +246,7 @@ def trial_outcome(per_run: list[dict], field_name: str = "availability", *,
     values = _values(per_run, field_name)
     dots = quantile_dots(values)
     met = sum(1 for v in values if target is not None and v >= target)
-    caption = f"{label}: {len(values)} runs"
+    caption = f"{label}: {runs_text(len(values))}"
     mean = _mean(values)
     if mean is not None:
         from raptor.api.insight.axes import format_value
@@ -208,18 +336,23 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
         from raptor.api.insight.axes import format_value
         return format_value(value, fmt, 5)
 
-    if points:
+    if len(values) == 1:
+        # "9 runs in 10 reached ..." was said of a single run
+        caption = f"The one run reached {shown(values[0])}."
+    elif points and min(values) == max(values):
+        caption = f"Every run reached {shown(values[0])}."
+    elif points:
         nine = _reached(points, 0.9)
         half = _reached(points, 0.5)
         caption = (f"9 runs in 10 reached {word} {shown(nine)}; half reached "
                    f"{word} {shown(half)}.")
-        if target is not None:
-            met = sum(1 for v in values
-                      if (v >= target if higher_is_better else v <= target))
-            caption += (f" {pct(met / len(values))} of runs reached the "
-                        f"target {shown(target)}.")
     else:
         caption = "No runs."
+    if points and target is not None:
+        met = sum(1 for v in values
+                  if (v >= target if higher_is_better else v <= target))
+        caption += (f" {pct(met / len(values))} of runs reached the "
+                    f"target {shown(target)}.")
     return ChartSpec(
         "exceedance", f"Chance of reaching {label.lower()}",
         "read across from a share of runs to the value they reached",
@@ -239,12 +372,15 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
 
 def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
     """C2: who causes the downtime, stacked by what the time was spent on."""
-    rows = sorted((r for r in attribution.get("elements") or []
-                   if (r.get("dtci", {}).get("mean") or 0) > 0),
-                  key=lambda r: -(r["dtci"]["mean"] or 0))[:top]
+    ranked = sorted((r for r in attribution.get("elements") or []
+                     if (r.get("dtci", {}).get("mean") or 0) > 0),
+                    key=lambda r: -(r["dtci"]["mean"] or 0))
+    rows = ranked[:top]
+    rest = sum(r["dtci"]["mean"] or 0 for r in ranked[top:])
     return ChartSpec(
         "pareto", "Who causes the downtime",
-        "stacked by what the time was spent on", "element",
+        _with_note("stacked by what the time was spent on",
+                   cut_note(len(rows), len(ranked), rest)), "element",
         "share of system downtime",
         series=[{"name": r["name"], "value": r["dtci"]["mean"] or 0.0,
                  "sem": r["dtci"].get("sem"),
@@ -254,8 +390,8 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
                 for r in rows],
         caption=(f"{rows[0]['name']} causes the largest share "
                  f"({pct(rows[0]['dtci']['mean'] or 0)})."
-                 if rows else "No system outage."),
-        provenance={"runs": attribution.get("runs", 0), "format": "percent"})
+                 if rows else nothing_down(attribution)),
+        provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent"})
 
 
 def downtime_waterfall(attribution: dict[str, Any],
@@ -275,7 +411,7 @@ def downtime_waterfall(attribution: dict[str, Any],
                       "share": share})
         running -= drop
     if not steps:
-        caption = "No loss to attribute."
+        caption = nothing_down(attribution)
     elif loss is None:
         caption = ("Each step's share of the loss; pass the run's operational "
                    "availability for steps in points.")
@@ -319,17 +455,22 @@ def outage_histogram(attribution: dict[str, Any]) -> ChartSpec:
     durations = attribution.get("outage_durations") or {}
     hist = durations.get("hist") or []
     p50, p90 = durations.get("p50"), durations.get("p90")
+    # the time unit was nowhere on the chart or in its caption
+    units = str(attribution.get("units") or "")
+    unit = f" {units}" if units else ""
     return ChartSpec(
         "histogram", "How long is an outage?",
-        "log scale: many short outages or a few long ones", "duration",
+        "log scale: many short outages or a few long ones",
+        f"duration ({units})" if units else "duration",
         "outages", series=hist,
-        marks=[{"kind": "quantile", "label": "P50", "value": p50},
-               {"kind": "quantile", "label": "P90", "value": p90}],
-        caption=(f"Half of the outages end by {p50:,.4g}; one in ten lasts "
-                 f"over {p90:,.4g}." if p50 is not None and p90 is not None
-                 else "No outage durations recorded."),
+        marks=[{"kind": "quantile", "label": "median", "value": p50},
+               {"kind": "quantile", "label": "1 in 10 longer", "value": p90}],
+        caption=(f"Half of the outages end by {p50:,.4g}{unit}; one in ten "
+                 f"lasts over {p90:,.4g}{unit}."
+                 if p50 is not None and p90 is not None
+                 else nothing_down(attribution)),
         provenance={"runs": attribution.get("runs", 0),
-                    "count": durations.get("count", 0)})
+                    "count": durations.get("count", 0), "time_units": units})
 
 
 def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
@@ -340,9 +481,12 @@ def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
     quantities. An attribution without per-element counts (an older stored
     run) falls back to the two shares, y then being relative (1 = an
     average outage)."""
-    rows = sorted((r for r in attribution.get("elements") or []
-                   if (r.get("deci", {}).get("mean") or 0) > 0),
-                  key=lambda r: -(r.get("dtci", {}).get("mean") or 0))[:top]
+    ranked = sorted((r for r in attribution.get("elements") or []
+                     if (r.get("deci", {}).get("mean") or 0) > 0),
+                    key=lambda r: -(r.get("dtci", {}).get("mean") or 0))
+    rows = ranked[:top]
+    note = cut_note(len(rows), len(ranked),
+                    sum(r.get("dtci", {}).get("mean") or 0 for r in ranked[top:]))
     units = str(attribution.get("units") or "")
     absolute = bool(rows) and all(
         (r.get("outages") or {}).get("mean") and (r.get("red_time") or {}).get("mean")
@@ -354,7 +498,7 @@ def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
                    "area": r["dtci"]["mean"] or 0.0} for r in rows]
         subtitle = ("x = system outages it starts a run, y = how long they last, "
                     "area = share of downtime")
-        x_label, y_label = "outages started a run", (
+        x_label, y_label = "outages it started a run", (
             f"mean outage length ({units})" if units else "mean outage length")
     else:
         points = [{"name": r["name"],
@@ -366,14 +510,15 @@ def frequency_duration(attribution: dict[str, Any], top: int = 20) -> ChartSpec:
                     "the average (1 = average), area = share of downtime")
         x_label, y_label = "share of outages started", "relative outage length"
     return ChartSpec(
-        "bubble", "Frequency against duration", subtitle, x_label, y_label,
+        "bubble", "Frequency against duration", _with_note(subtitle, note),
+        x_label, y_label,
         series=points,
         # frequent short outages sit low on the right; rare long ones high on
         # the left (the caption had the two levers the other way round)
         caption=("Low right, frequent short outages: improve reliability. "
                  "High left, rare long ones: repair and logistics."
-                 if points else "No element started an outage."),
-        provenance={"runs": attribution.get("runs", 0), "absolute": absolute,
+                 if points else nothing_down(attribution)),
+        provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "absolute": absolute,
                     # outages a run are a count, not a share: drawn as a
                     # percentage, 2.8 a run read "280 %"
                     "x_format": "" if absolute else "percent",
@@ -396,17 +541,35 @@ def importance_quadrant(importance: dict[str, Any],
                         metric: str = "Availability") -> ChartSpec:
     """C8: what losing an element costs (RAW) against what fixing it buys."""
     entry = (importance.get("metrics") or {}).get(metric) or {}
+    rows = entry.get("rows") or []
     points = [{"name": r.get("block"), "x": r.get("raw"), "y": r.get("rrw")}
-              for r in entry.get("rows") or []
+              for r in rows
               if r.get("raw") is not None and r.get("rrw") is not None]
+    unbounded = [r for r in rows if r.get("raw") is not None and r.get("rrw") is None]
+    if points:
+        caption = ("Points far above and right of 1 are both critical and "
+                   "worth fixing.")
+    elif unbounded:
+        # "No block has both a RAW and an RRW" read as missing data: the
+        # RRW is unbounded (fixing the block removes all the downtime)
+        caption = ("Making any one of these blocks perfect would remove all the "
+                   "downtime, so their RRW is unbounded and there is no "
+                   "quadrant to draw. RAW: " + ", ".join(
+                       f"{r.get('block')} {float(r['raw']):.3g}"
+                       for r in sorted(unbounded, key=lambda r: -float(r["raw"]))[:5])
+                   + ".")
+    else:
+        caption = "No block has both a RAW and an RRW."
+    xs = [float(p["x"]) for p in points if _number_value(p["x"]) and float(p["x"]) > 0]
+    # RAW from 1 to 2,600 piled most blocks at the left edge: log it
+    x_log = bool(xs) and max(xs) / max(min(xs), 1e-9) > 50
     return ChartSpec(
         "quadrant", f"Importance on {metric.lower()}",
         "x = RAW (what losing it costs), y = RRW (what fixing it buys)",
         "RAW", "RRW", series=points,
         marks=[{"kind": "cross", "x": 1.0, "y": 1.0}],
-        caption=("Points far above and right of 1 are both critical and worth "
-                 "fixing." if points else "No block has both a RAW and an RRW."),
-        provenance={"metric": metric})
+        caption=caption,
+        provenance={"metric": metric, "x_log": x_log})
 
 
 def convergence(per_run: list[dict], field_name: str = "availability",
@@ -537,12 +700,16 @@ def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
     """C12: where the money goes: mean cost per run by element, from
     `element_costs` or `element_costs_from_tables`."""
     totals = {row["name"]: float(row.get("total") or 0.0) for row in costs}
-    rows = sorted(((n, v) for n, v in totals.items() if v > 0),
-                  key=lambda kv: -kv[1])[:top]
+    ranked = sorted(((n, v) for n, v in totals.items() if v > 0),
+                    key=lambda kv: -kv[1])
+    rows = ranked[:top]
     grand = sum(totals.values())
+    note = cut_note(len(rows), len(ranked),
+                    sum(v for _n, v in ranked[top:]) / grand if grand else None)
     return ChartSpec(
         "pareto", "Where the money goes",
-        "mean cost per run, by element, largest first", "element", "cost",
+        _with_note("mean cost per run, by element, largest first", note),
+        "element", "cost",
         series=[{"name": name, "value": value,
                  "share": value / grand if grand else 0.0}
                 for name, value in rows],
@@ -550,16 +717,19 @@ def cost_pareto(costs: list[dict[str, Any]], top: int = 10) -> ChartSpec:
                  f"({pct(rows[0][1] / grand)})."
                  if rows and grand else
                  "No element has a cost in this run." if costs else _needs("cost")),
-        provenance={"grand_total": grand, "format": "money"})
+        provenance={"items": len(ranked), "grand_total": grand, "format": "money"})
 
 
 def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
     """K1: who loses the energy beside who is down the longest."""
     capacity = attribution.get("capacity") or {}
     by_name = {row["name"]: row for row in attribution.get("elements") or []}
-    rows = sorted((row for row in capacity.get("elements") or []
-                   if (row.get("share", {}).get("mean") or 0) > 0),
-                  key=lambda row: -(row["share"]["mean"] or 0))[:top]
+    ranked = sorted((row for row in capacity.get("elements") or []
+                     if (row.get("share", {}).get("mean") or 0) > 0),
+                    key=lambda row: -(row["share"]["mean"] or 0))
+    rows = ranked[:top]
+    note = cut_note(len(rows), len(ranked),
+                    sum(row["share"]["mean"] or 0 for row in ranked[top:]))
     series = []
     for row in rows:
         downtime = (by_name.get(row["name"], {}).get("dtci", {}).get("mean")
@@ -572,12 +742,13 @@ def lost_capacity_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpe
                            row.get("through_dependents", {}).get("mean")})
     return ChartSpec(
         "capacity_pareto", "Who loses the capacity",
-        "capacity share against downtime share, same element order",
-        "element", "share", series=series,
+        _with_note("capacity share against downtime share, same element order",
+                   note),
+        "element", "share of the total", series=series,
         caption=(f"{rows[0]['name']} loses the largest share of capacity "
                  f"({pct(rows[0]['share']['mean'] or 0)})."
                  if rows else _needs("capacity")),
-        provenance={"runs": attribution.get("runs", 0), "format": "percent",
+        provenance={"items": len(ranked), "runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
 
@@ -645,9 +816,9 @@ def annual_capacity_fan(periods: dict[str, Any]) -> ChartSpec:
     spec.y_label = "capacity-weighted availability"
     rows = spec.series
     if not rows:
-        spec.caption = _needs("capacity") + " (or the run is shorter than one period)"
+        spec.caption = _needs("capacity") + " (or the run is shorter than one year)"
     elif len(rows) >= FAN_LINE_MIN:
-        spec.caption = (f"{len(rows)} periods; the median share of capacity "
+        spec.caption = (f"{len(rows)} years; the median share of capacity "
                         f"delivered moves from {pct(rows[0]['p50'])} to "
                         f"{pct(rows[-1]['p50'])}.")
     return spec
@@ -666,17 +837,20 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
     few = len(series) < FAN_LINE_MIN
     medians = ", ".join(pct(row["p50"]) for row in series)
     if not series:
-        caption = "No complete period in this run."
+        caption = "No complete year in this run."
     elif few:
-        caption = (f"Only {len(series)} period{'s' if len(series) != 1 else ''}, "
+        caption = (f"Only {len(series)} year{'s' if len(series) != 1 else ''}, "
                    f"too few to show a trend; median {medians}.")
     else:
-        caption = (f"{len(series)} periods; the median moves from "
+        caption = (f"{len(series)} years; the median moves from "
                    f"{pct(series[0]['p50'])} to {pct(series[-1]['p50'])}.")
+    # plain words: "whiskers: P5-P95, box: P25-P75" was jargon
     return ChartSpec(
         "fan", "Availability year by year",
-        ("whiskers: P5-P95, box: P25-P75, bar: median" if few else
-         "bands: P5-P95, P25-P75; line: median"), "period", "availability",
+        ("across the runs: the box holds the middle half, the whiskers 9 in 10, "
+         "the bar is the median" if few else
+         "across the runs: the dark band holds the middle half, the light one "
+         "9 in 10, the line is the median"), "year", "availability",
         series=series,
         marks=[{"kind": "target", "value": threshold}]
         if threshold is not None else [],
@@ -706,6 +880,13 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
     caption = (f"{pct(below)} of run-years fall below the threshold."
                if isinstance(below, (int, float)) else
                f"{pooled.get('n', 0)} run-years; no threshold was set.")
+    if values:
+        # a tall stack at the top had no scale: say how many it holds
+        top = max(values)
+        stacked = sum(1 for v in values if v == top)
+        if stacked > 1:
+            caption += (f" {stacked} of the {len(values)} dots are at "
+                        f"{pct(top)}.")
     return ChartSpec(
         "dot_plot", "A bad year, as a frequency",
         subtitle, "availability",
@@ -727,7 +908,8 @@ COST_GROUPS = {
 
 def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
              fmt: str, what: str, runs: int, width: float, height: float,
-             top: int, group_labels: dict[str, str] | None = None) -> ChartSpec:
+             top: int, group_labels: dict[str, str] | None = None,
+             empty: str = "Nothing to show.") -> ChartSpec:
     """Lay out `items` ({name, value, cause}) largest first; past `top`
     the rest share one "N others" cell.  `value` is what the area shows;
     `share` (value / total) is added for the labels."""
@@ -749,7 +931,7 @@ def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
     series = [{**cell, **rect.to_dict(),
                "aspect": rect.aspect if rect.area > 0 else None}
               for cell, rect in zip(cells, rects, strict=True)]
-    caption = "Nothing to show."
+    caption = empty
     if series:
         first = series[0]
         amount = format_value(float(first["value"]), fmt, 3)
@@ -776,7 +958,11 @@ def phase_downtime(attribution: dict[str, Any]) -> ChartSpec:
     worst = min((r for r in rows if r["availability"] is not None),
                 key=lambda r: r["availability"], default=None)
     caption = "The model has no phases."
-    if worst is not None:
+    if worst is not None and not any(r.get("share_of_downtime") for r in rows):
+        # it named a "weakest phase" at 100 % with 0 % of the downtime
+        caption = nothing_down(attribution)
+        series = []
+    elif worst is not None:
         caption = (f"{worst['name']} is the weakest phase: availability "
                    f"{100 * worst['availability']:.4g} %, "
                    f"{pct(worst['share_of_downtime'])} of all downtime")
@@ -801,7 +987,8 @@ def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                              "cause; click a cell to locate",
                     fmt="percent", what="system downtime",
                     runs=int(attribution.get("runs", 0) or 0),
-                    width=width, height=height, top=top)
+                    width=width, height=height, top=top,
+                    empty=nothing_down(attribution))
 
 
 def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
@@ -819,7 +1006,10 @@ def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
                              "cause; click a cell to locate",
                     fmt="percent", what="the lost flow",
                     runs=int(attribution.get("runs", 0) or 0),
-                    width=width, height=height, top=top)
+                    width=width, height=height, top=top,
+                    empty=("No capacity was lost in these runs, so there is "
+                           "nothing to show." if attribution.get("capacity")
+                           else _needs("capacity")))
 
 
 def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
@@ -839,7 +1029,9 @@ def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
                              "largest part of it",
                     fmt="money", what="the cost", runs=0,
                     width=width, height=height, top=top,
-                    group_labels=dict(COST_GROUPS))
+                    group_labels=dict(COST_GROUPS),
+                    empty=("No element has a cost in this run." if costs
+                           else _needs("cost")))
 
 
 def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
@@ -868,7 +1060,7 @@ def outage_anatomy(attribution: dict[str, Any], max_columns: int = 6
         "step", "share of downtime", series=series,
         caption=(f"The commonest start is {series[0]['label']} "
                  f"({pct(left)} of downtime)."
-                 if series else "No outage sequences recorded."),
+                 if series else nothing_down(attribution)),
         provenance={"runs": attribution.get("runs", 0),
                     "sequences": len(attribution.get("sequences") or [])})
 
@@ -882,7 +1074,9 @@ def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
         return ChartSpec(
             "ribbon", "Run-to-run system state", "needs the outage record",
             "time", "runs", series=[],
-            caption="No per-run outage record in this attribution.")
+            caption=("This run kept no per-run outage record: run again with "
+                     "downtime attribution on (and fewer runs if it is very "
+                     "large)."))
     rows: list[dict[str, Any]] = []
     for index, run in enumerate(runs):
         start, end = float(run.get("start", 0.0)), float(run.get("end", 0.0))
@@ -893,17 +1087,24 @@ def ensemble_ribbon(attribution: dict[str, Any], max_runs: int = 200
                      "downtime": sum(b - a for a, b in pairs),
                      "span": max(end - start, 1e-12)})
     rows.sort(key=lambda row: row["downtime"])
+    total = len(rows)
     if len(rows) > max_runs:
         step = len(rows) / max_runs
         rows = [rows[min(len(rows) - 1, int(i * step))]
                 for i in range(max_runs)]
     worst = rows[-1]["downtime"] / rows[-1]["span"]
     best = rows[0]["downtime"] / rows[0]["span"]
+    units = str(attribution.get("units") or "")
+    subtitle = "one row per trial, sorted by downtime; red = system down"
+    if len(rows) < total:
+        # 200 rows were drawn for 205 runs without a word
+        subtitle = (f"{len(rows)} of the {total:,} runs, evenly through the "
+                    "ranking, sorted by downtime; red = system down")
     return ChartSpec(
-        "ribbon", "Run-to-run system state",
-        "one row per trial, sorted by downtime; red = system down",
-        "time", "runs", series=rows,
-        caption=(f"{len(runs)} runs; best {pct(1 - best)} up, "
+        "ribbon", "Run-to-run system state", subtitle,
+        f"simulated time ({units})" if units else "simulated time", "runs",
+        series=rows,
+        caption=(f"{runs_text(len(runs))}; best {pct(1 - best)} up, "
                  f"worst {pct(1 - worst)} up."),
         provenance={"runs": attribution.get("runs", len(runs)),
                     "shown": len(rows)})
@@ -1046,7 +1247,7 @@ CHARTS = {
 }
 
 
-def chart_named(name: str, *, per_run: list[dict] | None = None,
+def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901 - one table of charts
                 attribution: dict[str, Any] | None = None,
                 importance: dict[str, Any] | None = None,
                 report_data: list[Any] | None = None,
@@ -1089,12 +1290,22 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         if attribution is None:
             raise ValueError(message("attribution", *(("capacity",) if capacity_chart
                                                       else ())))
+        # one behaviour for "not in this run": an error, as the charts over
+        # time give, not a blank figure carrying the how-to as its caption
+        if capacity_chart and not attribution.get("capacity"):
+            raise ValueError(message("capacity"))
+        if name == "phase-downtime" and not attribution.get("phases"):
+            raise ValueError("this chart needs a phased model: this one has no "
+                             "mission phases")
         return attribution
 
     def _need(value: Any, what: str) -> dict[str, Any]:
         if value is None:
             raise ValueError(f"this chart needs {what}")
         return value
+
+    years = ("period-by-period availability: a run at least one whole year "
+             "long (8,760 hours), with downtime attribution")
 
     def element_cost_rows() -> list[dict[str, Any]]:
         return costs if costs is not None else element_costs(report_data or [])
@@ -1136,11 +1347,9 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,
         "capacity-vs-downtime": lambda: capacity_vs_downtime(
             need_attribution()),
         "capacity-waterfall": lambda: capacity_waterfall(need_attribution()),
-        "annual-fan": lambda: annual_fan(_need(periods, "period-by-period "
-                                                       "availability")),
-        "annual-dots": lambda: annual_dots(_need(periods, "period-by-period "
-                                                          "availability")),
+        "annual-fan": lambda: annual_fan(_need(periods, years)),
+        "annual-dots": lambda: annual_dots(_need(periods, years)),
         "annual-capacity-fan": lambda: annual_capacity_fan(
-            _need(periods, "period-by-period availability")),
+            _need(periods, years)),
     }
     return builders[name]()

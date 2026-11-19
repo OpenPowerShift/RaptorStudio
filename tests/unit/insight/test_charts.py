@@ -63,7 +63,7 @@ def test_the_histogram_reads_the_log_bins_and_quantiles():
                  {"lo": 2.0, "hi": 4.0, "count": 2.0}]}}
     spec = charts.outage_histogram(attribution)
     assert len(spec.series) == 2
-    assert [mark["label"] for mark in spec.marks] == ["P50", "P90"]
+    assert [mark["label"] for mark in spec.marks] == ["median", "1 in 10 longer"]
     assert spec.provenance["count"] == 4
 
 
@@ -210,7 +210,7 @@ def test_the_annual_fan_keeps_the_bands_and_the_threshold():
     spec = charts.annual_fan(periods)
     assert spec.kind == "fan" and len(spec.series) == 4
     assert spec.marks == [{"kind": "target", "value": 0.95}]
-    assert "median moves" in spec.caption and "bands" in spec.subtitle
+    assert "median moves" in spec.caption and "band" in spec.subtitle
 
 
 def test_two_periods_are_boxes_not_a_trend():

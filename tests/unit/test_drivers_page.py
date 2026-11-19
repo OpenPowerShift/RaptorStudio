@@ -126,6 +126,8 @@ def test_short_runs_show_no_year_chart(page, logs, qapp):
     page.set_attribution(attribute_logs(logs))
     page.set_periods({"periods_per_run": 1, "by_index": [], "pooled": {"n": 20}, "sentence": "x"})
     assert page.chart.periods() is None and not page.years.isVisible()
+    # the Charts page still draws one whole year
+    assert page.periods() is not None
 
 
 def test_percent_text_never_uses_an_exponent():

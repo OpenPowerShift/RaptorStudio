@@ -354,6 +354,8 @@ def run_chart(run_id: str, chart: str = "trial-outcome",
         attribution = drivers.read(ws, run_id)
     except Exception:  # noqa: BLE001 - the base charts do not need it
         attribution = None
+    if chart == "ensemble-ribbon":
+        attribution = drivers.with_outages(ws, run_id, attribution)
     periods = None
     if chart in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)

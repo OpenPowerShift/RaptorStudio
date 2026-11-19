@@ -132,7 +132,10 @@ def test_every_drawable_chart_paints_and_exports(qapp, tmp_path):
         csv = tmp_path / f"chart-{index}.csv"
         page.save_csv(str(csv))
         header = csv.read_text(encoding="utf-8").splitlines()[0]
-        assert header.startswith("layer," if spec.kind == "timeline" else "series,")
+        if spec.kind == "timeline":
+            assert header.startswith("layer,")
+        else:                                  # named for what the rows hold
+            assert header and "note" not in header.split(","), (title, header)
 
 
 def test_only_the_controls_a_chart_uses_are_shown(qapp):

@@ -71,6 +71,10 @@ class DriversChart(QWidget):
         self._rows: list[dict[str, Any]] = []
         self._cells: list[Cell] = []
         self._periods: dict[str, Any] | None = None
+        #: the summary for the Charts page, from one whole year a run: the
+        #: year charts said "needs a run at least one whole year long" to a
+        #: one-year run (this page's own trend needs two)
+        self._periods_any: dict[str, Any] | None = None
         self._capacity: dict[str, Any] | None = None
         self._hit: list[tuple[QRectF, dict[str, Any]]] = []
         self._cell_hit: list[tuple[QRectF, Cell]] = []
@@ -109,11 +113,18 @@ class DriversChart(QWidget):
         """The period-by-period (yearly) summary, or None to hide the chart."""
         usable = bool(summary and summary.get("periods_per_run", 0) >= MIN_PERIODS)
         self._periods = summary if usable else None
+        self._periods_any = (summary if summary and summary.get("periods_per_run", 0) >= 1
+                             else None)
         self.setFixedHeight(self.sizeHint().height())
         self.update()
 
     def periods(self) -> dict[str, Any] | None:
+        """The summary this page draws (two whole years a run or more)."""
         return self._periods
+
+    def chart_periods(self) -> dict[str, Any] | None:
+        """The year-by-year summary when a run holds at least one whole year."""
+        return self._periods_any
 
     def rows(self) -> list[dict[str, Any]]:
         return list(self._rows)
@@ -296,10 +307,14 @@ class DriversChart(QWidget):
         """Who loses the *energy* (issue #256): a Pareto, then share of
         downtime against share of lost capacity, with the same-share diagonal."""
         capacity = self._capacity or {}
-        rule = str(capacity.get("rule") or "").replace("_", " ")
+        rule = str(capacity.get("rule") or "")
         rows = list(capacity.get("elements") or [])[:CAPACITY_ROWS]
-        y = self._heading(p, y, "Who loses the capacity, not just the uptime "
-                                + (f"(split by {rule})" if rule else ""))
+        # the rule name read as "(split by proportional)"
+        how = {"proportional": "shared in proportion among the failed elements",
+               "marginal": "each element's own effect",
+               "first_failed": "all to the first element to fail"}.get(rule, "")
+        y = self._heading(p, y, "Who loses the capacity, not just the uptime"
+                                + (f" ({how})" if how else ""))
         via = any((row.get("through_dependents") or {}).get("mean") for row in rows)
         x = self._x0
         p.setPen(self._muted)
@@ -565,4 +580,5 @@ class DriversPage(QWidget):
         return self._attribution
 
     def periods(self) -> dict[str, Any] | None:
-        return self.chart.periods()
+        """For the Charts page: from one whole year a run."""
+        return self.chart.chart_periods()

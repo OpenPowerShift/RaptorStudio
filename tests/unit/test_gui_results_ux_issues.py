@@ -131,7 +131,7 @@ def test_the_axis_floor_control_appears_only_where_it_applies(qapp, key, shown):
     assert page.floor_button.isVisibleTo(page) is shown
     if shown:
         assert page.floor_button.text() == "Axis from: auto"
-        assert "0.999999" in page.floor_button.toolTip()
+        assert "99.9999 %" in page.floor_button.toolTip()
 
 
 def test_axis_floor_dialog_round_trip_and_range(qapp, monkeypatch):
@@ -141,7 +141,7 @@ def test_axis_floor_dialog_round_trip_and_range(qapp, monkeypatch):
     def fake_get_double(parent, title, label, value, minimum, maximum,
                         decimals):
         calls.update(minimum=minimum, maximum=maximum, decimals=decimals)
-        return 0.25, True
+        return 25.0, True                      # entered in percent
 
     monkeypatch.setattr(QInputDialog, "getDouble",
                         staticmethod(fake_get_double))
@@ -151,10 +151,10 @@ def test_axis_floor_dialog_round_trip_and_range(qapp, monkeypatch):
     page.select("availability-band")
     page.floor_button.click()
 
-    assert calls == {"minimum": 0.0, "maximum": 0.999999, "decimals": 6}
+    assert calls == {"minimum": 0.0, "maximum": 99.9999, "decimals": 4}
     assert dock.y_axis_min == 0.25
     assert seen == [0.25]
-    assert page.floor_button.text() == "Axis from: 0.25"
+    assert page.floor_button.text() == "Axis from: 25 %"
     assert page.selected_spec().provenance["y_range"] == [0.25, 1.0]
 
 
