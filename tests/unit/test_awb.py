@@ -501,3 +501,27 @@ def test_cli_no_sidecar(tmp_path):
     dest = tmp_path / "model.awb"
     assert main(["convert", str(src), str(dest), "--no-sidecar"]) == 0
     assert not dest.with_name(dest.name + ".raptor.json").exists()
+
+
+def test_dormant_failure_uses_inspection_detection_delay(tmp_path):
+    from raptor.core.fileio import awb as awb_mod
+    path = tmp_path / "inspection.awb"
+    export_awb(_model(), path)
+    tables = read_awb(path)
+    fm = tables["FailureModels"].rows[0]
+    fm["FmDormant"] = 1
+    task = awb_mod._row(
+        "FailureModelScheduledTasks", FailureModel=0, SubIndex=0, Type=1,
+        Description="Inspect dormant pump", TaskId="IN1", Enabled=1,
+        DetectionP=1.0, TaskDuration=1.0, RampTime=0.0,
+        TaskInterval=1000.0, FixedInterval=0, Offset=0.0)
+    tables["FailureModelScheduledTasks"] = AwbTable(
+        "FailureModelScheduledTasks",
+        _SCHEMA["FailureModelScheduledTasks"], [task])
+    write_awb(path, tables)
+    back, report = import_awb(path)
+    pump = next(r for r in _rows(back, "BLOCK_DATA") if r["blockName"] == "Pump")
+    assert pump["RDist"] != "18"
+    assert float(pump["Pre-LDTDist"]) == 19
+    assert 500.0 < float(pump["Param1#1"]) < 502.0
+    assert "inspection detection delay" in " ".join(report.notes).lower()

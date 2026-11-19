@@ -1819,6 +1819,14 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             "one RAPTOR PM per block: extra AWB planned tasks, and "
             "inspection tasks, are not imported")
 
+    inspection_by_fm: dict[int, dict[str, Any]] = {}
+    for t in sched_tasks:
+        if _int(t.get("Type"), 0) != 1 or not _int(t.get("Enabled"), 0):
+            continue
+        fm_i = _int(t.get("FailureModel"), -1)
+        if fm_i >= 0 and fm_i not in inspection_by_fm:
+            inspection_by_fm[fm_i] = t
+
     corr_spare_by_fm: dict[int, dict[str, Any]] = {}
     for row in corr_spares:
         fm_i = _int(row.get("FailureModel"), -1)
@@ -1872,6 +1880,7 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     # ---- ordinary blocks --------------------------------------------------
     block_losses: dict[str, int] = {}
     block_by_row: dict[int, dict[str, Any]] = {}
+    used_inspections = 0
     for i, b in enumerate(blocks):
         if i == root_i or i in super_rows:
             continue
@@ -1894,6 +1903,20 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
             "repair_dist": rdist, "repair_params": rparams,
         }
         fm_i = _int(b.get("FailureModel"), -1)
+        inspection = inspection_by_fm.get(fm_i)
+        if (inspection is not None and 0 <= fm_i < len(fms)
+                and _int(fms[fm_i].get("FmDormant"), 0)
+                and _int(b.get("LogicMode"), 0) != 1):
+            repair = next((t for t in tasks
+                           if _int(t.get("FailureModel"), -1) == fm_i), None)
+            block["repair_dist"], block["repair_params"] = _task_repair_law(repair)
+            block["pre_ldt_dist"] = _R_FIXED
+            block["pre_ldt_params"] = [_inspection_delay(inspection), 0.0, 0.0]
+            if block_losses.get("dormant failures"):
+                block_losses["dormant failures"] -= 1
+                if not block_losses["dormant failures"]:
+                    del block_losses["dormant failures"]
+            used_inspections += 1
         pm = pm_by_fm.get(fm_i)
         if pm is not None:
             pm_dist, pm_params = task_law(pm)
@@ -1975,6 +1998,17 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
                 "AWB marks the block non-maintainable; RAPTOR repair is off",
         }.get(feature, "")
         report.add(feature, count, detail)
+    if used_inspections:
+        report.notes.append(
+            f"{used_inspections} dormant failure(s) approximated by the "
+            "expected AWB inspection detection delay")
+    enabled_inspections = [t for t in sched_tasks
+                           if _int(t.get("Type"), 0) == 1
+                           and _int(t.get("Enabled"), 0)]
+    if len(enabled_inspections) > used_inspections:
+        report.add("inspection tasks", len(enabled_inspections) - used_inspections,
+                   "enabled inspections without a dormant failure model "
+                   "were not used", kind="partial")
     dep_count = 0
     for row in rule_rows:
         dep_row = _int(row.get("DependentBlock"), -1)
@@ -2345,6 +2379,41 @@ def _endpoint(kind: int, index: int, block_id: dict[int, int],
     return None
 
 
+def _task_repair_law(task: dict[str, Any] | None) -> tuple[int, list[float]]:
+    """AWB corrective task -> RAPTOR repair law."""
+    if task is None:
+        return _R_FIXED, [0.0, 0.0, 0.0]
+    duration = max(0.0, _num(task.get("TaskDuration"))
+                   + _num(task.get("RampTime")))
+    dist = _int(task.get("Distribution"), 2)
+    std = max(0.0, _num(task.get("Std")))
+    if dist == 0:
+        return _R_EXPO, [max(1e-9, duration), 0.0, 0.0]
+    if dist == 1:
+        return _R_LOGNORM, [max(1e-9, duration), std, 0.0]
+    if dist == 3:
+        return _R_WEIBULL, [max(1e-9, _num(task.get("Beta"), 2.0)),
+                            max(1e-9, duration),
+                            max(0.0, _num(task.get("Gamma")))]
+    if std > 0:
+        return _R_NORM, [max(1e-9, duration), std, 0.0]
+    return _R_FIXED, [max(0.0, duration), 0.0, 0.0]
+
+
+def _inspection_delay(task: dict[str, Any]) -> float:
+    """Expected detection delay for a dormant failure under an inspection."""
+    interval = max(1e-9, _num(task.get("TaskInterval"), 8760.0))
+    first = _num(task.get("Offset"), 0.0)
+    first = interval if first <= 0 else min(interval, first)
+    detection = min(1.0, max(0.01, _num(task.get("DetectionP"), 1.0)))
+    inspection_time = max(0.0, _num(task.get("TaskDuration"))
+                          + _num(task.get("RampTime")))
+    # A failure appears uniformly in the inspection interval; a perfect
+    # inspection finds it on average half an interval later.  A detection
+    # probability below 1 stretches that by 1/p.
+    return first / (2.0 * detection) + inspection_time
+
+
 def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901, PLR0912
                 tasks: list[dict[str, Any]],
                 losses: dict[str, int]) -> tuple[int, list[float], int, list[float]]:
@@ -2436,11 +2505,6 @@ def _check_import_features(tables: dict[str, AwbTable], report: AwbReport) -> No
                    len(planned) - len(fms_with_planned),
                    "RAPTOR has one PM per block; only the first planned "
                    "task per failure model is imported", kind="partial")
-    inspections = [t for t in sched
-                   if _int(t.get("Type"), 0) == 1 and _int(t.get("Enabled"), 0)]
-    if inspections:
-        report.add("inspection tasks", len(inspections),
-                   "AWB inspection tasks are not imported as RAPTOR PM")
     calendar_pm = [t for t in planned if _int(t.get("FixedInterval"), 0)]
     if calendar_pm:
         report.add("calendar-interval PM", len(calendar_pm),
