@@ -3741,7 +3741,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 # arrived clipped to the 150 px startup strip (reported:
                 # "ok when I click the Run panel, not when I open the
                 # Simulate ribbon"). Measure it here, the way the tab click
-                # does.
+                # does, as the tab on show (fit_height lifts its cap for a
+                # tab behind another).
+                self._bottom_active_dock = run
                 if hasattr(run, "fit_height"):
                     run.fit_height()
                 sync = (getattr(self, "_dock_state_sync", None) or {}).get(run)

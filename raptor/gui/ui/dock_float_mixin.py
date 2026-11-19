@@ -60,6 +60,23 @@ class DockFloatMixin(_Base):
         apart from the main window in the taskbar and Alt+Tab."""
         return self.windowTitle().replace("RAPTOR Studio", "Results", 1)
 
+    def _maximise_results(self) -> None:
+        """Maximise: the Results in their own window, full screen; pressed
+        again (Restore), back in the main window at their docked size."""
+        dock = self._results_dock
+        if dock.isFloating() and dock.isMaximized():
+            self._float_results_properly(dock, False)
+        else:
+            if not dock.isFloating():
+                self._float_results_properly(dock, True)
+            dock.showMaximized()
+            dock.raise_()
+            dock.activateWindow()
+        entry = (getattr(self, "_dock_chrome_entries", None) or {}).get(dock) or {}
+        if entry.get("max_btn") is not None:
+            from raptor.gui.ui.dock_chrome import _sync_maximise
+            _sync_maximise(entry["max_btn"], dock)
+
     def _float_results(self, checked: bool):
         self._float_results_properly(self._results_dock, checked)
 

@@ -698,7 +698,9 @@ class ChartWidget(QWidget):
         if not steps:
             return self._paint_none(painter, spec, palette, area)
         operational = spec.provenance.get("operational")
-        ends = [float(s["to"]) for s in steps] + [float(s["from"]) for s in steps]
+        target = self._target(spec) if _number(operational) else None
+        ends = [float(s["to"]) for s in steps] + [float(s["from"]) for s in steps] \
+            + ([target] if target is not None else [])
         # Zoomed so the steps fill the height, with room under the result
         # so its bar is never a sliver.
         span = max(ends) - min(ends)
@@ -768,6 +770,10 @@ class ChartWidget(QWidget):
         self._column_label(painter, palette, QRectF(x, r.bottom() + 4, width,
                                                     2 * fm.height()),
                            "achieved" if _number(operational) else "rest")
+        if target is not None:
+            # last, over the result column, so its label is not hidden
+            self._target_line(painter, palette, frame, target, horizontal=True,
+                              label=f"target {format_value(target, 'percent', 5)}")
 
     def _column_label(self, painter, palette, rect: QRectF, text: str) -> None:
         fm = QFontMetrics(self.font())
@@ -782,11 +788,13 @@ class ChartWidget(QWidget):
             return self._paint_none(painter, spec, palette, area)
         fm = QFontMetrics(self.font())
         values = [float(r["value"]) for r in rows]
+        target = self._target(spec)
         # Zoomed towards 100 %: the rungs differ by small amounts, and on a
         # 0-100 % axis every bar would look full.
         top_value = 1.0 if max(values) <= 1.0 else max(values)
-        span = max(top_value - min(values), 1e-9)
-        low, high = nice_range(min(values) - 0.6 * span, top_value, 4,
+        bottom = min(values + ([target] if target is not None else []))
+        span = max(top_value - bottom, 1e-9)
+        low, high = nice_range(bottom - 0.6 * span, top_value, 4,
                                share=top_value <= 1.0)
         low, high = max(0.0, low), (min(1.0, high) if top_value <= 1.0 else high)
         gutter = min(area.width() * 0.45,
@@ -824,6 +832,9 @@ class ChartWidget(QWidget):
                              Qt.AlignmentFlag.AlignVCenter, text)
             self._hit(QRectF(r.left(), top, r.width(), bar_h), "rung",
                       str(row["name"]), f"{row['name']}: {text}")
+        if target is not None:
+            self._target_line(painter, palette, frame, target, horizontal=False,
+                              label=f"target {format_value(target, 'percent', 5)}")
 
     def _paint_histogram(self, painter, spec, palette, area) -> None:
         bins = [b for b in spec.series if _number(b.get("lo")) and _number(b.get("hi"))
@@ -1121,8 +1132,10 @@ class ChartWidget(QWidget):
         else:
             self._paint_fan_bands(painter, palette, frame, rows)
         if target is not None:
+            word = next((str(m.get("label")) for m in spec.marks
+                         if m.get("kind") == "target" and m.get("label")), "threshold")
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"threshold {format_value(target, fmt, 5)}")
+                              label=f"{word} {format_value(target, fmt, 5)}")
 
         def read(px: float) -> list[tuple[QPointF, str]]:
             i = min(n - 1, max(0, round(frame.value_at_x(px)) - 1))

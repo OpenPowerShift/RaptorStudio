@@ -209,7 +209,7 @@ def test_the_annual_fan_keeps_the_bands_and_the_threshold():
     periods["by_index"] = periods["by_index"] * 2
     spec = charts.annual_fan(periods)
     assert spec.kind == "fan" and len(spec.series) == 4
-    assert spec.marks == [{"kind": "target", "value": 0.95}]
+    assert spec.marks == [{"kind": "target", "value": 0.95, "label": "threshold"}]
     assert "median moves" in spec.caption and "band" in spec.subtitle
 
 

@@ -318,6 +318,12 @@ def _target(spec: ChartSpec) -> float | None:
                  if m.get("kind") == "target" and _number(m.get("value"))), None)
 
 
+def _target_word(spec: ChartSpec) -> str:
+    """"target" for the Charts page's target, "threshold" for a summary's."""
+    return next((str(m["label"]) for m in spec.marks
+                 if m.get("kind") == "target" and m.get("label")), "threshold")
+
+
 def _target_line(out: list[str], frame: _Frame, value: float, *,
                  horizontal: bool, label: str) -> None:
     box = frame.box
@@ -942,7 +948,7 @@ def _fan(spec: ChartSpec, area: _Box) -> list[str]:
         _fan_bands(out, rows, frame)
     if target is not None:
         _target_line(out, frame, target, horizontal=True,
-                     label=f"threshold {format_value(target, fmt, 5)}")
+                     label=f"{_target_word(spec)} {format_value(target, fmt, 5)}")
     return out
 
 
