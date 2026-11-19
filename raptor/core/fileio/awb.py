@@ -1752,24 +1752,43 @@ def import_awb(path: str | Path, *,  # noqa: C901, PLR0912, PLR0915
     spare_doc: list[dict[str, Any]] = []
     spare_name: dict[int, str] = {}
     used_spares: set[str] = set()
+    stocked_l1_delay = 0
     for i, sp in enumerate(spare_rows):
         name = _unique(_safe_id(_text(sp.get("Id"), f"Spare{i + 1}"), 20),
                        used_spares, 20)
         stock = max(0, _int(sp.get("CapacityLevel1"), 0)
                     + _int(sp.get("CapacityLevel2"), 0))
-        arrive = max(1.0, _num(sp.get("LogisticDelayLevel2"), 0.0)
-                     or _num(sp.get("LogisticDelayLevel3"), 24.0))
-        emer = max(1.0, _num(sp.get("LogisticDelayLevel3"), arrive))
+        # AWB level 3 is an unlimited manufacturing source: a demand that
+        # level 1 and level 2 cannot meet waits the level 3 -> 2 -> 1 ->
+        # task delays, and AvSim never runs out (manual, "Spares - Level 3
+        # Properties").  RAPTOR's nearest equivalent is emergency ordering
+        # with that summed delay, plus a one-for-one stock-level reorder
+        # (reorder at stock-1, quantity 1) that refills held stock after
+        # the level 3 -> 1 delay.  Without ESO a zero-stock pool would be
+        # permanently empty and every block using it would end "Done".
+        d1 = max(0.0, _num(sp.get("LogisticDelayLevel1"), 0.0))
+        d2 = max(0.0, _num(sp.get("LogisticDelayLevel2"), 0.0))
+        d3 = max(0.0, _num(sp.get("LogisticDelayLevel3"), 0.0))
+        emer = max(1e-6, d1 + d2 + d3)
+        resupply = max(1e-6, d2 + d3)
+        if stock and d1 > 0:
+            stocked_l1_delay += 1
         spare_doc.append({
             "name": name, "stock": stock,
             "new_spares": max(1, _int(sp.get("MinimumReorderQuantity"), 1)),
-            "arrive_every": arrive, "eso": 1 if stock else 0,
-            "emer_time": emer, "slo": 0, "level": 0, "quantity": 1,
-            "slo_time": 24.0, "rso": 0,
+            "arrive_every": resupply, "eso": 1,
+            "emer_time": emer, "slo": 1 if stock else 0,
+            "level": max(0, stock - 1), "quantity": 1,
+            "slo_time": resupply, "rso": 0,
             "spare_cost": max(0.0, _num(sp.get("UnitCost"), 1.0)),
             "emer_ship_cost": max(0.0, _num(sp.get("TransportationCostLevel2"), 1.0)),
         })
         spare_name[i] = name
+    report.add("level-1 spare logistic delay on stocked spares",
+               stocked_l1_delay,
+               "AWB's level-1 delay on a spare drawn from stock is not "
+               "modelled; only a stock-out waits the summed delay",
+               kind="partial")
     if any(_int(sp.get("CapacityLevel2"), 0) for sp in spare_rows):
         report.add("two-level spare holdings", 1,
                    "AWB level-1 and level-2 stock are summed into one "
@@ -2414,6 +2433,67 @@ def _inspection_delay(task: dict[str, Any]) -> float:
     return first / (2.0 * detection) + inspection_time
 
 
+def _competing_weibull_fit(modes: list[tuple[float, float, float]]
+                           ) -> tuple[float, float, float]:
+    """One Weibull (beta, eta, gamma) approximating competing Weibull modes.
+
+    *modes* are (eta, beta, gamma).  The item's life is the minimum of the
+    mode lives.  This is a moment match, not an exact conversion: the
+    fitted law has the same mean and coefficient of variation (measured
+    from the earliest location parameter), so failure counts agree but the
+    hazard shape, which matters for PM timing, is only approximate.
+    """
+    if len(modes) == 1:
+        eta, beta, gamma = modes[0]
+        return beta, eta, gamma
+    g0 = min(m[2] for m in modes)
+
+    def survival(t: float) -> float:
+        h = 0.0
+        for eta, beta, gamma in modes:
+            x = t + g0 - gamma
+            if x > 0:
+                h += (x / eta) ** beta
+        return math.exp(-h)
+
+    # Integrate on a log grid out to where the longest-lived mode alone
+    # would have near-zero survival.
+    upper = max(gamma - g0 + eta * 40.0 ** (1.0 / beta)
+                for eta, beta, gamma in modes)
+    lo = min(eta for eta, _, _ in modes) * 1e-6
+    n = 4000
+    ratio = (upper / lo) ** (1.0 / n)
+    ts = [0.0] + [lo * ratio ** i for i in range(n + 1)]
+    m1 = m2 = 0.0
+    prev_t, prev_s = ts[0], survival(ts[0])
+    for t in ts[1:]:
+        cur = survival(t)
+        dt = t - prev_t
+        m1 += 0.5 * (prev_s + cur) * dt
+        m2 += (prev_t * prev_s + t * cur) * dt
+        prev_t, prev_s = t, cur
+    var = max(0.0, m2 - m1 * m1)
+    if m1 <= 0:
+        eta, beta, gamma = min(modes, key=lambda m: m[0])
+        return beta, eta, gamma
+    cv2 = var / (m1 * m1)
+
+    def weibull_cv2(b: float) -> float:
+        g1 = math.gamma(1.0 + 1.0 / b)
+        return math.gamma(1.0 + 2.0 / b) / (g1 * g1) - 1.0
+
+    lo_b, hi_b = 0.05, 50.0   # CV^2 falls as beta rises
+    for _ in range(100):
+        mid = math.sqrt(lo_b * hi_b)
+        if weibull_cv2(mid) > cv2:
+            lo_b = mid
+        else:
+            hi_b = mid
+    beta = math.sqrt(lo_b * hi_b)
+    eta = m1 / math.gamma(1.0 + 1.0 / beta)
+    return beta, eta, g0
+
+
 def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901, PLR0912
                 tasks: list[dict[str, Any]],
                 losses: dict[str, int]) -> tuple[int, list[float], int, list[float]]:
@@ -2443,19 +2523,18 @@ def _block_data(block: dict[str, Any], fms: list[dict[str, Any]],  # noqa: C901,
         fdist, fparams = _R_NORM, [mttf, max(0.0, _num(fm.get("FmStd"))), 0.0]
     else:
         # Bi-/tri-Weibull and phased laws have no exact RAPTOR equivalent.
-        # The earliest (shortest characteristic life) mode drives most of the
-        # failures, so use it rather than always taking the first mode.
-        modes = [
-            (_num(fm.get("FmEta1"), eta), _num(fm.get("FmBeta1"), beta),
-             _num(fm.get("FmGamma1"), gamma)),
-            (_num(fm.get("FmEta2"), eta), _num(fm.get("FmBeta2"), beta),
-             _num(fm.get("FmGamma2"), gamma)),
-            (_num(fm.get("FmEta3"), eta), _num(fm.get("FmBeta3"), beta),
-             _num(fm.get("FmGamma3"), gamma)),
-        ]
-        modes = [m for m in modes if m[0] > 0]
+        # AWB's modes compete (the item fails at the first of them), so fit
+        # one Weibull to the mean and spread of that competing-risk life.
+        # Only the modes the law uses count: a bi-Weibull's third-mode
+        # columns hold AWB's 8760 h placeholder, not data.
+        n_modes = {_AWB_BI_WEIBULL: 2, _AWB_PHASED_BI: 2,
+                   _AWB_TRI_WEIBULL: 3, _AWB_PHASED_TRI: 3}.get(dist, 1)
+        modes = [(_num(fm.get(f"FmEta{k}"), eta), _num(fm.get(f"FmBeta{k}"), beta),
+                  _num(fm.get(f"FmGamma{k}"), gamma))
+                 for k in range(1, n_modes + 1)]
+        modes = [m for m in modes if m[0] > 0 and m[1] > 0]
         if modes:
-            eta, beta, gamma = min(modes, key=lambda m: m[0])
+            beta, eta, gamma = _competing_weibull_fit(modes)
         fdist, fparams = _R_WEIBULL, [beta, eta, gamma]
         losses["multi-mode or buffer failure distribution"] = (
             losses.get("multi-mode or buffer failure distribution", 0) + 1)
