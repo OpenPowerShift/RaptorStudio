@@ -22,9 +22,8 @@ def chart():
 
 
 def _answer(monkeypatch, path):
-    from PySide6.QtWidgets import QFileDialog
-    monkeypatch.setattr(QFileDialog, "getSaveFileName",
-                        staticmethod(lambda *a, **k: (str(path), "")))
+    from raptor.gui.ui import filedialogs
+    monkeypatch.setattr(filedialogs, "getSaveFileName", lambda *a, **k: (str(path), ""))
 
 
 @pytest.mark.parametrize("ask, ext, magic", [

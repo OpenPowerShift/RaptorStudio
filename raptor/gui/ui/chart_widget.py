@@ -24,7 +24,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPolygonF,
 )
-from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QToolTip, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
@@ -1506,7 +1506,8 @@ def ask_chart_path(parent, caption: str, stem: str, label: str, ext: str) -> str
     name without it gets it added; as the dialog did not check that name,
     replacing a file of that name is asked here."""
     import os
-    path, _ = QFileDialog.getSaveFileName(parent, caption, stem, f"{label} (*{ext})")
+    from raptor.gui.ui.filedialogs import getSaveFileName
+    path, _ = getSaveFileName(parent, caption, stem, f"{label} (*{ext})")
     if not path:
         return ""
     if os.path.splitext(path)[1].lower() != ext:
