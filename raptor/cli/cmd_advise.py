@@ -413,8 +413,10 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
     if not 0.0 <= min_share < 1.0:
         raise CliError("--chart-min-share must be at least 0 and below 1", X.USAGE)
     periods = None
+    from raptor.api.insight import drivers
+    if name == "ensemble-ribbon":
+        attribution = drivers.with_outages(ws, run_id, attribution) or attribution
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
-        from raptor.api.insight import drivers
         periods = drivers.periods(ws, run_id)
     try:
         costs = (charts.stored_element_costs(ws, run_id)

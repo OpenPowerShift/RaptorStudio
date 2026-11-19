@@ -143,12 +143,12 @@ class ChartsPage(QWidget):
         self.run_of.setObjectName("SectionNote")
         self.floor_button = QPushButton("Axis from: auto")
         self.floor_button.setToolTip(
-            "Where the availability axis starts (0 to 0.999999). Auto fits the "
+            "Where the availability axis starts (0 to 99.9999 %). Auto fits the "
             "axis to the data; a value above 0 is a fixed floor used by every "
             "availability chart over time. Saved with the model.")
         self.floor_button.clicked.connect(self._ask_floor)
         self.fold_box = QComboBox()
-        for text, share in (("Show every item", 0.0), ("Fold items below 1 %", 0.01),
+        for text, share in (("Fold nothing", 0.0), ("Fold items below 1 %", 0.01),
                             ("Fold items below 2 %", 0.02),
                             ("Fold items below 5 %", 0.05)):
             self.fold_box.addItem(text, share)
@@ -338,7 +338,7 @@ class ChartsPage(QWidget):
         return next((item for item in self._chart_items()
                      if not self._entries[item.data(0, _KEY)].missing), None)
 
-    def _catalogue(self) -> list[_Entry]:  # noqa: C901 - one table of charts
+    def _catalogue(self) -> list[_Entry]:  # noqa: C901, PLR0915 - one table of charts
         i = self._inputs
         per_run: list[dict] = i.get("per_run") or []
         attribution = i.get("attribution")
@@ -373,11 +373,16 @@ class ChartsPage(QWidget):
 
         ao, cap = self._ao_runs, self._cap_runs
         has_interval = any(v is not None for r in ao for v in r.get("interval", []))
+        # recorded, but the run ended before one interval did: "tick the
+        # Availability plot" was said with the plot ticked
+        short_run = ("The run is shorter than one recording interval, so no "
+                     "interval was completed. Lower the availability plot's "
+                     "interval under Run panel ▸ Recording, then run again.")
         for key, title, missing in (
                 ("availability-through-run", "Availability through a run",
                  "" if ao else _RECORD_AO),
                 ("interval-availability", "Availability interval by interval",
-                 "" if has_interval else _RECORD_AO),
+                 "" if has_interval else short_run if ao else _RECORD_AO),
                 ("availability-band", "Availability across all runs",
                  "" if len(ao) >= 2 else (
                      "Needs the availability plot of at least 2 runs." if ao
@@ -452,8 +457,23 @@ class ChartsPage(QWidget):
             add(key, title, "Lost capacity", build, no_capacity,
                 action if not attribution else "", needs=capacity_needs)
 
-        no_years = ("" if periods else drivers_missing() or
-                    "Needs a run at least one whole year long, in hours.")
+        ends = [float(row["ending_sim_time"]) for row in per_run
+                if isinstance(row.get("ending_sim_time"), (int, float))]
+        length = max(ends) if ends else None
+        if periods:
+            no_years = ""
+        elif drivers_missing():
+            no_years = drivers_missing()
+        elif length is not None and length >= 8760 and not str(
+                i.get("units") or "hours").lower().startswith("hour"):
+            no_years = ("The year charts need the model's time unit to be "
+                        "hours.")
+        elif length is not None and length >= 8760:
+            no_years = ("No outage was recorded, so every year was fully "
+                        "available: there is nothing to draw year by year.")
+        else:
+            no_years = ("Needs a run at least one whole year long (8,760 hours)"
+                        + (f"; this run is {length:,.0f} hours." if length else "."))
         years_needs: tuple[str, ...] = (
             ("attribution",) if not attribution and not action else ())
         p = periods or {}
@@ -602,13 +622,16 @@ class ChartsPage(QWidget):
 
     def _sync_floor_text(self) -> None:
         self.floor_button.setText(
-            "Axis from: auto" if self._y_floor <= 0 else f"Axis from: {self._y_floor:.4g}")
+            "Axis from: auto" if self._y_floor <= 0
+            else f"Axis from: {100 * self._y_floor:.4g} %")
 
     def _ask_floor(self) -> None:
         from PySide6.QtWidgets import QInputDialog
+        # in percent, as the axis is: it asked for 0.95 under a 95 % axis
         value, ok = QInputDialog.getDouble(
-            self, "Availability axis", "Start the axis at (0 = fit to the data):",
-            self._y_floor, 0.0, 0.999999, 6)
+            self, "Availability axis", "Start the axis at, in % (0 = fit to the data):",
+            round(100 * self._y_floor, 4), 0.0, 99.9999, 4)
+        value /= 100.0
         if ok and 0.0 <= value < 1.0 and value != self._y_floor:
             self.set_y_floor(value)
             self.y_floor_changed.emit(value)

@@ -28,8 +28,8 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QToolTip, QWidge
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, fit_dots, format_value, nice_range, nice_ticks, pct, period_axis,
-    place_labels, tick_text,
+    FAN_LINE_MIN, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    period_axis, place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec, bubble_tip
 from raptor.gui.resources.design_tokens import active_colour
@@ -39,6 +39,7 @@ PAD = 16              # outer margin
 TITLE_H = 44          # title and subtitle
 KEY_H = 20            # one row of the cause key
 CAPTION_H = 36        # up to two lines of caption
+COMPACT_H = 330       # below this: no subtitle, one key row, one caption line
 TICK_GAP = 6
 
 
@@ -100,6 +101,7 @@ class ChartWidget(QWidget):
         self._zoom: tuple[float, float] | None = None
         self._drag_from: QPointF | None = None
         self._zoom_frame: _Frame | None = None
+        self._caption_in_body = False
         # Small on purpose: the results dock is as tall as its tallest
         # page's minimum, and a tall floor here stops the user dragging the
         # bottom splitter (the chart repaints at whatever height it gets).
@@ -151,28 +153,12 @@ class ChartWidget(QWidget):
         spec = self._spec
         if spec is None:
             return
+        from raptor.api.insight.charts import csv_table
+        header, rows = csv_table(spec)
         with open(path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
-            if spec.kind == "timeline":
-                # one row per corner point: layer, time, then its value or band
-                writer.writerow(["layer", "time", "value", "low", "high"])
-                for layer in spec.series:
-                    for k, t in enumerate(layer.get("t") or []):
-                        writer.writerow([
-                            layer.get("name", ""), t,
-                            (layer.get("y") or [""] * (k + 1))[k],
-                            (layer.get("lo") or [""] * (k + 1))[k],
-                            (layer.get("hi") or [""] * (k + 1))[k]])
-                return
-            writer.writerow(["series", "name", "x", "y", "value", "note"])
-            for series in spec.series:
-                rows = series.get("dots") or series.get("points") or [series]
-                for row in rows:
-                    writer.writerow([
-                        series.get("name", ""), row.get("name", ""),
-                        row.get("x", row.get("share", row.get("n", ""))),
-                        row.get("y", ""), row.get("value", ""),
-                        row.get("lo", ""), ])
+            writer.writerow(header)
+            writer.writerows(rows)
 
     def copy_image(self) -> None:
         """The saved drawing, for pasting into a document or slide."""
@@ -203,36 +189,62 @@ class ChartWidget(QWidget):
                              "No chart for this result.")
             painter.end()
             return
+        # Compact below COMPACT_H: in a 190 px Results panel (a 1280 x 720
+        # screen) the title, a two-row key and the caption took all the
+        # height and no plot was drawn at all.
+        compact = self.height() < COMPACT_H
+        title_h = 30 if compact else TITLE_H
+        caption_h = 20 if compact else CAPTION_H
+        fm = QFontMetrics(self.font())
         title_font = QFont(self.font())
-        title_font.setPointSizeF(title_font.pointSizeF() + 2)
+        title_font.setPointSizeF(title_font.pointSizeF() + (1 if compact else 2))
         title_font.setBold(True)
         painter.setFont(title_font)
         painter.setPen(QColor(palette["text"]))
-        painter.drawText(QRectF(PAD, 6, self.width() - 2 * PAD, 24),
-                         Qt.AlignmentFlag.AlignHCenter, spec.title)
+        title_w = QFontMetrics(title_font).horizontalAdvance(spec.title)
+        painter.drawText(QRectF(PAD, 4 if compact else 6, self.width() - 2 * PAD, 24),
+                         Qt.AlignmentFlag.AlignLeft if compact
+                         else Qt.AlignmentFlag.AlignHCenter, spec.title)
         painter.setFont(self.font())
-        painter.setPen(QColor(palette["muted"]))
-        fm = QFontMetrics(self.font())
-        painter.drawText(QRectF(PAD, 28, self.width() - 2 * PAD, 16),
-                         Qt.AlignmentFlag.AlignHCenter,
-                         fm.elidedText(spec.subtitle, Qt.TextElideMode.ElideRight,
-                                       self.width() - 2 * PAD))
+        if not compact:
+            painter.setPen(QColor(palette["muted"]))
+            painter.drawText(QRectF(PAD, 28, self.width() - 2 * PAD, 16),
+                             Qt.AlignmentFlag.AlignHCenter,
+                             fm.elidedText(spec.subtitle, Qt.TextElideMode.ElideRight,
+                                           self.width() - 2 * PAD))
         self._hits, self._tips = [], []
         self._probe = None
-        top = TITLE_H + self._paint_key(painter, spec, palette, TITLE_H)
+        self._caption_in_body = False
+        if compact:
+            # the key on the title's line, after it
+            key_h = self._paint_key(painter, spec, palette, 6, max_rows=1,
+                                    start=PAD + title_w + 24)
+            top = max(float(title_h), 6 + key_h)
+        else:
+            top = title_h + self._paint_key(painter, spec, palette, title_h)
         area = QRectF(PAD, top + 4, max(1.0, self.width() - 2 * PAD),
-                      max(1.0, self.height() - top - 4 - CAPTION_H))
+                      max(1.0, self.height() - top - 4 - caption_h))
         if area.height() >= 40 and area.width() >= 120:
             draw = getattr(self, f"_paint_{spec.kind}", self._paint_none)
             draw(painter, spec, palette, area)
             self._paint_probe(painter, palette)
-        if spec.caption:
+        else:
+            painter.setPen(QColor(palette["muted"]))
+            painter.drawText(QRectF(PAD, top, self.width() - 2 * PAD,
+                                    max(16.0, self.height() - top - caption_h)),
+                             Qt.AlignmentFlag.AlignCenter,
+                             "Make this panel taller (or float it) to see the chart.")
+        if spec.caption and not self._caption_in_body:
             painter.setPen(QColor(palette["text"]))
-            painter.drawText(
-                QRectF(PAD, self.height() - CAPTION_H + 2,
-                       self.width() - 2 * PAD, CAPTION_H - 4),
-                Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
-                spec.caption)
+            rect = QRectF(PAD, self.height() - caption_h + 2,
+                          self.width() - 2 * PAD, caption_h - 4)
+            if compact:
+                painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                                 fm.elidedText(spec.caption, Qt.TextElideMode.ElideRight,
+                                               int(rect.width())))
+            else:
+                painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
+                                 spec.caption)
         painter.end()
 
     # The cause key: one swatch per cause the chart shows.
@@ -285,7 +297,8 @@ class ChartWidget(QWidget):
         for label, key in solids.get(spec.kind, ()):
             entries.append((label, solid(palette[key])))
         if spec.kind == "timeline":
-            for layer in spec.series:
+            from raptor.api.insight.timecharts import in_key
+            for layer in filter(in_key, spec.series):
                 entries.append((str(layer.get("name", "")),
                                 self._layer_swatch(painter, palette, layer)))
         return entries
@@ -304,15 +317,25 @@ class ChartWidget(QWidget):
         return swatch
 
     def _paint_key(self, painter: QPainter, spec: ChartSpec,
-                   palette: dict[str, str], top: float) -> float:
+                   palette: dict[str, str], top: float, max_rows: int = 0,
+                   start: float = PAD) -> float:
+        """The key, wrapped onto rows; at most `max_rows` (0: no limit),
+        the entries that do not fit then counted as "+N more". The first
+        row starts at `start`."""
         entries = self._key_entries(painter, spec, palette)
         if not entries:
             return 0.0
         fm = QFontMetrics(self.font())
-        x, y, rows = float(PAD), top, 1
-        for label, draw in entries:
+        x, y, rows = float(start), top, 1
+        for index, (label, draw) in enumerate(entries):
             width = 18 + fm.horizontalAdvance(label) + 14
             if x + width > self.width() - PAD and x > PAD:
+                if max_rows and rows >= max_rows:
+                    painter.setPen(QColor(palette["muted"]))
+                    painter.drawText(QRectF(x, y, self.width() - PAD - x, KEY_H),
+                                     Qt.AlignmentFlag.AlignVCenter,
+                                     f"+{len(entries) - index} more")
+                    break
                 x, y, rows = float(PAD), y + KEY_H, rows + 1
             draw(QRectF(x, y + 4, 14, 12))
             painter.setPen(QColor(palette["text"]))
@@ -340,6 +363,8 @@ class ChartWidget(QWidget):
         gutter = max([fm.horizontalAdvance(t) for t in y_text] + [10]) + TICK_GAP
         y_title = (y_label if y_label is not None else spec.y_label) or ""
         x_title = (x_label if x_label is not None else spec.x_label) or ""
+        if self.height() < COMPACT_H:
+            x_title = ""          # the plot needs the line more than the title
         left = area.left() + gutter + (fm.height() + 4 if y_title else 0)
         bottom = area.bottom() - fm.height() - 4 - (fm.height() + 2 if x_title else 0)
         rect = QRectF(left, area.top() + fm.height() / 2,
@@ -354,8 +379,12 @@ class ChartWidget(QWidget):
             y = frame.y(t)
             painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
         painter.setPen(axis)
+        last_y = 1e9
         for t, text in zip(yt, y_text, strict=True):
             y = frame.y(t)
+            if abs(last_y - y) < fm.height():
+                continue          # a short plot: never stack tick labels
+            last_y = y
             painter.drawText(QRectF(rect.left() - gutter - 2, y - fm.height() / 2,
                                     gutter - 2, fm.height()),
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -450,10 +479,40 @@ class ChartWidget(QWidget):
         self._hits.append((rect, kind, name))
         self._tips.append(tip)
 
-    def _paint_none(self, painter, spec, palette, area) -> None:  # noqa: ARG002
+    def _paint_none(self, painter, spec, palette, area) -> None:
+        """Nothing to draw: say why, in the middle. It said "This chart
+        cannot be drawn from the data", which read as a fault, with the
+        reason small at the bottom."""
         painter.setPen(QColor(palette["muted"]))
-        painter.drawText(area, Qt.AlignmentFlag.AlignCenter,
-                         "This chart cannot be drawn from the data.")
+        painter.drawText(area.adjusted(20, 0, -20, 0),
+                         Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+                         spec.caption or "Nothing to show for this run.")
+        self._caption_in_body = True
+
+    def _fit_rows(self, rows: list, area: QRectF) -> tuple[list, int]:
+        """As many bar rows as the height can label (16 px a row), and how
+        many were left out: in a short panel ten names were drawn on top
+        of each other."""
+        room = max(1, int((area.height() - 40) // 16))
+        return (rows, 0) if len(rows) <= room else (rows[:room], len(rows) - room)
+
+    def _more_rows(self, painter, palette, frame: _Frame, hidden: int) -> None:
+        spec = self._spec
+        items = spec.provenance.get("items") if spec is not None else None
+        shown = len(spec.series) - hidden if spec is not None else 0
+        compact = self.height() < COMPACT_H     # no subtitle to carry "top 10 of 220"
+        if isinstance(items, int) and items > shown and (hidden or compact):
+            text = f"{shown} of {items:,} shown"
+            if hidden:
+                text += ": make the panel taller to see more"
+        elif hidden:
+            text = f"{hidden} more not shown: make the panel taller"
+        else:
+            return
+        painter.setPen(QColor(palette["muted"]))
+        painter.drawText(QRectF(frame.rect.left(), frame.rect.top() - 16,
+                                frame.rect.width(), 16),
+                         Qt.AlignmentFlag.AlignRight, text)
 
     # -- the charts -----------------------------------------------------
 
@@ -472,7 +531,7 @@ class ChartWidget(QWidget):
         target = self._target(spec)
         low = min(values + ([target] if target is not None else []))
         high = max(values + ([target] if target is not None else []))
-        low, high = nice_range(low, high, 5)
+        low, high = nice_range(low, high, 5, share=self._fmt() == "percent")
         fmt = self._fmt()
         frame = self._frame(painter, spec, palette, area, x_range=(low, high),
                             y_range=(0, 1), x_fmt=fmt, y_ticks=[], y_label="",
@@ -513,7 +572,7 @@ class ChartWidget(QWidget):
         values = [float(p["value"]) for p in points]
         low = min(values + ([target] if target is not None else []))
         high = max(values + ([target] if target is not None else []))
-        low, high = nice_range(low, high, 5)
+        low, high = nice_range(low, high, 5, share=self._fmt() == "percent")
         frame = self._frame(painter, spec, palette, area, x_range=(0.0, 1.0),
                             y_range=(low, high), x_fmt="percent", y_fmt=fmt,
                             x_ticks=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
@@ -557,6 +616,7 @@ class ChartWidget(QWidget):
         rows = [row for row in spec.series if _number(row.get("value"))]
         if not rows:
             return self._paint_none(painter, spec, palette, area)
+        rows, hidden = self._fit_rows(rows, area)
         fm = QFontMetrics(self.font())
         fmt = self._fmt()
         money = fmt == "money"
@@ -576,6 +636,7 @@ class ChartWidget(QWidget):
         frame = self._frame(painter, spec, palette, plot, x_range=(0.0, peak),
                             y_range=(0, 1), x_fmt=fmt, y_ticks=[], y_label="",
                             x_label=spec.y_label)
+        self._more_rows(painter, palette, frame, hidden)
         r = frame.rect
         band = r.height() / len(rows)
         bar_h = max(2.0, min(26.0, band * 0.64))
@@ -725,7 +786,8 @@ class ChartWidget(QWidget):
         # 0-100 % axis every bar would look full.
         top_value = 1.0 if max(values) <= 1.0 else max(values)
         span = max(top_value - min(values), 1e-9)
-        low, high = nice_range(min(values) - 0.6 * span, top_value, 4)
+        low, high = nice_range(min(values) - 0.6 * span, top_value, 4,
+                               share=top_value <= 1.0)
         low, high = max(0.0, low), (min(1.0, high) if top_value <= 1.0 else high)
         gutter = min(area.width() * 0.45,
                      max(fm.horizontalAdvance(str(r["name"])) for r in rows) + 10)
@@ -806,11 +868,24 @@ class ChartWidget(QWidget):
                        x_fmt: str | None = None, y_fmt: str | None = None):
         xs = [float(p["x"]) for p in points] + [x for x, _y in include]
         ys = [float(p["y"]) for p in points] + [y for _x, y in include]
+        fmt = self._fmt()
         x_high = nice_range(0.0, max(xs) * 1.08 or 1.0, 5)[1]
         y_high = nice_range(0.0, max(ys) * 1.12 or 1.0, 5)[1]
+        if fmt == "percent":
+            # shares stop at 100 % (the axes ran to 125 %)
+            x_high = min(x_high, 1.0) if max(xs) <= 1.0 else x_high
+            y_high = min(y_high, 1.0) if max(ys) <= 1.0 else y_high
         if square:
             x_high = y_high = max(x_high, y_high)
-        fmt = self._fmt()
+        if spec.provenance.get("x_log") and min(xs) > 0:
+            # RAW from 1 to 2,600: a linear axis piled most blocks at the left
+            lo, hi = min(xs) / 1.5, max(xs) * 1.5
+            return self._frame(painter, spec, palette, area, x_range=(lo, hi),
+                               y_range=(0.0, y_high), x_log=True,
+                               x_ticks=log_ticks(lo, hi),
+                               x_label=f"{spec.x_label} (log scale)",
+                               x_fmt=fmt if x_fmt is None else x_fmt,
+                               y_fmt=fmt if y_fmt is None else y_fmt)
         return self._frame(painter, spec, palette, area, x_range=(0.0, x_high),
                            y_range=(0.0, y_high),
                            x_fmt=fmt if x_fmt is None else x_fmt,
@@ -907,16 +982,16 @@ class ChartWidget(QWidget):
                    for p in points]
         low = min(m - s for m, s in zip(means, spreads, strict=True))
         high = max(m + s for m, s in zip(means, spreads, strict=True))
-        low, high = nice_range(low, high, 5)
-        if fmt == "percent":
-            low, high = max(0.0, low), min(1.0, high) if high > 1.0 and max(means) <= 1 \
-                else high
-            high = min(high, 1.0) if max(m + s for m, s in zip(means, spreads, strict=True)) <= 1 \
-                else high
+        # a share's +/- 2 SE band stops at 0 and 100 % (it drew a 125 % tick)
+        low, high = nice_range(low, high, 5,
+                               share=fmt == "percent" and max(means) <= 1.0)
         n = len(points)
         frame = self._frame(painter, spec, palette, area,
                             x_range=(1.0, max(2.0, float(n))), y_range=(low, high),
                             x_fmt="count", y_fmt=fmt,
+                            # whole runs only: one run gave ticks 1.2, 1.4
+                            x_ticks=[t for t in nice_ticks(1.0, max(2.0, float(n)), 6)
+                                     if float(t).is_integer()],
                             y_label="running mean")
 
         def pt(i: int, value: float) -> QPointF:
@@ -979,6 +1054,7 @@ class ChartWidget(QWidget):
         rows = spec.series
         if not rows:
             return self._paint_none(painter, spec, palette, area)
+        rows, hidden = self._fit_rows(list(rows), area)
         fm = QFontMetrics(self.font())
         peak = max(max(float(row.get("value") or 0), float(row.get("downtime") or 0))
                    for row in rows) or 1.0
@@ -990,7 +1066,8 @@ class ChartWidget(QWidget):
                       max(40.0, area.width() - gutter - value_w), area.height())
         frame = self._frame(painter, spec, palette, plot, x_range=(0.0, peak),
                             y_range=(0, 1), x_fmt="percent", y_ticks=[],
-                            y_label="", x_label="share")
+                            y_label="", x_label="share of the total")
+        self._more_rows(painter, palette, frame, hidden)
         r = frame.rect
         band = r.height() / len(rows)
         bar_h = max(2.0, min(12.0, band * 0.32))
@@ -1031,7 +1108,7 @@ class ChartWidget(QWidget):
         mids = [float(r["p50"]) for r in rows]
         low = min(lows + mids + ([target] if target is not None else []))
         high = max(highs + mids + ([target] if target is not None else []))
-        low, high = nice_range(low, high, 5)
+        low, high = nice_range(low, high, 5, share=fmt == "percent")
         if fmt == "percent":
             low, high = max(0.0, low), min(1.0, high)
         n = len(rows)
@@ -1119,10 +1196,15 @@ class ChartWidget(QWidget):
             y_high = y_low + 1.0
         if fmt != "percent":
             y_low, y_high = nice_range(y_low, y_high, 5)
+        y_ticks = nice_ticks(y_low, y_high, 5)
+        if fmt == "percent" and y_high >= 1.0:
+            # room above 100 %: a run that never went down drew its line on
+            # the frame's top edge, and the chart looked empty
+            y_high += (y_high - y_low) * 0.04
         frame = self._frame(painter, spec, palette, area,
                             x_range=(t_start, max(t_end, t_start + 1e-9)),
                             y_range=(y_low, y_high), y_fmt=fmt,
-                            y_ticks=nice_ticks(y_low, y_high, 5))
+                            y_ticks=y_ticks)
 
         def pt(t: float, value: float) -> QPointF:
             return QPointF(frame.x(t), frame.y(min(y_high, max(y_low, value))))
@@ -1266,7 +1348,7 @@ class ChartWidget(QWidget):
                    + (", double-click for the whole run" if zoomed else ""))
         frame = self._frame(painter, spec, palette, area,
                             x_range=(start, end), y_range=(0.0, float(len(rows))),
-                            y_ticks=[], y_label=f"{len(rows)} runs, best at the top",
+                            y_ticks=[], y_label=_ribbon_rows(spec, len(rows)),
                             x_label=x_label)
         self._zoom_frame = frame
         r = frame.rect
@@ -1451,7 +1533,12 @@ def _tone(palette: dict[str, str], layer: dict) -> QColor:
     colour = QColor(palette[_TONES.get(str(layer.get("tone")), "accent")])
     if layer.get("role") == "area":
         alpha = layer.get("alpha")
-        colour.setAlphaF(float(alpha) if isinstance(alpha, (int, float)) else 0.85)
+        alpha = float(alpha) if isinstance(alpha, (int, float)) else 0.85
+        if QColor(palette["surface"]).lightnessF() < 0.5 and alpha < 0.5:
+            # a pale band over a dark surface all but vanished (0.14 of the
+            # accent on near-black): the same steps, stronger
+            alpha = min(0.6, alpha * 1.8)
+        colour.setAlphaF(alpha)
     return colour
 
 
@@ -1498,11 +1585,22 @@ def _timeline_reader(layers: list[dict], fmt: str, units: str, frame: _Frame,
     return read
 
 
+def _ribbon_rows(spec: ChartSpec, shown: int) -> str:
+    """'200 of 205 runs, best at the top' when the ribbon is a sample."""
+    total = spec.provenance.get("runs")
+    if isinstance(total, int) and total > shown:
+        return f"{shown} of {total:,} runs, best at the top"
+    return f"{shown} run{'s' if shown != 1 else ''}, best at the top"
+
+
 def _points(fraction: float) -> str:
     """A loss in percentage points with its leading digits: 0.0054, 0.000081."""
     value = 100 * abs(fraction)
     if value == 0:
         return "0"
+    if value >= 1e-3:
+        # three figures, as the caption: "-25 pts" sat beside "24.7 points"
+        return f"{value:.3g}"
     places = max(0, min(9, 1 - math.floor(math.log10(value))))
     return f"{value:.{places}f}"
 

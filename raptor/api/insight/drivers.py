@@ -25,6 +25,23 @@ def read(workspace: Any, run_id: str) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def with_outages(workspace: Any, run_id: str,
+                 attribution: dict[str, Any] | None) -> dict[str, Any] | None:
+    """`attribution` with the run's per-run outage record attached, as the
+    window does: the run stores it apart (outages.json), so the ensemble
+    ribbon drawn from MCP or the command line was always empty."""
+    if attribution is None or attribution.get("outages"):
+        return attribution
+    from raptor.api.run import run_dir
+    path = run_dir(workspace, run_id) / "outages.json"
+    if not path.is_file():
+        return attribution
+    try:
+        return {**attribution, "outages": json.loads(path.read_text())}
+    except (OSError, ValueError):
+        return attribution
+
+
 def periods(workspace: Any, run_id: str, length: float | None = None, *,
             offset: float = 0.0, below: float | None = None,
             partial: str = "drop", rows: bool = False) -> dict[str, Any]:
