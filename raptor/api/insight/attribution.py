@@ -53,6 +53,9 @@ MAX_STEPS = 6
 MAX_OUTAGES_KEPT = 2000
 
 Key = tuple[str, int]
+#: States of a second element, out during another's outage, that say why it
+#: could not cover: held by a dependency, or waiting for a spare or for crew.
+ALONGSIDE = ("dependency", "wait_spare", "wait_resource")
 SYSTEM_KEY: Key = ("system", 0)
 
 
@@ -95,6 +98,8 @@ class Outage:
     initiator: Key
     by_failure: bool
     steps: tuple[tuple[Key, str], ...]
+    #: steps past MAX_STEPS, not listed
+    more_steps: int = 0
 
     @property
     def duration(self) -> float:
@@ -113,6 +118,9 @@ class TrialAttribution:
     cause_time: dict[str, float] = field(default_factory=dict)    # red time by cause
     initiator_cause: dict[Key, dict[str, float]] = field(default_factory=dict)
     own_time: dict[Key, dict[str, float]] = field(default_factory=dict)
+    #: red time of outages each element started, while another element was
+    #: also out held by a dependency or waiting: {initiator: {(other, cause): t}}
+    alongside: dict[Key, dict[tuple[Key, str], float]] = field(default_factory=dict)
     names: dict[Key, str] = field(default_factory=dict)
     kept: list[Outage] = field(default_factory=list)
     #: every system-down interval as a flat [start, end, start, end...] list,
@@ -152,6 +160,8 @@ class _Replay:
         self.group_down: list[tuple[Key, str]] = []
         self.current: Outage | None = None
         self.steps: list[tuple[Key, str]] = []
+        #: steps past MAX_STEPS in the outage being read
+        self.more_steps = 0
 
     def holder(self) -> tuple[Key, str]:
         """The element holding the system down now, and its state."""
@@ -183,11 +193,23 @@ class _Replay:
                 out.cause_time[cause] = out.cause_time.get(cause, 0.0) + dt
                 per = out.initiator_cause.setdefault(initiator, {})
                 per[cause] = per.get(cause, 0.0) + dt
+                self.note_alongside(initiator, dt)
                 if phase is not None:
                     out.phase_red[phase] = out.phase_red.get(phase, 0.0) + dt
                     by = out.phase_initiated.setdefault(phase, {})
                     by[initiator] = by.get(initiator, 0.0) + dt
+        if self.red and self.current is not None and to > self.now:
+            self.note_step()
         self.now = max(self.now, to)
+
+    def note_alongside(self, initiator: Key, dt: float) -> None:
+        """Another element out at the same time because it is held or
+        waiting: a backup that cannot cover (`ALONGSIDE`)."""
+        for key in self.down:
+            cause = self.state.get(key, "")
+            if key != initiator and cause in ALONGSIDE:
+                by = self.out.alongside.setdefault(initiator, {})
+                by[(key, cause)] = by.get((key, cause), 0.0) + dt
 
     def book_own_time(self, key: Key, until: float) -> None:
         """Credit `key`'s time in its current state up to `until`. Done only
@@ -212,11 +234,19 @@ class _Replay:
             self.book_own_time(key, self.now)
 
     def note_step(self) -> None:
-        step = self.holder()
+        """Record who holds the system down over the span being advanced.
+        Called only when time passes: a block's instant "Failed" line
+        before its "Repairing" line is not a step ("Junk (other)")."""
+        key, cause = self.holder()
+        step = (key, cause if cause in CAUSES else "other")
         if step[0] == SYSTEM_KEY and self.steps:
             return            # the last element just came back; the outage is about to end
-        if (not self.steps or self.steps[-1] != step) and len(self.steps) < MAX_STEPS:
+        if self.steps and self.steps[-1] == step:
+            return
+        if len(self.steps) < MAX_STEPS:
             self.steps.append(step)
+        else:
+            self.more_steps += 1
 
     def close(self, at: float) -> None:
         current = self.current
@@ -224,6 +254,7 @@ class _Replay:
             return
         current.end = at
         current.steps = tuple(self.steps)
+        current.more_steps = self.more_steps
         lo = max(current.start, self.start_stats)
         if at > lo:
             self.out.red += [lo, at]
@@ -231,6 +262,7 @@ class _Replay:
                 and len(self.out.kept) < MAX_OUTAGES_KEPT):
             self.out.kept.append(current)
         self.current, self.red, self.steps = None, False, []
+        self.more_steps = 0
 
     def element_line(self, line: Any, is_block: bool) -> None:
         element = getattr(line, "element", None)
@@ -261,8 +293,6 @@ class _Replay:
             if not was_down or failed:
                 how = "failed" if failed else "pm" if new in ("pm", "pm_wait") else "other"
                 self.group_down.append((key, how))
-        if self.red:
-            self.note_step()
 
     def system_line(self, line: Any) -> None:
         t = float(line.time)
@@ -287,7 +317,7 @@ class _Replay:
         self.red = True
         self.current = Outage(t, t, initiator, bool(failed), ())
         self.steps = []
-        self.note_step()
+        self.more_steps = 0
         if t >= self.start_stats:
             out = self.out
             out.outages += 1
@@ -513,7 +543,17 @@ def _element_row(key: Key, trials: list[TrialAttribution], names: dict[Key, str]
             own_down.append(sum(v for s, v in own.items() if s not in _NOT_DOWN) / trial.span)
     cause_means = {c: sum(v) / n for c, v in causes.items() if n and sum(v) > 0}
     total_cause = sum(cause_means.values())
+    together: dict[tuple[Key, str], float] = {}
+    for trial in trials:
+        for pair, t in trial.alongside.get(key, {}).items():
+            together[pair] = together.get(pair, 0.0) + t
+    own_red = sum(red)
+    alongside = [{"element": _label(k, names), "kind": k[0], "id": k[1], "cause": c,
+                  "share": t / own_red}
+                 for (k, c), t in sorted(together.items(), key=lambda kv: -kv[1])[:3]
+                 if own_red > 0]
     return {
+        "alongside": alongside,
         "kind": key[0], "id": key[1], "name": _label(key, names),
         "dtci": _ratio_stat(red, [t.red_time for t in trials]),
         "deci": _ratio_stat(started, [float(t.outages) for t in trials]),
@@ -529,14 +569,24 @@ def _sequences(trials: list[TrialAttribution], names: dict[Key, str]) -> list[di
     found: dict[tuple, list[float]] = {}
     for trial in trials:
         for outage in trial.kept:
-            path = tuple((_label(k, names), cause) for k, cause in outage.steps)
-            entry = found.setdefault(path, [0.0, 0.0])
+            path = (tuple((_label(k, names), cause) for k, cause in outage.steps)
+                    + ((("", "more"),) if outage.more_steps else ()))
+            entry = found.setdefault(path, [0.0, 0.0, 0.0])
             entry[0] += outage.duration
             entry[1] += 1
+            entry[2] += outage.more_steps
     total = sum(v[0] for v in found.values())
-    return [{"steps": [{"element": e, "cause": c} for e, c in path],
-             "share": v[0] / total if total else 0.0, "outages": int(v[1]), "time": v[0]}
-            for path, v in sorted(found.items(), key=lambda kv: -kv[1][0])[:50]]
+    out = []
+    for path, v in sorted(found.items(), key=lambda kv: -kv[1][0])[:50]:
+        more = bool(path) and path[-1] == ("", "more")
+        row: dict[str, Any] = {
+            "steps": [{"element": e, "cause": c} for e, c in (path[:-1] if more else path)],
+            "share": v[0] / total if total else 0.0, "outages": int(v[1]), "time": v[0]}
+        if more:
+            # the chain went on: the average count of steps not listed
+            row["more_steps"] = v[2] / v[1]
+        out.append(row)
+    return out
 
 
 def _duration_hist(durations: list[float], bins: int = 12) -> list[dict[str, float]]:

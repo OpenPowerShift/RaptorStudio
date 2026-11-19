@@ -200,6 +200,26 @@ class ModelContext:
     def outputs_of(self, kind: str, id: int) -> list[tuple[str, int]]:
         return self._edges[1].get((kind, id), [])
 
+    def redundant(self, element: tuple[str, int]) -> bool:
+        """Whether a path from the start to the end avoids `element` (a
+        hierarchy counts as one step): whether, drawn as it is, the system
+        could carry on with `element` alone down. k-of-n nodes are read as
+        1-of-n here, so this is about the drawing, not the vote."""
+        starts = [("node", int(n["id"])) for n in self.nodes if int(n.get("type") or 0) == 1]
+        ends = {("node", int(n["id"])) for n in self.nodes if int(n.get("type") or 0) == 3}
+        outs = self._edges[1]
+        seen = {s for s in starts if s != element}
+        todo = list(seen)
+        while todo:
+            here = todo.pop()
+            if here in ends:
+                return True
+            for nxt in outs.get(here, ()):
+                if nxt != element and nxt not in seen:
+                    seen.add(nxt)
+                    todo.append(nxt)
+        return False
+
     @cached_property
     def groups(self) -> list[Group]:
         out = []

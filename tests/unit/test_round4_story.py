@@ -154,7 +154,7 @@ def test_a_backup_held_down_by_its_unit_is_the_advice():
     update_element(ws, mid, "Block2", {"dep_type": "RBDBlock", "dep_num": 1, "dep_idle": 100})
     result = run_api.run(ws, mid, num_runs=10, attribution=True, confirm_long_run=True)
     found = [f.message for f in advise_stored_run(ws, result.run_id) if f.rule == "R-DRV-002"]
-    assert found and "gives no redundancy" in found[0]
+    assert found and "takes away the redundancy" in found[0]
 
 
 def test_a_stopped_batch_keeps_its_runs_when_attribution_was_asked_for():
