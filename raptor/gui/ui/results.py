@@ -135,6 +135,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        #: (runs asked for, why it stopped) for a batch stopped early
+        self._requested_runs: tuple[int, str] | None = None
+        #: the Charts page's target line, as a fraction (a view setting)
+        self._target: float | None = None
         self._event_logs: list[list[str]] = []
         self._report_data = []
         self._final_lines: list[str] = []
@@ -1398,7 +1402,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def clear(self):
         """Reset every result surface to the pre-run placeholder state."""
-        self._requested_runs: tuple[int, str] | None = None
+        self._requested_runs = None
         self._manifest = None
         self._rbd = None
         self._period_summary = None
@@ -1866,8 +1870,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 model_hash=str(manifest.get("model_hash") or ""),
                 run_id=str(manifest.get("run_id")
                            or manifest.get("digest") or ""),
-                requested_runs=(getattr(self, "_requested_runs", None) or (None, ""))[0],
-                truncated=(getattr(self, "_requested_runs", None) or (None, ""))[1])
+                requested_runs=(self._requested_runs or (None, ""))[0],
+                truncated=(self._requested_runs or (None, ""))[1])
             page.set_story(story)
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging

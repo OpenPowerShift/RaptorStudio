@@ -18,13 +18,13 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots, proportion_text, split_at
+from raptor.api.insight.drivers import top as top_drivers
 
 #: A share of the drivers left over below this is rounding, not "others"
 #: ("others 1.11e-14 %").
 NOISE = 0.0005
 #: Fractions whose shortfall is time down: only these become "h a year".
 DOWN_FRACTIONS = {"availability", "dependability"}
-from raptor.api.insight.drivers import top as top_drivers
 
 #: Requirement metric -> the per-run field that carries it: one table for
 #: the Story, the Advisor's verdict and scenarios.
@@ -375,25 +375,34 @@ def _chips(per_run: list[dict], units: str, has_capacity: bool,
             continue           # "Availability 100 %" of a model with no time
         value = _mean(_values(per_run, field_name))
         text = ""
-        if field_name == "mtbde":
-            label = "Time between outages"
-            value = up / outages if outages and up > 0 else None
-            if not outages:
-                # not "100 hours", the run length, as if it had been measured
-                text = (f"none in {runs}" + (f" (more than {_fmt(length, 'mtbde', units)})"
-                                              if length else ""))
-            elif outages < 10 and value is not None:
-                text = (f"{_fmt(value, 'mtbde', units)} (from {outages} "
-                        f"outage{'s' if outages != 1 else ''}: a rough figure)")
-        elif field_name == "mdt":
-            value = down / outages if outages else None
-            if not outages:
+        if field_name in ("mtbde", "mdt"):
+            if field_name == "mdt" and not outages:
                 continue
+            label, value, text = _time_chip(field_name, label, outages, up, down,
+                                            length, runs, units)
         if value is None and not text:
             continue
         out.append(NumberChip(label=label, value=value, units=units,
                               field=field_name, text=text))
     return out[:6]
+
+
+def _time_chip(field_name: str, label: str, outages: int, up: float, down: float,
+               length: float | None, runs: str, units: str
+               ) -> tuple[str, float | None, str]:
+    """(label, value, text) of a pooled time chip."""
+    if field_name == "mdt":
+        return label, down / outages, ""
+    value = up / outages if outages and up > 0 else None
+    text = ""
+    if not outages:
+        # not "100 hours", the run length, as if it had been measured
+        text = (f"none in {runs}" + (f" (more than {_fmt(length, 'mtbde', units)})"
+                                      if length else ""))
+    elif outages < 10 and value is not None:
+        text = (f"{_fmt(value, 'mtbde', units)} (from {outages} "
+                f"outage{'s' if outages != 1 else ''}: a rough figure)")
+    return "Time between outages", value, text
 
 
 def chip_text(chip: NumberChip) -> str:

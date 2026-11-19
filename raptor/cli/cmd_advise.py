@@ -317,7 +317,7 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
             _text(d, why)
 
 
-def explain_command(args: Any) -> int:
+def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options in turn
     from raptor.api import run as run_api
     from raptor.api.insight import charts, drivers
     if args.list_charts:
