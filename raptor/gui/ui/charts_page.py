@@ -61,7 +61,8 @@ CHART_MIN_HEIGHT = 340
 
 #: The charts that draw a target line, where the Target button is shown.
 TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
-                 "interval-availability", "availability-band")
+                 "interval-availability", "availability-band", "availability-ladder",
+                 "downtime-waterfall", "annual-fan", "annual-dots")
 
 _RECORD_AO = ("These charts are drawn from the availability plot. "
               + run_needs.gui_hint("availability_plot"))
@@ -371,6 +372,10 @@ class ChartsPage(QWidget):
         periods = i.get("periods")
         report_data = i.get("report_data") or []
         target, units = i.get("target"), i.get("units") or ""
+        # The ladder, the waterfall and the year charts are availability
+        # whatever the headline measure is: a dependability target is not
+        # drawn on them.
+        a_target = target if (i.get("measure") or "availability") == "availability" else None
         entries: list[_Entry] = []
 
         def add(key: str, title: str, group: str,
@@ -395,7 +400,7 @@ class ChartsPage(QWidget):
             lambda: charts.ecdf(per_run, measure, label=label, target=target,
                                 units=units), no_runs)
         add("availability-ladder", "Availability ladder", "The answer",
-            lambda: _with_run_id(charts.availability_ladder(_ladder(per_run)), i),
+            lambda: _with_run_id(charts.availability_ladder(_ladder(per_run), a_target), i),
             no_runs)
         add("convergence", "Has the run settled?", "The answer",
             lambda: charts.convergence(per_run, measure, target=target),
@@ -448,7 +453,7 @@ class ChartsPage(QWidget):
                 ("downtime-pareto", "Who causes the downtime",
                  lambda: charts.downtime_pareto(a), ""),
                 ("downtime-waterfall", "Where availability is lost",
-                 lambda: charts.downtime_waterfall(a, operational), ""),
+                 lambda: charts.downtime_waterfall(a, operational, a_target), ""),
                 ("downtime-treemap", "Downtime treemap",
                  lambda: charts.downtime_treemap(a), ""),
                 ("phase-downtime", "Downtime by phase",
@@ -508,10 +513,10 @@ class ChartsPage(QWidget):
             ("attribution",) if not attribution and not action else ())
         p = periods or {}
         add("annual-fan", "Availability year by year", "Year by year",
-            lambda: charts.annual_fan(p), no_years, action if not attribution else "",
+            lambda: charts.annual_fan(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
         add("annual-dots", "A bad year, as a frequency", "Year by year",
-            lambda: charts.annual_dots(p), no_years, action if not attribution else "",
+            lambda: charts.annual_dots(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
         add("annual-capacity-fan", "Capacity delivered year by year", "Year by year",
             lambda: charts.annual_capacity_fan(p),

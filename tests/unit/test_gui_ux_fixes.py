@@ -268,12 +268,11 @@ def test_dock_minimize_bottom_pair_yoked(qapp):
     tabified into one bottom slot, so the same toggle drives both docks'
     stubs together."""
     from raptor.gui.ui.main_window import MainWindow
-    from PySide6.QtWidgets import QToolButton
 
     w = MainWindow()
     bottom, tables = w._results_dock, w._data_tables_dock
     bottom_content, tables_content = bottom.widget(), tables.widget()
-    min_btn = bottom.titleBarWidget().findChildren(QToolButton)[0]
+    min_btn = w._dock_chrome_entries[bottom]["min_btn"]   # Maximise comes first
 
     min_btn.click()
     assert bottom_content.isHidden() and tables_content.isHidden()
@@ -281,7 +280,7 @@ def test_dock_minimize_bottom_pair_yoked(qapp):
     assert tables.minimumHeight() == tables.maximumHeight() < 100
 
     # restoring via EITHER dock's own titlebar button restores both
-    tables.titleBarWidget().findChildren(QToolButton)[0].click()
+    w._dock_chrome_entries[tables]["min_btn"].click()
     assert not bottom_content.isHidden() and not tables_content.isHidden()
     # The restore applies the remembered height fixed, then releases the
     # fix on the next event-loop pass (splitter draggable again) — pump

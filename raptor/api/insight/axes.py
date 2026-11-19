@@ -41,10 +41,18 @@ def nice_range(low: float, high: float, count: int = 5, *,
     """[low, high] widened to whole tick steps (so the axis ends on a tick).
 
     `share`: the values are fractions (availability, a share), so the axis
-    never leaves 0..1 and spans at least one point. Every run at 100 %
-    drew an axis to 101 %, and a spread of 6e-8 gave ticks at 8 decimals."""
+    never leaves 0..1. Every run at 100 % drew an axis to 101 %, and a
+    spread of 6e-8 gave ticks at 8 decimals, so a spread under a thousandth
+    of a point is drawn one point wide. A larger spread under one point is
+    drawn to fit, with a tenth of it as margin: runs from 99.85 % to
+    99.995 % were drawn on a 99 % to 100 % axis, all in its top sixth.
+    Callers put the target in `low`..`high`, so it is always on the axis."""
     if share:
         low, high = max(0.0, min(low, 1.0)), max(0.0, min(high, 1.0))
+        if 1e-5 <= high - low < 0.01:
+            margin = 0.1 * (high - low)
+            low, high = nice_range(max(0.0, low - margin), min(1.0, high + margin), count)
+            return max(0.0, low), min(1.0, high)
         if high - low < 0.01:
             middle = (low + high) / 2
             low, high = middle - 0.005, middle + 0.005

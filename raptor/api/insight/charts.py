@@ -467,7 +467,8 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
 
 
 def downtime_waterfall(attribution: dict[str, Any],
-                       operational: float | None = None) -> ChartSpec:
+                       operational: float | None = None,
+                       target: float | None = None) -> ChartSpec:
     """C3: from 100 % availability to the achieved one, one step per cause."""
     causes = attribution.get("causes") or {}
     loss = 1.0 - operational if operational is not None else None
@@ -496,13 +497,16 @@ def downtime_waterfall(attribution: dict[str, Any],
         "waterfall", "From full availability to the achieved one",
         "each step is a cause's share of the loss", "cause",
         "share of loss", series=steps,
-        marks=[{"kind": "end", "value": running}] if steps else [],
+        # a target only means something on the availability scale
+        marks=([{"kind": "end", "value": running}] if steps else [])
+        + ([{"kind": "target", "value": target}]
+           if target is not None and operational is not None and steps else []),
         caption=caption,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "operational": operational})
 
 
-def availability_ladder(ladder: dict[str, Any]) -> ChartSpec:
+def availability_ladder(ladder: dict[str, Any], target: float | None = None) -> ChartSpec:
     """C4: inherent, achieved and operational availability with their gaps."""
     order = (("inherent", "Inherent (repair only)"),
              ("achieved", "Achieved (+ planned maintenance)"),
@@ -526,6 +530,7 @@ def availability_ladder(ladder: dict[str, Any]) -> ChartSpec:
         "ladder", "What each kind of availability keeps",
         "the gap between rungs is what the next cause takes away",
         "availability", "fraction", series=present,
+        marks=[{"kind": "target", "value": target}] if target is not None else [],
         caption=caption,
         provenance={"runs": ladder.get("runs"), "format": "percent"})
 
@@ -932,7 +937,17 @@ def annual_capacity_fan(periods: dict[str, Any]) -> ChartSpec:
     return spec
 
 
-def annual_fan(periods: dict[str, Any]) -> ChartSpec:
+def _year_line(periods: dict[str, Any], target: float | None
+               ) -> tuple[float | None, str]:
+    """The line the year charts draw and its name: the Charts page's
+    target when one is set (it said "no threshold was set" beside a
+    target the other charts drew), else the summary's own threshold."""
+    if target is not None:
+        return target, "target"
+    return periods.get("threshold"), "threshold"
+
+
+def annual_fan(periods: dict[str, Any], target: float | None = None) -> ChartSpec:
     """K6: does a bad year happen, and does it get worse with age?"""
     rows = [row for row in periods.get("by_index") or []
             if row.get("n") and row.get("p50") is not None]
@@ -941,7 +956,7 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
                "p50": row.get("p50"), "p75": row.get("p75"),
                "p95": row.get("p95"), "n": row.get("n")}
               for row in rows]
-    threshold = periods.get("threshold")
+    threshold, line = _year_line(periods, target)
     few = len(series) < FAN_LINE_MIN
     medians = ", ".join(pct(row["p50"]) for row in series)
     if not series:
@@ -967,17 +982,17 @@ def annual_fan(periods: dict[str, Any]) -> ChartSpec:
          "across the runs: the dark band holds the middle half, the light one "
          "9 in 10, the line is the median"), "year", "availability",
         series=series,
-        marks=[{"kind": "target", "value": threshold}]
+        marks=[{"kind": "target", "value": threshold, "label": line}]
         if threshold is not None else [],
         caption=caption,
         provenance={"runs": periods.get("runs", 0), "format": "percent",
                     "periods_per_run": periods.get("periods_per_run", 0)})
 
 
-def annual_dots(periods: dict[str, Any]) -> ChartSpec:
+def annual_dots(periods: dict[str, Any], target: float | None = None) -> ChartSpec:
     """K7: all run-years as a dot plot against the guarantee."""
     pooled = periods.get("pooled") or {}
-    threshold = periods.get("threshold")
+    threshold, line = _year_line(periods, target)
     n = int(pooled.get("n") or 0)
     if pooled.get("dots"):
         values = [float(v) for v in pooled["dots"]]
@@ -992,9 +1007,15 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
         subtitle = "each dot is one of the quantiles P1 to P99 of the run-years"
     dots = [{"value": v} for v in values]
     below = pooled.get("p_below")
-    caption = (f"{pct(below)} of run-years fall below the threshold."
-               if isinstance(below, (int, float)) else
-               f"{pooled.get('n', 0)} run-years; no threshold was set.")
+    about = ""
+    if target is not None and target != periods.get("threshold") and values:
+        # equal-share dots: the share of dots below is the share of
+        # run-years below, exactly when there is one dot per run-year
+        below = sum(v < target for v in values) / len(values)
+        about = "" if len(values) == n else "about "
+    caption = (f"{about}{pct(below)} of run-years fall below the {line}."
+               if isinstance(below, (int, float)) and threshold is not None else
+               f"{pooled.get('n', 0)} run-years; no target was set.")
     if values:
         # a tall stack at the top had no scale: say how many it holds
         top = max(values)
@@ -1006,7 +1027,7 @@ def annual_dots(periods: dict[str, Any]) -> ChartSpec:
         "dot_plot", "A bad year, as a frequency",
         subtitle, "availability",
         "years", series=[{"name": "run-years", "dots": dots}],
-        marks=[{"kind": "target", "value": threshold}]
+        marks=[{"kind": "target", "value": threshold, "label": line}]
         if threshold is not None else [],
         caption=caption,
         provenance={"runs": periods.get("runs", 0), "format": "percent",

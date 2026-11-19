@@ -1821,7 +1821,13 @@ class RunPanelDock(QDockWidget):
             hidden = self.isHidden()
         except RuntimeError:           # C++ object gone (window closing)
             return
-        if self.isFloating() or hidden:
+        win = self.window()
+        # A tab behind Results is moved off screen, not hidden, so
+        # isHidden() alone kept the cap on it, and the shared strip could
+        # not be dragged taller than the Run panel while Results was on show.
+        active = getattr(win, "_bottom_active_dock", None)
+        behind = active is not self if active is not None else self._behind_a_tab(win)
+        if self.isFloating() or hidden or behind:
             self.setMaximumHeight(16777215)
             return
         tb = self.titleBarWidget()
@@ -1837,6 +1843,17 @@ class RunPanelDock(QDockWidget):
         # a user who has dragged it taller keeps their size.
         if not getattr(self, "_growing", False) and self.height() < want:
             self._grow_to(want)
+
+    def _behind_a_tab(self, win) -> bool:
+        """True when a tab bar holds this dock and another tab is on show
+        (a restored layout has no active bottom tab recorded yet)."""
+        from PySide6.QtWidgets import QTabBar
+        title = self.windowTitle()
+        for bar in win.findChildren(QTabBar):
+            titles = [bar.tabText(i) for i in range(bar.count())]
+            if title in titles and bar.parent() is win:
+                return bar.tabText(bar.currentIndex()) != title
+        return False
 
     def _grow_to(self, want: int) -> None:
         """Ask the window for a taller bottom strip (one shared strip)."""
