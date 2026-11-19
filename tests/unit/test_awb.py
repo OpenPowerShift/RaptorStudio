@@ -525,3 +525,63 @@ def test_dormant_failure_uses_inspection_detection_delay(tmp_path):
     assert float(pump["Pre-LDTDist"]) == 19
     assert 500.0 < float(pump["Param1#1"]) < 502.0
     assert "inspection detection delay" in " ".join(report.notes).lower()
+
+
+def test_zero_stock_awb_spare_never_leaves_the_pool_dry(tmp_path):
+    """AWB level 3 is unlimited: a zero-stock spare must still be ordered.
+
+    Before the fix the pool came in with stock 0 and no ordering, so every
+    block using it ended Done (No_spares) at its first failure.
+    """
+    from raptor.core.fileio import awb as awb_mod
+    path = tmp_path / "spares.awb"
+    export_awb(_model(), path)
+    tables = read_awb(path)
+    rows = [awb_mod._row("Spares", Id="ZERO", CapacityLevel1=0,
+                         LogisticDelayLevel1=48.0, LogisticDelayLevel2=96.0,
+                         LogisticDelayLevel3=480.0),
+            awb_mod._row("Spares", Id="HELD", CapacityLevel1=3,
+                         LogisticDelayLevel1=0.0, LogisticDelayLevel2=10.0,
+                         LogisticDelayLevel3=20.0)]
+    tables["Spares"] = AwbTable("Spares", _SCHEMA["Spares"], rows)
+    write_awb(path, tables)
+    back, _ = import_awb(path)
+    pools = {r["PoolName"]: r for r in back.sections["SPARE_POOL_DATA"].rows}
+    zero, held = pools["ZERO"], pools["HELD"]
+    assert int(zero["Stock"]) == 0 and int(zero["ESO"]) == 1
+    assert float(zero["EmerTime"]) == pytest.approx(624.0)
+    assert int(held["Stock"]) == 3 and int(held["ESO"]) == 1
+    assert int(held["SLO"]) == 1 and int(held["Level"]) == 2
+    assert float(held["SLOTime"]) == pytest.approx(30.0)
+
+
+def test_competing_weibull_fit_matches_the_minimum_of_the_modes():
+    import math
+
+    from raptor.core.fileio.awb import _competing_weibull_fit
+    # Two equal exponentials compete as one exponential of half the mean.
+    beta, eta, gamma = _competing_weibull_fit([(100.0, 1.0, 0.0),
+                                               (100.0, 1.0, 0.0)])
+    assert beta == pytest.approx(1.0, rel=1e-3)
+    assert eta == pytest.approx(50.0, rel=1e-3)
+    assert gamma == 0.0
+    # An exponential and a wear-out mode: mean of min(T1, T2) by quadrature.
+    modes = [(20000.0, 1.0, 0.0), (4472.1, 2.0, 1000.0)]
+    beta, eta, _ = _competing_weibull_fit(modes)
+    mean = eta * math.gamma(1.0 + 1.0 / beta)
+    assert mean == pytest.approx(4316.0, rel=0.01)
+
+
+def test_bi_weibull_ignores_the_unused_third_mode(tmp_path):
+    path = tmp_path / "biweibull.awb"
+    export_awb(_model(), path)
+    tables = read_awb(path)
+    fm = tables["FailureModels"].rows[0]
+    fm.update(FmDistribution=2, FmEta1=200000.0, FmBeta1=1.0, FmGamma1=0.0,
+              FmEta2=44721.0, FmBeta2=2.0, FmGamma2=0.0,
+              FmEta3=8760.0, FmBeta3=1.0, FmGamma3=0.0)
+    write_awb(path, tables)
+    back, _ = import_awb(path)
+    pump = next(r for r in _rows(back, "BLOCK_DATA") if r["blockName"] == "Pump")
+    # The placeholder 8760 h mode would have dragged eta down to 8760.
+    assert float(pump["FParam2"]) > 30000.0
