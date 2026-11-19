@@ -3927,7 +3927,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
-| `eta_s` | any | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4505,7 +4505,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
-| `eta_s` | null \| number | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |
@@ -4838,7 +4838,7 @@ Parameter notes:
 | `completed_runs` | integer | yes |
 | `elapsed_s` | number | yes |
 | `error` | string \| null | yes |
-| `eta_s` | any | yes |
+| `eta_s` | number \| null | yes |
 | `job_id` | string | yes |
 | `model_id` | string | yes |
 | `percent` | number \| null | yes |

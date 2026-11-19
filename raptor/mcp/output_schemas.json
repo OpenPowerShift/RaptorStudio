@@ -457,7 +457,12 @@
      "null"
     ]
    },
-   "eta_s": {},
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
@@ -2484,8 +2489,8 @@
    },
    "eta_s": {
     "type": [
-     "null",
-     "number"
+     "number",
+     "null"
     ]
    },
    "job_id": {
@@ -2929,7 +2934,12 @@
      "null"
     ]
    },
-   "eta_s": {},
+   "eta_s": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
    "job_id": {
     "type": "string"
    },
