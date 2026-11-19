@@ -149,6 +149,13 @@ def parse_value(text: str) -> Any:
     low = t.lower()
     if low in ("true", "false"):
         return low == "true"
+    if t.startswith("[") and t.endswith("]"):
+        # the JSON list form `get -f json` prints: [400.0, 0.0, 0.0]
+        t = t[1:-1].strip()
+        if not t:
+            return []
+        if "," not in t:
+            return [_number(t)] if _is_number(t) else text
     if "," in t and not t.startswith("@"):
         parts = [p.strip() for p in t.split(",")]
         if all(_is_number(p) for p in parts):

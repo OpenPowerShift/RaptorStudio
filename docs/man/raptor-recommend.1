@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-recommend \- test a change for each top downtime driver
 .SH SYNOPSIS
-\fBraptor recommend\fR [\-h] [\-\-run RUN_ID] [\-\-top N] [\-n N] [\-\-min\-gain POINTS] [\-\-seed N|new] [\-j N] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
+\fBraptor recommend\fR [\-h] [\-\-run RUN_ID] [\-\-top N] [\-n N] [\-\-min\-gain POINTS] [\-\-seed N|new] [\-j N] [\-\-timeout DURATION] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] MODEL
 .SH DESCRIPTION
 Find the blocks that cause the most system downtime, propose one change for each from the cause that dominates its outages (halve the repair time, one more spare, one more crew, ...), and test every change against the open model with paired runs. Each result states the change, the measured gain and the cost. The verdict says what was measured, never whether a change is worth its price. The model file is never modified.
 .SH OPTIONS
@@ -25,6 +25,9 @@ salt every random stream (default: the fixed seed 'raptor run' uses, so the numb
 .TP
 \fB\-j\fR, \fB\-\-jobs\fR \fIN\fR
 cores to run on (default 1). Any 2 or more give the same numbers; they differ, equally validly, from 1
+.TP
+\fB\-\-timeout\fR \fIDURATION\fR
+stop the study after DURATION, e.g. 90s, 10m (default 30m); what it measured by then is reported and marked partial
 .TP
 \fB\-\-progress\fR \fI{auto|bar|json|none}\fR
 progress on stderr (auto: only on a terminal; json: one object per line; none, or \-q, for silence)

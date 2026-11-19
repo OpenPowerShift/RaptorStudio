@@ -6,7 +6,7 @@ from typing import Any
 
 from raptor.cli import exitcodes as X
 from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, job_count
-from raptor.cli.cmd_run import add_study_progress, study_progress
+from raptor.cli.cmd_run import add_study_progress, study_timeout, study_progress
 from raptor.cli.exitcodes import CliError
 
 WHATIF_SCHEMA = "raptor-whatif/1"
@@ -107,7 +107,8 @@ def recommend_command(args: Any) -> int:
                 ws, mid, run_id=args.run, top=args.top, trials=args.trials,
                 seed=args.seed, workers=max(1, args.jobs),
                 min_gain=None if args.min_gain is None else args.min_gain / 100,
-                progress=study_progress(args))
+                progress=study_progress(args),
+            timeout_s=study_timeout(args))
         except NoAttribution as exc:
             raise CliError(str(exc), X.REFUSED) from exc
     if args.format == "json":
@@ -128,7 +129,8 @@ def sensitivity_command(args: Any) -> int:
         result = tornado(
             ws, mid, inputs, trials=args.trials, metric=args.metric,
             seed=args.seed, workers=max(1, args.jobs),
-            progress=study_progress(args), asked=args.top)
+            progress=study_progress(args),
+            timeout_s=study_timeout(args), asked=args.top)
     if args.format == "json":
         emit_json({**result, "schema": "raptor-sensitivity/1"}, None)
         return X.OK
@@ -165,8 +167,11 @@ def _scenario(args: Any) -> dict[str, Any]:
         except (OSError, json.JSONDecodeError) as exc:
             raise CliError(f"cannot read {args.change_file}: {exc}",
                            X.USAGE) from exc
+        if isinstance(data, dict) and isinstance(data.get("scenarios"), list):
+            data = data["scenarios"]        # the file `whatif --save` writes
         if not isinstance(data, list):
-            raise CliError("--change-file must hold a JSON list of scenarios",
+            raise CliError("--change-file must hold a JSON list of scenarios "
+                           "(or the {\"scenarios\": [...]} --save writes)",
                            X.USAGE)
         for i, row in enumerate(data, 1):
             what = (row.get("name") if isinstance(row, dict) else None) or f"#{i}"
@@ -180,6 +185,11 @@ def _scenario(args: Any) -> dict[str, Any]:
                     "non-empty list of \"PATH=VALUE\" strings, e.g. "
                     "[\"block:Pump.fail_params[1]=3000\"]", X.USAGE)
         return {"scenarios": data}
+    if not args.change:
+        # it ran a "Scenario (no changes)" and said it does not change
+        # availability
+        raise CliError("nothing to compare: give --change PATH=VALUE "
+                       "(repeatable) or --change-file FILE", X.USAGE)
     return {"scenarios": [{"name": args.name, "changes": list(args.change),
                            "note": args.note}]}
 
@@ -218,7 +228,8 @@ def whatif_command(args: Any) -> int:
             ws, mid, scenarios, trials=args.trials, precision=precision,
             workers=max(1, args.jobs), seed=args.seed,
             requirements=requirements,
-            progress=study_progress(args))
+            progress=study_progress(args),
+            timeout_s=study_timeout(args))
     failed = [row for row in comparison.rows if row.get("error")]
     if args.format == "json":
         emit_json({**comparison.to_dict(), "schema": WHATIF_SCHEMA}, None)

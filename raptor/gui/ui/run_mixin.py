@@ -520,7 +520,9 @@ class RunMixin(_Base):
             return True
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("Unsupported Model Features")
+        # most of these are model problems (a block with no link in), not
+        # features the engine lacks
+        box.setWindowTitle("Model Not Ready to Run")
         box.setDetailedText("\n".join(preflight))
         from raptor.gui.ui.preflight import run_dialog_text
         box.setText(run_dialog_text(preflight))
@@ -528,8 +530,8 @@ class RunMixin(_Base):
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.exec()
         if box.clickedButton() is not run_btn:
-            self._statusbar.showMessage("Run cancelled — unsupported "
-                                        "features present")
+            self._statusbar.showMessage("Run cancelled — fix the model "
+                                        "problems listed, or Run Anyway")
             return False
         return True
 

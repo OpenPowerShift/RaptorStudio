@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import os
 import sys
 import tempfile
@@ -268,12 +269,15 @@ def parse_duration(text: str) -> float:
     t = text.strip().lower()
     mult = {"s": 1, "m": 60, "h": 3600}
     try:
-        if t and t[-1] in mult:
-            return float(t[:-1]) * mult[t[-1]]
-        return float(t)
+        seconds = (float(t[:-1]) * mult[t[-1]] if t and t[-1] in mult
+                   else float(t))
     except ValueError:
         raise CliError(f"bad duration {text!r}; use e.g. 90s, 10m, 2h",
                        USAGE) from None
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise CliError(f"bad duration {text!r}: give a time above 0, "
+                       "e.g. 90s, 10m, 2h", USAGE)
+    return seconds
 
 
 def load_set_file(path: str) -> list[str]:

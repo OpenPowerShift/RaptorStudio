@@ -5,7 +5,7 @@ from typing import Any
 
 from raptor.cli import exitcodes as X
 from raptor.cli.common import emit_json, eprint, open_model, workspace_for, seed_arg, job_count
-from raptor.cli.cmd_run import add_study_progress, study_progress
+from raptor.cli.cmd_run import add_study_progress, study_timeout, study_progress
 from raptor.cli.exitcodes import CliError
 
 OPTIMISE_SCHEMA = "raptor-optimise-spares/1"
@@ -130,7 +130,8 @@ def optimise_command(args: Any) -> int:
                 pools=pools, max_evaluations=max(1, args.budget),
                 trials=args.trials, seed=args.seed,
                 workers=max(1, args.jobs),
-                progress=study_progress(args))
+                progress=study_progress(args),
+            timeout_s=study_timeout(args))
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         if args.apply and result["changes"]:
@@ -168,7 +169,8 @@ def pm_command(args: Any) -> int:
             result = optimise_pm(
                 ws, mid, blocks=blocks, objective=args.objective,
                 trials=args.trials, seed=args.seed, workers=max(1, args.jobs),
-                progress=study_progress(args))
+                progress=study_progress(args),
+            timeout_s=study_timeout(args))
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         if args.apply:
@@ -239,7 +241,8 @@ def resources_command(args: Any) -> int:
                 ws, mid, resources=names, target=target,
                 extra=max(0, args.extra), trials=args.trials, seed=args.seed,
                 workers=max(1, args.jobs),
-                progress=study_progress(args))
+                progress=study_progress(args),
+            timeout_s=study_timeout(args))
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         if args.apply:

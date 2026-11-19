@@ -80,7 +80,9 @@ class Backstage(QWidget):
         # ---- navigation column ------------------------------------------
         nav = QFrame()
         nav.setObjectName("BackstageNav")
-        nav.setFixedWidth(210)
+        # 280, not 210: "Import Availability Workbench…" was cut to
+        # "Import Availability Wor..."
+        nav.setFixedWidth(280)
         nl = QVBoxLayout(nav)
         nl.setContentsMargins(0, 12, 0, 12)
         nl.setSpacing(2)
