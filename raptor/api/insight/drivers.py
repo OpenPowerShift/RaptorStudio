@@ -107,6 +107,28 @@ def is_system(row: dict[str, Any]) -> bool:
     return str(row.get("kind", "")).lower() == "system"
 
 
+def chain_text(seq: dict[str, Any]) -> str:
+    """One outage sequence in words. Two elements handing the outage back
+    and forth read as that, not as six arrows: "A (hands-on repair) and
+    B (hands-on repair) in turn, 5 hand-overs"."""
+    steps = [f"{s['element']} ({CAUSE_LABELS.get(s['cause'], s['cause']).lower()})"
+             for s in seq.get("steps") or []]
+    more = float(seq.get("more_steps") or 0.0)
+    if not steps:
+        return "(unknown)"
+    alternating = (len(steps) >= 3 and len(set(steps)) == 2
+                   and all(steps[i] == steps[i - 2] for i in range(2, len(steps))))
+    if alternating:
+        handovers = len(steps) - 1 + more
+        text = (f"{steps[0]} and {steps[1]} in turn, "
+                f"{'about ' if more else ''}{handovers:,.0f} hand-overs")
+        return text
+    text = " -> ".join(steps)
+    if more:
+        text += f" -> … ({more:,.0f} more step{'s' if round(more) != 1 else ''} on average)"
+    return text
+
+
 def system_label(attribution: dict[str, Any]) -> str:
     """The "(no single element)" row's name in a short list."""
     if any(row.get("mission") is False and row.get("share_of_downtime")
@@ -195,9 +217,7 @@ def text_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
         lines += ["", "What the outages look like (share of downtime; each arrow is "
                       "the next thing that kept the system down):"]
         for seq in sequences[:5]:
-            path = " -> ".join(f"{s['element']} ({CAUSE_LABELS[s['cause']].lower()})"
-                               for s in seq["steps"]) or "(unknown)"
-            lines.append(f"  {_pct(seq['share']):>7}  {path}")
+            lines.append(f"  {_pct(seq['share']):>7}  {chain_text(seq)}")
     if attribution.get("hierarchies"):
         lines += [""] + hierarchy_lines(attribution, n)
     if attribution.get("phases"):

@@ -119,26 +119,26 @@ def _held_after(ctx: RunContext, row: dict) -> tuple[float, str, str] | None:
     held or waiting, (share of its downtime, that element, its cause): the
     Story said "hands-on repair 100 %. Shorter repairs help most." while
     98.9 % of it was a backup held idle by the element it backed up."""
-    own = row["red_time"]["mean"] or 0.0
-    total_share = _share(row)
-    if not total_share:
+    kinds = {"block": "RBDBlock", "event": "RBDEvent", "node": "RBDNode"}
+
+    def counts(entry: dict) -> bool:
+        if entry.get("cause") != "dependency":
+            return True
+        # held because it follows THIS element: a block that follows the
+        # whole system goes idle in every outage, and that is no cause
+        block = next((b for b in ctx.blocks if b.get("id") == entry.get("id")), {})
+        return (str(block.get("dep_type") or "") == kinds.get(str(row.get("kind")))
+                and int(block.get("dep_num") or 0) == int(row.get("id") or 0))
+    # this element alone does not stop the system as drawn: what else was
+    # out is why the outage happened (a series element is down by itself)
+    if not ctx.redundant((str(row.get("kind")), int(row.get("id") or 0))):
         return None
-    held: dict[tuple[str, str], float] = {}
-    for seq in (ctx.attribution or {}).get("sequences") or []:
-        steps = seq.get("steps") or []
-        if not steps or steps[0].get("element") != row["name"]:
-            continue
-        later = next((s for s in steps[1:] if s.get("element") != row["name"]
-                      and s.get("cause") in ("dependency", "wait_spare", "wait_resource")),
-                     None)
-        if later is not None:
-            key = (str(later["element"]), str(later["cause"]))
-            held[key] = held.get(key, 0.0) + float(seq.get("share") or 0.0)
-    if not held or own <= 0:
+    best = max((a for a in row.get("alongside") or []
+                if a.get("kind") == "block" and counts(a)),
+               key=lambda a: a.get("share") or 0.0, default=None)
+    if best is None or (best.get("share") or 0.0) < 0.5:
         return None
-    (other, cause), share = max(held.items(), key=lambda kv: kv[1])
-    part = share / total_share
-    return (part, other, cause) if part >= 0.5 else None
+    return float(best["share"]), str(best["element"]), str(best["cause"])
 
 
 @rule("R-DRV-002", title="Where a top contributor's time goes",
@@ -168,15 +168,18 @@ def main_cause(ctx: RunContext) -> Iterable[Finding]:
         held = _held_after(ctx, row)
         if held is not None:
             part_held, other, how = held
-            what = {"dependency": f"{other} is held down by it, so {other} gives no "
-                                  f"redundancy: check {other}'s dependency",
-                    "wait_spare": f"{other} is waiting for a spare: more stock"
+            name = row["name"]
+            what = {"dependency": f"held down because it follows {name}. That "
+                                  f"dependency takes away the redundancy {name} "
+                                  f"has: check {other}'s dependency",
+                    "wait_spare": "waiting for a spare. More stock"
                                   + _at_pool(ctx, other) + " or faster delivery helps",
-                    "wait_resource": f"{other} is waiting for people or equipment: "
-                                     "more crews help"}[how]
-            message = (f"{row['name']} starts {text.fmt_pct(_share(row))} of the system "
-                       f"downtime, but in {text.fmt_pct(part_held)} of it the outage lasts "
-                       f"because {what}.")
+                    "wait_resource": "waiting for people or equipment. More crews "
+                                     "help"}[how]
+            message = (f"{name} starts {text.fmt_pct(_share(row))} of the system "
+                       f"downtime. {name} alone does not stop the system, but for "
+                       f"{text.fmt_pct(part_held)} of that time {other} was out too, "
+                       f"{what}.")
         yield Finding(
             rule="R-DRV-002", severity="advice", category="drivers",
             title="Where a top contributor's time goes",

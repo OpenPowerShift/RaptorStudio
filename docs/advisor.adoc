@@ -47,6 +47,7 @@ one exists, a fix. This page is the catalogue; the tutorial chapter
 | `R-CAP-101` | info | Some demand is not delivered | statistical
 | `R-CAP-102` | advice | Downtime share and capacity share disagree | statistical
 | `R-CAP-103` | warning | Availability overstates the service delivered | statistical
+| `R-DAT-001` | warning | A very low result explained by the inputs | exact
 | `R-DRV-001` | info | A few elements cause most of the downtime | statistical
 | `R-DRV-002` | advice | Where a top contributor's time goes | statistical
 | `R-DRV-006` | info | The top two cannot be told apart | statistical

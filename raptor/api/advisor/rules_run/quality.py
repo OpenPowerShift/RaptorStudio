@@ -217,3 +217,48 @@ def requirements(ctx: RunContext) -> Iterable[Finding]:
         finding = _verdict(ctx, req)
         if finding is not None:
             yield finding
+
+
+#: Below this mean availability a result is worth checking against the inputs.
+LOW_AVAILABILITY = 0.5
+
+
+@rule("R-DAT-001", title="A very low result explained by the inputs",
+      category="data", basis="exact", severity="warning", needs=("model", "run"))
+def low_from_inputs(ctx: RunContext) -> Iterable[Finding]:
+    """The system was down most of the time and the blocks themselves say
+    why: each takes longer to repair than it lasts. The Story gave "5.6 %"
+    and repair advice, while the likely answer was swapped or mis-scaled
+    failure and repair values."""
+    ao = ctx.values("availability")
+    if not ao:
+        return
+    mean = sum(ao) / len(ao)
+    if mean >= LOW_AVAILABILITY:
+        return
+    slow = []
+    for b in ctx.blocks:
+        life, repair = ctx.mean_life(b), ctx.mean_repair(b)
+        if life and repair and repair >= life:
+            slow.append((b, life, repair))
+    if not slow:
+        return
+    slow.sort(key=lambda item: -(item[2] / item[1]))
+    named = "; ".join(f"{b['name']} (repair {text.fmt_time(repair, ctx.units)}, "
+                      f"life {text.fmt_time(life, ctx.units)})"
+                      for b, life, repair in slow[:4])
+    more = f" and {len(slow) - 4} more" if len(slow) > 4 else ""
+    each = "is" if len(slow) == 1 else "are each"
+    yield Finding(
+        rule="R-DAT-001", severity="warning", category="data",
+        title="A very low result explained by the inputs",
+        message=(f"The system is down {text.fmt_pct(1.0 - mean)} of the time. "
+                 f"{named}{more} {each} down more than up: check whether the "
+                 "failure and repair values are swapped or in different units."),
+        why="When a block takes longer to repair than it lasts, it is down most "
+            "of the time by its own data. That is possible, but a result this "
+            "low usually means an input mistake rather than a design to improve.",
+        targets=tuple(ctx.block_target(b, "repair_params") for b, _l, _r in slow[:4]),
+        evidence={"availability": mean, "blocks": [b["name"] for b, _l, _r in slow]},
+        basis="exact", impact=1.0 - mean,
+        doc="advisor.html#R-DAT-001")
