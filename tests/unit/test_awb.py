@@ -643,3 +643,36 @@ def test_cli_dry_run_does_not_write_the_reduced_model(tmp_path):
     assert main(["convert", str(src), str(dest), "--dry-run",
                  "--normalize-out", str(norm), "-f", "json"]) == 0
     assert not norm.exists() and not dest.exists()
+
+
+def test_awb_branches_without_nodes_get_junction_nodes(tmp_path):
+    """AWB draws parallel paths with no node: several connections leave
+    the start and meet at the end. RAPTOR splits and joins only at a node,
+    the GUI flagged every such import, and the engine got the logic wrong
+    (an AWB example came out more available than a block on every path)."""
+    from raptor.api.validate import issues
+    path = tmp_path / "parallel.awb"
+    export_awb(_model(), path)
+    tables = read_awb(path)
+    template = tables["RbdConnections"].rows[0]
+    blocks = [i for i, b in enumerate(tables["RbdBlocks"].rows) if b["Id"] in ("Pump", "Valve")]
+    block_type = template["OutputObjectType"]
+    node_type = next(c["InputObjectType"] for c in tables["RbdConnections"].rows
+                     if c["InputObjectType"] != block_type)
+    nodes = {n["Id"]: i for i, n in enumerate(tables["RbdNodes"].rows)}
+    start, end = nodes[min(nodes)], nodes[max(nodes)]
+    rows = []
+    for b in blocks:
+        rows.append(dict(template, Id=f"S{b}", InputObjectType=node_type, InputObjectIndex=start,
+                         OutputObjectType=block_type, OutputObjectIndex=b))
+        rows.append(dict(template, Id=f"E{b}", InputObjectType=block_type, InputObjectIndex=b,
+                         OutputObjectType=node_type, OutputObjectIndex=end))
+    tables["RbdConnections"].rows = rows
+    write_awb(path, tables)
+    rbd, _report = import_awb(path)
+    # "Only one link can go from a Start node", "A block can only connect ..."
+    assert [str(i) for i in issues(rbd)
+            if "link" in i.message.lower() or "connect" in i.message.lower()] == []
+    junctions = [n for n in rbd.sections["NODE_DATA"].rows if n["Type"] == "2"]
+    assert len(junctions) == 2
+    assert all(n["k"] == "1" for n in junctions)        # any one path through
