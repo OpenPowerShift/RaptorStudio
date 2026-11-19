@@ -410,5 +410,7 @@ def comparison_lines(comparison: Any) -> list[str]:
               f"Base {requirement['base']}")
         for name, verdict in (requirement.get("scenarios") or {}).items():
             lines.append(f"  {name}: {verdict}")
-    lines.append(f"\n{comparison.caption}")
+    if any(not row.get("error") for row in comparison.rows):
+        # when nothing ran, the caption only repeats the errors listed above
+        lines.append(f"\n{comparison.caption}")
     return lines

@@ -242,8 +242,9 @@ def whatif_command(args: Any) -> int:
         emit_json({**comparison.to_dict(), "schema": WHATIF_SCHEMA}, None)
     else:
         _print_comparison(comparison)
-    if args.format == "json":
-        # the text already shows each error once (it was printed three times)
+    # on stderr too, for a script that keeps only stdout; the caption no
+    # longer repeats it (it was printed three times)
+    if failed:
         for row in failed:
             eprint(f"error: scenario {row.get('name') or row.get('label') or '?'} "
                    f"did not run: {row['error']}")
