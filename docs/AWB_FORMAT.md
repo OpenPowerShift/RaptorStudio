@@ -286,7 +286,7 @@ AWB field was written; the `.raptor.json` sidecar keeps the RAPTOR copy).
 | Feature | Why |
 |---|---|
 | consequences and cost models | RAPTOR has no financial/safety/environmental consequence model |
-| inspection tasks | AWB inspections are not imported as RAPTOR PM |
+| inspection tasks | a dormant failure with an enabled inspection uses the expected detection delay; other inspections remain partial |
 | extra planned tasks | RAPTOR has one PM per block; extra AWB tasks are not imported |
 | two-level spare holdings | AWB level-1 and level-2 stock are summed |
 | spare repair shop | AWB spare repair/recycling is not imported |

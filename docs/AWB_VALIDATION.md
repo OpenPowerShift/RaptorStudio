@@ -116,6 +116,26 @@ losses: capacity is preserved in the sidecar, and the repair law is
 mean-matched for AWB.  AWB demonstration mode may still refuse to analyse a
 project of this size; that is its object limit, not a file-format failure.
 
+### Shipped AWB examples
+
+Stored AWB results vs RAPTOR on the imported model (100 trials, same
+lifetime):
+
+| AWB project | AWB Am | RAPTOR A | Result |
+|---|---:|---:|---|
+| OilAndGasExample | 0.973217 | 0.974734 | Δ 0.152 pp; agrees |
+| Example1 | 0.088322 | 0.006982 | not comparable |
+| SapDemo | 0.629333 | 0.005037 | not comparable |
+| MaximoDemo | 0.611809 | 0.005037 | not comparable |
+
+`ALTExample` and the `PumpExample` library example have no RBD blocks.
+
+The new inspection approximation improves the model but does not make
+Example1/SapDemo/MaximoDemo comparable: Example1 has its inspection
+disabled, while SapDemo/MaximoDemo still lose PM/inspection timing,
+multi-mode Weibull shape and topology semantics. OilAndGasExample remains
+the clean shipped-AWB comparison.
+
 ---
 
 ## 2. Compatibility screening of all 27 examples
