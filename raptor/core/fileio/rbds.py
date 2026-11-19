@@ -1031,7 +1031,14 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     """Parse .rbds JSON into the same `RbdFile` structure every other
     subsystem already consumes. `default_name` is the model's name when
     the file does not carry one."""
-    doc = json.loads(text)
+    try:
+        doc = json.loads(text)
+    except json.JSONDecodeError as exc:
+        # the parser's own "Expecting value: line 1 column 1 (char 0)"
+        # meant nothing to someone who picked the wrong file
+        raise ValueError(
+            "not a RAPTOR Studio .rbds model: the file is not JSON "
+            f"(line {exc.lineno}, column {exc.colno}: {exc.msg})") from exc
     if not isinstance(doc, dict) or doc.get("format") != FORMAT_ID:
         fmt = doc.get("format") if isinstance(doc, dict) else None
         raise ValueError(

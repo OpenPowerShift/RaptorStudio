@@ -3519,15 +3519,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.set_annotations_visible(bool(on))
         self._sync_annotation_toggles()
         self.statusBar().showMessage(
-            "Annotations shown" if on else
-            "Annotations hidden (still in the model and saved)", 4000)
+            "Notes shown" if on else
+            "Notes hidden (still in the model and saved)", 4000)
 
     def _set_comment_notes_shown(self, on: bool) -> None:
         self._diagram_dock.view.set_comment_notes_visible(bool(on))
         self._sync_annotation_toggles()
         self.statusBar().showMessage(
-            "Comment notes shown" if on else
-            "Comment notes hidden (still in the model and saved)", 4000)
+            "Comments shown" if on else
+            "Comments hidden (still in the model and saved)", 4000)
 
     def _set_tool(self, mode: str, on: bool):
         """Exclusive build-tool selection; 'select' is the fallback."""

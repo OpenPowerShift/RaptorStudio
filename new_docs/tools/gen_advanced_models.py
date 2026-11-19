@@ -317,6 +317,9 @@ def airliner_mission() -> dict:
     hyd = {"fail_dist": EXP, "fail_params": ["@HydraulicMTBF"], **none}
     return {
         "name": "AirlinerMission",
+        # a 5 h mission: the default 10 h availability-plot interval is
+        # longer than the run, an error as soon as the plot is ticked
+        "recording": {"ao_interval": 0.1},
         "system": {"units": "hours", "termination_type": "TimeSim",
                    "term_condition": 5.0, "num_runs": 1000,
                    "node_anal_type": "Dependability"},
@@ -416,7 +419,10 @@ def airliner_mission() -> dict:
 
 def main() -> None:
     for spec in (hospital_power(), water_treatment(), airliner_mission()):
+        recording = spec.pop("recording", None)
         rbd = build_from_spec(spec)
+        if recording:
+            rbd.experiment["recording"].update(recording)
         path = os.path.join(OUT, spec["name"] + ".rbds")
         save_rbds(rbd, path, meta={"file_name": spec["name"] + ".rbds"})
         print("wrote", path)

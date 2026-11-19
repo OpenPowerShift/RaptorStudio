@@ -233,6 +233,18 @@ def _for_reading(data: dict) -> dict:
     return out
 
 
+def _settable_text(value: Any) -> str:
+    """A value as `raptor set` takes it back: a list of numbers is
+    `400,0,0` (the JSON `[400.0, 0.0, 0.0]` was refused by set)."""
+    if isinstance(value, list) and all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+        return ",".join(str(int(v)) if isinstance(v, float) and v.is_integer()
+                        else repr(v) for v in value)
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    return str(value)
+
+
 def get_command(args: Any) -> int:
     from raptor.api import paths
     values: dict[str, Any] = {}
@@ -248,11 +260,11 @@ def get_command(args: Any) -> int:
     if args.format == "json":
         emit_json(values, None)
     elif len(values) == 1:
-        v = next(iter(values.values()))
-        print(json.dumps(v) if isinstance(v, (list, dict)) else v)
+        # one path: the bare value, as `git config` does, for $(...) use
+        print(_settable_text(next(iter(values.values()))))
     else:
         for k, v in values.items():
-            print(f"{k}={json.dumps(v) if isinstance(v, (list, dict)) else v}")
+            print(f"{k}={_settable_text(v)}")
     return X.OK
 
 

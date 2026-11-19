@@ -243,3 +243,13 @@ def test_a_library_must_be_an_rbdlib_outside_the_managed_trees(tmp_path):
     ok = save("lib")
     assert not ok.is_error and (tmp_path / "lib.rbdlib").is_file()
     srv.mcp._raptor_ws = None
+
+
+def test_apply_part_type_takes_a_model_part_by_its_name(server, model):
+    """list_part_types shows the name, and the docstring says "id (or exact
+    name)", but only the id ("pumptype") was accepted."""
+    _ok(_call(server, "save_part_type", model_id=model, element="Pump",
+              name="PumpType"))
+    applied = _ok(_call(server, "apply_part_type", model_id=model,
+                        part="PumpType", elements=["Pump"]))
+    assert applied["count"] == 1

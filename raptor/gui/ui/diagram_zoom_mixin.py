@@ -178,9 +178,19 @@ class ZoomMixin(_Base):
         was = [g.isVisible() for g in grids]
         for g in grids:
             g.setVisible(False)
+        # the selection outline is an editing aid too: Save Bitmap drew
+        # the selected block with its dashed border. Signals are blocked so
+        # the Inspector does not follow the selection away and back.
+        selected = self._scene.selectedItems()
+        blocked = self._scene.blockSignals(True)
+        for item in selected:
+            item.setSelected(False)
         try:
             yield
         finally:
+            for item in selected:
+                item.setSelected(True)
+            self._scene.blockSignals(blocked)
             for g, vis in zip(grids, was):
                 g.setVisible(vis)
 

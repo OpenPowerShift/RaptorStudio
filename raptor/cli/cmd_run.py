@@ -333,11 +333,22 @@ def insight_callback(mode: str):
 
 
 def add_study_progress(parser: Any) -> None:
-    """`--progress` for a study (what-if, sensitivity, an optimiser)."""
+    """`--progress` and `--timeout` for a study (what-if, sensitivity, an
+    optimiser)."""
+    parser.add_argument(
+        "--timeout", metavar="DURATION", default="30m",
+        help="stop the study after DURATION, e.g. 90s, 10m (default 30m); "
+             "what it measured by then is reported and marked partial")
     parser.add_argument(
         "--progress", choices=("auto", "bar", "json", "none"), default="auto",
         help="progress on stderr (auto: only on a terminal; json: one object per "
              "line; none, or -q, for silence)")
+
+
+def study_timeout(args: Any) -> float:
+    """`--timeout` in seconds, as the study APIs' `timeout_s`."""
+    from raptor.cli.common import parse_duration
+    return parse_duration(getattr(args, "timeout", None) or "30m")
 
 
 def study_progress(args: Any):

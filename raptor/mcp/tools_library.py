@@ -134,9 +134,19 @@ def apply_part_type(model_id: str, part: str, elements: list[str],
     context.require_write()
     ws = context.workspace()
     if library_path:
-        found = _library(library_path).get(part)
+        found = _library(library_path).get(part)      # by id or by name
     else:
-        found = local_parts(ws.get(model_id).rbd).get(part)
+        parts = local_parts(ws.get(model_id).rbd)
+        found = parts.get(part)
+        # by name, as documented and as list_part_types shows it: only the
+        # id ("pumptype" for "PumpType") was accepted
+        named = [] if found is not None else [
+            p for p in parts.values() if p.name == part]
+        if len(named) > 1:
+            raise ValueError(f"{len(named)} parts are named {part!r}; give "
+                             "the id list_part_types shows")
+        if named:
+            found = named[0]
     if found is None:
         raise ValueError(f"no part {part!r}; list them with list_part_types")
     if not isinstance(found, PartType):

@@ -128,18 +128,42 @@ class AnnotationMixin(_Base):
         fields = dict(getattr(part, "fields", {}) or {})
         kind = str(fields.pop("kind", "text") or "text")
         aid = self._next_anno_id()
+        w = float(fields.pop("w", 120) or 120)
+        h = float(fields.pop("h", 40) or 40)
         centre = self.mapToScene(self.viewport().rect().center())
+        x, y = self._free_spot(centre.x(), centre.y(), w, h)
         entry = {
             "kind": kind, "id": aid, "parent": self._current_parent,
-            "x": round(centre.x(), 2), "y": round(centre.y(), 2),
-            "w": float(fields.pop("w", 120) or 120),
-            "h": float(fields.pop("h", 40) or 40),
+            "x": round(x, 2), "y": round(y, 2), "w": w, "h": h,
             "text": str(fields.pop("text", "") or ""),
             "z": self.new_annotation_z(),
             **self._anno_default_props(kind)}
         entry.update(fields)
         self._stack.push(AnnoCmd(self, entry, add=True))
         return aid
+
+    def _free_spot(self, x: float, y: float, w: float, h: float,
+                   step: float = 20.0, rings: int = 15) -> tuple[float, float]:
+        """The nearest (x, y) to the one given where a w x h note covers no
+        element or link: dropped at the view's centre it could sit behind
+        a block, its text hidden. Searched in rings around the point; the
+        point itself when nothing within reach is clear."""
+        from PySide6.QtCore import QRectF
+
+        from raptor.gui.ui.diagram_item_core import _GridBackground
+
+        def clear(px: float, py: float) -> bool:
+            return not any(not isinstance(it, _GridBackground) and it.isVisible()
+                           for it in self._scene.items(QRectF(px, py, w, h)))
+        if clear(x, y):
+            return x, y
+        for ring in range(1, rings + 1):
+            d = ring * step
+            for dx, dy in ((0, d), (0, -d), (d, 0), (-d, 0),
+                           (d, d), (-d, d), (d, -d), (-d, -d)):
+                if clear(x + dx, y + dy):
+                    return x + dx, y + dy
+        return x, y
 
     def _begin_annotation(self, kind: str, scene_pos: QPointF):
         """Create a new text annotation (single click: it grows with its
