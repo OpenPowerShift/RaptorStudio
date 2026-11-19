@@ -13311,7 +13311,7 @@ actually described.</p>
 </div>
 </div>
 <div class="paragraph">
-<p>Fourteen elements: one dispatch event, two engines feeding a
+<p>Thirteen elements: one dispatch event, two engines feeding a
 capacity-limited thrust manifold, a dependent hydraulic pump, a
 cold-standby generator pair, and an avionics block, strung through
 four fixed-length phases.</p>
@@ -13457,7 +13457,7 @@ point as the engine can currently express. And as with every earlier
 capstone: every failure here is drawn independently, the dollar
 figures are teaching numbers chosen to make the arithmetic legible,
 not real aircraft economics, and no fault-tree detail from an actual
-airworthiness process is anywhere in this twelve-element model.</p>
+airworthiness process is anywhere in this thirteen-element model.</p>
 </div>
 </td>
 </tr>
@@ -13511,17 +13511,19 @@ own choices, not a scorecard for yours.</p>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
-<p>Two real examples from the reference build: the engines'
-characteristic life (8 operating hours) and the generator&#8217;s
-bus-transfer delay (72 seconds) both came from nowhere in the
-brief&#8217;s prose — they were picked to make the mechanism visible at
-2000 trials, the same "compress the numbers" move every earlier
-capstone has made openly. A shorter characteristic life pushes
-Reliability down; a shorter transfer delay nudges it up (fewer
-Red ticks long enough to matter, though this metric is
-zero-tolerance regardless of duration — see the Limits box).
-Your own file almost certainly has at least one number in the same
-position: something the brief left to your judgement.</p>
+<p>The brief pins down most of the numbers — the engines' 8-hour
+characteristic life, the 72-second APU spin-up, the 3-minute
+hydraulic reset — so the open choices are about <strong>how</strong>, not <strong>how
+much</strong>. Two from the reference build: how hard the hydraulic pump
+depends on Engine 1 ("driven off the accessory gearbox" says
+nothing about what is left when the engine stops; this build makes
+the pump go fully Idle, the most pessimistic reading — a partial
+dependency would push Reliability up), and whether anything but
+the engines wears faster in Climb (the brief gives stress factors
+only for the engines; this build leaves the generators and the pump
+at a steady rate — phase stress on them too would push Reliability
+down). Your own file almost certainly made at least one choice of
+the same kind: something the brief left to your judgement.</p>
 </li>
 <li>
 <p><code>redcost</code> prices the hours the <strong>whole aircraft</strong> is grounded — a
@@ -13585,7 +13587,7 @@ Reliability. Characteristic life and switch delay both move the
 number too, but neither erases an entire failure mode the way
 finding and cutting one bad dependency does — the same lesson
 <a href="#ch-dependency">Chapter 4, <em>Dependency: The Backup That Wasn&#8217;t</em></a> taught with two blocks, now worth defending with
-fourteen.</p>
+thirteen.</p>
 </div>
 </div>
 </details>

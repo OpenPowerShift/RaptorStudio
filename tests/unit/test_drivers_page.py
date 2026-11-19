@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -169,10 +170,13 @@ def test_small_cause_segments_explain_their_name_on_hover(page, logs, qapp):
     chart.grab()                    # a paint pass fills the hit boxes
     assert chart._cause_hit
     rect, cause = chart._cause_hit[0]
-    # move away first: a move to where the pointer already is (left there
-    # by an earlier test) sends no event, so no tooltip
-    QTest.mouseMove(chart, rect.center().toPoint() + QPoint(0, 200))
-    QTest.mouseMove(chart, rect.center().toPoint())
+    # the move goes straight to the chart: QTest.mouseMove goes through the
+    # shared window system, where an earlier test's window or pointer can
+    # take it, so the result depended on the order the tests ran in
+    QApplication.sendEvent(chart, QMouseEvent(
+        QEvent.Type.MouseMove, QPointF(rect.center()), QPointF(rect.center()),
+        Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier))
     assert drivers_page.CAUSE_LABELS[cause] in chart.toolTip()
 
 
