@@ -518,7 +518,7 @@ def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
     """Under a hierarchy's Σ, a small bar of its top three contributors,
     each as wide as its part of the total and coloured by its main cause,
     so a problem can be followed down a level (plan 7.6.1)."""
-    from raptor.render.charts_svg import CAUSE_COLOURS
+    from raptor.api.insight import palette as _palette
     if total <= 0 or not inside:
         return []
     top3 = sorted(inside, key=lambda r: -float(r.get("value") or 0.0))[:3]
@@ -531,7 +531,7 @@ def _scent_svg(s: _Shape, inside: list[dict[str, Any]], total: float,
     x = x0
     for r in top3:
         width = SCENT_W * min(1.0, max(0.0, float(r.get("value") or 0.0) / total))
-        colour = CAUSE_COLOURS.get(str(r.get("main_cause") or "other"), CAUSE_COLOURS["other"])
+        colour = _palette.colour(str(r.get("main_cause") or "other"))
         out.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="5" fill="{colour}"/>')
         x += width
     out.append("</g>")
@@ -677,7 +677,7 @@ def _wrap(line: str, width: float) -> list[str]:
 def _mark_svg(s: _Shape, row: dict[str, Any], c: dict[str, str]) -> str:
     """The share under the element, the cause letter in its corner and the
     dashed ring of an uncertain share."""
-    from raptor.render.charts_svg import CAUSE_COLOURS
+    from raptor.api.insight import palette as _palette
     hw, hh = s.half
     value = 100 * float(row.get("value") or 0.0)
     label = f"{value:.3g} %" + (" ±" if row.get("uncertain") else "")
@@ -692,7 +692,7 @@ def _mark_svg(s: _Shape, row: dict[str, Any], c: dict[str, str]) -> str:
     glyph = str(row.get("glyph") or "")
     if glyph:
         bx, by = s.cx + hw - 1, s.cy - hh + 1
-        colour = CAUSE_COLOURS.get(str(row.get("main_cause") or "other"), CAUSE_COLOURS["other"])
+        colour = _palette.colour(str(row.get("main_cause") or "other"))
         if row.get("uncertain"):
             out.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="10.5" fill="none" '
                        f'stroke="{c["text"]}" stroke-width="1.2" stroke-dasharray="3 2"/>')

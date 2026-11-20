@@ -107,7 +107,8 @@ runs) and the element that started most of that downtime. An outage that
 runs from one phase into the next is split at the phase change, and each
 part is charged to the element that started the outage. `raptor explain`
 prints a **Downtime by phase** table, the Charts tab has a **Downtime by
-phase** chart (`phase-downtime` from the command line and MCP) and the
+phase** chart and a **Phase by cause** heatmap (`phase-downtime` and
+`phase-cause-heatmap` from the command line and MCP) and the
 exported tables include `results.phase_downtime`.
 
 A model with hierarchies also gets each hierarchy's share of the downtime:
@@ -128,7 +129,11 @@ columns measure.
 
 The **Charts** tab paints the same figures the report uses. Each chart has a
 one-sentence caption you can quote, values on hover, click-to-locate, and
-PNG/SVG/CSV export. The set includes:
+PNG/SVG/CSV export. **Target** draws an availability target on the outcome,
+chance, time and year charts; **Capacity target** does the same on the
+capacity year chart. The dot plots mark the median and quartiles, and a
+chart over time can be dragged (or Ctrl+wheeled) to zoom its time axis,
+with a double-click to restore the whole run. The set includes:
 
 * the run-to-run dot plot and **Chance of reaching a value**: the share of
   runs on the horizontal axis and the value they reached on the vertical, so
@@ -136,7 +141,11 @@ PNG/SVG/CSV export. The set includes:
   the pointer over it for a cross-hair that says exactly that;
 * the downtime Pareto with cause stacks. Each cause has its own colour and
   pattern so the stack still reads in greyscale; the key above the chart
-  names them, and the whisker on each bar is ± 2 standard errors;
+  names them, and the whisker on each bar is ± 2 standard errors. The
+  colours come from **Preferences ▸ Appearance ▸ Chart palette**: *Muted*
+  (the default, with a softer repair red), *Raptor classic*, *Colour-blind
+  (Okabe–Ito)* and *High contrast*; the choice applies to the screen, the
+  PDF report and every exported image;
 * the availability ladder: inherent (repair only), achieved (plus planned
   maintenance), operational (plus logistics, spares and crews);
 * the outage-duration histogram on a log scale;
@@ -144,9 +153,15 @@ PNG/SVG/CSV export. The set includes:
 * the downtime treemap, the outage anatomy (what an outage *looks* like,
   step by step) and the run-to-run ribbon (every trial as one row, green up
   and red down);
+* the hierarchy views: a scorecard and Pareto at one level, a nested
+  treemap or concentric sunburst (one switchable nested view), cumulative
+  overlays and small multiples, cause and phase heatmaps, an outage state
+  ribbon, and a change chart against another stored run. **Scope**
+  follows the canvas level or pins one hierarchy; **Depth** shows the top
+  level, one numbered level or every level; **Compare** picks up to four
+  sibling branches; **Baseline** stores the comparison run;
 * convergence: the running mean with its ± 2 standard-error band;
-* year-by-year availability when the run covers whole years (hours models).
-
+* year-by-year availability when the run covers whole years (hours models);
 With capacity analysis on, three more charts answer "who loses the
 capacity", which is not the same question as "who is down":
 
@@ -154,10 +169,12 @@ capacity", which is not the same question as "who is down":
   its share of the downtime, in the same order, so an element that rarely
   stops the system but often throttles it stands out;
 * **Downtime against lost capacity**: one point per element, both shares;
-* **Where the capacity goes**: from the flow the model could deliver down to
+* **Lost capacity by cause**: from the flow the model could deliver down to
   what it did deliver, one step per cause;
 * **Lost capacity treemap**: area = share of the lost flow, colour = the
   element's main downtime cause;
+* **Lost capacity by hierarchy and cause** (Sankey): the flow from what
+  could be delivered, through each hierarchy, to the causes that lost it;
 * **Capacity delivered year by year**: capacity-weighted availability for
   each year, with the spread across runs. A year can be 100 % available and
   still deliver only 96 % of the flow.

@@ -255,3 +255,21 @@ def test_a_missing_option_names_the_switch_and_importance_draws(server, model):
     run = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1, importance="both"))
     data = ok(call(server, "run_chart", run_id=run["run_id"], chart="importance-quadrant"))
     assert data["kind"] == "quadrant" and data["title"] == "Importance on availability"
+
+
+def test_a_hierarchy_chart_says_attribution_is_needed(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5))
+    result = call(server, "run_chart", run_id=run["run_id"],
+                  chart="hierarchy-treemap")
+    text = " ".join(c.text for c in result.content)
+    assert result.is_error
+    assert "hierarchy roll-up" in text and "attribution" in text
+
+
+def test_compare_to_is_only_for_the_delta_chart(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    result = call(server, "run_chart", run_id=run["run_id"],
+                  chart="downtime-pareto", compare_to=run["run_id"])
+    assert result.is_error
+    assert "only used by hierarchy-delta" in " ".join(
+        c.text for c in result.content)

@@ -173,6 +173,14 @@ class StoryPage(QWidget):
         self.drivers_caption.setTextFormat(Qt.TextFormat.RichText)
         self.drivers_caption.linkActivated.connect(self._on_link)
         lay.addWidget(self.drivers_caption)
+        self.hierarchies = QLabel("")
+        self.hierarchies.setWordWrap(True)
+        self.hierarchies.setTextFormat(Qt.TextFormat.RichText)
+        lay.addWidget(self.hierarchies)
+        self.phases = QLabel("")
+        self.phases.setWordWrap(True)
+        self.phases.setTextFormat(Qt.TextFormat.RichText)
+        lay.addWidget(self.phases)
         self.findings = QLabel("")
         self.findings.setWordWrap(True)
         self.findings.setTextFormat(Qt.TextFormat.RichText)
@@ -207,6 +215,7 @@ class StoryPage(QWidget):
         self.dots.set_story(None)
         self.dots.setVisible(False)
         self.drivers_caption.clear()
+        self.hierarchies.clear()
         self.findings.clear()
 
     def _show_story(self, story: Story) -> None:
@@ -226,12 +235,50 @@ class StoryPage(QWidget):
                                 + (f" · {self._target_note}" if self._target_note else ""))
         self.dots.set_story(story if has_target else None)
         self.drivers_caption.setText(self._drivers_text(story))
+        self.hierarchies.setText(self._hierarchy_text(story))
+        self.hierarchies.setVisible(bool(story.hierarchies))
+        self.phases.setText(self._phase_text(story))
+        self.phases.setVisible(bool(story.phases))
         if story.findings:
             self.findings.setText("<br>".join(
                 f"<b>{html.escape(f.severity.title())}</b> · {html.escape(f.message)}"
                 for f in story.findings))
         else:
             self.findings.setText("The Advisor has no findings for this run.")
+
+    @staticmethod
+    def _phase_text(story: Story) -> str:
+        if not story.phases:
+            return ""
+        parts = []
+        for item in story.phases[:4]:
+            if not item.entered:
+                parts.append(f"{html.escape(item.name)}: not entered")
+                continue
+            availability = ("n/a" if item.availability is None
+                            else _pct(item.availability))
+            mark = "" if item.mission else " (non-mission)"
+            parts.append(f"{html.escape(item.name)} {availability}"
+                         f" · {_pct(item.share)} down{mark}")
+        if len(story.phases) > 4:
+            parts.append(f"+{len(story.phases) - 4} more")
+        return "<b>By phase:</b> " + " · ".join(parts)
+
+    @staticmethod
+    def _hierarchy_text(story: Story) -> str:
+        if not story.hierarchies:
+            return ""
+        parts = []
+        for item in story.hierarchies[:4]:
+            reason = CAUSE_LABELS.get(item.main_cause, item.main_cause).lower()
+            if item.status:
+                parts.append(f"{html.escape(item.name)}: {item.status}")
+            else:
+                parts.append(f"{html.escape(item.name)} {_pct(item.share)}"
+                             + (f" ({html.escape(reason)})" if reason else ""))
+        if len(story.hierarchies) > 4:
+            parts.append(f"+{len(story.hierarchies) - 4} more")
+        return "<b>By hierarchy:</b> " + " · ".join(parts)
 
     @staticmethod
     def _drivers_text(story: Story) -> str:

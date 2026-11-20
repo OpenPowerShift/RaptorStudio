@@ -43,3 +43,43 @@ def test_suppressed_findings_travel_with_their_reasons(tmp_path):
         suppressed=[{"rule": "M-SPR-001", "reason": "spares on order"}])
     assert section.suppressed == [{"rule": "M-SPR-001",
                                    "reason": "spares on order"}]
+
+
+def test_a_nested_model_with_no_hierarchy_downtime_still_reports():
+    from raptor.api.insight import report_section
+    attribution = {
+        "runs": 2, "units": "hours",
+        "system": {"red_time": {"mean": 0.0}},
+        "hierarchies": [
+            {"id": 10, "name": "Power", "path": ["Power"], "parent": 0,
+             "depth": 1, "members": [{"kind": "block", "id": 1}],
+             "dtci": {"mean": 0.0}, "causes": {}},
+            {"id": 11, "name": "Pumps", "parent": 10,
+             "path": ["Power", "Pumps"], "depth": 2,
+             "members": [{"kind": "block", "id": 1}],
+             "dtci": {"mean": 0.0}, "causes": {}},
+        ],
+    }
+    section = report_section.from_parts(
+        {"headline": {}, "units": "hours", "findings": []}, [],
+        attribution=attribution)
+    assert "Hierarchy sunburst" not in [spec.title for spec in section.charts]
+
+
+def test_a_phased_run_reports_the_phase_chart_and_an_unphased_one_does_not():
+    base = {"runs": 2, "system": {"red_time": {"mean": 1.0}},
+            "elements": [], "causes": {}, "outage_durations": {},
+            "hierarchies": []}
+
+    def titles(phases):
+        section = report_section.from_parts(
+            {"headline": {}, "units": "hours", "findings": []}, [],
+            attribution={**base, "phases": phases})
+        return [spec.title for spec in section.charts]
+
+    assert "Downtime by phase" not in titles([])
+    rows = [{"name": "Launch", "mission": True, "share_of_downtime": 1.0,
+             "availability": 0.9, "drivers": [],
+             "causes": {"repair": 1.0}}]
+    assert "Downtime by phase" in titles(rows)
+    assert "Phase by cause" in titles(rows)

@@ -45,6 +45,9 @@ def add_parser(sub: Any) -> None:
     c.add_argument("models", nargs="+", metavar="MODEL")
     c.add_argument("--metric", action="append", metavar="NAME",
                    help="compare only this metric (repeatable; default all)")
+    c.add_argument("--by-hierarchy", action="store_true",
+                   help="also compare each top-level hierarchy's share of "
+                        "downtime (runs attribution, so it is slower)")
     c.add_argument("-f", "--format", choices=("text", "json", "csv"),
                    default="text")
     add_run_options(c)
@@ -402,12 +405,13 @@ def _no_effect_note(names: list[str], metrics: list[str],
             f"distribution's parameters, changes nothing.")
 
 
-def compare_command(args: Any) -> int:
+def compare_command(args: Any) -> int:  # noqa: PLR0912
     if len(args.models) < 2:
         raise CliError("compare needs at least two models", X.USAGE)
     from raptor.api import batch
     metrics = _metric_names(args)
-    entries = []
+    entries: list[dict[str, Any]] = []
+    hierarchy_rows: list[dict[str, Any]] = []
     with workspace_for() as ws:
         for path in args.models:
             mid = open_model(ws, path)
@@ -416,30 +420,58 @@ def compare_command(args: Any) -> int:
             r = batch.run_variants(
                 ws, mid, [{"label": path, "assignments": []}],
                 workers=args.jobs, timeout_s=parse_duration(args.timeout),
-                seed=args.seed)[0]
+                seed=args.seed, attribution=args.by_hierarchy)[0]
             entries.append(r)
+        if args.by_hierarchy:
+            from raptor.api.insight import drivers, hierarchy as hier
+            tables = []
+            for entry in entries:
+                try:
+                    tables.append(drivers.read(ws, str(entry.get("run_id") or "")))
+                except Exception:  # noqa: BLE001 - an empty comparison is still valid
+                    tables.append({})
+            paths = sorted({hier.path_text(row) for table in tables
+                            for row in hier.top_rows(table)})
+            for path in paths:
+                values = []
+                for table in tables:
+                    row = next((item for item in hier.top_rows(table)
+                                if hier.path_text(item) == path), None)
+                    values.append(float((row or {}).get("dtci", {}).get("mean") or 0.0))
+                hierarchy_rows.append({"hierarchy": path, "values": values,
+                                       "delta": [v - values[0] for v in values]})
     base = entries[0]
     rows: list[dict[str, Any]] = []
-    for m in metrics:
-        b = _value(base, m)
-        rows.append({"metric": m, "values": [_value(e, m) for e in entries],
-                     "delta": [None if (v := _value(e, m)) is None or b is None
-                               else v - b for e in entries]})
+    for metric in metrics:
+        first = _value(base, metric)
+        rows.append({"metric": metric, "values": [_value(e, metric) for e in entries],
+                     "delta": [None if (v := _value(e, metric)) is None or first is None
+                               else v - first for e in entries]})
     if args.format == "json":
         emit_json({"schema": COMPARE_SCHEMA, "models": args.models,
-                   "rows": rows,
+                   "rows": rows, "hierarchies": hierarchy_rows,
                    "errors": [e.get("error") for e in entries]}, None)
+    elif args.format == "csv":
+        print(",".join(["metric", *args.models]))
+        for row in rows:
+            print(",".join([row["metric"], *[_fmt(v) for v in row["values"]]]))
+        if hierarchy_rows:
+            print("")
+            print(",".join(["hierarchy", *args.models]))
+            for row in hierarchy_rows:
+                print(",".join([row["hierarchy"],
+                                *[_fmt(v) for v in row["values"]]]))
     else:
-        header = ["metric"] + list(args.models)
-        body: list[list[str]] = [[r["metric"]] + [_fmt(v) for v in r["values"]] for r in rows]
-        if args.format == "csv":
-            print(",".join(header))
-            for b_ in body:
-                print(",".join(b_))
-        else:
-            print(_table_text(header, body))
+        print(_table_text(["metric", *args.models],
+                          [[row["metric"], *[_fmt(v) for v in row["values"]]]
+                           for row in rows]))
+        if hierarchy_rows:
+            print("\nBy hierarchy (share of system downtime):")
+            print(_table_text(["hierarchy", *args.models],
+                              [[row["hierarchy"],
+                                *[_fmt(v) for v in row["values"]]]
+                               for row in hierarchy_rows]))
     return X.INVALID if any(e.get("error") for e in entries) else X.OK
-
 
 def _diff_text(result: dict[str, Any]) -> str:
     """The plain-text rendering of a model diff: a header, then one aligned

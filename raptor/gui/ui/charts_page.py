@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.api import run_needs
-from raptor.api.insight import charts, timecharts
+from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_export
 from raptor.gui.ui.chart_widget import ChartWidget
@@ -53,8 +53,8 @@ class _Entry:
 
 
 #: Groups in the order the list shows them.
-GROUPS = ("The answer", "Over time", "Why it goes down", "Lost capacity",
-          "Year by year", "Cost", "What matters most")
+GROUPS = ("The answer", "By hierarchy", "Over time", "Why it goes down",
+          "Lost capacity", "Year by year", "Cost", "What matters most")
 
 #: The smallest height the chart is drawn at; a shorter page scrolls.
 CHART_MIN_HEIGHT = 340
@@ -85,17 +85,33 @@ class ChartsPage(QWidget):
     #: "availability" or "capacity": save the recorded plot rows (Raptor's rpt_* file)
     raw_export_requested = Signal(str)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:  # noqa: PLR0915
         super().__init__(parent)
         self._entries: dict[str, _Entry] = {}
         #: built charts by title (what the report and the old picker used)
         self._specs: dict[str, charts.ChartSpec] = {}
+        self._build_errors: dict[str, str] = {}
         self._time_cache: dict[tuple[str, int, float], charts.ChartSpec] = {}
         self._inputs: dict[str, Any] = {}
         self._ao_runs: list[dict[str, Any]] = []
         self._cap_runs: list[dict[str, Any]] = []
         self._y_floor = 0.0
         self._wanted = "Run-to-run outcome"
+        #: hierarchy id/name for the scope chip, or None for the system
+        self._scope: int | str | None = None
+        #: follow the canvas level unless the user picked a scope by hand
+        self._follow_canvas = True
+        #: the canvas level, remembered even while Follow canvas is off
+        self._canvas_hierarchy = 0
+        #: hierarchy level the ranking and ribbon charts show (0 = all)
+        self._depth = 0
+        #: hierarchy ids picked for the overlay; empty means the top four
+        self._selected: list[int] = []
+        #: a previous run's hierarchy rows, kept across a re-run
+        self._baseline_rows: list[dict[str, Any]] | None = None
+        self._baseline_label: str | None = None
+        #: target for capacity-weighted availability (fraction or None)
+        self._capacity_target: float | None = None
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -140,7 +156,12 @@ class ChartsPage(QWidget):
         split.setStretchFactor(0, 0)
         split.setStretchFactor(1, 1)
         split.setSizes([210, 800])
+        from raptor.gui.resources.design_tokens import ThemeManager
+        ThemeManager.instance().on_changed(self._on_theme_changed)
         self._sync_controls(None)
+        self._update_scope_menu()
+        self._update_compare_menu()
+        self._update_depth_menu()
 
     @staticmethod
     def _scrolling(chart: QWidget) -> QWidget:
@@ -153,10 +174,73 @@ class ChartsPage(QWidget):
         scroll.setWidget(chart)
         return scroll
 
-    def _build_bar(self) -> QHBoxLayout:
+    def _build_bar(self) -> QHBoxLayout:  # noqa: PLR0915
         """Run picker, axis floor and Export: shown only where a chart uses them."""
         bar = QHBoxLayout()
         bar.setSpacing(SPACING["sm"])
+        self.scope_button = QToolButton()
+        self.scope_button.setText("Scope: System")
+        self.scope_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.scope_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.scope_button.setToolTip(
+            "Show the charts for the whole system or for one hierarchy. "
+            "It follows the canvas unless you pick a scope here.")
+        self.scope_menu = QMenu(self.scope_button)
+        self.scope_button.setMenu(self.scope_menu)
+        bar.addWidget(self.scope_button)
+        self.follow_button = QToolButton()
+        self.follow_button.setText("Follow canvas")
+        self.follow_button.setCheckable(True)
+        self.follow_button.setChecked(True)
+        self.follow_button.setToolTip(
+            "When on, drilling into a hierarchy on the canvas changes the "
+            "chart scope too")
+        self.follow_button.toggled.connect(self._on_follow_toggled)
+        bar.addWidget(self.follow_button)
+        self.depth_box = QComboBox()
+        self.depth_box.setAccessibleName("Hierarchy depth")
+        self.depth_box.setToolTip(
+            "Depth: ranking charts show one level; the treemap and sunburst "
+            "grow this many levels.  All levels shows the whole tree.")
+        self.depth_box.currentIndexChanged.connect(self._on_depth_changed)
+        bar.addWidget(self.depth_box)
+        self.layout_box = QComboBox()
+        self.layout_box.setAccessibleName("Nested hierarchy layout")
+        self.layout_box.setToolTip(
+            "How the nested hierarchy is drawn: a treemap favours labels and "
+            "exact areas; a sunburst favours depth and structure")
+        self.layout_box.addItem("Treemap", "treemap")
+        self.layout_box.addItem("Sunburst", "sunburst")
+        self.layout_box.currentIndexChanged.connect(
+            lambda _i: self._show_current())
+        bar.addWidget(self.layout_box)
+        self.compare_button = QToolButton()
+        self.compare_button.setAccessibleName("Compare hierarchies")
+        self.compare_button.setText("Compare: top 4")
+        self.compare_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.compare_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.compare_button.setToolTip(
+            "Pick two to four hierarchies for the overlay. With none picked, "
+            "the four with the most downtime are compared.")
+        self.compare_menu = QMenu(self.compare_button)
+        self.compare_button.setMenu(self.compare_menu)
+        bar.addWidget(self.compare_button)
+        self.baseline_button = QToolButton()
+        self.baseline_button.setAccessibleName("Hierarchy baseline")
+        self.baseline_button.setText("Baseline: none")
+        self.baseline_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.baseline_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.baseline_button.setToolTip(
+            "Keep this run's hierarchy table as the baseline, then run again "
+            "to see the change by hierarchy")
+        self.baseline_menu = QMenu(self.baseline_button)
+        self.set_baseline_action = self.baseline_menu.addAction(
+            "Set current as baseline", self._set_baseline)
+        self.clear_baseline_action = self.baseline_menu.addAction(
+            "Clear baseline", self._clear_baseline)
+        self.clear_baseline_action.setEnabled(False)
+        self.baseline_button.setMenu(self.baseline_menu)
+        bar.addWidget(self.baseline_button)
         self.run_label = QLabel("Run")
         self.run_box = QSpinBox()
         self.run_box.setMinimum(1)
@@ -172,6 +256,11 @@ class ChartsPage(QWidget):
             "availability chart over time. Saved with the model.")
         self.floor_button.clicked.connect(self._ask_floor)
         self.target_button = self._target_control()
+        self.capacity_target_button = QPushButton("Capacity target: none")
+        self.capacity_target_button.setToolTip(
+            "A target capacity-weighted availability drawn on the year-by-year "
+            "capacity chart. Visual cue only; the model and run do not change.")
+        self.capacity_target_button.clicked.connect(self._ask_capacity_target)
         self.fold_box = QComboBox()
         for text, share in (("Fold nothing", 0.0), ("Fold items below 1 %", 0.01),
                             ("Fold items below 2 %", 0.02),
@@ -186,6 +275,7 @@ class ChartsPage(QWidget):
         bar.addStretch(1)
         bar.addWidget(self.fold_box)
         bar.addWidget(self.target_button)
+        bar.addWidget(self.capacity_target_button)
         bar.addWidget(self.floor_button)
         self.export_button = QToolButton()
         self.export_button.setText("Export")
@@ -244,6 +334,222 @@ class ChartsPage(QWidget):
         elay.addStretch(2)
         return empty
 
+    # -- hierarchy scope -------------------------------------------------
+
+    def _scope_row(self) -> dict[str, Any] | None:
+        attribution = self._inputs.get("attribution")
+        if self._scope in (None, "", 0, "0"):
+            return None
+        try:
+            return hier.resolve(attribution, self._scope)
+        except ValueError:
+            return None
+
+    def _scope_meta(self) -> dict[str, Any]:
+        attribution = self._inputs.get("attribution")
+        return hier.scope_meta(attribution, self._scope_row())
+
+    def _scope_text(self) -> str:
+        row = self._scope_row()
+        if row is None:
+            return "Scope: System"
+        return "Scope: " + " > ".join(str(part) for part in row.get("path") or [row["name"]])
+
+    def _update_scope_menu(self) -> None:
+        self.scope_menu.clear()
+        attribution = self._inputs.get("attribution")
+        system = self.scope_menu.addAction("System")
+        system.setCheckable(True)
+        system.setChecked(self._scope_row() is None)
+        system.triggered.connect(lambda _c=False: self.set_scope(None, follow=False))
+        for row in hier.rows(attribution):
+            text = "  " * max(0, int(row.get("depth") or 1) - 1) + str(row["name"])
+            action = self.scope_menu.addAction(text)
+            action.setCheckable(True)
+            action.setChecked((self._scope_row() or {}).get("id") == row.get("id"))
+            ref = int(row.get("id") or 0)
+            action.triggered.connect(
+                lambda _c=False, ref=ref: self.set_scope(ref, follow=False))
+        self.scope_button.setText(self._scope_text())
+
+    def _update_compare_menu(self) -> None:
+        self.compare_menu.clear()
+        attribution = self._inputs.get("attribution")
+        top = self.compare_menu.addAction("Top four by downtime")
+        top.setCheckable(True)
+        top.setChecked(not self._selected)
+        top.triggered.connect(lambda _c=False: self.set_compare([]))
+        self.compare_menu.addSeparator()
+        for row in hier.rows(attribution):
+            indent = "  " * max(0, int(row.get("depth") or 1) - 1)
+            action = self.compare_menu.addAction(indent + str(row["name"]))
+            action.setCheckable(True)
+            action.setChecked(int(row.get("id") or 0) in self._selected)
+            ref = int(row.get("id") or 0)
+            action.triggered.connect(
+                lambda checked=False, ref=ref: self._toggle_compare(ref, checked))
+        count = len(self._selected)
+        self.compare_button.setText(
+            "Compare: top 4" if not count else
+            f"Compare: {count} selected")
+
+    def _toggle_compare(self, ref: int, checked: bool) -> None:
+        chosen = list(self._selected)
+        if checked and ref not in chosen:
+            if len(chosen) >= 4:
+                # The comparison charts take four branches; refuse the fifth
+                # rather than leave a selection that cannot be drawn.
+                self._update_compare_menu()
+                return
+            chosen.append(ref)
+        elif not checked and ref in chosen:
+            chosen.remove(ref)
+        self.set_compare(chosen)
+
+    def _on_depth_changed(self, _index: int) -> None:
+        self._depth = int(self.depth_box.currentData() or 0)
+        self._rebuild()
+
+    def _update_depth_menu(self) -> None:
+        if not hasattr(self, "depth_box"):
+            return
+        depth = hier.max_depth(self._inputs.get("attribution"))
+        self.depth_box.blockSignals(True)
+        self.depth_box.clear()
+        self.depth_box.addItem("All levels", 0)
+        for level in range(1, max(1, depth) + 1):
+            label = "Top level" if level == 1 else f"Level {level}"
+            self.depth_box.addItem(label, level)
+        index = self.depth_box.findData(self._depth)
+        self.depth_box.setCurrentIndex(max(0, index))
+        self._depth = int(self.depth_box.currentData() or 0)
+        self.depth_box.blockSignals(False)
+
+    def _on_theme_changed(self, _dark: bool) -> None:
+        """The list's muted text and the painted chart follow the theme."""
+        self._time_cache.clear()
+        self._rebuild()
+
+    def _fallback_after_scope(self) -> None:
+        """A system-only chart becomes unavailable on drilling in; move to a
+        ranking that can answer the same question inside the scope."""
+        key = self.selected_key()
+        entry = self._entries.get(key or "")
+        if (key == "hierarchy-scorecard" and entry is not None
+                and entry.missing and self._scope_row() is not None):
+            self.select("Hierarchy Pareto")
+
+    def _depth_value(self) -> int:
+        return int(self._depth or 0)
+
+    def _ranking_depth(self) -> int:
+        """0 is All levels for nested charts; rankings use the top level."""
+        return int(self._depth or 1)
+
+    def _compare_refs(self) -> list[int] | None:
+        """The comparison set: explicit picks, or the scope's children.
+
+        Without a scope this is None (the charts choose the top four); with a
+        scope and no explicit picks the comparison stays inside it, so a
+        scoped overlay cannot silently show a sibling.
+        """
+        if self._selected:
+            return list(self._selected)
+        row = self._scope_row()
+        if row is None:
+            return None
+        prefix = hier.path_text(row) + " > "
+        children = [item for item in hier.rows(self._inputs.get("attribution"))
+                    if item is not row and hier.path_text(item).startswith(prefix)
+                    and float((item.get("dtci") or {}).get("mean") or 0.0) > 0]
+        children.sort(key=lambda item: -(float((item.get("dtci") or {})
+                                               .get("mean") or 0.0)))
+        return [int(item.get("id") or 0) for item in children[:4]] or [
+            int(row.get("id") or 0)]
+
+    def _hierarchy_map_spec(self) -> charts.ChartSpec:
+        """The one nested view, drawn as a treemap or a sunburst."""
+        attribution = self._inputs.get("attribution") or {}
+        nested_depth = None if not self._depth else self._depth
+        if self.layout_box.currentData() == "sunburst":
+            return charts.hierarchy_sunburst(
+                attribution, self._scope, depth=nested_depth)
+        return charts.hierarchy_treemap(
+            attribution, self._scope, depth=nested_depth)
+
+    def _on_follow_toggled(self, on: bool) -> None:
+        self._follow_canvas = bool(on)
+        if on:
+            self._scope = self._canvas_hierarchy or None
+            self._update_scope_menu()
+            self._time_cache.clear()
+            self._rebuild()
+
+    def follow_hierarchy(self, hid: int | None) -> None:
+        """The canvas level changed: use it when Follow canvas is on."""
+        self._canvas_hierarchy = int(hid or 0)
+        if not self._follow_canvas:
+            return
+        ref = int(hid or 0) or None
+        if ref == self._scope:
+            return
+        self._scope = ref
+        self._update_scope_menu()
+        self._time_cache.clear()
+        self._rebuild()
+        self._fallback_after_scope()
+
+    def set_scope(self, scope: int | str | None, *, follow: bool | None = None) -> None:
+        """Set the chart scope; `follow=False` means a deliberate choice."""
+        if follow is not None:
+            self._follow_canvas = bool(follow)
+            self.follow_button.blockSignals(True)
+            self.follow_button.setChecked(self._follow_canvas)
+            self.follow_button.blockSignals(False)
+        self._scope = scope if scope not in (0, "0", "") else None
+        self._update_scope_menu()
+        self._time_cache.clear()
+        self._rebuild()
+        self._fallback_after_scope()
+
+    def set_compare(self, refs: list[int | str]) -> None:
+        chosen = []
+        for ref in refs:
+            try:
+                chosen.append(int(hier.resolve(self._inputs.get("attribution"), ref)
+                                  .get("id") or 0))
+            except ValueError:
+                continue
+        self._selected = list(dict.fromkeys(chosen))[:4]
+        self._update_compare_menu()
+        self._rebuild()
+
+    def selected_hierarchies(self) -> list[int]:
+        return list(self._selected)
+
+    def _set_baseline(self) -> None:
+        attribution = self._inputs.get("attribution") or {}
+        if not attribution.get("hierarchies"):
+            return
+        self._baseline_rows = list(attribution["hierarchies"])
+        run = self._inputs.get("run_id")
+        self._baseline_label = f"run {run}" if run else "this run"
+        self.baseline_button.setText("Baseline: set")
+        self.clear_baseline_action.setEnabled(True)
+        self._rebuild()
+
+    def _clear_baseline(self) -> None:
+        self._baseline_rows = None
+        self._baseline_label = None
+        self.baseline_button.setText("Baseline: none")
+        self.clear_baseline_action.setEnabled(False)
+        self._rebuild()
+
+    def set_baseline(self, rows: list[dict[str, Any]] | None) -> None:
+        self._baseline_rows = list(rows) if rows else None
+        self.baseline_button.setText("Baseline: set" if rows else "Baseline: none")
+        self.clear_baseline_action.setEnabled(bool(rows))
+
     # -- input ----------------------------------------------------------
 
     def set_inputs(self, *, per_run: list[dict] | None = None,
@@ -255,7 +561,11 @@ class ChartsPage(QWidget):
                    target: float | None = None,
                    drivers: str = "ready",
                    measure: str = "availability",
-                   generated: float | None = None) -> None:
+                   generated: float | None = None,
+                   hierarchy: int | None = None,
+                   baseline: list[dict[str, Any]] | None = None,
+                   model_hierarchies: bool | None = None,
+                   model_phases: bool | None = None) -> None:
         """Rebuild the list from whatever this result set has.
 
         `drivers` says where the downtime attribution stands: ``ready``
@@ -266,7 +576,21 @@ class ChartsPage(QWidget):
                         "importance": importance, "report_data": report_data or [],
                         "periods": periods, "units": units, "run_id": run_id,
                         "target": target, "drivers": drivers, "measure": measure,
-                        "generated": generated}
+                        "generated": generated,
+                        "model_hierarchies": model_hierarchies,
+                        "model_phases": model_phases}
+        if self._follow_canvas:
+            self._scope = int(hierarchy) if hierarchy else None
+        if self._scope is not None and self._scope_row() is None:
+            self._scope = None
+        valid_ids = {int(row.get("id") or 0)
+                     for row in ((attribution or {}).get("hierarchies") or [])}
+        self._selected = [hid for hid in self._selected if hid in valid_ids]
+        if baseline is not None:
+            self.set_baseline(baseline)
+        self._update_scope_menu()
+        self._update_compare_menu()
+        self._update_depth_menu()
         self._time_cache.clear()
         self._rebuild()
 
@@ -299,6 +623,7 @@ class ChartsPage(QWidget):
         current = self.selected_key() or self._wanted
         folded = {item.text(0) for item in self._groups() if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
+        self._build_errors = {}
         self._specs = {}
         for entry in self._entries.values():
             if not entry.missing and entry.key not in timecharts.TIME_CHARTS:
@@ -348,7 +673,9 @@ class ChartsPage(QWidget):
             item.setToolTip(0, entry.missing)
         else:
             spec = self._specs.get(entry.title)
-            item.setToolTip(0, spec.subtitle if spec is not None else "")
+            item.setToolTip(0, (f"{entry.title} — {spec.subtitle}"
+                                if spec is not None and spec.subtitle
+                                else entry.title))
         return item
 
     def _groups(self) -> list[QTreeWidgetItem]:
@@ -364,7 +691,7 @@ class ChartsPage(QWidget):
         return next((item for item in self._chart_items()
                      if not self._entries[item.data(0, _KEY)].missing), None)
 
-    def _catalogue(self) -> list[_Entry]:  # noqa: C901, PLR0915 - one table of charts
+    def _catalogue(self) -> list[_Entry]:  # noqa: C901, PLR0912, PLR0915 - one table
         i = self._inputs
         per_run: list[dict] = i.get("per_run") or []
         attribution = i.get("attribution")
@@ -372,10 +699,24 @@ class ChartsPage(QWidget):
         periods = i.get("periods")
         report_data = i.get("report_data") or []
         target, units = i.get("target"), i.get("units") or ""
+        row = self._scope_row()
+        source = hier.scoped(attribution, row) if row is not None else (attribution or {})
+        scope_reason = ("This chart is system-wide and has no per-hierarchy "
+                        "series. Choose System, or use the hierarchy overlay, "
+                        "small multiples, heatmap or state ribbon."
+                        if row is not None else "")
+        measure = ("availability" if row is not None else
+                   (i.get("measure") or "availability"))
+        scoped_per_run = hier.per_run(attribution, row) if row is not None else per_run
+        scoped_label = ("share of system downtime" if row is not None
+                        else measure.replace("_", " ").capitalize())
+        scoped_target = None if row is not None else target
         # The ladder, the waterfall and the year charts are availability
         # whatever the headline measure is: a dependability target is not
         # drawn on them.
-        a_target = target if (i.get("measure") or "availability") == "availability" else None
+        a_target = (None if row is not None else
+                    target if (i.get("measure") or "availability") == "availability"
+                    else None)
         entries: list[_Entry] = []
 
         def add(key: str, title: str, group: str,
@@ -387,24 +728,123 @@ class ChartsPage(QWidget):
             entries.append(_Entry(key, title, group, build, missing, action,
                                   needs if missing else ()))
 
-        no_runs = "" if per_run else "No runs yet: run the model (F5)."
+        has_runs = bool(per_run) or bool(row is not None and scoped_per_run)
+        no_runs = "" if has_runs else "No runs yet: run the model (F5)."
         # the Story's headline measure: the outcome and chance charts drew
         # availability beside a dependability Story and convergence chart
-        measure = i.get("measure") or "availability"
-        label = measure.replace("_", " ").capitalize()
         add("trial-outcome", "Run-to-run outcome", "The answer",
             lambda: _with_run_id(charts.trial_outcome(
-                per_run, measure, label=label, target=target, units=units), i),
+                scoped_per_run, measure, label=scoped_label, target=scoped_target,
+                units=units), i),
             no_runs)
         add("ecdf", "Chance of reaching a value", "The answer",
-            lambda: charts.ecdf(per_run, measure, label=label, target=target,
-                                units=units), no_runs)
+            lambda: charts.ecdf(scoped_per_run, measure, label=scoped_label,
+                                target=scoped_target, units=units,
+                                higher_is_better=row is None), no_runs)
         add("availability-ladder", "Availability ladder", "The answer",
             lambda: _with_run_id(charts.availability_ladder(_ladder(per_run), a_target), i),
-            no_runs)
+            no_runs or scope_reason)
         add("convergence", "Has the run settled?", "The answer",
-            lambda: charts.convergence(per_run, measure, target=target),
-            "" if len(per_run) >= 2 else "Needs at least 2 runs.")
+            lambda: charts.convergence(scoped_per_run, measure,
+                                       target=scoped_target, label=scoped_label),
+            "" if len(scoped_per_run) >= 2 else "Needs at least 2 runs.")
+
+        has_hier = bool(attribution and attribution.get("hierarchies"))
+        model_hier = self._inputs.get("model_hierarchies")
+        model_phases = self._inputs.get("model_phases")
+        drivers_state = i.get("drivers") or "ready"
+        if has_hier:
+            no_hier = ""
+        elif not model_hier:
+            no_hier = "This model has no hierarchy roll-up."
+        elif not attribution:
+            no_hier = ("The run kept no event log: turn on Detailed event log "
+                       "and run again." if drivers_state == "unavailable" else
+                       "Work out the downtime drivers first (the hierarchy "
+                       "roll-up comes from the same replay).")
+        else:
+            no_hier = ("This run has no hierarchy roll-up: rerun it with "
+                       "attribution and a hierarchy roll-up.")
+        if not attribution:
+            phase_missing = ("The run kept no event log: turn on Detailed "
+                             "event log and run again."
+                             if drivers_state == "unavailable" else
+                             "Work out the downtime drivers first.")
+        elif (attribution or {}).get("phases"):
+            phase_missing = ""
+        elif model_phases:
+            phase_missing = ("This run has no phase breakdown: rerun it with "
+                             "phases and attribution on.")
+        else:
+            phase_missing = "The model has no mission phases."
+        outages = (attribution or {}).get("outages") or {}
+        has_hier_timeline = any(run.get("hier") for run in outages.get("runs") or [])
+        no_timeline = ("" if has_hier_timeline else
+                       "This run kept no per-hierarchy outage timeline: run "
+                       "again with downtime attribution on.")
+        chosen = self._compare_refs()
+        chosen_rows = []
+        if chosen:
+            try:
+                chosen_rows = hier.resolve_many(attribution, chosen)
+            except ValueError:
+                chosen_rows = []
+        overlap = hier.overlaps(chosen_rows)
+        no_overlap = ("" if not overlap else
+                      "These hierarchies overlap (a parent includes its "
+                      "child): choose different branches, or one level.")
+        has_comparable = any(float((item.get("dtci") or {}).get("mean") or 0.0) > 0
+                             for item in ((attribution or {}).get("hierarchies") or []))
+        no_compare = ("" if has_comparable else
+                      "No hierarchy has downtime to compare in this run.")
+        add("hierarchy-scorecard", "Hierarchy scorecard", "By hierarchy",
+            lambda: charts.hierarchy_scorecard(attribution or {}, depth=self._ranking_depth()),
+            scope_reason or no_hier)
+        add("hierarchy-pareto", "Hierarchy Pareto", "By hierarchy",
+            lambda: charts.hierarchy_pareto(attribution or {}, self._scope,
+                                                    depth=self._ranking_depth()), no_hier)
+        add("hierarchy-map", "Where the downtime sits", "By hierarchy",
+            self._hierarchy_map_spec, no_hier)
+        add("hierarchy-overlay", "When did each hierarchy's downtime build up?", "By hierarchy",
+            lambda: charts.hierarchy_overlay(attribution or {}, chosen,
+                                                    depth=self._ranking_depth()),
+            no_hier or no_timeline or no_overlap or no_compare)
+        add("hierarchy-small-multiples", "Is the hierarchy ranking stable?", "By hierarchy",
+            lambda: charts.hierarchy_small_multiples(attribution or {}, chosen,
+                                                            depth=self._ranking_depth()),
+            no_hier or no_overlap or no_compare)
+        add("hierarchy-delta", "Hierarchy change against baseline", "By hierarchy",
+            lambda: charts.hierarchy_delta(
+                attribution or {}, self._baseline_rows,
+                depth=self._ranking_depth(),
+                baseline_label=self._baseline_label),
+            scope_reason or no_hier or ("" if self._baseline_rows else
+                                        "Set a baseline run first, then run again."))
+        add("hierarchy-heatmap", "Hierarchy by cause", "By hierarchy",
+            lambda: charts.hierarchy_heatmap(attribution or {}, self._scope,
+                                                    depth=self._ranking_depth()), no_hier)
+        if not (attribution or {}).get("phases"):
+            no_phase = "The model has no mission phases."
+        elif (any(float((item.get("dtci") or {}).get("mean") or 0.0) > 0
+                  for item in (attribution or {}).get("hierarchies") or [])
+              and all(not item.get("phase_shares")
+                      for item in (attribution or {}).get("hierarchies") or [])):
+            no_phase = ("This run has no per-hierarchy phase breakdown: rerun "
+                        "it with phases and attribution on.")
+        else:
+            no_phase = ""
+        add("hierarchy-phase-heatmap", "Hierarchy by phase", "By hierarchy",
+            lambda: charts.hierarchy_phase_heatmap(
+                attribution or {}, self._scope, depth=self._ranking_depth()),
+            no_hier or no_phase)
+        add("hierarchy-anatomy", "Outage paths across hierarchies", "By hierarchy",
+            lambda: charts.hierarchy_anatomy(attribution or {}, self._scope), no_hier)
+        add("hierarchy-ribbon", "When was each hierarchy down?", "By hierarchy",
+            lambda: charts.hierarchy_ribbon(
+                attribution or {}, max(1, self.run_box.value()),
+                depth=self._ranking_depth(), hierarchy=self._scope),
+            no_hier or no_timeline)
+
 
         ao, cap = self._ao_runs, self._cap_runs
         has_interval = any(v is not None for r in ao for v in r.get("interval", []))
@@ -415,19 +855,19 @@ class ChartsPage(QWidget):
                      "interval under Run panel ▸ Recording, then run again.")
         for key, title, missing in (
                 ("availability-through-run", "Availability through a run",
-                 "" if ao else _RECORD_AO),
+                 scope_reason or ("" if ao else _RECORD_AO)),
                 ("interval-availability", "Availability interval by interval",
-                 "" if has_interval else short_run if ao else _RECORD_AO),
+                 scope_reason or ("" if has_interval else short_run if ao else _RECORD_AO)),
                 ("availability-band", "Availability across all runs",
-                 "" if len(ao) >= 2 else (
+                 scope_reason or ("" if len(ao) >= 2 else (
                      "Needs the availability plot of at least 2 runs." if ao
-                     else _RECORD_AO)),
+                     else _RECORD_AO))),
                 ("capacity-through-run", "Capacity through a run",
-                 "" if cap else _RECORD_CAP),
+                 scope_reason or ("" if cap else _RECORD_CAP)),
                 ("capacity-band", "Capacity across all runs",
-                 "" if len(cap) >= 2 else (
+                 scope_reason or ("" if len(cap) >= 2 else (
                      "Needs the capacity plot of at least 2 runs." if cap
-                     else _RECORD_CAP))):
+                     else _RECORD_CAP)))):
             add(key, title, "Over time", None, missing,
                 needs=(("capacity_plot",) if key.startswith("capacity") and not cap
                        else ("availability_plot",) if not key.startswith("capacity")
@@ -447,28 +887,36 @@ class ChartsPage(QWidget):
 
             def drivers_missing(_need: str = "") -> str:
                 return reason
-        a = attribution or {}
-        operational = _operational(per_run)
+        a = source
+        operational = None if row is not None else _operational(per_run)
         for key, title, build, extra in (
                 ("downtime-pareto", "Who causes the downtime",
                  lambda: charts.downtime_pareto(a), ""),
                 ("downtime-waterfall", "Where availability is lost",
-                 lambda: charts.downtime_waterfall(a, operational, a_target), ""),
+                 lambda row=row: charts.downtime_waterfall(
+                     a, None if row is not None else operational,
+                     scoped_target), ""),
                 ("downtime-treemap", "Downtime treemap",
                  lambda: charts.downtime_treemap(a), ""),
                 ("phase-downtime", "Downtime by phase",
                  lambda: charts.phase_downtime(a),
-                 "" if not attribution or a.get("phases")
-                 else "The model has no mission phases."),
+                 scope_reason or phase_missing),
+                ("phase-cause-heatmap", "Phase by cause",
+                 lambda: charts.phase_cause_heatmap(a),
+                 scope_reason or phase_missing
+                 or ("" if any(row.get("causes") for row in
+                              (attribution or {}).get("phases") or [])
+                     else "Rerun with phases and attribution on to split each "
+                          "phase's downtime by cause.")),
                 ("outage-anatomy", "What an outage looks like",
                  lambda: charts.outage_anatomy(a), ""),
                 ("ensemble-ribbon", "Run-to-run state ribbon",
                  lambda: charts.ensemble_ribbon(a),
-                 "" if not attribution or a.get("outages")
-                 else "No outage timeline was kept for this run."),
+                 scope_reason or ("" if not attribution or a.get("outages")
+                                 else "No outage timeline was kept for this run.")),
                 ("outage-histogram", "How long is an outage?",
-                 lambda: charts.outage_histogram(a), ""),
-                ("frequency-duration", "Frequency against duration",
+                 lambda: charts.outage_histogram(a), scope_reason),
+                ("frequency-duration", "Frequent or long outages?",
                  lambda: charts.frequency_duration(a), "")):
             add(key, title, "Why it goes down", build, drivers_missing() or extra,
                 action if not attribution else "",
@@ -485,17 +933,26 @@ class ChartsPage(QWidget):
                  lambda: charts.lost_capacity_pareto(a)),
                 ("capacity-vs-downtime", "Downtime against lost capacity",
                  lambda: charts.capacity_vs_downtime(a)),
-                ("capacity-waterfall", "Where the capacity goes",
+                ("capacity-waterfall", "Lost capacity by cause",
                  lambda: charts.capacity_waterfall(a)),
                 ("lost-capacity-treemap", "Lost capacity treemap",
                  lambda: charts.lost_capacity_treemap(a))):
-            add(key, title, "Lost capacity", build, no_capacity,
+            add(key, title, "Lost capacity", build,
+                scope_reason or no_capacity,
                 action if not attribution else "", needs=capacity_needs)
+        if has_hier:
+            add("capacity-sankey", "Lost capacity by hierarchy and cause",
+                "Lost capacity",
+                lambda: charts.capacity_sankey(
+                    attribution or {}, self._scope,
+                    None if self._scope is not None else (self._selected or None)),
+                no_capacity or no_overlap)
 
         ends = [float(row["ending_sim_time"]) for row in per_run
                 if isinstance(row.get("ending_sim_time"), (int, float))]
         length = max(ends) if ends else None
-        if periods:
+        if periods and (periods.get("by_index")
+                        or periods.get("periods_per_run")):
             no_years = ""
         elif drivers_missing():
             no_years = drivers_missing()
@@ -512,14 +969,15 @@ class ChartsPage(QWidget):
         years_needs: tuple[str, ...] = (
             ("attribution",) if not attribution and not action else ())
         p = periods or {}
+        no_years = scope_reason or no_years
         add("annual-fan", "Availability year by year", "Year by year",
             lambda: charts.annual_fan(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
-        add("annual-dots", "A bad year, as a frequency", "Year by year",
+        add("annual-dots", "How often is a year below target?", "Year by year",
             lambda: charts.annual_dots(p, a_target), no_years, action if not attribution else "",
             needs=years_needs)
         add("annual-capacity-fan", "Capacity delivered year by year", "Year by year",
-            lambda: charts.annual_capacity_fan(p),
+            lambda: charts.annual_capacity_fan(p, self._capacity_target),
             no_years or ("" if (p.get("capacity") or {}).get("by_index")
                          else "Needs the capacity analysis as well. "
                          + run_needs.gui_hint("capacity")),
@@ -531,21 +989,57 @@ class ChartsPage(QWidget):
         no_cost = "" if has_cost else ("Needs the cost analysis. "
                                        + run_needs.gui_hint("cost"))
         cost_needs = () if has_cost else ("cost",)
+        cost_rows = charts.element_costs(report_data)
+        if row is not None:
+            cost_rows = hier.cost_rows(cost_rows, row, source.get("elements") or [])
+        scoped_importance = (hier.importance_rows(importance, row,
+                                                  source.get("elements") or [])
+                             if row is not None else importance)
         add("cost-pareto", "Where the money goes", "Cost",
-            lambda: charts.cost_pareto(charts.element_costs(report_data)), no_cost,
+            lambda: charts.cost_pareto(cost_rows), no_cost,
             needs=cost_needs)
         add("cost-treemap", "Cost treemap", "Cost",
-            lambda: charts.cost_treemap(charts.element_costs(report_data)), no_cost,
+            lambda: charts.cost_treemap(cost_rows), no_cost,
             needs=cost_needs)
         # the quadrant plots RAW against RRW: only mode "both" has the two
-        quadrant = bool(importance) and (importance or {}).get("mode") in (None, "both")
+        quadrant = bool(scoped_importance) and (scoped_importance or {}).get("mode") in (None, "both")
         no_quadrant = "" if quadrant else (
             ("The quadrant needs RAW and RRW, so importance mode Both. "
-             if importance else "Needs importance measures (mode Both). ")
+             if scoped_importance else "Needs importance measures (mode Both). ")
             + run_needs.gui_hint("importance"))
         add("importance-quadrant", "Importance quadrant", "What matters most",
-            lambda: charts.importance_quadrant(importance or {}), no_quadrant,
+            lambda: charts.importance_quadrant(scoped_importance or {}), no_quadrant,
             needs=() if quadrant else ("importance",))
+        if not attribution and (model_hier or model_phases):
+            for entry in entries:
+                if (entry.group == "By hierarchy" or entry.key.startswith("phase-")
+                        or entry.key == "hierarchy-phase-heatmap"):
+                    if drivers_state == "pending":
+                        entry.action = "Work out the downtime drivers"
+                        entry.needs = ()
+                    elif drivers_state == "unavailable":
+                        entry.action = run_needs.button_text("attribution")
+                        entry.needs = ("attribution",)
+        if not has_hier and not model_hier:
+            # No hierarchy roll-up: the question does not exist, so do not
+            # leave a greyed group of controls and rows behind.
+            entries = [entry for entry in entries if entry.group != "By hierarchy"]
+        if has_hier or model_hier:
+            # The nested hierarchy treemap already contains the elements;
+            # a flat treemap beside it is the same question twice.
+            entries = [entry for entry in entries
+                       if entry.key != "downtime-treemap"]
+        if not (attribution or {}).get("phases") and not model_phases:
+            entries = [entry for entry in entries
+                       if not entry.key.startswith("phase-")
+                       and entry.key != "hierarchy-phase-heatmap"]
+        if row is not None:
+            # Scoped, the hierarchy Pareto already ranks the children and
+            # elements inside the scope with a stated denominator, and the
+            # system outage anatomy already shows the paths inside the scope.
+            entries = [entry for entry in entries
+                       if entry.key not in ("downtime-pareto",
+                                            "hierarchy-anatomy")]
         return entries
 
     # -- showing a chart ------------------------------------------------
@@ -553,8 +1047,9 @@ class ChartsPage(QWidget):
     def _safe(self, entry: _Entry) -> charts.ChartSpec | None:
         try:
             return entry.build() if entry.build is not None else None
-        except Exception:  # noqa: BLE001 - one bad chart must not break the tab
+        except Exception as exc:  # noqa: BLE001 - one bad chart must not break the tab
             logging.getLogger(__name__).exception("could not build %s", entry.key)
+            self._build_errors[entry.key] = str(exc)
             return None
 
     def _time_spec(self, key: str) -> charts.ChartSpec | None:
@@ -592,16 +1087,31 @@ class ChartsPage(QWidget):
         if entry.missing:
             self._show_missing(entry.title, entry.missing, entry.action)
             return
-        spec = (self._time_spec(entry.key) if entry.key in timecharts.TIME_CHARTS
-                else self._specs.get(entry.title))
+        if entry.key == "hierarchy-map":
+            spec = self._hierarchy_map_spec()
+        elif entry.key == "hierarchy-ribbon":
+            try:
+                spec = charts.hierarchy_ribbon(
+                    self._inputs.get("attribution") or {},
+                    max(1, self.run_box.value()), depth=self._ranking_depth(),
+                    hierarchy=self._scope)
+            except ValueError:
+                spec = None
+        else:
+            spec = (self._time_spec(entry.key) if entry.key in timecharts.TIME_CHARTS
+                    else self._specs.get(entry.title))
         if spec is None:
-            if self.stack.currentIndex() == 0:
-                self._show_missing(entry.title, "This chart cannot be drawn from "
-                                   "this result.", "")
+            self._show_missing(
+                entry.title,
+                self._build_errors.get(entry.key,
+                                       "This chart cannot be drawn from this "
+                                       "result."), "")
             return
         self.fold_box.setVisible(charts.foldable(spec))
         if self.fold_share > 0:
             spec = charts.fold_small(spec, self.fold_share)
+        if self._scope_row() is not None:
+            spec = hier.annotate(spec, self._scope_meta())
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
@@ -621,10 +1131,22 @@ class ChartsPage(QWidget):
         self.missing_action.setVisible(bool(action))
         self.stack.setCurrentIndex(1)
 
+    def _has_hierarchies(self) -> bool:
+        attribution = self._inputs.get("attribution") or {}
+        return bool(attribution.get("hierarchies"))
+
     def _sync_controls(self, entry: _Entry | None) -> None:
         key = entry.key if entry is not None and not entry.missing else ""
-        per_run = key in timecharts.PER_RUN_CHARTS
-        runs = len(self._cap_runs if key.startswith("capacity") else self._ao_runs)
+        has_hier = self._has_hierarchies()
+        self.scope_button.setVisible(has_hier)
+        self.follow_button.setVisible(has_hier)
+        self.compare_button.setVisible(
+            has_hier and key in charts.MULTI_HIERARCHY_CHARTS)
+        self.baseline_button.setVisible(has_hier and key == "hierarchy-delta")
+        per_run = key in timecharts.PER_RUN_CHARTS or key == "hierarchy-ribbon"
+        runs = (int((self._inputs.get("attribution") or {}).get("runs") or 0)
+                if key == "hierarchy-ribbon" else
+                len(self._cap_runs if key.startswith("capacity") else self._ao_runs))
         self.run_box.blockSignals(True)
         self.run_box.setMaximum(max(1, runs))
         self.run_box.blockSignals(False)
@@ -634,8 +1156,19 @@ class ChartsPage(QWidget):
         floor = key in ("availability-through-run", "interval-availability",
                         "availability-band")
         self.floor_button.setVisible(floor)
-        self.target_button.setVisible(key in TARGET_CHARTS)
+        self.target_button.setVisible(
+            key in TARGET_CHARTS and self._scope_row() is None)
+        self.capacity_target_button.setVisible(key == "annual-capacity-fan")
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
+        depth_charts = {
+            "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-heatmap",
+            "hierarchy-phase-heatmap", "hierarchy-small-multiples",
+            "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
+            "hierarchy-delta"}
+        self.depth_box.setVisible(
+            has_hier and key in depth_charts
+            and hier.max_depth(self._inputs.get("attribution")) > 1)
+        self.layout_box.setVisible(has_hier and key == "hierarchy-map")
         self._sync_floor_text()
         self._sync_target_text()
         self.export_button.setEnabled(bool(key))
@@ -693,6 +1226,24 @@ class ChartsPage(QWidget):
         self.target_button.setText("Target: none" if target is None
                                    else f"Target: {100 * target:.6g} %")
 
+    def set_capacity_target(self, value: float | None) -> None:
+        self._capacity_target = value if value and 0 < value <= 1 else None
+        self.capacity_target_button.setText(
+            "Capacity target: none" if self._capacity_target is None else
+            f"Capacity target: {100 * self._capacity_target:.6g} %")
+        self._time_cache.clear()
+        self._rebuild()
+
+    def _ask_capacity_target(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getDouble(
+            self, "Capacity target",
+            "Target capacity-weighted availability, in % (0 = none).\n"
+            "A visual cue only: the model and the simulation do not change.",
+            round(100 * (self._capacity_target or 0.0), 6), 0.0, 100.0, 6)
+        if ok:
+            self.set_capacity_target(value / 100.0 if value > 0 else None)
+
     def _ask_target(self) -> None:
         from PySide6.QtWidgets import QInputDialog
         value, ok = QInputDialog.getDouble(
@@ -735,10 +1286,22 @@ class ChartsPage(QWidget):
 
     def select(self, key_or_title: str) -> bool:
         """Show a chart by its CLI name or its title; False when it is not listed."""
+        aliases = {"hierarchy-treemap": "treemap", "Hierarchy treemap": "treemap",
+                   "hierarchy-sunburst": "sunburst",
+                   "Hierarchy sunburst": "sunburst"}
+        wanted = key_or_title
+        if key_or_title in aliases:
+            wanted = "Where the downtime sits"
+            index = self.layout_box.findData(aliases[key_or_title])
+            if index >= 0:
+                self.layout_box.blockSignals(True)
+                self.layout_box.setCurrentIndex(index)
+                self.layout_box.blockSignals(False)
         for item in self._chart_items():
             entry = self._entries[item.data(0, _KEY)]
-            if key_or_title in (entry.key, entry.title):
+            if wanted in (entry.key, entry.title):
                 self.nav.setCurrentItem(item)
+                self._show_current()
                 return True
         return False
 

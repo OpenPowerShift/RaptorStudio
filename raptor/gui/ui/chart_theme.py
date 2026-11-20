@@ -10,23 +10,13 @@ from PySide6.QtGui import QBrush, QColor
 
 from raptor.gui.resources.design_tokens import ThemeManager
 
-#: cause -> (light theme, dark theme)
+#: cause -> (light theme, dark theme), from the active chart palette.
+from raptor.api.insight import palette as _palette
+
 _COLOURS = {
-    "repair": ("#C4472F", "#F0806A"),
-    "wait_spare": ("#B07806", "#F2B84B"),
-    "wait_resource": ("#2F6FB7", "#6FA8E8"),
-    "logistics": ("#7A5AA6", "#B095DA"),
-    "pm": ("#2A8C82", "#5CC7BB"),
-    "pm_wait": ("#5E9C3F", "#93CC72"),
-    "dependency": ("#6B7785", "#A4B0BF"),
-    "done": ("#3C4653", "#D0D7E0"),
-    "other": ("#848F9B", "#75808D"),
-    # cost components (the cost treemap); spares share wait_spare's colour
-    "purchase": ("#2F6FB7", "#6FA8E8"),
-    "operating": ("#A9591A", "#E79A5A"),
-    "sparing": ("#B07806", "#F2B84B"),
-    "disposal": ("#6B7785", "#A4B0BF"),
-    "spare_pool": ("#8E5B9E", "#C394D3"),
+    cause: (_palette.PALETTES[_palette.DEFAULT]["light"][cause],
+            _palette.PALETTES[_palette.DEFAULT]["dark"][cause])
+    for cause in _palette.PALETTES[_palette.DEFAULT]["light"]
 }
 _PATTERNS = {
     "repair": Qt.BrushStyle.SolidPattern,
@@ -54,8 +44,7 @@ def is_dark() -> bool:
 
 
 def cause_colour(cause: str) -> QColor:
-    light, dark = _COLOURS.get(cause, _COLOURS["other"])
-    return QColor(dark if is_dark() else light)
+    return QColor(_palette.colour(cause, dark=is_dark()))
 
 
 def cause_brush(cause: str) -> QBrush:

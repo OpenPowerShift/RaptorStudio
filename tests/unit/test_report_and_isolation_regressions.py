@@ -479,3 +479,24 @@ def test_save_model_as_creates_a_nested_folder(hospital):
     saved = save_model_as(hospital, "smoke/nested/model")
     assert not saved.is_error, saved.content
     assert Path(saved.structured_content["path"]).is_file()
+
+
+def test_canvas_level_reaches_the_charts(dock, monkeypatch):
+    """Drilling into a hierarchy used to raise AttributeError before results."""
+    calls = []
+    monkeypatch.setattr(dock._charts_page, "follow_hierarchy",
+                        lambda hid: calls.append(hid))
+    dock.set_chart_hierarchy(100)
+    assert dock._chart_hierarchy == 100
+    assert calls == [100]
+    dock.set_chart_hierarchy(None)
+    assert dock._chart_hierarchy == 0
+    assert calls == [100, 0]
+
+
+def test_a_multi_hierarchy_selection_reaches_the_chart_overlay(dock, monkeypatch):
+    calls = []
+    monkeypatch.setattr(dock._charts_page, "set_compare",
+                        lambda ids: calls.append(list(ids)))
+    dock.set_chart_hierarchies([100, 200])
+    assert calls == [[100, 200]]

@@ -101,10 +101,12 @@ def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
 
 def test_the_list_is_grouped_by_question(qapp):
     page = ChartsPage()
-    page.set_inputs(per_run=_inputs()[0])
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
     groups = [page.nav.topLevelItem(i).text(0)
               for i in range(page.nav.topLevelItemCount())]
-    assert groups[:3] == ["THE ANSWER", "OVER TIME", "WHY IT GOES DOWN"]
+    assert groups[:4] == ["THE ANSWER", "BY HIERARCHY", "OVER TIME", "WHY IT GOES DOWN"]
     # a heading cannot be chosen
     assert not page.nav.topLevelItem(0).flags() & Qt.ItemFlag.ItemIsSelectable
 
@@ -272,7 +274,7 @@ def test_capacity_and_annual_charts_appear_when_their_data_does(qapp):
                     importance=importance, periods=periods)
     names = page.titles()
     for name in ("Who loses the capacity", "Downtime against lost capacity",
-                 "Availability year by year", "A bad year, as a frequency"):
+                 "Availability year by year", "How often is a year below target?"):
         assert name in names
         page.select(name)
         assert not page.chart.grab().toImage().isNull()
@@ -327,3 +329,368 @@ def test_saved_charts_use_the_chosen_page_in_every_format(qapp, tmp_path):
     assert pdf.startswith(b"%PDF") and len(pdf) > 2000
     titles = [a.text() for a in page.export_menu.actions()]
     assert "Save PDF…" in titles and "Page size" in titles
+
+
+def _hierarchy_inputs():
+    """A small attribution with two top-level hierarchies and a timeline."""
+    per_run, attribution, importance = _inputs()
+    attribution = dict(attribution)
+    attribution["hierarchies"] = [
+        {"kind": "hier", "id": 100, "name": "Intake", "path": ["Intake"],
+         "depth": 1, "parent": 0,
+         "members": [{"kind": "block", "id": 1}, {"kind": "block", "id": 2}],
+         "member_count": 2, "starter_count": 1, "elements": 1,
+         "dtci": {"mean": 0.8, "sem": 0.02}, "red_time": {"mean": 5.0},
+         "causes": {"repair": 1.0}, "main_cause": "repair",
+         "phase_shares": {"Cruise": 0.75, "Launch": 0.25},
+         "trials": [{"red_time": 5.0, "dtci": 0.8},
+                    {"red_time": 4.0, "dtci": 0.7}]},
+        {"kind": "hier", "id": 200, "name": "Filtration", "path": ["Filtration"],
+         "depth": 1, "parent": 0,
+         "members": [{"kind": "block", "id": 3}],
+         "member_count": 1, "starter_count": 0, "elements": 0,
+         "dtci": {"mean": 0.0, "sem": None}, "red_time": {"mean": 0.0},
+         "causes": {}, "main_cause": None,
+         "trials": [{"red_time": 0.0, "dtci": 0.0},
+                    {"red_time": 0.0, "dtci": 0.0}]},
+    ]
+    attribution["phases"] = [
+        {"name": "Cruise", "mission": True, "share_of_downtime": 0.6,
+         "availability": 0.95, "drivers": [{"name": "Pump", "share": 1.0}]},
+        {"name": "Launch", "mission": True, "share_of_downtime": 0.4,
+         "availability": 0.9, "drivers": [{"name": "Cooler", "share": 1.0}]},
+    ]
+    attribution["outages"] = {"runs": [
+        {"start": 0, "end": 10, "red": [2, 4],
+         "hier": {"100": [2, 4]}},
+        {"start": 0, "end": 10, "red": [],
+         "hier": {}},
+    ]}
+    return per_run, attribution, importance
+
+
+def test_hierarchy_charts_paint_export_and_follow_the_canvas(qapp, tmp_path):
+    page = ChartsPage()
+    page.resize(900, 500)
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert "Hierarchy scorecard" in page.titles(available=False)
+    assert "Where the downtime sits" in page.titles(available=False)
+    titles = [title for title in page.titles()
+              if "hierarchy" in title.lower()]
+    assert "When did each hierarchy's downtime build up?" in titles
+    for index, title in enumerate(titles):
+        assert page.select(title)
+        assert page.stack.currentIndex() == 0, title
+        assert not page.chart.grab().toImage().isNull()
+        spec = page.selected_spec()
+        assert spec is not None
+        svg = tmp_path / f"h-{index}.svg"
+        page.save_svg(str(svg))
+        assert svg.read_text(encoding="utf-8").startswith("<svg")
+        csv = tmp_path / f"h-{index}.csv"
+        page.save_csv(str(csv))
+        assert csv.read_text(encoding="utf-8").splitlines()[0]
+    page.follow_hierarchy(100)
+    assert page.scope_button.text() == "Scope: Intake"
+    assert "system-wide" in page.missing_reason("availability-band")
+    assert page.select("Hierarchy Pareto")
+    assert page.selected_spec().scope["id"] == 100
+    assert "scope: Intake" in page.selected_spec().subtitle
+
+
+def test_hierarchy_overlay_baseline_and_compare(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.set_compare([100, 200])
+    assert page.select("When did each hierarchy's downtime build up?")
+    assert page.selected_spec().scope["kind"] == "selection"
+    page._set_baseline()
+    assert page.baseline_button.text() == "Baseline: set"
+    assert page.select("Hierarchy change against baseline")
+    assert page.selected_spec().kind == "delta"
+    assert page.baseline_button.text() == "Baseline: set"
+
+
+def test_depth_control_limits_nested_charts_and_rankings(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert [page.depth_box.itemText(i) for i in range(page.depth_box.count())] == [
+        "All levels", "Top level", "Level 2"]
+    assert page.select("Hierarchy sunburst")
+    assert max(row["depth"] for row in page.selected_spec().series) == 2
+    assert any("Pump house" in row["name"]
+               for row in page.selected_spec().series)
+    assert page.depth_box.findData(1) > 0
+    page.depth_box.setCurrentIndex(page.depth_box.findData(1))
+    assert max(row["depth"] for row in page.selected_spec().series) == 0
+    page.depth_box.setCurrentIndex(page.depth_box.findData(2))
+    sun = page.selected_spec()
+    assert max(row["depth"] for row in sun.series) == 1
+    assert page.select("Hierarchy by cause")
+    assert {row["name"] for row in page.selected_spec().series} == {"Pump house"}
+    assert page.select("Hierarchy treemap")
+    assert any(row["name"] == "Pump house" for row in page.selected_spec().series)
+
+
+def test_scope_inside_a_parent_hierarchy_uses_its_children(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.set_scope(100)
+    assert page.scope_button.text() == "Scope: Intake"
+    assert "Who causes the downtime" not in page.titles(available=False)
+    assert page.select("Hierarchy sunburst")
+    spec = page.selected_spec()
+    assert spec.title == "Inside Intake"
+    assert spec.scope["name"] == "Intake"
+    assert {int(row["depth"]) for row in spec.series} == {0, 1, 2}
+    assert any("Pump house" in row["name"] for row in spec.series)
+    assert page.select("Hierarchy treemap")
+    spec = page.selected_spec()
+    assert spec.kind == "treemap"
+    assert spec.scope["name"] == "Intake"
+    assert {row["name"] for row in spec.series} >= {"Pump house"}
+    assert all(row["name"] != "Cooling" for row in spec.series)
+    assert page.select("Hierarchy Pareto")
+    names = {row["name"] for row in page.selected_spec().series}
+    assert "Pump house" in names and "Cooling" not in names
+
+
+def _deep_hierarchy_inputs():
+    """Intake > Pump house, plus a separate Cooling branch, with two trials."""
+    per_run, attribution, importance = _inputs()
+    attribution = dict(attribution)
+    attribution["hierarchies"] = [
+        {"kind": "hier", "id": 100, "name": "Intake", "path": ["Intake"],
+         "depth": 1, "parent": 0,
+         "members": [{"kind": "block", "id": 1}, {"kind": "block", "id": 2}],
+         "direct_members": [{"kind": "block", "id": 2}],
+         "member_count": 2, "starter_count": 2, "elements": 1,
+         "dtci": {"mean": 0.8, "sem": 0.02},
+         "causes": {"repair": 1.0}, "main_cause": "repair",
+         "phase_shares": {"Cruise": 0.75, "Launch": 0.25},
+         "trials": [{"red_time": 5.0, "dtci": 0.8},
+                    {"red_time": 4.0, "dtci": 0.7}]},
+        {"kind": "hier", "id": 101, "name": "Pump house",
+         "path": ["Intake", "Pump house"], "depth": 2, "parent": 100,
+         "members": [{"kind": "block", "id": 1}],
+         "direct_members": [{"kind": "block", "id": 1}],
+         "member_count": 1, "starter_count": 1, "elements": 1,
+         "dtci": {"mean": 0.5, "sem": 0.01},
+         "causes": {"repair": 1.0}, "main_cause": "repair",
+         "phase_shares": {"Cruise": 0.4, "Launch": 0.6},
+         "trials": [{"red_time": 3.0, "dtci": 0.5},
+                    {"red_time": 2.0, "dtci": 0.4}]},
+        {"kind": "hier", "id": 200, "name": "Cooling", "path": ["Cooling"],
+         "depth": 1, "parent": 0,
+         "members": [{"kind": "block", "id": 3}],
+         "direct_members": [{"kind": "block", "id": 3}],
+         "member_count": 1, "starter_count": 1, "elements": 1,
+         "dtci": {"mean": 0.2, "sem": 0.01},
+         "causes": {"wait_spare": 1.0}, "main_cause": "wait_spare",
+         "phase_shares": {"Cruise": 0.5, "Launch": 0.5},
+         "trials": [{"red_time": 1.0, "dtci": 0.2},
+                    {"red_time": 1.0, "dtci": 0.2}]},
+    ]
+    attribution["elements"] = [
+        {"kind": "block", "id": 1, "name": "Pump",
+         "dtci": {"mean": 0.5, "sem": 0.01}, "causes": {"repair": 1.0},
+         "main_cause": "repair"},
+        {"kind": "block", "id": 2, "name": "Sluice",
+         "dtci": {"mean": 0.3, "sem": 0.01}, "causes": {"repair": 1.0},
+         "main_cause": "repair"},
+        {"kind": "block", "id": 3, "name": "Cooler",
+         "dtci": {"mean": 0.2, "sem": 0.01}, "causes": {"wait_spare": 1.0},
+         "main_cause": "wait_spare"},
+    ]
+    attribution["phases"] = [
+        {"name": "Cruise", "mission": True, "share_of_downtime": 0.6,
+         "availability": 0.95, "drivers": [{"name": "Pump", "share": 1.0}]},
+        {"name": "Launch", "mission": True, "share_of_downtime": 0.4,
+         "availability": 0.9, "drivers": [{"name": "Cooler", "share": 1.0}]},
+    ]
+    attribution["outages"] = {"runs": [
+        {"start": 0, "end": 10, "red": [2, 4],
+         "hier": {"100": [2, 4], "101": [3, 4]}},
+        {"start": 0, "end": 10, "red": [], "hier": {}},
+    ]}
+    return per_run, attribution, importance
+
+
+def test_depth_control_offers_all_levels_and_each_level(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert [page.depth_box.itemText(i) for i in range(page.depth_box.count())] \
+        == ["All levels", "Top level", "Level 2"]
+    assert page.depth_box.currentText() == "All levels"
+
+    assert page.select("Hierarchy sunburst")
+    all_depths = {int(row["depth"]) for row in page.selected_spec().series}
+    assert all_depths == {0, 1, 2}
+
+    page.depth_box.setCurrentIndex(page.depth_box.findData(2))
+    assert {int(row["depth"]) for row in page.selected_spec().series} == {0, 1}
+
+    page.depth_box.setCurrentIndex(page.depth_box.findData(1))
+    assert {int(row["depth"]) for row in page.selected_spec().series} == {0}
+
+    assert page.select("Hierarchy scorecard")
+    assert {row["name"] for row in page.selected_spec().series} \
+        == {"Intake", "Cooling"}
+    page.depth_box.setCurrentIndex(page.depth_box.findData(2))
+    assert {row["name"] for row in page.selected_spec().series} == {"Pump house"}
+
+
+def test_nested_scope_sunburst_and_treemap_draw_inside_one_hierarchy(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.follow_hierarchy(100)
+    assert page.scope_button.text() == "Scope: Intake"
+    assert page.select("Hierarchy sunburst")
+    spec = page.selected_spec()
+    assert spec.title == "Inside Intake"
+    assert spec.scope["id"] == 100
+    assert {row["name"] for row in spec.series} >= {"Intake"}
+    assert not page.chart.grab().toImage().isNull()
+
+    assert page.select("Hierarchy treemap")
+    spec = page.selected_spec()
+    assert spec.kind == "treemap"
+    assert spec.scope["id"] == 100
+    root = next(row for row in spec.series if row.get("is_group"))
+    assert root["name"] == "Intake"
+    assert any(row["name"] == "Pump house" for row in spec.series)
+
+
+def test_scope_menu_lists_nested_hierarchies_indented(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    texts = [action.text() for action in page.scope_menu.actions()]
+    assert "System" in texts
+    assert any(text == "Intake" for text in texts)
+    assert any(text == "  Pump house" for text in texts)
+
+
+def test_a_theme_change_keeps_the_chart_and_repaints_the_list(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert page.select("Hierarchy sunburst")
+    page._on_theme_changed(True)
+    assert page.selected_key() == "hierarchy-map"
+    assert page.selected_spec() is not None
+    assert not page.chart.grab().toImage().isNull()
+
+
+def test_a_model_without_hierarchies_has_no_hierarchy_group_or_controls(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    groups = [page.nav.topLevelItem(i).text(0)
+              for i in range(page.nav.topLevelItemCount())]
+    assert "BY HIERARCHY" not in groups
+    for widget in (page.scope_button, page.follow_button,
+                   page.compare_button, page.baseline_button):
+        assert widget.isHidden()
+    assert page.depth_box.isHidden()
+    assert "Where the downtime sits" not in page.titles(available=False)
+
+
+def test_hierarchy_phase_heatmap_follows_scope_and_depth(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert page.select("Hierarchy by phase")
+    spec = page.selected_spec()
+    assert [row["name"] for row in spec.series] == ["Intake", "Cooling"]
+    assert page.depth_box.currentText() == "All levels"
+    page.depth_box.setCurrentIndex(page.depth_box.findData(2))
+    assert [row["name"] for row in page.selected_spec().series] == ["Pump house"]
+    page.depth_box.setCurrentIndex(page.depth_box.findData(0))
+    page.set_scope(100)
+    spec = page.selected_spec()
+    assert spec.title == "Phases inside Intake"
+    assert [row["name"] for row in spec.series] == ["Intake"]
+    assert spec.scope["name"] == "Intake"
+
+
+def test_the_nested_view_switches_layout_without_moving_the_chart(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    assert page.select("Where the downtime sits")
+    assert page.selected_spec().kind == "treemap"
+    page.layout_box.setCurrentIndex(page.layout_box.findData("sunburst"))
+    assert page.selected_key() == "hierarchy-map"
+    assert page.selected_spec().kind == "sunburst"
+    page.layout_box.setCurrentIndex(page.layout_box.findData("treemap"))
+    assert page.selected_spec().kind == "treemap"
+    assert page.depth_box.isVisibleTo(page)
+
+
+def test_scope_keeps_overlay_and_small_multiples_inside_it(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _deep_hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.set_scope(100)
+    assert page.select("Is the hierarchy ranking stable?")
+    assert [facet.title for facet in page.selected_spec().facets] == ["Pump house"]
+    assert page.selected_spec().scope["path"] == ["Pump house"]
+
+
+def test_hierarchy_without_phases_drops_phase_rows_and_the_flat_treemap(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution.pop("phases", None)
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    titles = page.titles(available=False)
+    assert "Downtime treemap" not in titles
+    assert "Hierarchy by phase" not in titles
+    assert "Downtime by phase" not in titles
+
+
+def test_capacity_target_is_set_on_the_capacity_year_chart(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _inputs()
+    periods = {"runs": 2, "periods_per_run": 2, "threshold": 0.95,
+               "capacity": {"by_index": [
+                   {"index": 1, "n": 2, "p50": 0.90},
+                   {"index": 2, "n": 2, "p50": 0.97}]}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, periods=periods)
+    assert page.select("Capacity delivered year by year")
+    assert page.capacity_target_button.isVisibleTo(page)
+    page.set_capacity_target(0.99)
+    assert any(mark.get("kind") == "target" and mark.get("value") == 0.99
+               for mark in page.selected_spec().marks)
+
+
+def test_no_event_log_still_shows_hierarchy_and_phase_questions(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=[], attribution=None, drivers="unavailable",
+                    model_hierarchies=True, model_phases=True)
+    assert "Hierarchy scorecard" in page.titles(available=False)
+    assert "Downtime by phase" in page.titles(available=False)
+    assert page.select("Hierarchy scorecard")
+    assert "event log" in page.missing_text.text()
+    assert page.missing_action.isVisibleTo(page)

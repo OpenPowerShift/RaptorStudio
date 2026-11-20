@@ -174,3 +174,32 @@ def test_plain_text_reads_cleanly_with_and_without_a_target():
                    requirements=[{"metric": "system.ao", "op": ">=", "value": 0.995}])
     assert target.headline.gap_text == "missed by 0.5 points = 43.8 h a year"
     assert text_lines(target)[1] == target.headline.gap_text
+
+
+def test_phase_lines_keep_availability_share_and_non_mission_mark():
+    from raptor.api.insight.story import _phase_lines
+    lines = _phase_lines({"phases": [
+        {"name": "Launch", "mission": True, "availability": 0.9,
+         "share_of_downtime": 0.6, "time": {"mean": 10.0},
+         "red_time": {"mean": 1.0}},
+        {"name": "Standby", "mission": False, "availability": None,
+         "share_of_downtime": 0.4, "time": {"mean": 0.0},
+         "red_time": {"mean": 0.0}}]})
+    assert lines[0].availability == 0.9
+    assert lines[0].share == 0.6
+    assert lines[1].mission is False
+    assert lines[1].entered is False
+
+
+def test_caption_uses_the_measure_that_ranked_the_drivers():
+    from raptor.api.insight.story import DriverLine, _caption
+    from raptor.api.insight.story import StoryHeadline
+    driver = DriverLine(name="Pump", kind="block", id=1, share=0.6,
+                        downtime_share=0.6, causes={}, red_time=6.0)
+    headline = StoryHeadline(field="availability", label="Availability",
+                             value=0.9, target=None, op=None, met=None,
+                             target_text="", gap=None, gap_text="",
+                             value_text="90 %", units="hours")
+    caption = _caption(headline, [driver],
+                       {"capacity": {"elements": []}}, measure="downtime")
+    assert "the loss" in caption and "lost capacity" not in caption

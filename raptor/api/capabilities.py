@@ -176,6 +176,13 @@ CAPABILITIES: tuple[Capability, ...] = (
         cli="explain --chart", mcp="run_chart",
         gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
     Capability(
+        "insight.hierarchy_charts",
+        "Hierarchy views: scorecard, Pareto, nested treemap, sunburst, overlay, "
+        "small multiples, heatmap, ribbon, Sankey and baseline change",
+        api="raptor.api.insight.charts.hierarchy_scorecard",
+        cli="explain --hierarchy", mcp="run_chart",
+        gui="widget:raptor.gui.ui.charts_page.ChartsPage"),
+    Capability(
         "insight.chart_export",
         "Charts for reports and slides: page sizes, no shortened labels, small items folded",
         api="raptor.render.charts_svg.render",

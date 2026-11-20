@@ -142,6 +142,19 @@ def add_parser(sub: Any) -> None:
     e.add_argument("--y-floor", metavar="F", type=float, default=None,
                    help="lower limit of an availability chart over time, "
                         "0 to 1 (default: fitted to the data)")
+    e.add_argument("--hierarchy", metavar="NAME|ID", default=None,
+                   help="scope an element chart to one hierarchy (name, id or "
+                        "path like 'Intake > Pump house')")
+    e.add_argument("--hierarchies", metavar="LIST", default=None,
+                   help="two to four hierarchies for the overlay, comma "
+                        "separated (name, id or path)")
+    e.add_argument("--compare-to", metavar="RUN-ID", default=None,
+                   help="a stored run whose hierarchy table is the baseline "
+                        "for hierarchy-delta")
+    e.add_argument("--depth", metavar="N", type=int, default=None,
+                   help="hierarchy level for the ranking charts and the "
+                        "maximum rings for the sunburst (default: all, or "
+                        "top level for rankings)")
     e.add_argument("--list-charts", action="store_true",
                    help="list the chart names and exit")
     e.add_argument("--progress", choices=_PROGRESS, default="auto",
@@ -372,7 +385,11 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
                            min_share=args.chart_min_share,
-                           target=_availability_target(targets))
+                           target=_availability_target(targets),
+                           hierarchy=args.hierarchy,
+                           hierarchies=(_split_csv(args.hierarchies)
+                                        if args.hierarchies else None),
+                           compare_to=args.compare_to, depth=args.depth)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -450,6 +467,10 @@ _RANKED_CHARTS = ("downtime-pareto", "downtime-treemap", "cost-pareto", "cost-tr
                   "lost-capacity-pareto", "lost-capacity-treemap")
 
 
+def _split_csv(text: str) -> list[str]:
+    return [part.strip() for part in str(text).split(",") if part.strip()]
+
+
 def _availability_target(targets: list[dict]) -> float | None:
     """The first availability target, for the charts' target line (the
     window's Target button draws one; --target drew none)."""
@@ -461,7 +482,11 @@ def _availability_target(targets: list[dict]) -> float | None:
 def _chart_for(ws: Any, run_id: str, name: str | None,
                attribution: dict, *, run: int = 1,
                y_floor: float | None = None, min_share: float = 0.0,
-               target: float | None = None) -> Any:
+               target: float | None = None,
+               hierarchy: str | int | None = None,
+               hierarchies: list[str] | None = None,
+               compare_to: str | None = None,
+               depth: int | None = None) -> Any:
     """Build the requested chart from a finished run, or None; with
     `min_share`, its small items folded into one (`charts.fold_small`)."""
     if not name:
@@ -480,10 +505,17 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
         raise CliError("--chart-min-share must be at least 0 and below 1", X.USAGE)
     periods = None
     from raptor.api.insight import drivers
-    if name == "ensemble-ribbon":
+    if name in ("ensemble-ribbon", "hierarchy-overlay", "hierarchy-ribbon"):
         attribution = drivers.with_outages(ws, run_id, attribution) or attribution
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)
+    baseline = None
+    if compare_to:
+        try:
+            baseline = drivers.read(ws, compare_to).get("hierarchies")
+        except Exception as exc:  # noqa: BLE001 - a CLI error, not a traceback
+            raise CliError(f"cannot read baseline run {compare_to}: {exc}",
+                           X.USAGE) from exc
     try:
         costs = (charts.stored_element_costs(ws, run_id)
                  if name in charts.COST_CHARTS else None)
@@ -494,8 +526,10 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
                                periods=periods, costs=costs, run=run,
                                importance=importance, y_floor=y_floor,
                                units=run_units(ws, run_id), surface="cli",
-                               target=target,
-                               **over_time), min_share)
+                               target=target, hierarchy=hierarchy,
+                               hierarchies=hierarchies, baseline=baseline,
+                               baseline_label=compare_to,
+                               depth=depth, **over_time), min_share)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 

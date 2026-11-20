@@ -131,3 +131,38 @@ def test_a_missing_option_names_the_switch():
     assert charts.cost_pareto([]).caption.startswith("This chart needs cost analysis")
     assert charts.cost_pareto([{"name": "Pump", "total": 0.0}]).caption == (
         "No element has a cost in this run.")
+
+
+def test_explain_scopes_and_levels_a_hierarchy_chart(capsys):
+    from pathlib import Path
+
+    path = (Path(__file__).resolve().parents[3] / "tests" / "golden" /
+            "HierarchyExample" / "input.rbd")
+    common = ["explain", str(path), "--seed", "5", "--runs", "4", "-f", "json"]
+    assert main([*common, "--chart", "hierarchy-scorecard",
+                 "--depth", "1"]) == X.OK
+    chart = json.loads(capsys.readouterr().out)["chart"]
+    assert chart["kind"] == "scorecard"
+    assert chart["provenance"]["depth"] == 1
+    assert chart["series"]
+
+    assert main([*common, "--chart", "downtime-pareto",
+                 "--hierarchy", "500path"]) == X.OK
+    chart = json.loads(capsys.readouterr().out)["chart"]
+    assert chart["scope"]["name"] == "500path"
+    assert "scope: 500path" in chart["subtitle"]
+
+
+def test_explain_scopes_and_limits_a_nested_sunburst(capsys):
+    from pathlib import Path
+    model = (Path(__file__).resolve().parents[3] / "tests" / "golden" /
+             "NestedHierarchyCost" / "input.rbd")
+    assert main(["explain", str(model), "--seed", "5", "--runs", "4",
+                 "--chart", "hierarchy-sunburst", "--hierarchy", "500path",
+                 "--depth", "2", "-f", "json"]) == X.OK
+    chart = json.loads(capsys.readouterr().out)["chart"]
+    assert chart["kind"] == "sunburst"
+    assert chart["scope"]["name"] == "500path"
+    assert chart["title"] == "Inside 500path"
+    assert chart["provenance"]["depth"] == 2
+    assert max(row["depth"] for row in chart["series"]) == 1

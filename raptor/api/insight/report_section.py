@@ -38,7 +38,7 @@ def from_run(workspace: Any, run_id: str, *, rbd: Any = None,
                       suppressed=suppressed)
 
 
-def from_parts(story: Any, per_run: list[dict],
+def from_parts(story: Any, per_run: list[dict],  # noqa: C901, PLR0912, PLR0915
                *, attribution: dict[str, Any] | None = None,
                rbd: Any = None, charts_in: list[Any] | None = None,
                findings: list[dict[str, Any]] | None = None,
@@ -60,13 +60,16 @@ def from_parts(story: Any, per_run: list[dict],
         label = str(headline_dict.get("label") or "Availability")
         target = headline_dict.get("target")
         units = str(story_dict.get("units") or "")
+        higher = str(headline_dict.get("op") or ">=") != "<="
         specs.append(chart_data.trial_outcome(
-            per_run, field_name, label=label, target=target, units=units))
+            per_run, field_name, label=label, target=target, units=units,
+            higher_is_better=higher))
         from raptor.api.insight import measures
         specs.append(chart_data.availability_ladder(
             measures.availability_ladder(per_run)))
         if len(per_run) >= 2:
-            specs.append(chart_data.convergence(per_run, field_name, target=target))
+            specs.append(chart_data.convergence(
+                per_run, field_name, target=target, label=label))
     if not provided and attribution:
         capacity = attribution.get("capacity") or {}
         if capacity.get("elements"):
@@ -74,10 +77,27 @@ def from_parts(story: Any, per_run: list[dict],
             # ranked only downtime and drew no capacity chart
             specs.append(chart_data.lost_capacity_pareto(attribution))
             specs.append(chart_data.capacity_waterfall(attribution))
+        rows = attribution.get("hierarchies") or []
+        has_downtime = any(float((row.get("dtci") or {}).get("mean") or 0.0) > 0
+                           for row in rows)
+        if rows and has_downtime:
+            specs.append(chart_data.hierarchy_scorecard(attribution))
+            specs.append(chart_data.hierarchy_pareto(attribution))
+            specs.append(chart_data.hierarchy_treemap(attribution))
+            specs.append(chart_data.hierarchy_heatmap(attribution))
+            if (attribution.get("phases")
+                    and any(row.get("phase_shares") for row in rows)):
+                specs.append(chart_data.hierarchy_phase_heatmap(attribution))
         specs.append(chart_data.downtime_pareto(attribution))
         specs.append(chart_data.downtime_waterfall(
             attribution, _operational(per_run)))
-        specs.append(chart_data.downtime_treemap(attribution))
+        if not rows:
+            specs.append(chart_data.downtime_treemap(attribution))
+        phases = attribution.get("phases") or []
+        if any(row.get("share_of_downtime") for row in phases):
+            specs.append(chart_data.phase_downtime(attribution))
+            if any(row.get("causes") for row in phases):
+                specs.append(chart_data.phase_cause_heatmap(attribution))
         specs.append(chart_data.outage_anatomy(attribution))
         if (attribution.get("outage_durations") or {}).get("count"):
             specs.append(chart_data.outage_histogram(attribution))

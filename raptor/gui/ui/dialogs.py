@@ -644,6 +644,40 @@ def show_preferences(win):
         builtins=(_rx.PROFILES[_rx.DEFAULT_PROFILE]["label"],))
     tabs.addTab(new_page, "New models")
 
+    # ---- Appearance -------------------------------------------------
+    app_page = QWidget()
+    app_form = QFormLayout(app_page)
+    app_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    dark = QCheckBox("Dark theme")
+    dark.setChecked(_settings.get_bool("appearance/dark_mode", False))
+    dark.setToolTip("The window and canvas colours; charts follow the same theme")
+    _pref_row(
+        app_form, "Theme:", dark,
+        "Switches the whole application, including the chart surfaces and "
+        "the cause fills' dark variants. The View menu has the same switch.",
+        "app")
+    from raptor.api.insight import palette as _palette
+    palette_box = QComboBox()
+    for key in _palette.names():
+        palette_box.addItem(_palette.label(key), key)
+    palette_box.setCurrentIndex(max(0, palette_box.findData(
+        _settings.get("appearance/chart_palette", _palette.DEFAULT))))
+    palette_box.setToolTip("Cause colours on every chart, report and saved image")
+    palette_note = QLabel("")
+    palette_note.setObjectName("SectionNote")
+    palette_note.setWordWrap(True)
+    def describe_palette(_index: int = 0) -> None:
+        palette_note.setText(_palette.why(str(palette_box.currentData())))
+    palette_box.currentIndexChanged.connect(describe_palette)
+    describe_palette()
+    _pref_row(
+        app_form, "Chart palette:", palette_box,
+        "Cause fills only. Every cause keeps its pattern, so the chart still "
+        "reads in greyscale; the chart's colours are applied when you press OK.",
+        "app")
+    app_form.addRow("", palette_note)
+    tabs.addTab(app_page, "Appearance")
+
     # ---- Working ----------------------------------------------------
     work_page = QWidget()
     work_form = QFormLayout(work_page)
@@ -919,6 +953,17 @@ def show_preferences(win):
         win._refresh_inspector()
         win._data_tables.refresh()
     _settings.set_value("appearance/weak_link_digits", digits.value())
+    palette_key = str(palette_box.currentData() or _palette.DEFAULT)
+    palette_changed = _settings.get("appearance/chart_palette", _palette.DEFAULT) != palette_key
+    _settings.set_value("appearance/chart_palette", palette_key)
+    _palette.set_active(palette_key)
+    if palette_changed:
+        results = getattr(win, "_results", None)
+        if results is not None:
+            results._refresh_charts()
+            results._refresh_story()
+    if dark.isChecked() != _settings.get_bool("appearance/dark_mode", False):
+        win._toggle_theme(dark.isChecked())
     if getattr(getattr(win, "_diagram_dock", None), "view", None) is not None \
             and getattr(win._diagram_dock.view, "_weak_colors_on", False):
         win._toggle_weak_colors()

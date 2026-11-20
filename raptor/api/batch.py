@@ -95,7 +95,7 @@ def run_variants(
     num_runs: int | None = None, workers: int = 1, timeout_s: float = 600.0,
     seed: int | None = None,
     progress: Callable[[int, int, str], None] | None = None,
-    abort: Any = None,
+    abort: Any = None, attribution: bool = False,
 ) -> list[dict[str, Any]]:
     """Run each variant `{"label": str, "assignments": [PATH=VALUE, ...]}`.
 
@@ -135,7 +135,8 @@ def run_variants(
             progress(i, len(variants), label)
         stopped = _run_one(ws, source, i, entry, base_assignments,
                            num_runs=num_runs, workers=workers,
-                           timeout_s=remaining, seed=seed, abort=abort)
+                           timeout_s=remaining, seed=seed, abort=abort,
+                           attribution=attribution)
         out.append(entry)
     if progress:
         progress(len(variants), len(variants), "")
@@ -144,7 +145,8 @@ def run_variants(
 
 def _run_one(ws: Workspace, source: Any, i: int, entry: dict[str, Any],
              base_assignments: list[str] | None, *, num_runs: int | None,
-             workers: int, timeout_s: float, seed: int | None, abort: Any
+             workers: int, timeout_s: float, seed: int | None, abort: Any,
+             attribution: bool = False
              ) -> str | None:
     """Run one variant into `entry`; return "time" or "cancelled" when the
     study must stop after it."""
@@ -162,7 +164,7 @@ def _run_one(ws: Workspace, source: Any, i: int, entry: dict[str, Any],
         requested = num_runs or model_num_runs(ws.get(vid).rbd)
         res = api_run(ws, vid, num_runs=num_runs, workers=workers,
                       timeout_s=timeout_s, confirm_long_run=True,
-                      seed=seed, abort=own)
+                      seed=seed, abort=own, attribution=attribution)
         entry.update(run_id=res.run_id, num_runs=res.num_runs,
                      requested_runs=requested,
                      summary=metrics_to_dict(res.metrics),

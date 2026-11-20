@@ -535,9 +535,13 @@ shows it.
 
 `run_story` returns the short answer-first Story for a finished run: the
 headline against its target, the run-to-run dots and the share that met it,
-the top drivers, the top findings, six key numbers and provenance. It is the
-same object the application's Story tab paints and `raptor explain --story`
-prints.
+the top drivers, the top findings, six key numbers and provenance. When the
+run has a hierarchy roll-up it also returns `hierarchies`, the top six
+hierarchies by share of downtime (empty when the run has no attribution).
+A phased run also returns `phases`, in model order, with availability,
+share of downtime and the mission mark.
+It is the same object the application's Story tab paints and
+`raptor explain --story` prints.
 
 `replace_in_table` finds and replaces in one model table column
 (`inputs.blocks_all`, nodes, events, pools, ...), with whole-cell and case
@@ -609,12 +613,31 @@ hours, half by 300") into a Weibull, lognormal or exponential law, as
 `run_chart` returns one chart of a finished run as the same `ChartSpec` the
 application paints. The text gives the caption and the numbers drawn; pass
 `render_svg=true` for the figure itself as SVG (off by default: the SVG is
-most of the answer's size). The base charts (`trial-outcome`, `ecdf`, `convergence`,
+most of the answer's size). `target` draws an availability target line on
+the charts that have one (and a capacity-weighted target on the capacity
+year chart); the dot and convergence charts also show the median. The base charts (`trial-outcome`, `ecdf`, `convergence`,
 `availability-ladder`) need only the run; the downtime charts need
-`attribution=True` (including the treemap, the outage anatomy and the
-run-to-run ribbon), and
+`attribution=True` (including the treemap, the outage anatomy, the
+run-to-run ribbon, and for a phased model `phase-downtime` and
+`phase-cause-heatmap`), and
 `importance-quadrant` and `cost-pareto` need those analyses to have run. `raptor explain --chart NAME` prints the same chart and
 `--chart-svg PATH` writes it.
+
+The hierarchy charts (`hierarchy-scorecard`, `hierarchy-pareto`,
+`hierarchy-treemap`, `hierarchy-sunburst`, `hierarchy-heatmap`,
+`hierarchy-phase-heatmap`, `hierarchy-overlay`, `hierarchy-small-multiples`,
+`hierarchy-delta`,
+`hierarchy-ribbon`, `hierarchy-anatomy` and `capacity-sankey`) read the
+hierarchy roll-up the same run records. `hierarchy` picks one by id, name
+or `A > B` path, and the element charts then describe only what is inside
+it. `hierarchies` picks up to four branches for the overlay, small
+multiples or Sankey (a parent and its child together are refused: that
+would double count). `depth` chooses a model level (`1` is the top;
+rankings show one level, the treemap and sunburst grow that many), and
+`compare_to` names a stored run whose hierarchy table is the baseline for
+`hierarchy-delta`. `raptor explain MODEL --chart NAME --hierarchy NAME
+--depth N --compare-to RUN` prints the same chart, and `--hierarchies A,B`
+selects several for the comparison charts.
 
 Attribution replays the event log, so the results are the same with it on;
 it holds the log in memory for the batch, so leave it off for very large

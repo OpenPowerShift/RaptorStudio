@@ -924,6 +924,10 @@
  "run_chart": {
   "params": [
    "chart",
+   "compare_to",
+   "depth",
+   "hierarchies",
+   "hierarchy",
    "min_share",
    "page",
    "render_svg",

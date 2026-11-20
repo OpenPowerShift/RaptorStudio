@@ -12646,7 +12646,8 @@ runs) and the element that started most of that downtime. An outage that
 runs from one phase into the next is split at the phase change, and each
 part is charged to the element that started the outage. <code>raptor explain</code>
 prints a <strong>Downtime by phase</strong> table, the Charts tab has a <strong>Downtime by
-phase</strong> chart (<code>phase-downtime</code> from the command line and MCP) and the
+phase</strong> chart and a <strong>Phase by cause</strong> heatmap (<code>phase-downtime</code> and
+<code>phase-cause-heatmap</code> from the command line and MCP) and the
 exported tables include <code>results.phase_downtime</code>.</p>
 </div>
 <div class="paragraph">
@@ -12671,7 +12672,11 @@ columns measure.</p>
 <div class="paragraph">
 <p>The <strong>Charts</strong> tab paints the same figures the report uses. Each chart has a
 one-sentence caption you can quote, values on hover, click-to-locate, and
-PNG/SVG/CSV export. The set includes:</p>
+PNG/SVG/CSV export. <strong>Target</strong> draws an availability target on the outcome,
+chance, time and year charts; <strong>Capacity target</strong> does the same on the
+capacity year chart. The dot plots mark the median and quartiles, and a
+chart over time can be dragged (or Ctrl+wheeled) to zoom its time axis,
+with a double-click to restore the whole run. The set includes:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -12684,7 +12689,11 @@ the pointer over it for a cross-hair that says exactly that;</p>
 <li>
 <p>the downtime Pareto with cause stacks. Each cause has its own colour and
 pattern so the stack still reads in greyscale; the key above the chart
-names them, and the whisker on each bar is ± 2 standard errors;</p>
+names them, and the whisker on each bar is ± 2 standard errors. The
+colours come from <strong>Preferences ▸ Appearance ▸ Chart palette</strong>: <strong>Muted</strong>
+(the default, with a softer repair red), <strong>Raptor classic</strong>, <strong>Colour-blind
+(Okabe–Ito)</strong> and <strong>High contrast</strong>; the choice applies to the screen, the
+PDF report and every exported image;</p>
 </li>
 <li>
 <p>the availability ladder: inherent (repair only), achieved (plus planned
@@ -12702,19 +12711,22 @@ step by step) and the run-to-run ribbon (every trial as one row, green up
 and red down);</p>
 </li>
 <li>
+<p>the hierarchy views: a scorecard and Pareto at one level, a nested
+treemap or concentric sunburst (one switchable nested view), cumulative
+overlays and small multiples, cause and phase heatmaps, an outage state
+ribbon, and a change chart against another stored run. <strong>Scope</strong>
+follows the canvas level or pins one hierarchy; <strong>Depth</strong> shows the top
+level, one numbered level or every level; <strong>Compare</strong> picks up to four
+sibling branches; <strong>Baseline</strong> stores the comparison run;</p>
+</li>
+<li>
 <p>convergence: the running mean with its ± 2 standard-error band;</p>
 </li>
 <li>
-<p>year-by-year availability when the run covers whole years (hours models).</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>With capacity analysis on, three more charts answer "who loses the
+<p>year-by-year availability when the run covers whole years (hours models);
+With capacity analysis on, three more charts answer "who loses the
 capacity", which is not the same question as "who is down":</p>
-</div>
-<div class="ulist">
-<ul>
+</li>
 <li>
 <p><strong>Who loses the capacity</strong>: each element&#8217;s share of the lost flow beside
 its share of the downtime, in the same order, so an element that rarely
@@ -12724,12 +12736,16 @@ stops the system but often throttles it stands out;</p>
 <p><strong>Downtime against lost capacity</strong>: one point per element, both shares;</p>
 </li>
 <li>
-<p><strong>Where the capacity goes</strong>: from the flow the model could deliver down to
+<p><strong>Lost capacity by cause</strong>: from the flow the model could deliver down to
 what it did deliver, one step per cause;</p>
 </li>
 <li>
 <p><strong>Lost capacity treemap</strong>: area = share of the lost flow, colour = the
 element&#8217;s main downtime cause;</p>
+</li>
+<li>
+<p><strong>Lost capacity by hierarchy and cause</strong> (Sankey): the flow from what
+could be delivered, through each hierarchy, to the causes that lost it;</p>
 </li>
 <li>
 <p><strong>Capacity delivered year by year</strong>: capacity-weighted availability for

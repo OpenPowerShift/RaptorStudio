@@ -949,15 +949,28 @@ session this tab fills line by line.</p>
 <p><strong>Charts</strong> — every result chart in one place. The list on the left
 groups them by the question they answer: <strong>The answer</strong> (run-to-run
 outcome, chance of reaching a value, availability ladder, has the run
-settled), <strong>Over time</strong> (availability through a run, interval by
-interval and across all runs; capacity through a run and across all
-runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by year</strong>, <strong>Cost</strong> and
-<strong>What matters most</strong>. Click a group heading to fold it. A chart the run
-cannot draw stays in the list, greyed; choosing it names the check box
+settled), <strong>By hierarchy</strong>, <strong>Over time</strong> (availability through a run,
+interval by interval and across all runs; capacity through a run and
+across all runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by
+year</strong>, <strong>Cost</strong> and <strong>What matters most</strong>. Click a group heading to fold it.
+<strong>By hierarchy</strong> reads a nested model level by level: a scorecard and
+Pareto, one nested view with a <strong>Treemap / Sunburst</strong> switch, cumulative
+overlays, small multiples, cause and phase heatmaps, a state ribbon, an
+outage anatomy and a change-against-baseline chart. <strong>Scope</strong> pins one
+hierarchy or follows the canvas level (choose <strong>Follow canvas</strong>); <strong>Depth</strong>
+shows the top level, one numbered level, or every level; the nested
+charts grow the chosen number of rings/levels. <strong>Compare</strong> chooses up to
+four hierarchies for the overlay, small multiples and Sankey and refuses
+a parent and its child together, because that would count the same
+downtime twice. <strong>Baseline</strong> keeps this run&#8217;s hierarchy table so the
+next run can show what moved. A chart the run cannot draw because a
+switch is off stays in the list, greyed; choosing it names the check box
 to tick and where it is (for example <strong>Detailed event log</strong> under Run
 panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
 Results to calculate for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
-that ticks it as one undoable step and runs again. When the event log
+that ticks it as one undoable step and runs again. A chart the model
+cannot support at all — no hierarchy roll-up, no mission phases — is not
+listed. When the event log
 is there but the drivers have not been worked out yet, the button works
 them out instead. The Drivers tab has the same button. Over MCP and on
 the command line the same message names <code>simulate(attribution=true)</code>,
@@ -1005,13 +1018,61 @@ named under the chart. A share and its uncertainty range never pass
    bands, and the share of the flow generated the runs delivered.
 </strong> <strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
    saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
-   availability chart over time.</p>
+   availability chart over time. <strong>Target</strong> draws a dashed availability
+   target on the outcome, chance, convergence, time and year charts and on
+   the availability ladder; <strong>Capacity target</strong> draws one on the capacity
+   year chart. The dot plots also mark the median (and the quartiles);
+   convergence marks the median of the runs. Drag across a chart over time
+   (or hold Ctrl and turn the wheel) to zoom the time axis; double-click or
+   right-click <strong>Show the whole run</strong> restores it.</p>
+</div>
+<div class="paragraph">
+<p>+
+The <strong>By hierarchy</strong> group answers the same questions one level at a time.
+<strong>Hierarchy scorecard</strong> ranks the top eight hierarchies at the chosen depth;
+<strong>Hierarchy Pareto</strong>, <strong>Hierarchy by cause</strong> and <strong>Hierarchy by phase</strong> use the
+children of one hierarchy at one level, so a parent and its child are never
+counted twice. <strong>Hierarchy by phase</strong> splits each hierarchy&#8217;s downtime across
+mission phases; its rows add to 100 %, and a zero cell is a real zero.
+<strong>Phase by cause</strong> does the same for phases: each phase&#8217;s downtime is split by
+cause, so a phase that is mostly repair reads differently from one that is
+mostly waiting for a spare. <strong>Where the downtime sits</strong> nests every level:
+the <strong>Treemap</strong> layout puts child groups inside their parent&#8217;s area, and the
+<strong>Sunburst</strong> layout draws one concentric ring per level with each wedge sized
+within its parent, so a deep model stays readable. On a model with
+hierarchies the flat element treemap is not listed: those elements are
+already inside the hierarchy treemap; a flat model keeps it.
+<strong>When did each hierarchy&#8217;s downtime build up?</strong> overlays cumulative curves
+for up to four branches, and <strong>Is the hierarchy ranking stable?</strong> shows each
+hierarchy&#8217;s run-to-run dots (overlapping branches are refused, because they
+double count); <strong>Hierarchy change against baseline</strong> compares
+the current run with a stored one; <strong>Outage paths across hierarchies</strong> and the
+state ribbon show a single run&#8217;s intervals. In <strong>Lost capacity</strong>,
+<strong>Lost capacity by hierarchy and cause</strong> (Sankey) follows the lost flow
+through hierarchies and causes.</p>
+</div>
+<div class="paragraph">
+<p>+
+Above the chart, <strong>Scope</strong> picks the hierarchy the element charts and the
+ranking charts read (System, or any hierarchy by its indented path), and
+<strong>Follow canvas</strong> keeps the charts on the hierarchy level shown in the
+diagram. <strong>Depth</strong> is <strong>All levels</strong> by default: ranking charts then use the
+top level, while the treemap and sunburst draw every level. Choose <strong>Top
+level</strong> or <strong>Level N</strong> to show one level in a ranking and to stop the nested
+charts at that level. <strong>Compare</strong> selects the hierarchies for the overlay,
+small multiples and Sankey; <strong>Baseline</strong> stores a finished run for the
+change chart. A chart&#8217;s data carries each hierarchy&#8217;s full path (<code>Intake &gt;
+Pump house</code>); labels use the short name, and the Scope menu shows the
+indented tree, so a repeated name can be told apart.</p>
 </div>
 <div class="paragraph">
 <p>+
 The same charts come from the command line (<code>raptor explain MODEL
 --chart NAME</code>, with <code>--chart-run N</code> and <code>--y-floor F</code> for the charts over
-time; <code>--list-charts</code> names them) and from the MCP <code>run_chart</code> tool.</p>
+time; <code>--list-charts</code> names them; <code>--hierarchy NAME</code>, <code>--hierarchies A,B</code>,
+<code>--depth N</code> and <code>--compare-to RUN</code> select the hierarchy views) and from the
+MCP <code>run_chart</code> tool with the same <code>hierarchy</code>, <code>hierarchies</code>, <code>depth</code> and
+<code>compare_to</code> arguments.</p>
 </div>
 </li>
 <li>
@@ -2518,12 +2579,20 @@ Keyboard Shortcuts page (Help tab).</p>
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>View ▸ Appearance ▸ Preferences…</strong> is one scrolling page of sections: <strong>New models</strong>,
-<strong>Working</strong>, <strong>This model</strong>, <strong>Advanced</strong> and <strong>Developer</strong>. The list on the left
-jumps to a section; the <strong>Filter</strong> box above it hides every setting (and
-section) that does not match what you type, across all sections at once, so
-you never have to hunt through them. Settings in <strong>This model</strong> are stored
+<strong>Appearance</strong>, <strong>Working</strong>, <strong>This model</strong>, <strong>Advanced</strong> and <strong>Developer</strong>. The list on
+the left jumps to a section; the <strong>Filter</strong> box above it hides every setting
+(and section) that does not match what you type, across all sections at once,
+so you never have to hunt through them. Settings in <strong>This model</strong> are stored
 with the model file; the rest belong to you and are remembered between
 sessions.</p>
+</div>
+<div class="paragraph">
+<p><strong>Appearance</strong> holds the light/dark theme and the <strong>Chart palette</strong>: <strong>Muted</strong>
+(the default), <strong>Raptor classic</strong>, <strong>Colour-blind (Okabe–Ito)</strong> and <strong>High
+contrast</strong>. A palette changes the cause fills on every chart, report and
+saved image at once; every cause keeps its own fill pattern, so a chart
+still reads in greyscale and for colour-blind readers. The choice is also
+applied to charts already on screen when you press OK.</p>
 </div>
 <div class="paragraph">
 <p><strong>Working</strong> also holds <strong>Open another model in</strong>: a new window (the

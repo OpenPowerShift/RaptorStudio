@@ -267,12 +267,16 @@ def hierarchy_lines(attribution: dict[str, Any], n: int = 10) -> list[str]:
     """Each hierarchy's share of downtime: the outages started by anything
     inside it, at any depth, pooled over the runs (so ± is its own)."""
     lines = ["By hierarchy (everything inside it, at any depth):",
-             f"{'Hierarchy':<22}{'Downtime':>10}{'±':>11}{'Inside':>8}  Main cause"]
+             f"{'Hierarchy':<22}{'Downtime':>10}{'±':>11}{'In/Started':>11}  Main cause"]
     for row in (attribution.get("hierarchies") or [])[:n]:
         sem = row["dtci"]["sem"]
         indent = "  " * max(0, int(row.get("depth") or 1) - 1)
+        starters = int(row.get("starter_count", row.get("elements") or 0))
+        members = row.get("member_count")
+        inside = (f"{int(members)}/{starters}" if members is not None
+                  else str(starters))
         lines.append(f"{(indent + row['name'])[:21]:<22}{_pct(row['dtci']['mean']):>10}"
-                     f"{(_pct(sem) if sem is not None else ''):>11}{row['elements']:>8}  "
+                     f"{(_pct(sem) if sem is not None else ''):>11}{inside:>11}  "
                      f"{CAUSE_LABELS.get(row['main_cause'] or '', '')}")
     return lines
 

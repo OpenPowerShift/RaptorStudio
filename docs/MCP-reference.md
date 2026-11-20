@@ -3037,7 +3037,10 @@ down) with their share of downtime, and a one-sentence `caption`. A
 model with hierarchies also gets `hierarchies`: each one's `dtci` for
 everything inside it at any depth, pooled over the runs (its own
 interval, not a sum of the elements'), with `depth`, `parent`,
-`elements` (how many inside started an outage) and `main_cause`.
+`elements` (how many inside started an outage) and `main_cause`. A
+phased model also gets `phases`, in phase order: time spent, system down
+time, interval availability, share of all downtime, the top starting
+elements and the cause split of that phase's time.
 
 `detail` is `summary` by default: each statistic is {mean, sem, n},
 numbers have six significant figures, and `sequences` and the capacity
@@ -3334,7 +3337,8 @@ caption and provenance. Names: `trial-outcome` and `ecdf` (the runs),
 run was made with `attribution=True`, `downtime-pareto`,
 `downtime-waterfall`, `outage-histogram`, `frequency-duration`, the
 `downtime-treemap`, the `outage-anatomy`, the `ensemble-ribbon` and, for
-a phased model, `phase-downtime`. `lost-capacity-pareto`,
+a phased model, `phase-downtime` and `phase-cause-heatmap`.
+`lost-capacity-pareto`,
 `capacity-vs-downtime`, `capacity-waterfall` and `lost-capacity-treemap`
 need capacity attribution; `annual-fan` and `annual-dots` need a run long
 enough for whole periods, and `annual-capacity-fan` (capacity delivered
@@ -3357,14 +3361,35 @@ No label is ever shortened: names wrap, and treemap cells too small for
 their name are numbered and listed under the chart.
 
 `target` (0 to 1, e.g. 0.995) draws a dashed target line on the
-outcome, chance, convergence and availability-over-time charts, as the
-window's Target button does. It is a visual cue only.
+outcome, chance, convergence, availability-over-time and year charts,
+and on `annual-capacity-fan` for a capacity-weighted availability
+target, as the window's Target buttons do. The dot and convergence
+charts also mark the median. It is a visual cue only.
+
+Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
+`hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
+`hierarchy-heatmap`, `hierarchy-phase-heatmap`, `hierarchy-overlay`,
+`hierarchy-small-multiples`,
+`hierarchy-delta`, `hierarchy-ribbon`, `hierarchy-anatomy` and
+`capacity-sankey` (the last needs capacity attribution). `hierarchy`
+selects one by id, name or `A > B` path; `hierarchies` selects up to
+four for the overlay, small multiples or Sankey, and overlapping parent
+and child selections are refused rather than double counted. `depth`
+picks a model level (`1` is the top): ranking charts show that one
+level, while the treemap and sunburst grow that many levels (omit it
+for the top level on rankings and every level on the nested charts).
+`compare_to` names a stored run whose hierarchy table is the baseline
+for `hierarchy-delta`.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `chart` | string | no | `trial-outcome` | — |
+| `compare_to` | string \| null | no | `null` | — |
+| `depth` | integer \| null | no | `null` | — |
+| `hierarchies` | array<string \| integer> \| null | no | `null` | — |
+| `hierarchy` | string \| integer \| null | no | `null` | — |
 | `min_share` | number | no | `0.0` | — |
 | `page` | string | no | `screen` | — |
 | `render_svg` | boolean | no | `false` | — |
@@ -3376,11 +3401,15 @@ window's Target button does. It is a visual cue only.
 Parameter notes:
 
 - `chart` — `chart` is the chart's name: one of those listed below.
+- `compare_to` — `compare_to` names a stored run whose hierarchy table is the baseline for `hierarchy-delta`.
+- `depth` — `depth` picks a model level (`1` is the top): ranking charts show that one level, while the treemap and sunburst grow that many levels (omit it for the top level on rankings and every level on the nested charts).
+- `hierarchies` — `hierarchy` selects one by id, name or `A > B` path; `hierarchies` selects up to four for the overlay, small multiples or Sankey, and overlapping parent and child selections are refused rather than double counted.
+- `hierarchy` — `hierarchy` selects one by id, name or `A > B` path; `hierarchies` selects up to four for the overlay, small multiples or Sankey, and overlapping parent and child selections are refused rather than double counted.
 - `min_share` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
 - `page` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
 - `run` — `run` picks the run a one-run chart shows (1 is the first).
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
-- `target` — `target` (0 to 1, e.g. 0.995) draws a dashed target line on the outcome, chance, convergence and availability-over-time charts, as the window's Target button does.
+- `target` — `target` (0 to 1, e.g. 0.995) draws a dashed target line on the outcome, chance, convergence, availability-over-time and year charts, and on `annual-capacity-fan` for a capacity-weighted availability target, as the window's Target buttons do.
 - `y_floor` — `y_floor` (0 to 1) fixes the bottom of an availability axis; leave it out to fit the axis to the data.
 
 **Returns**
@@ -3388,11 +3417,14 @@ Parameter notes:
 | Field | Type | Always present |
 | --- | --- | --- |
 | `annotations` | array<any> | yes |
+| `baseline` | any | yes |
 | `caption` | string | yes |
+| `facets` | array<any> | yes |
 | `kind` | string | yes |
 | `marks` | array<any> | yes |
 | `provenance` | object | yes |
 | `run_id` | string | yes |
+| `scope` | any | yes |
 | `series` | array<any> | yes |
 | `subtitle` | string | yes |
 | `title` | string | yes |
@@ -3429,8 +3461,9 @@ key numbers, sections only for features the model uses, and provenance.
 the headline; `<=` suits time down per outage).
 
 Needs the run's ordinary artefacts. Needs `attribution=True` for the
-drivers strip and the attribution-based findings; without it the Story
-still renders and says how to turn it on. A run stopped early says so
+drivers strip, the hierarchy strip (top six by downtime) and the
+attribution-based findings; without it the Story still renders and says
+how to turn it on. A run stopped early says so
 in its findings and `provenance.requested_runs`.
 
 **Parameters**
@@ -3457,10 +3490,12 @@ Parameter notes:
 | `drivers_measure` | string | yes |
 | `findings` | array<any> | yes |
 | `headline` | object | yes |
+| `hierarchies` | array<any> | yes |
 | `met` | integer \| null | yes |
 | `numbers` | array<any> | yes |
 | `other_drivers_share` | number | yes |
 | `others_time` | number | yes |
+| `phases` | array<any> | yes |
 | `proportion` | string | yes |
 | `provenance` | object | yes |
 | `run_id` | string | yes |

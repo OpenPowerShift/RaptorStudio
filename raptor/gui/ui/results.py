@@ -140,6 +140,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         #: the Charts page's target line, as a fraction (a view setting)
         self._target: float | None = None
         self._target_measure = "availability"
+        #: canvas level the Charts tab follows (0 = System)
+        self._chart_hierarchy = 0
         self._event_logs: list[list[str]] = []
         self._report_data = []
         self._final_lines: list[str] = []
@@ -180,7 +182,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
         self._charts_page.locate_requested.connect(
-            lambda _kind, name: self.element_clicked.emit("block", name))
+            lambda kind, name: self.element_clicked.emit(
+                "block" if kind == "element" else kind, name))
         self._charts_page.target_changed.connect(self.set_target)
         self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
@@ -542,6 +545,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
+
+    def set_chart_hierarchy(self, hierarchy_id: int | None) -> None:
+        """The canvas level the Charts tab follows (0/None is System)."""
+        self._chart_hierarchy = int(hierarchy_id or 0)
+        page = getattr(self, "_charts_page", None)
+        if page is not None:
+            page.follow_hierarchy(self._chart_hierarchy)
+
+    def set_chart_hierarchies(self, hierarchy_ids: list[int]) -> None:
+        """Several selected hierarchy ovals become the chart comparison."""
+        page = getattr(self, "_charts_page", None)
+        if page is not None:
+            page.set_compare(list(hierarchy_ids or []))
 
     def set_hierarchy_options(self, hiers: dict[int, str],
                               current: int = 0):
@@ -1422,6 +1438,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._rbd = None
         self._period_summary = None
         self._outages = None
+        self._chart_hierarchy = 0
         if hasattr(self, "_story_page"):
             self._story_page.set_story(None)
         self._event_logs = []
@@ -1470,6 +1487,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._raw_sources = {}
         if hasattr(self, "_charts_page"):
             self._charts_page.set_series([], [])
+            self._charts_page.set_compare([])
+            self._charts_page.set_baseline(None)
             self._charts_page.set_inputs()
             self._charts_page.set_note("")
         self._tabs.hide()
@@ -1801,6 +1820,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     generated = flow_generated_of(self._rbd) or None
                 except Exception:  # noqa: BLE001 - only a reference line
                     generated = None
+            model_hier = model_phases = None
+            if getattr(self, "_rbd", None) is not None:
+                from raptor.api.insight.attribution import (
+                    model_hierarchies, model_phases as phases_of,
+                )
+                model_hier = bool(model_hierarchies(self._rbd))
+                model_phases = bool(phases_of(self._rbd))
             page.set_inputs(
                 per_run=per_run, attribution=attribution,
                 importance=getattr(self, "_importance", None),
@@ -1809,7 +1835,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 run_id=str(manifest.get("run_id") or ""),
                 drivers=drivers,
                 measure="dependability" if dependability else "availability",
-                generated=generated, target=self._target)
+                generated=generated, target=self._target,
+                hierarchy=self._chart_hierarchy or None,
+                model_hierarchies=model_hier, model_phases=model_phases)
             self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging

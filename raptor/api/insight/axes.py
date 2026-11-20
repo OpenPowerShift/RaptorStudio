@@ -118,10 +118,15 @@ def _money(value: float, step: float | None = None) -> str:
             scaled = value / limit
             places = 0
             if step is not None and step > 0:
-                places = max(0, min(3, -math.floor(math.log10(step / limit))))
+                ratio = step / limit
+                places = max(0, len(f"{ratio:.3f}".rstrip("0").split(".")[-1]))
+                places = min(3, places)
             elif abs(scaled) < 100:
                 places = 1 if abs(scaled) >= 10 else 2
-            return f"{scaled:,.{places}f}{unit}"
+            text = f"{scaled:,.{places}f}"
+            if step is not None and "." in text:
+                text = text.rstrip("0").rstrip(".")
+            return f"{text}{unit}"
     return f"{value:,.0f}" if size >= 10 or value == 0 else f"{value:.3g}"
 
 

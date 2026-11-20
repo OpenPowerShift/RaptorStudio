@@ -125,6 +125,15 @@ class TrialAttribution:
     alongside: dict[Key, dict[tuple[Key, str], float]] = field(default_factory=dict)
     names: dict[Key, str] = field(default_factory=dict)
     kept: list[Outage] = field(default_factory=list)
+    #: Every outage's duration, even past MAX_OUTAGES_KEPT.
+    durations: list[float] = field(default_factory=list)
+    #: Every outage's steps, even past MAX_OUTAGES_KEPT.
+    sequence_steps: list[tuple[tuple[tuple[Key, str], ...], int, float]] = field(
+        default_factory=list)
+    #: Every outage's [start, end] by the element that started it.
+    initiator_intervals: dict[Key, list[float]] = field(default_factory=dict)
+    #: Outages still open when the run ended, counted without `kept`.
+    open_outages: int = 0
     #: every system-down interval as a flat [start, end, start, end...] list,
     #: clipped to the time statistics were collected; and that time's bounds
     red: list[float] = field(default_factory=list)
@@ -137,6 +146,8 @@ class TrialAttribution:
     phase_time: dict[str, float] = field(default_factory=dict)
     phase_red: dict[str, float] = field(default_factory=dict)
     phase_initiated: dict[str, dict[Key, float]] = field(default_factory=dict)
+    #: system red time in each phase, by the cause holding it down then
+    phase_cause: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 class _Replay:
@@ -200,6 +211,8 @@ class _Replay:
                     out.phase_red[phase] = out.phase_red.get(phase, 0.0) + dt
                     by = out.phase_initiated.setdefault(phase, {})
                     by[initiator] = by.get(initiator, 0.0) + dt
+                    by_cause = out.phase_cause.setdefault(phase, {})
+                    by_cause[cause] = by_cause.get(cause, 0.0) + dt
         if self.red and self.current is not None and to > self.now:
             self.note_step()
         self.now = max(self.now, to)
@@ -260,6 +273,13 @@ class _Replay:
         lo = max(current.start, self.start_stats)
         if at > lo:
             self.out.red += [lo, at]
+            self.out.durations.append(at - lo)
+            self.out.initiator_intervals.setdefault(
+                current.initiator, []).extend([lo, at])
+            self.out.sequence_steps.append(
+                (current.steps, current.more_steps, at - lo))
+            if current.open_at_end:
+                self.out.open_outages += 1
         if (current.end > max(current.start, self.start_stats)
                 and len(self.out.kept) < MAX_OUTAGES_KEPT):
             self.out.kept.append(current)
@@ -349,10 +369,30 @@ def model_phases(rbd: Any) -> list[dict[str, Any]] | None:
     return out or None
 
 
-def model_hierarchies(rbd: Any) -> dict[str, Any] | None:
-    """The model's hierarchies, for the roll-up in `aggregate`: ``{names:
-    {hid: name}, parent: {hid: parent hid}, of: {(kind, id): parent hid}}``,
-    or None when the model has no hierarchy."""
+def model_hierarchies(rbd: Any) -> dict[str, Any] | None:  # noqa: C901
+    """The model's hierarchies, for the roll-up in `aggregate`.
+
+    Keys:
+
+    ``names``
+        ``{hid: name}``.
+    ``parent``
+        ``{hid: parent hid}`` (0 at the top).
+    ``of``
+        ``{(kind, id): direct parent hid}``, for blocks and events.
+    ``paths``
+        ``{hid: [root name, ..., hid name]}``, without the System root.
+    ``depth``
+        ``{hid: 1 for a top-level hierarchy}``.
+    ``members``
+        ``{hid: {(kind, id), ...}}``: every block and event inside it, at
+        any depth.  A parent's set includes its child hierarchies' members.
+    ``children``
+        ``{hid: [direct child hid, ...]}``.
+    ``direct``
+        ``{hid: {(kind, id), ...}}``: only the elements whose ParentId is
+        that hierarchy, not a child hierarchy's.
+    """
     sections = getattr(rbd, "sections", {}) if rbd is not None else {}
 
     def rows(name: str) -> list[dict]:
@@ -376,53 +416,160 @@ def model_hierarchies(rbd: Any) -> dict[str, Any] | None:
             parent = number(row.get(column))
             if parent:
                 of[(kind, number(row.get("ID")))] = parent
-    return {"names": {number(r.get("ID")): str(r.get("hierarchyName") or r.get("Name")
-                                                  or f"Hierarchy {r.get('ID')}")
-                      for r in hiers},
-            "parent": {number(r.get("ID")): number(r.get("Parent")) for r in hiers},
-            "of": of}
+    names = {number(r.get("ID")): str(r.get("hierarchyName") or r.get("Name")
+                                      or f"Hierarchy {r.get('ID')}")
+             for r in hiers}
+    parent = {number(r.get("ID")): number(r.get("Parent")) for r in hiers}
+    children: dict[int, list[int]] = {hid: [] for hid in names}
+    for hid, up in parent.items():
+        if up in children:
+            children[up].append(hid)
+    for kids in children.values():
+        kids.sort(key=lambda hid: names.get(hid, ""))
 
-
-def _hierarchy_rows(trials: list[TrialAttribution],
-                    hierarchies: dict[str, Any]) -> list[dict[str, Any]]:
-    """Each hierarchy's share of system downtime: the Red time of the
-    outages started by anything inside it (at any depth), pooled over the
-    runs like an element's DTCI, so its interval is honest (the inside
-    elements' errors are correlated; summing their intervals would not be)."""
-    names, parent, of = hierarchies["names"], hierarchies["parent"], hierarchies["of"]
-
-    def chain(hid: int) -> list[int]:
+    def path_of(hid: int) -> list[int]:
         out: list[int] = []
         while hid and hid not in out and len(out) < 16:
             out.append(hid)
             hid = parent.get(hid, 0)
-        return out
+        return list(reversed(out))
 
-    inside: dict[int, set[Key]] = {hid: set() for hid in names}
+    paths = {hid: [names.get(part, str(part)) for part in path_of(hid)]
+             for hid in names}
+    direct: dict[int, set[Key]] = {hid: set() for hid in names}
     for key, hid in of.items():
-        for ancestor in chain(hid):
-            inside.setdefault(ancestor, set()).add(key)
+        direct.setdefault(hid, set()).add(key)
+    members: dict[int, set[Key]] = {}
+
+    def collect(hid: int, seen: set[int]) -> set[Key]:
+        if hid in members:
+            return members[hid]
+        if hid in seen:
+            return set(direct.get(hid, set()))
+        seen.add(hid)
+        found = set(direct.get(hid, set()))
+        for child in children.get(hid, ()):
+            found |= collect(child, seen)
+        members[hid] = found
+        seen.discard(hid)
+        return found
+
+    for hid in names:
+        collect(hid, set())
+    return {"names": names, "parent": parent, "of": of,
+            "paths": paths, "depth": {hid: len(path) for hid, path in paths.items()},
+            "members": members, "children": children, "direct": direct}
+
+
+def _zero_stat(n: int) -> dict[str, Any]:
+    """A share that is a real zero: zero, not missing.  A healthy hierarchy
+    disappeared from the roll-up because its red time was zero, so a reader
+    could not tell "nothing failed" from "not analysed"."""
+    return {"mean": 0.0, "sem": None, "min": 0.0, "max": 0.0, "n": n}
+
+
+def _hierarchy_rows(trials: list[TrialAttribution],  # noqa: C901
+                    hierarchies: dict[str, Any],
+                    phases: list[dict[str, Any]] | None = None
+                    ) -> list[dict[str, Any]]:
+    """Every hierarchy's share of system downtime, including zero rows.
+
+    The share is the Red time of the outages started by anything inside the
+    hierarchy (at any depth), pooled over the runs like an element's DTCI,
+    so its interval is honest (the inside elements' errors are correlated;
+    summing their intervals would not be).  ``trials`` carries the same
+    share per run for the hierarchy dot plots; ``members`` and ``starters``
+    separate "how many elements are inside" from "how many started an
+    outage", which the old ``elements`` count conflated.
+    """
+    names, parent = hierarchies["names"], hierarchies["parent"]
+    members = hierarchies.get("members")
+    if not members:
+        # an older caller built only names/parent/of: derive the roll-up
+        def chain(hid: int) -> list[int]:
+            out: list[int] = []
+            while hid and hid not in out and len(out) < 16:
+                out.append(hid)
+                hid = parent.get(hid, 0)
+            return out
+        members = {hid: set() for hid in names}
+        for key, hid in (hierarchies.get("of") or {}).items():
+            for ancestor in chain(hid):
+                members.setdefault(ancestor, set()).add(key)
+    direct = hierarchies.get("direct")
+    if not direct:
+        direct = {hid: set() for hid in names}
+        for key, hid in (hierarchies.get("of") or {}).items():
+            direct.setdefault(hid, set()).add(key)
+    paths = hierarchies.get("paths") or {}
     den = [t.red_time for t in trials]
     n = len(trials)
+    # Phase order comes from the model; any phase an old log names but the
+    # model does not is kept after it, in first-seen order.
+    phase_names = [str(item.get("name")) for item in phases or []]
+    for trial in trials:
+        for name in trial.phase_initiated:
+            if name not in phase_names:
+                phase_names.append(name)
     rows = []
-    for hid, keys in inside.items():
+
+    def path_names(hid: int) -> list[str]:
+        if hid in paths:
+            return list(paths[hid])
+        out: list[int] = []
+        while hid and hid not in out and len(out) < 16:
+            out.append(hid)
+            hid = parent.get(hid, 0)
+        return [names.get(part, str(part)) for part in reversed(out)]
+    for hid, keys in members.items():
         if not keys:
             continue
-        red = [sum(t.initiated[k].red_time for k in keys if k in t.initiated) for t in trials]
-        if not any(red):
-            continue
-        causes = {c: sum(t.initiator_cause.get(k, {}).get(c, 0.0)
-                         for t in trials for k in keys) / n for c in CAUSES}
+        red = [sum(t.initiated[k].red_time for k in keys if k in t.initiated)
+               for t in trials]
+        causes = ({c: sum(t.initiator_cause.get(k, {}).get(c, 0.0)
+                          for t in trials for k in keys) / n
+                   for c in CAUSES} if n else {})
         causes = {c: v for c, v in causes.items() if v > 0}
         total = sum(causes.values())
         started = {k for t in trials for k in keys if k in t.initiated}
+        own = set(direct.get(hid) or ())
+        share = _ratio_stat(red, den) if any(den) else _zero_stat(n)
+        if not any(red) and share.get("mean") is None:
+            share = _zero_stat(n)
+        per_run = [{"red_time": value,
+                    "dtci": (value / account.red_time
+                             if account.red_time > 0 else 0.0),
+                    "system_red_time": account.red_time}
+                   for value, account in zip(red, trials, strict=True)]
+        phase_red = {
+            name: sum(t.phase_initiated.get(name, {}).get(key, 0.0)
+                      for t in trials for key in keys)
+            for name in phase_names
+        }
+        phase_total = sum(phase_red.values())
         rows.append({
             "kind": "hier", "id": hid, "name": names.get(hid, f"Hierarchy {hid}"),
-            "depth": len(chain(hid)), "parent": parent.get(hid, 0),
+            "path": path_names(hid),
+            "depth": len(path_names(hid)),
+            "parent": parent.get(hid, 0),
+            "members": [{"kind": key[0], "id": key[1]} for key in sorted(keys)],
+            "member_count": len(keys),
+            "direct_members": [{"kind": key[0], "id": key[1]} for key in sorted(own)],
+            "direct_count": len(own),
+            "starters": [{"kind": key[0], "id": key[1]} for key in sorted(started)],
+            "starter_count": len(started),
+            # kept for callers that read the old field: it was the number of
+            # elements that started an outage, not the membership count
             "elements": len(started),
-            "dtci": _ratio_stat(red, den), "red_time": _stat(red),
+            "dtci": share, "red_time": _stat(red),
             "causes": {c: v / total for c, v in causes.items()} if total else {},
             "main_cause": max(causes, key=lambda c: causes[c]) if causes else None,
+            "phase_red": phase_red,
+            "phase_shares": ({name: value / phase_total
+                              for name, value in phase_red.items()}
+                             if phase_total else {}),
+            "trials": per_run,
+            "child_ids": list((hierarchies.get("children") or {}).get(hid) or []),
         })
     rows.sort(key=lambda r: (-(r["dtci"]["mean"] or 0.0), r["name"]))
     return rows
@@ -569,22 +716,41 @@ def _element_row(key: Key, trials: list[TrialAttribution], names: dict[Key, str]
     }
 
 
-def _sequences(trials: list[TrialAttribution], names: dict[Key, str]) -> list[dict[str, Any]]:
+def _sequences(trials: list[TrialAttribution], names: dict[Key, str],
+               hierarchies: dict[str, Any] | None = None
+               ) -> list[dict[str, Any]]:
+    """The commonest outage sequences, with each step's direct hierarchy.
+
+    A step's ``hierarchy`` is the hierarchy its ParentId names (the direct
+    one), not the root: the hierarchy icicle needs the level the element
+    sits in, while the roll-up pads the same tree.
+    """
     found: dict[tuple, list[float]] = {}
+    hier_of = (hierarchies or {}).get("of") or {}
+    hier_names = (hierarchies or {}).get("names") or {}
+    hier_paths = (hierarchies or {}).get("paths") or {}
     for trial in trials:
-        for outage in trial.kept:
-            path = (tuple((_label(k, names), cause) for k, cause in outage.steps)
-                    + ((("", "more"),) if outage.more_steps else ()))
+        steps_list = (trial.sequence_steps if trial.sequence_steps else
+                      [(o.steps, o.more_steps, o.duration) for o in trial.kept])
+        for steps, more, duration in steps_list:
+            path = (tuple((_label(k, names), cause,
+                           hier_names.get(hier_of.get(k, 0), ""),
+                           int(hier_of.get(k, 0) or 0),
+                           " > ".join(hier_paths.get(hier_of.get(k, 0), [])))
+                          for k, cause in steps)
+                    + ((("", "more", "", 0, ""),) if more else ()))
             entry = found.setdefault(path, [0.0, 0.0, 0.0])
-            entry[0] += outage.duration
+            entry[0] += duration
             entry[1] += 1
-            entry[2] += outage.more_steps
+            entry[2] += more
     total = sum(v[0] for v in found.values())
     out = []
     for path, v in sorted(found.items(), key=lambda kv: -kv[1][0])[:50]:
-        more = bool(path) and path[-1] == ("", "more")
+        more = bool(path) and path[-1][0] == "" and path[-1][1] == "more"
         row: dict[str, Any] = {
-            "steps": [{"element": e, "cause": c} for e, c in (path[:-1] if more else path)],
+            "steps": [{"element": e, "cause": c, "hierarchy": h,
+                       "hierarchy_id": hid, "hierarchy_path": hpath}
+                      for e, c, h, hid, hpath in (path[:-1] if more else path)],
             "share": v[0] / total if total else 0.0, "outages": int(v[1]), "time": v[0]}
         if more:
             # the chain went on: the average count of steps not listed
@@ -649,7 +815,9 @@ def aggregate(trials: list[TrialAttribution],
                 element["lost_capacity_through_dependents"] = row["through_dependents"]
     cause_totals = {c: sum(t.cause_time.get(c, 0.0) for t in trials) for c in CAUSES}
     all_red = sum(cause_totals.values())
-    durations = sorted(o.duration for t in trials for o in t.kept)
+    durations = sorted(duration for t in trials
+                       for duration in (t.durations or [o.duration
+                                                        for o in t.kept]))
     result = {
         "schema": "raptor-attribution/1",
         "runs": len(trials),
@@ -661,13 +829,15 @@ def aggregate(trials: list[TrialAttribution],
         "elements": elements,
         "causes": {c: v / all_red for c, v in cause_totals.items() if all_red and v > 0},
         "outage_durations": {"count": len(durations),
-                             "open_at_end": sum(1 for t in trials for o in t.kept
-                                                if o.open_at_end),
+                             "open_at_end": sum(
+                                 t.open_outages if t.durations else
+                                 sum(1 for o in t.kept if o.open_at_end)
+                                 for t in trials),
                              "p50": _percentile(durations, 0.5),
                              "p90": _percentile(durations, 0.9),
                              "max": durations[-1] if durations else None,
                              "hist": _duration_hist(durations)},
-        "sequences": _sequences(trials, names),
+        "sequences": _sequences(trials, names, hierarchies),
     }
     if capacity is not None:
         result["capacity"] = capacity
@@ -675,7 +845,7 @@ def aggregate(trials: list[TrialAttribution],
     if phase_rows:
         result["phases"] = phase_rows
     if hierarchies:
-        result["hierarchies"] = _hierarchy_rows(trials, hierarchies)
+        result["hierarchies"] = _hierarchy_rows(trials, hierarchies, phases)
     return result
 
 
@@ -700,23 +870,36 @@ def _phase_rows(trials: list[TrialAttribution], names: dict[Key, str],
     all_red = sum(sum(t.phase_red.values()) for t in trials)
     rows = []
     for name in seen:
-        time = sum(t.phase_time.get(name, 0.0) for t in trials)
         red = sum(t.phase_red.get(name, 0.0) for t in trials)
         by: dict[Key, float] = {}
+        cause_time: dict[str, float] = {}
         for trial in trials:
             for key, value in trial.phase_initiated.get(name, {}).items():
                 by[key] = by.get(key, 0.0) + value
+            for cause, value in trial.phase_cause.get(name, {}).items():
+                cause_time[cause] = cause_time.get(cause, 0.0) + value
         top = sorted(by.items(), key=lambda kv: (-kv[1], _label(kv[0], names)))[:PHASE_TOP]
+        cause_total = sum(cause_time.values())
+        phase_times = [t.phase_time.get(name, 0.0) for t in trials]
+        phase_reds = [t.phase_red.get(name, 0.0) for t in trials]
+        avail_stat = _ratio_stat(phase_reds, phase_times)
+        share_stat = _ratio_stat(phase_reds, [t.red_time for t in trials])
         rows.append({
             "name": name,
             "mission": mission.get(name),
-            "time": _stat([t.phase_time.get(name, 0.0) for t in trials]),
-            "red_time": _stat([t.phase_red.get(name, 0.0) for t in trials]),
-            "availability": 1.0 - red / time if time > 0 else None,
+            "time": _stat(phase_times),
+            "red_time": _stat(phase_reds),
+            "availability": (1.0 - avail_stat["mean"]
+                             if avail_stat["mean"] is not None else None),
+            "availability_sem": avail_stat["sem"],
             "share_of_downtime": red / all_red if all_red > 0 else 0.0,
+            "share_sem": share_stat["sem"],
             "drivers": [{"name": _label(key, names), "kind": key[0], "id": key[1],
                          "share": value / red if red > 0 else 0.0}
                         for key, value in top],
+            "causes": ({cause: amount / cause_total
+                        for cause, amount in cause_time.items() if amount > 0}
+                       if cause_total else {}),
         })
     return rows
 
@@ -725,13 +908,37 @@ def _phase_rows(trials: list[TrialAttribution], names: dict[Key, str],
 MAX_INTERVALS_STORED = 2_000_000
 
 
-def outage_record(trials: list[TrialAttribution]) -> dict[str, Any] | None:
+def outage_record(trials: list[TrialAttribution],
+                  hierarchies: dict[str, Any] | None = None
+                  ) -> dict[str, Any] | None:
     """Every run's system-down intervals, for slicing by period later
-    (`raptor.api.insight.periods`). None when there are too many to store."""
+    (`raptor.api.insight.periods`). None when there are too many to store.
+
+    With `hierarchies`, each run also carries ``hier``: ``{hid: [a, b, ...]}``
+    the system-down intervals whose outage a member of that hierarchy
+    started.  Those intervals drive the hierarchy overlay, state ribbon and
+    cumulative curves; old runs simply have no ``hier`` key.
+    """
     if sum(len(t.red) for t in trials) > 2 * MAX_INTERVALS_STORED:
         return None
-    return {"schema": "raptor-outages/1",
-            "runs": [{"start": t.start, "end": t.end, "red": t.red} for t in trials]}
+    members = (hierarchies or {}).get("members") or {}
+    runs = []
+    for trial in trials:
+        row: dict[str, Any] = {"start": trial.start, "end": trial.end,
+                               "red": trial.red}
+        if members:
+            by_hier: dict[str, list[float]] = {}
+            for outage in trial.kept:
+                lo = max(outage.start, trial.start)
+                hi = min(outage.end, trial.end)
+                if hi <= lo:
+                    continue
+                for hid, keys in members.items():
+                    if outage.initiator in keys:
+                        by_hier.setdefault(str(hid), []).extend([lo, hi])
+            row["hier"] = by_hier
+        runs.append(row)
+    return {"schema": "raptor-outages/1", "runs": runs}
 
 
 ATTRIBUTE_LABEL = "Working out what caused the downtime"
@@ -766,5 +973,5 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
     result = aggregate(trials, phases, hierarchies)
     if with_outages:
-        result["outages"] = outage_record(trials)
+        result["outages"] = outage_record(trials, hierarchies)
     return result
