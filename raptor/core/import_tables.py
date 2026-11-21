@@ -65,11 +65,23 @@ _ALIASES: dict[str, tuple[str, ...]] = {
 _ALIAS_LOOKUP = {alias: canonical for canonical, aliases in _ALIASES.items()
                  for alias in aliases}
 
+#: Words that may follow an alias with an underscore ("fail_param_1_hours",
+#: "pm_freq_days") without making the column something else. A free-form
+#: prefix match would map "Name of owner" to the block name and fail every
+#: row, so only a recognised unit is stripped.
+_UNIT_SUFFIXES = frozenset({
+    "s", "sec", "secs", "second", "seconds", "min", "mins", "minute",
+    "minutes", "h", "hr", "hrs", "hour", "hours", "d", "day", "days",
+    "w", "wk", "week", "weeks", "month", "months", "y", "yr", "yrs",
+    "year", "years", "unit", "units", "pct", "percent", "ratio",
+})
+
 
 def normalise_header(text: str) -> str:
     """`"Failure Param 1 (hours)"` -> `"failure_param_1"`."""
     text = str(text or "").strip().lower()
-    text = text.split("(", 1)[0]
+    for opener in ("(", "["):
+        text = text.split(opener, 1)[0]
     text = text.replace("#", "")
     text = "".join(ch if ch.isalnum() else "_" for ch in text)
     return "_".join(part for part in text.split("_") if part)
@@ -88,8 +100,11 @@ def map_headers(headers: list[str]) -> tuple[dict[int, str], list[str]]:
         if canonical is None:
             # A header with a unit suffix after the alias still maps: the
             # reader strips a parenthetical, this covers "fail_param_1_hours".
-            canonical = next((field for alias, field in _ALIAS_LOOKUP.items()
-                              if key.startswith(alias + "_")), None)
+            for alias, field in _ALIAS_LOOKUP.items():
+                if (key.startswith(alias + "_")
+                        and key[len(alias) + 1:] in _UNIT_SUFFIXES):
+                    canonical = field
+                    break
         if canonical is None:
             problems.append(f"column {col + 1} ({header!r}) is not a field "
                             "the import understands")
@@ -117,6 +132,8 @@ class Change:
     old: Any
     new: Any
     formula: str = ""
+    #: 1-based spreadsheet row, so the review dialog can point back to it.
+    row: int = 0
 
     def old_text(self) -> str:
         return _display(self.old)
@@ -172,7 +189,7 @@ def _display(value: Any) -> str:
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, float):
-        return f"{value:g}"
+        return f"{value:.12g}"
     if isinstance(value, (list, tuple)):
         return ", ".join(_display(v) for v in value)
     return str(value)
@@ -255,6 +272,8 @@ def _parse_params(value: Any) -> list[float] | None:
     text = text.strip("()[]")
     parts = [p for p in text.replace(";", ",").replace(" ", ",").split(",")
              if p.strip()]
+    if not parts:
+        return None
     try:
         return [float(p) for p in parts]
     except ValueError:
@@ -280,38 +299,65 @@ def _bool(value: Any) -> bool | None:
 # planning
 # ---------------------------------------------------------------------------
 
-def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:
-    """Validate *sheet* against *rbd* and return the changes it would make."""
-    plan = ImportPlan(source=source or sheet.name, sheet=sheet.name)
-    rows = _block_rows(rbd)
-    by_name = _by_name(rows)
-    headers = sheet.header()
-    plan.headers = headers
-    mapping, header_problems = map_headers(headers)
+#: Fields a sheet must mention at least one of for the import to do anything.
+_APPLYABLE = frozenset({
+    "fail_dist", "fail_params", "fail_param_1", "fail_param_2",
+    "fail_param_3", "repair_dist", "repair_params", "repair_param_1",
+    "repair_param_2", "repair_param_3", "pm_freq", "uses_pm", "stock",
+})
+
+
+def _plan_headers(plan: ImportPlan, sheet: Sheet) -> bool:
+    """Map the header row and check the sheet can carry an import.
+
+    Returns False when there is nothing to plan (empty sheet, no data rows,
+    no block key or no applicable field); the reason is in `plan.problems`.
+    """
+    plan.headers = sheet.header()
+    mapping, header_problems = map_headers(plan.headers)
     for text in header_problems:
         # A harmless Notes column should not block an otherwise valid
         # import; two columns claiming the same field should.
         plan.problems.append(Problem(
-            1, text, level="error" if "both map" in text else "warning"))
+            sheet.source_row(0), text,
+            level="error" if "both map" in text else "warning"))
     plan.mapping = mapping
+    if not sheet.rows:
+        plan.problems.append(Problem(0, "the sheet is empty"))
+        return False
+    header_row = sheet.source_row(0)
+    if len(sheet.rows) == 1:
+        plan.problems.append(Problem(
+            header_row, "the sheet has a header row but no data rows",
+            level="warning"))
+        return False
     fields = set(mapping.values())
     if "id" not in fields and "name" not in fields:
         plan.problems.append(Problem(
-            1, "the sheet needs an 'id' or 'name' column to identify blocks"))
-        return plan
-    if not ({"fail_dist", "fail_params", "fail_param_1", "fail_param_2",
-             "fail_param_3", "repair_dist", "repair_params",
-             "repair_param_1", "repair_param_2", "repair_param_3",
-             "pm_freq", "uses_pm", "stock"} & fields):
+            header_row,
+            "the sheet needs an 'id' or 'name' column to identify blocks"))
+        return False
+    if not (_APPLYABLE & fields):
         plan.problems.append(Problem(
-            1, "the sheet has no column the import can apply (failure/repair "
-               "data, PM frequency, stock)"))
-        return plan
+            header_row, "the sheet has no column the import can apply "
+            "(failure/repair data, PM frequency, stock)"))
+        return False
+    return True
 
-    by_col = {col: field for col, field in mapping.items()}
-    for sheet_row, row_cells in enumerate(sheet.rows[1:], start=2):
-        cells = {by_col[c]: cell for c, cell in enumerate(row_cells)
-                 if c in by_col}
+
+def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:
+    """Validate *sheet* against *rbd* and return the changes it would make."""
+    plan = ImportPlan(source=source or sheet.name, sheet=sheet.name)
+    if not _plan_headers(plan, sheet):
+        return plan
+    rows = _block_rows(rbd)
+    by_name = _by_name(rows)
+    mapping = plan.mapping
+    targets: dict[int, int] = {}
+    for index, row_cells in enumerate(sheet.rows[1:], start=1):
+        sheet_row = sheet.source_row(index)
+        cells = {field: cell for col, cell in enumerate(row_cells)
+                 if (field := mapping.get(col)) is not None}
         if not cells or all(_blank(cell) for cell in cells.values()):
             continue
         for cell in cells.values():
@@ -323,6 +369,13 @@ def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:
         oid = _resolve(cells, rows, by_name, plan, sheet_row)
         if oid is None:
             continue
+        if oid in targets:
+            # Legal but surprising: the later row wins, because the plan is
+            # applied in sheet order.
+            plan.problems.append(Problem(
+                sheet_row, f"block {oid} also appears on row {targets[oid]}; "
+                "the later row wins", level="warning"))
+        targets[oid] = sheet_row
         _plan_row(plan, rows[oid], oid, cells, sheet_row)
     return plan
 
@@ -338,11 +391,17 @@ def _resolve(cells: dict[str, Cell], rows: dict[int, dict[str, str]],
     name_cell = cells.get("name")
     if id_cell is not None and id_cell.value not in (None, ""):
         try:
-            oid = int(float(id_cell.value))
+            number = float(id_cell.value)
         except (TypeError, ValueError):
             plan.problems.append(Problem(
                 sheet_row, f"{id_cell.value!r} is not a block id"))
             return None
+        if not math.isfinite(number) or number != int(number):
+            plan.problems.append(Problem(
+                sheet_row, f"{id_cell.value!r} is not a block id (ids are "
+                "whole numbers)"))
+            return None
+        oid = int(number)
         if oid not in rows:
             plan.problems.append(Problem(
                 sheet_row, f"block id {oid} is not in the model"))
@@ -390,13 +449,14 @@ def _formula(cells: dict[str, Cell], field: str) -> str:
 
 
 def _add(plan: ImportPlan, row: dict[str, str], oid: int, field: str,
-         old: Any, new: Any, cells: dict[str, Cell], source_field: str) -> None:
+         old: Any, new: Any, cells: dict[str, Cell], source_field: str,
+         sheet_row: int = 0) -> None:
     if _same(old, new):
         return
     plan.changes.append(Change(
         ref=f"block:{oid}", id=oid,
         name=str(row.get("blockName") or ""), field=field, old=old, new=new,
-        formula=_formula(cells, source_field)))
+        formula=_formula(cells, source_field), row=sheet_row))
 
 
 def _same(a: Any, b: Any) -> bool:
@@ -473,22 +533,28 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                      if _formula(cells, f"{'fail' if which == 'F' else 'repair'}"
                                  f"_param_{i}")),
                     params_field)
-        if code != current_code:
-            _add(plan, row, oid, dist_field,
-                 DISTRO_NAMES.get(current_code, current_code),
-                 DISTRO_NAMES.get(code, code), cells, dist_field)
-            if imported is None:
-                # Keep the current numbers only if they are valid for the
-                # new law; otherwise the row is refused rather than letting
-                # a new distribution silently inherit nonsense parameters.
-                if not _valid(code, current_params, which):
-                    plan.problems.append(Problem(
-                        sheet_row, f"changing {dist_field.replace('_', ' ')} "
-                        f"to {DISTRO_NAMES.get(code)} needs its parameters "
-                        "in the same row"))
-                    continue
-                imported = current_params
+        if code != current_code and imported is None:
+            # Keep the current numbers only if they are valid for the new
+            # law; otherwise the row is refused rather than letting a new
+            # distribution silently inherit nonsense parameters.
+            if not _valid(code, current_params, which):
+                plan.problems.append(Problem(
+                    sheet_row, f"changing {dist_field.replace('_', ' ')} "
+                    f"to {DISTRO_NAMES.get(code)} needs its parameters in "
+                    "the same row"))
+                continue
+            imported = current_params
         if imported is not None:
+            if len(imported) > 3:
+                plan.problems.append(Problem(
+                    sheet_row, f"{params_field.replace('_', ' ')} has "
+                    f"{len(imported)} values; a distribution takes at most 3"))
+                continue
+            # Compare and store exactly the values this law uses, so a
+            # 1-parameter law is not reported as changed when only its
+            # (unused) second and third slots differ.
+            count = DIST_NPARAMS_DISK.get(code, DIST_NPARAMS.get(code, 3))
+            imported = (list(imported) + [0.0] * 3)[:count]
             if not _valid(code, imported, which):
                 error = validate_distro_params(
                     code, imported, "failure" if which == "F" else "repair")
@@ -497,9 +563,15 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                     error or f"{params_field.replace('_', ' ')} do not fit "
                     f"{DISTRO_NAMES.get(code, code)}"))
                 continue
+            if code != current_code:
+                # Add the law change only once its parameters are known to
+                # be valid: a refused row must not leave the law swapped.
+                _add(plan, row, oid, dist_field,
+                     DISTRO_NAMES.get(current_code, current_code),
+                     DISTRO_NAMES.get(code, code), cells, dist_field, sheet_row)
             _add(plan, row, oid,
                  f"{'fail' if which == 'F' else 'repair'}_params",
-                 current_params, imported, cells, formula_field)
+                 current_params, imported, cells, formula_field, sheet_row)
 
     pm_cell = _cell(cells, "pm_freq")
     if pm_cell is not None and pm_cell.value not in (None, ""):
@@ -515,7 +587,7 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                     sheet_row, "PM frequency must be zero or greater"))
             else:
                 _add(plan, row, oid, "pm_freq", _num(row, "PMFreq"), value,
-                     cells, "pm_freq")
+                     cells, "pm_freq", sheet_row)
     pm_on = _cell(cells, "uses_pm")
     if pm_on is not None and pm_on.value not in (None, ""):
         flag = _bool(pm_on.value)
@@ -524,18 +596,22 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                 sheet_row, f"{pm_on.value!r} is not yes/no"))
         else:
             _add(plan, row, oid, "uses_pm",
-                 bool(_bool(row.get("usesPM"))), flag, cells, "uses_pm")
+                 bool(_bool(row.get("usesPM"))), flag, cells, "uses_pm",
+                 sheet_row)
     stock = _cell(cells, "stock")
     if stock is not None and stock.value not in (None, ""):
         # Stock is meaningful only for Custom sparing. Say so once here;
         # the generic apply still writes the column, which the engine
         # reads for that mode.
         try:
-            value = int(float(stock.value))
+            number = float(stock.value)
         except (TypeError, ValueError):
+            number = math.nan
+        if not math.isfinite(number) or number != int(number):
             plan.problems.append(Problem(
                 sheet_row, f"stock {stock.value!r} is not a whole number"))
         else:
+            value = int(number)
             if value < 0:
                 plan.problems.append(Problem(
                     sheet_row, "stock must be zero or greater"))
@@ -547,7 +623,7 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                         "Custom sparing block; this value is stored but has "
                         "no effect here", level="warning"))
                 _add(plan, row, oid, "stock", _num(row, "Stock"), value,
-                     cells, "stock")
+                     cells, "stock", sheet_row)
 
 
 def _valid(code: int, values: list[float], which: str) -> bool:
@@ -629,7 +705,11 @@ def apply_to_rbd(rbd: Any, plan: ImportPlan) -> tuple[dict[int, dict], dict[int,
 
     Used by tests, the command line and any caller that owns its own undo
     mechanism. The GUI uses `row_snapshot` + its own QUndoCommand so the
-    whole import is one History step."""
+    whole import is one History step. A plan with errors is refused: the
+    GUI disables Apply, but every other caller gets the same guarantee."""
+    if plan.has_errors():
+        raise ValueError("the import plan has errors; fix them before "
+                         "applying it")
     before, after = row_snapshot(plan, rbd)
     write_rows(rbd, after)
     return before, after

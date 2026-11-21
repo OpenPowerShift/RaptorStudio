@@ -3383,10 +3383,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._undo_stack.push(ImportTableCommand(
             view, self._rbd, before, after,
             f"Import data table: {Path(path).name}"))
+        changed = sum(1 for oid, row in after.items()
+                      for column, value in row.items()
+                      if before[oid].get(column) != value)
         self._statusbar.showMessage(
-            f"Imported {len(plan.changes)} change(s) on "
-            f"{len(before)} block(s) from {Path(path).name} — Ctrl+Z to undo",
-            8000)
+            f"Imported {changed} change(s) on {len(before)} block(s) from "
+            f"{Path(path).name} — Ctrl+Z to undo", 8000)
 
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs

@@ -11,10 +11,16 @@ arithmetic evaluator: numbers, cell references, `+ - * / ^ %`, comparisons,
 parentheses and a short list of functions. It has no file, network or
 macro access. Anything outside that subset raises :class:`FormulaError`
 naming the formula; it is never silently treated as zero.
+
+The reader is bounded on purpose: a sheet is at most `MAX_ROWS` rows by
+`MAX_COLUMNS` columns, a single XML part at most `MAX_XML_BYTES`, and a
+formula at most `MAX_FORMULA_LEN` characters. A malformed archive (bad
+ZIP, bad XML) raises :class:`SheetError`, never a raw parser exception.
 """
 from __future__ import annotations
 
 import ast
+import math
 import re
 import zipfile
 from dataclasses import dataclass, field
@@ -24,6 +30,12 @@ from xml.etree import ElementTree as ET
 
 MAX_ROWS = 20_000
 MAX_COLUMNS = 512
+#: A single XML part of a workbook or ODS (`sheet1.xml`, `content.xml`, ...)
+#: may not decompress beyond this. The entry's declared size is checked
+#: before reading, so a compressed "zip bomb" cannot expand into memory.
+MAX_XML_BYTES = 64 * 1024 * 1024
+#: Reject a pathological formula before `ast.parse` recurses on it.
+MAX_FORMULA_LEN = 10_000
 
 
 class SheetError(Exception):
@@ -65,6 +77,15 @@ class Cell:
 class Sheet:
     name: str
     rows: list[list[Cell]] = field(default_factory=list)
+    #: The 1-based spreadsheet row for each entry in `rows`, when the file
+    #: records it (an `.xlsx` omits blank rows, so the two differ).
+    row_numbers: list[int] = field(default_factory=list)
+
+    def source_row(self, index: int) -> int:
+        """The spreadsheet row number of `rows[index]`, for messages."""
+        if 0 <= index < len(self.row_numbers) and self.row_numbers[index]:
+            return self.row_numbers[index]
+        return index + 1
 
     def cell(self, row: int, col: int) -> Cell | None:
         if 0 <= row < len(self.rows) and 0 <= col < len(self.rows[row]):
@@ -125,8 +146,12 @@ _ALLOWED_CALLS = {
     "SUM", "MIN", "MAX", "AVERAGE", "ABS", "ROUND", "IF", "AND", "OR",
     "NOT", "SQRT", "EXP", "LN", "LOG", "LOG10", "POWER", "CELL", "RANGE",
 }
-_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod)
-_CMPOPS = (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)
+
+
+def _short(text: str, limit: int = 80) -> str:
+    """A formula as it appears in an error message: long formulas would
+    otherwise fill the review dialog with one line."""
+    return text if len(text) <= limit else text[:limit - 1] + "…"
 
 
 def _flatten(values: Any) -> list[float]:
@@ -145,6 +170,42 @@ def _flatten(values: Any) -> list[float]:
         else:
             raise FormulaError(f"a text value ({value!r}) is not a number")
     return out
+
+
+class _PowToPower(ast.NodeTransformer):
+    """Rewrite ``a ** b`` (translated from `a ^ b`) as ``POWER(a, b)``.
+
+    Python's ``int ** int`` builds an integer as large as the exponent asks:
+    ``=9^9^9`` would hang and exhaust memory before any check could run.
+    `POWER` converts to float, so an absurd exponent raises OverflowError,
+    which the evaluator reports as a `FormulaError`.
+    """
+
+    def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Pow):
+            return ast.Call(func=ast.Name(id="POWER", ctx=ast.Load()),
+                            args=[node.left, node.right], keywords=[])
+        return node
+
+
+class _IfToTernary(ast.NodeTransformer):
+    """Rewrite ``IF(test, yes, no)`` as Python's conditional expression.
+
+    A spreadsheet evaluates only the branch it returns; a function call
+    would evaluate both, so ``=IF(A1=0, 0, 1/A1)`` would fail on the
+    division by zero that the formula exists to avoid.
+    """
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        self.generic_visit(node)
+        if (isinstance(node.func, ast.Name) and node.func.id == "IF"
+                and 2 <= len(node.args) <= 3 and not node.keywords):
+            return ast.IfExp(
+                test=node.args[0], body=node.args[1],
+                orelse=node.args[2] if len(node.args) == 3
+                else ast.Constant(0.0))
+        return node
 
 
 class _Formula:
@@ -190,11 +251,18 @@ class _Formula:
         return self._eval_text(text)
 
     def _eval_text(self, text: str) -> Any:
+        if len(text) > MAX_FORMULA_LEN:
+            raise FormulaError(
+                f"formula is longer than {MAX_FORMULA_LEN} characters")
         expr = self._translate(text)
         try:
             tree = ast.parse(expr, mode="eval")
-        except SyntaxError as exc:
-            raise FormulaError(f"cannot read formula {text!r}") from exc
+        except (SyntaxError, RecursionError) as exc:
+            raise FormulaError(
+                f"cannot read formula {_short(text)!r}") from exc
+        tree = _PowToPower().visit(tree)
+        tree = _IfToTernary().visit(tree)
+        ast.fix_missing_locations(tree)
         self._validate(tree)
         try:
             return eval(compile(tree, "<formula>", "eval"),  # noqa: S307
@@ -208,8 +276,10 @@ class _Formula:
                          "POWER": _fn_power})
         except FormulaError:
             raise
-        except (ArithmeticError, ValueError, TypeError) as exc:
-            raise FormulaError(f"formula {text!r} did not evaluate: {exc}") from exc
+        except (ArithmeticError, ValueError, TypeError, NameError,
+                RecursionError) as exc:
+            raise FormulaError(
+                f"formula {_short(text)!r} did not evaluate: {exc}") from exc
 
     def _translate(self, text: str) -> str:
         # Replace references with opaque placeholders before any function
@@ -223,6 +293,13 @@ class _Formula:
 
         # Text literals are data, not references.
         text = re.sub(r'"(?:[^"]|"")*"', lambda m: stash(m.group(0)), text)
+        # A reference into another sheet would silently read THIS sheet's
+        # cell of the same address, so refuse it rather than import a
+        # plausible wrong number.
+        if "!" in text or re.search(r"\[[^\]]*[^\][:]\.[^\]]*\]", text):
+            raise FormulaError(
+                "a formula refers to another sheet, which the import "
+                "evaluator does not support")
         # ODS writes references as [.A1] / [.A1:.B2].
         text = text.replace(";", ",")
         text = re.sub(
@@ -245,6 +322,14 @@ class _Formula:
             r"(?<![A-Za-z0-9_])\$?([A-Za-z]{1,3})\$?(\d+)(?![A-Za-z0-9_])(?!\s*\()",
             lambda m: stash(f'CELL("{m.group(1)}{m.group(2)}")'),
             text)
+        # Excel's `%` is a postfix operator (50% is 0.5), not Python's
+        # modulo. A stashed reference ends with the placeholder's NUL, so
+        # both it and a closing bracket count as an operand here.
+        text = re.sub(r"(?<=[\d)\x00])\s*%", "/100", text)
+        # A spreadsheet writes equality as `=` and inequality as `<>`;
+        # Python needs `==` and `!=` (and `<=`/`>=` are already Python).
+        text = text.replace("<>", "!=")
+        text = re.sub(r"(?<![<>=!])=(?!=)", "==", text)
         text = text.replace("^", "**")
         for index, token in enumerate(tokens):
             text = text.replace(f"\x00{index}\x00", token)
@@ -252,9 +337,14 @@ class _Formula:
 
     @staticmethod
     def _validate(tree: ast.AST) -> None:
+        called = {node.func.id for node in ast.walk(tree)
+                  if isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Name)}
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
-                if node.id not in _ALLOWED_CALLS:
+                # A function name is allowed only where it is called:
+                # a bare `SUM` would otherwise evaluate to the function.
+                if node.id not in called:
                     raise FormulaError(
                         f"formula uses the name {node.id!r}, which the "
                         "import evaluator does not support")
@@ -266,8 +356,8 @@ class _Formula:
                         "does not support")
             elif isinstance(node, (ast.Expression, ast.Load, ast.Constant,
                                    ast.Tuple, ast.List, ast.UnaryOp,
-                                   ast.BinOp, ast.Compare, ast.operator,
-                                   ast.unaryop, ast.cmpop)):
+                                   ast.BinOp, ast.Compare, ast.IfExp,
+                                   ast.operator, ast.unaryop, ast.cmpop)):
                 continue
             elif isinstance(node, ast.keyword):
                 raise FormulaError("named arguments are not supported")
@@ -286,9 +376,19 @@ class _Formula:
         lo_c, hi_c = sorted((c1, c2))
         if (hi_r - lo_r + 1) * (hi_c - lo_c + 1) > 100_000:
             raise FormulaError("a formula range is too large")
-        return [float(self.cell_value(r, c) or 0.0)
-                for r in range(lo_r, hi_r + 1)
-                for c in range(lo_c, hi_c + 1)]
+        numbers: list[float] = []
+        for r in range(lo_r, hi_r + 1):
+            for c in range(lo_c, hi_c + 1):
+                value = self.cell_value(r, c)
+                # SUM/AVERAGE in Excel ignore blank and text cells rather
+                # than failing the whole formula; follow that here.
+                if isinstance(value, bool):
+                    numbers.append(1.0 if value else 0.0)
+                elif isinstance(value, (int, float)):
+                    number = float(value)
+                    if math.isfinite(number):
+                        numbers.append(number)
+        return numbers
 
 
 def _fn_sum(*values: Any) -> float:
@@ -327,31 +427,41 @@ def _fn_not(value: Any) -> bool:
 
 
 def _fn_sqrt(value: Any) -> float:
-    return float(value) ** 0.5
+    number = float(value)
+    if number < 0:
+        raise FormulaError("SQRT of a negative number")
+    return math.sqrt(number)
 
 
 def _fn_exp(value: Any) -> float:
-    import math
-    return math.exp(float(value))
+    try:
+        return math.exp(float(value))
+    except OverflowError:
+        raise FormulaError("the formula result is too large") from None
 
 
 def _fn_ln(value: Any) -> float:
-    import math
     return math.log(float(value))
 
 
 def _fn_log(value: Any, base: float = 10.0) -> float:
-    import math
     return math.log(float(value), float(base))
 
 
 def _fn_log10(value: Any) -> float:
-    import math
     return math.log10(float(value))
 
 
 def _fn_power(value: Any, power: Any) -> float:
-    return float(value) ** float(power)
+    try:
+        result = float(value) ** float(power)
+    except OverflowError:
+        raise FormulaError("the formula result is too large") from None
+    if isinstance(result, complex):
+        # a negative base with a fractional exponent: Excel reports #NUM!
+        raise FormulaError("a negative value cannot be raised to a "
+                           "fractional power")
+    return float(result)
 
 
 # ---------------------------------------------------------------------------
@@ -368,12 +478,31 @@ _NS = {
 }
 
 
+def _xml_part(zf: zipfile.ZipFile, name: str, filename: str) -> ET.Element:
+    """Parse one XML part, with a size cap and every parser error turned
+    into a `SheetError` (the GUI shows it, so it must be readable)."""
+    try:
+        info = zf.getinfo(name)
+    except KeyError as exc:
+        raise SheetError(f"{filename} is missing {name}") from exc
+    if info.file_size > MAX_XML_BYTES:
+        raise SheetError(
+            f"{filename}: {name} is larger than "
+            f"{MAX_XML_BYTES // (1024 * 1024)} MB uncompressed; refusing to "
+            "read it")
+    try:
+        return ET.fromstring(zf.read(name))
+    except (ET.ParseError, zipfile.BadZipFile) as exc:
+        raise SheetError(f"{filename}: {name} is not readable: {exc}") from exc
+
+
 def _xlsx_text(node: ET.Element) -> str:
     return "".join(t.text or "" for t in node.findall(".//main:t", _NS))
 
 
-def _xlsx_workbook(zf: zipfile.ZipFile) -> tuple[list[tuple[str, str]], int]:
-    workbook = ET.fromstring(zf.read("xl/workbook.xml"))
+def _xlsx_workbook(zf: zipfile.ZipFile,
+                   filename: str) -> tuple[list[tuple[str, str]], int]:
+    workbook = _xml_part(zf, "xl/workbook.xml", filename)
     active = 0
     view = workbook.find("main:bookViews/main:workbookView", _NS)
     if view is not None:
@@ -382,12 +511,10 @@ def _xlsx_workbook(zf: zipfile.ZipFile) -> tuple[list[tuple[str, str]], int]:
         except ValueError:
             active = 0
     rels: dict[str, str] = {}
-    try:
-        root = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+    if "xl/_rels/workbook.xml.rels" in zf.namelist():
+        root = _xml_part(zf, "xl/_rels/workbook.xml.rels", filename)
         for rel in root.findall("pkg:Relationship", _NS):
             rels[rel.get("Id", "")] = rel.get("Target", "")
-    except KeyError:
-        pass
     sheets: list[tuple[str, str]] = []
     for sheet in workbook.findall("main:sheets/main:sheet", _NS):
         rid = sheet.get(f"{{{_NS['rel']}}}id", "")
@@ -428,13 +555,20 @@ def _xlsx_cell(cell: ET.Element, shared: list[str]) -> Cell:
     else:
         raw = _number(cached_text)
         text = "" if raw is None else str(raw)
-    cached = raw if (formula is None or kind != "n") else _number(cached_text)
-    cached = raw
-    value = cached
-    if formula is not None and cached_text is None:
-        value = None                     # evaluated later
-    return Cell(raw=raw, formula=formula, cached=cached, text=text,
-                kind=kind, value=value)
+    # An error result (#DIV/0!, #N/A, ...) is data the import must not
+    # silently read as blank -- and must not try to re-evaluate either.
+    error = (f"the cell shows {text or 'an error'}" if kind == "e" else "")
+    value = raw if formula is None or cached_text is not None else None
+    return Cell(raw=raw, formula=formula, cached=raw, text=text,
+                kind=kind, value=value, error=error)
+
+
+def _trim(row: list[Cell]) -> list[Cell]:
+    """Drop trailing blank cells (a spreadsheet pads its grid with them)."""
+    while row and not row[-1].text and row[-1].value is None \
+            and not row[-1].formula and not row[-1].error:
+        row.pop()
+    return row
 
 
 def _number(text: Any) -> float | int | None:
@@ -447,14 +581,57 @@ def _number(text: Any) -> float | int | None:
     return int(number) if number.is_integer() else number
 
 
+def _xlsx_row(row_node: ET.Element, shared: list[str],
+              filename: str) -> list[Cell]:
+    row: list[Cell] = []
+    for cell_node in row_node.findall("main:c", _NS):
+        ref = cell_node.get("r", "")
+        try:
+            _r, col = split_ref(ref)
+        except FormulaError:
+            col = len(row)
+        if col >= MAX_COLUMNS:
+            # An empty stray cell far to the right is harmless; a cell with
+            # content there would silently be dropped, so refuse the sheet.
+            if not len(cell_node) and cell_node.get("t") is None:
+                continue
+            raise SheetError(
+                f"{filename}: data in column {col + 1} is beyond the "
+                f"{MAX_COLUMNS}-column import limit")
+        while len(row) < col:
+            row.append(Cell())
+        cell = _xlsx_cell(cell_node, shared)
+        if col < len(row):                # a repeated or out-of-order ref
+            row[col] = cell
+        else:
+            row.append(cell)
+    return row
+
+
+def _xlsx_rows(sheet_data: ET.Element, shared: list[str],
+               filename: str) -> tuple[list[list[Cell]], list[int]]:
+    """The rows of one worksheet and their spreadsheet row numbers."""
+    rows: list[list[Cell]] = []
+    row_numbers: list[int] = []
+    for row_node in sheet_data.findall("main:row", _NS):
+        try:
+            number = int(row_node.get("r", ""))
+        except ValueError:
+            number = 0
+        trimmed = _trim(_xlsx_row(row_node, shared, filename))
+        if trimmed:                   # a blank row is not a header or data
+            rows.append(trimmed)
+            row_numbers.append(number)
+        if len(rows) >= MAX_ROWS:
+            break
+    return rows, row_numbers
+
+
 def _read_xlsx(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
     if not zipfile.is_zipfile(path):
         raise SheetError(f"{path.name} is not an Excel workbook")
     with zipfile.ZipFile(path) as zf:
-        try:
-            sheets, active = _xlsx_workbook(zf)
-        except KeyError as exc:
-            raise SheetError(f"{path.name} has no workbook.xml") from exc
+        sheets, active = _xlsx_workbook(zf, path.name)
         if not sheets:
             raise SheetError(f"{path.name} has no worksheets")
         chosen = None
@@ -466,29 +643,18 @@ def _read_xlsx(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
         else:
             chosen = sheets[active] if 0 <= active < len(sheets) else sheets[0]
         name, target = chosen
-        if not target or target not in zf.namelist():
+        if not target:
             raise SheetError(f"{path.name}: sheet {name!r} is missing")
         shared: list[str] = []
         if "xl/sharedStrings.xml" in zf.namelist():
-            root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+            root = _xml_part(zf, "xl/sharedStrings.xml", path.name)
             shared = [_xlsx_text(si) for si in root.findall("main:si", _NS)]
-        root = ET.fromstring(zf.read(target))
-        rows: list[list[Cell]] = []
-        for row_node in root.findall("main:sheetData/main:row", _NS):
-            row: list[Cell] = []
-            for cell_node in row_node.findall("main:c", _NS):
-                ref = cell_node.get("r", "")
-                try:
-                    _r, col = split_ref(ref)
-                except FormulaError:
-                    col = len(row)
-                while len(row) < col:
-                    row.append(Cell())
-                row.append(_xlsx_cell(cell_node, shared))
-            rows.append(row)
-            if len(rows) >= MAX_ROWS:
-                break
-    out = Sheet(name=name, rows=rows)
+        root = _xml_part(zf, target, path.name)
+        sheet_data = root.find("main:sheetData", _NS)
+        rows, row_numbers = _xlsx_rows(
+            sheet_data if sheet_data is not None else root,
+            shared, path.name)
+    out = Sheet(name=name, rows=rows, row_numbers=row_numbers)
     _resolve_formulas(out)
     return out
 
@@ -502,6 +668,9 @@ _OFFICE_TYPE = f"{{{_NS['of']}}}value-type"
 _TABLE_FORMULA = f"{{{_NS['table']}}}formula"
 _TABLE_REPEAT_COLS = f"{{{_NS['table']}}}number-columns-repeated"
 _TABLE_REPEAT_ROWS = f"{{{_NS['table']}}}number-rows-repeated"
+_TABLE_CELL = f"{{{_NS['table']}}}table-cell"
+_TABLE_COVERED = f"{{{_NS['table']}}}covered-table-cell"
+_TABLE_ROW = f"{{{_NS['table']}}}table-row"
 
 
 def _ods_text(cell: ET.Element) -> str:
@@ -509,14 +678,32 @@ def _ods_text(cell: ET.Element) -> str:
                    for p in cell.findall("text:p", _NS))
 
 
+def _ods_cell(cell_node: ET.Element) -> Cell:
+    """One ODS cell: its value, its formula and its cached result."""
+    formula = cell_node.get(_TABLE_FORMULA)
+    kind = cell_node.get(_OFFICE_TYPE, "")
+    text = _ods_text(cell_node)
+    raw: Any = None
+    if kind in ("float", "percentage", "currency"):
+        raw = _number(cell_node.get(_OFFICE_VALUE))
+    elif kind == "boolean":
+        raw = str(cell_node.get(_OFFICE_VALUE, "")).lower() in ("true", "1")
+    elif kind == "date" or kind == "time":
+        raw = cell_node.get(_OFFICE_VALUE) or text
+    elif text:
+        raw = text
+    cell = Cell(raw=raw, formula=formula, cached=raw, text=text,
+                kind=kind, value=raw)
+    if formula and cell_node.get(_OFFICE_VALUE) is None:
+        cell.value = None
+    return cell
+
+
 def _read_ods(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
     if not zipfile.is_zipfile(path):
         raise SheetError(f"{path.name} is not an OpenDocument spreadsheet")
     with zipfile.ZipFile(path) as zf:
-        try:
-            root = ET.fromstring(zf.read("content.xml"))
-        except KeyError as exc:
-            raise SheetError(f"{path.name} has no content.xml") from exc
+        root = _xml_part(zf, "content.xml", path.name)
         tables = root.findall("of:body/of:spreadsheet/table:table", _NS)
         if not tables:
             raise SheetError(f"{path.name} has no sheets")
@@ -531,40 +718,42 @@ def _read_ods(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
             table = tables[0]
         name = table.get(f"{{{_NS['table']}}}name", "Sheet1")
         rows: list[list[Cell]] = []
-        for row_node in table.findall("table:table-row", _NS):
+        # `table.iter` is document order, so a header wrapped in
+        # <table:table-header-rows> stays ahead of the data rows.
+        for row_node in table.iter(_TABLE_ROW):
             row: list[Cell] = []
-            for cell_node in row_node.findall("table:table-cell", _NS):
+            for cell_node in row_node:
+                if cell_node.tag == _TABLE_COVERED:
+                    # A merged cell's hidden slots still occupy columns;
+                    # count them as blanks so the columns stay aligned.
+                    room = MAX_COLUMNS - len(row)
+                    if room > 0:
+                        row.extend(Cell() for _ in range(min(
+                            _repeat(cell_node.get(_TABLE_REPEAT_COLS)), room)))
+                    continue
+                if cell_node.tag != _TABLE_CELL:
+                    continue
                 repeat = _repeat(cell_node.get(_TABLE_REPEAT_COLS))
-                formula = cell_node.get(_TABLE_FORMULA)
-                kind = cell_node.get(_OFFICE_TYPE, "")
-                text = _ods_text(cell_node)
-                raw: Any = None
-                if kind in ("float", "percentage", "currency"):
-                    raw = _number(cell_node.get(_OFFICE_VALUE))
-                elif kind == "boolean":
-                    raw = str(cell_node.get(_OFFICE_VALUE, "")).lower() in (
-                        "true", "1")
-                elif kind == "date" or kind == "time":
-                    raw = cell_node.get(_OFFICE_VALUE) or text
-                elif text:
-                    raw = text
-                cell = Cell(raw=raw, formula=formula, cached=raw, text=text,
-                            kind=kind, value=raw)
-                if formula and cell_node.get(_OFFICE_VALUE) is None:
-                    cell.value = None
-                for _ in range(min(repeat, MAX_COLUMNS)):
+                cell = _ods_cell(cell_node)
+                room = MAX_COLUMNS - len(row)
+                if room <= 0:
+                    break
+                for _ in range(min(repeat, room)):
                     row.append(cell if repeat == 1 else Cell(
                         raw=cell.raw, formula=cell.formula, cached=cell.cached,
                         text=cell.text, kind=cell.kind, value=cell.value))
             repeat_rows = _repeat(row_node.get(_TABLE_REPEAT_ROWS))
+            row = _trim(row)
             # Empty repeated rows are how a spreadsheet pads its grid; do
             # not turn a 1,048,576-row trailing pad into memory.
-            if not any(c.text or c.value is not None for c in row):
+            if not any(c.text or c.value is not None or c.formula for c in row):
                 repeat_rows = min(repeat_rows, 1)
+            if not row:
+                continue
             for _ in range(min(repeat_rows, MAX_ROWS - len(rows))):
                 rows.append([Cell(raw=c.raw, formula=c.formula,
                                   cached=c.cached, text=c.text, kind=c.kind,
-                                  value=c.value) for c in row])
+                                  value=c.value, error=c.error) for c in row])
             if len(rows) >= MAX_ROWS:
                 break
     out = Sheet(name=name, rows=rows)
@@ -593,16 +782,25 @@ def _resolve_formulas(sheet: Sheet) -> None:
                     cell.value = evaluator.evaluate(cell.formula)
                 except FormulaError as exc:
                     cell.error = str(exc)
+                except RecursionError:
+                    cell.error = ("a chain of formulas refers to itself too "
+                                  "deeply to evaluate")
 
 
 def read_sheet(path: str | Path, sheet: str | None = None) -> Sheet:
     """Read the named (or active/first) sheet of an `.xlsx` or `.ods` file."""
     source = Path(path)
     suffix = source.suffix.lower()
-    if suffix == ".xlsx":
-        return _read_xlsx(source, sheet)
-    if suffix == ".ods":
-        return _read_ods(source, sheet)
+    try:
+        if suffix == ".xlsx":
+            return _read_xlsx(source, sheet)
+        if suffix == ".ods":
+            return _read_ods(source, sheet)
+    except (zipfile.BadZipFile, ET.ParseError) as exc:
+        # A truncated download, or a spreadsheet saved with some other
+        # tool: report it, do not let a parser exception reach the GUI.
+        raise SheetError(
+            f"{source.name} is not a readable spreadsheet: {exc}") from exc
     raise SheetError(
         f"{source.name}: expected an .xlsx or .ods spreadsheet, got "
         f"{suffix or 'no extension'}")

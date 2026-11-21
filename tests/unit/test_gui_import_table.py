@@ -55,6 +55,9 @@ def test_the_dialog_lists_changes_and_blocks_an_invalid_plan(win):
     plan = _plan(rbd)
     dialog = ImportTableDialog(win, plan)
     assert dialog._table.rowCount() == len(plan.changes)
+    # the spreadsheet row is shown, so the user can find it in Excel
+    assert dialog._table.horizontalHeaderItem(0).text() == "Row"
+    assert dialog._table.item(0, 0).text() == "2"
     ok = dialog._buttons.button(QDialogButtonBox.StandardButton.Ok)
     assert ok.isEnabled()
 
@@ -63,6 +66,15 @@ def test_the_dialog_lists_changes_and_blocks_an_invalid_plan(win):
         [Cell(value=_block(rbd)[0]), Cell(value="not-a-law")],
     ]))
     dialog = ImportTableDialog(win, bad)
+    ok = dialog._buttons.button(QDialogButtonBox.StandardButton.Ok)
+    assert not ok.isEnabled()
+
+
+def test_an_empty_plan_has_no_table_and_disables_apply(win):
+    from raptor.gui.ui.import_table_dialog import ImportTableDialog
+    rbd = win._diagram_dock.view._rbd_ref
+    dialog = ImportTableDialog(win, I.plan_import(rbd, Sheet("Data", rows=[])))
+    assert not hasattr(dialog, "_table")
     ok = dialog._buttons.button(QDialogButtonBox.StandardButton.Ok)
     assert not ok.isEnabled()
 

@@ -9,6 +9,7 @@ import copy
 from pathlib import Path
 from typing import Any
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QUndoCommand
 from PySide6.QtWidgets import (
     QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel,
@@ -53,7 +54,8 @@ class ImportTableDialog(QDialog):
     def __init__(self, parent: Any, plan: I.ImportPlan):
         super().__init__(parent)
         self._plan = plan
-        self.setWindowTitle("Import Data Table")
+        self.setWindowTitle(
+            f"Import Data Table — {Path(plan.source).name}")
         self.setMinimumSize(900, 560)
         self._build()
 
@@ -68,32 +70,15 @@ class ImportTableDialog(QDialog):
         intro.setWordWrap(True)
         lay.addWidget(intro)
 
-        self._table = QTableWidget(len(self._plan.changes), 5)
-        self._table.setHorizontalHeaderLabels(
-            ["Element", "Field", "Current", "Imported", "Formula"])
-        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows)
-        self._table.verticalHeader().setVisible(False)
-        for row, change in enumerate(self._plan.changes):
-            values = [f"{change.name} ({change.id})",
-                      _field_label(change.field),
-                      change.old_text(), change.new_text(), change.formula]
-            for col, text in enumerate(values):
-                item = QTableWidgetItem(text)
-                if col == 4 and text:
-                    item.setToolTip("The spreadsheet formula behind the "
-                                    "imported value")
-                self._table.setItem(row, col, item)
-        header = self._table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        lay.addWidget(self._table, 1)
+        if self._plan.changes:
+            self._build_changes(lay, self._plan.changes)
+        else:
+            empty = QLabel("No field in this sheet would change a block.")
+            empty.setWordWrap(True)
+            lay.addWidget(empty, 1)
 
-        problems = self._plan.problems
+        problems = sorted(self._plan.problems,
+                          key=lambda p: (p.level != "error", p.row))
         if problems:
             box = QPlainTextEdit()
             box.setReadOnly(True)
@@ -119,6 +104,37 @@ class ImportTableDialog(QDialog):
         apply_btn.setEnabled(bool(self._plan.changes)
                              and not self._plan.has_errors())
         lay.addWidget(self._buttons)
+
+    def _build_changes(self, lay: QVBoxLayout,
+                       changes: list[I.Change]) -> None:
+        self._table = QTableWidget(len(changes), 6)
+        self._table.setHorizontalHeaderLabels(
+            ["Row", "Element", "Field", "Current", "Imported", "Formula"])
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setWordWrap(False)
+        self._table.verticalHeader().setVisible(False)
+        for row, change in enumerate(changes):
+            values = [str(change.row) if change.row else "",
+                      f"{change.name} ({change.id})",
+                      _field_label(change.field),
+                      change.old_text(), change.new_text(), change.formula]
+            for col, text in enumerate(values):
+                item = QTableWidgetItem(text)
+                if col in (3, 4):
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                                          | Qt.AlignmentFlag.AlignVCenter)
+                if col == 5 and text:
+                    item.setToolTip("The spreadsheet formula behind the "
+                                    "imported value")
+                self._table.setItem(row, col, item)
+        header = self._table.horizontalHeader()
+        for col in range(5):
+            header.setSectionResizeMode(col,
+                                        QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        lay.addWidget(self._table, 1)
 
 
 def _field_label(field: str) -> str:

@@ -137,3 +137,90 @@ def test_a_name_column_identifies_a_unique_block(rbd):
     plan = I.plan_import(rbd, sheet)
     assert not plan.errors
     assert [c.field for c in plan.changes] == ["pm_freq"]
+
+
+def test_a_blank_sheet_is_an_error_not_a_silent_no_op(rbd):
+    plan = I.plan_import(rbd, Sheet("Data", rows=[]))
+    assert plan.has_errors()
+    assert "empty" in plan.errors[0].text()
+
+
+def test_a_header_without_data_rows_warns(rbd):
+    plan = I.plan_import(rbd, Sheet("Data", rows=[[Cell(value="id")]]))
+    assert not plan.has_errors()
+    assert plan.warnings and "no data rows" in plan.warnings[0].text()
+
+
+def test_fractional_ids_and_stock_are_refused(rbd):
+    oid, _row = _first_block(rbd)
+    plan = I.plan_import(rbd, Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="PM Freq")],
+        [Cell(value=oid + 0.5), Cell(value=10.0)],
+    ]))
+    assert plan.has_errors()
+    assert "whole numbers" in plan.errors[0].text()
+
+    plan = I.plan_import(rbd, Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="Stock")],
+        [Cell(value=oid), Cell(value=2.5)],
+    ]))
+    assert plan.has_errors()
+    assert "whole number" in plan.errors[0].text()
+
+
+def test_a_refused_distribution_change_leaves_the_law_alone(rbd):
+    oid, _row = _first_block(rbd)
+    sheet = Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="Fail Dist"),
+         Cell(value="Fail Param 1"), Cell(value="Fail Param 2")],
+        # Triangular needs Min < Mode < Max; -5 is refused
+        [Cell(value=oid), Cell(value="Triangular"),
+         Cell(value=-5.0), Cell(value=0.0)],
+    ])
+    plan = I.plan_import(rbd, sheet)
+    assert plan.has_errors()
+    assert [c.field for c in plan.changes] == []
+
+
+def test_a_block_repeated_on_two_rows_warns_and_the_later_row_wins(rbd):
+    oid, _row = _first_block(rbd)
+    sheet = Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="PM Freq")],
+        [Cell(value=oid), Cell(value=20.0)],
+        [Cell(value=oid), Cell(value=30.0)],
+    ])
+    plan = I.plan_import(rbd, sheet)
+    assert not plan.has_errors()
+    assert any("also appears on row 2" in w.text() for w in plan.warnings)
+    _before, after = I.row_snapshot(plan, rbd)
+    assert after[oid]["PMFreq"] == "30.000000"
+
+
+def test_applying_a_plan_with_errors_is_refused(rbd):
+    sheet = Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="Fail Dist")],
+        [Cell(value=999999), Cell(value="Weibull")],
+    ])
+    plan = I.plan_import(rbd, sheet)
+    assert plan.has_errors()
+    with pytest.raises(ValueError, match="has errors"):
+        I.apply_to_rbd(rbd, plan)
+
+
+def test_a_unit_suffix_maps_but_an_unrelated_column_does_not(rbd):
+    mapping, problems = I.map_headers(
+        ["ID", "Name of owner", "Fail Param 1 [hours]",
+         "PM Frequency (days)"])
+    assert set(mapping.values()) == {"id", "fail_param_1", "pm_freq"}
+    assert [p for p in problems if "Name of owner" in p]
+    assert not [p for p in problems if "Fail Param 1" in p]
+
+
+def test_a_parameter_list_with_no_numbers_is_an_error(rbd):
+    oid, _row = _first_block(rbd)
+    plan = I.plan_import(rbd, Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="Fail Params")],
+        [Cell(value=oid), Cell(value="()")],
+    ]))
+    assert plan.has_errors()
+    assert "not a list of numbers" in plan.errors[0].text()
