@@ -293,6 +293,14 @@ def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
 def _translate_combo(box: QComboBox) -> None:
     """Translate combo entries, keeping their (programmatic) item data."""
     originals = _originals(box)
+    blocked = box.blockSignals(True)
+    try:
+        _translate_combo_items(box, originals)
+    finally:
+        box.blockSignals(blocked)
+
+
+def _translate_combo_items(box: QComboBox, originals: dict) -> None:
     for index in range(box.count()):
         key = f"item:{index}"
         source = originals.setdefault(key, box.itemText(index))
@@ -304,6 +312,14 @@ def _translate_combo(box: QComboBox) -> None:
 
 def _translate_tabs(tabs: QTabWidget) -> None:
     originals = _originals(tabs)
+    blocked = tabs.blockSignals(True)
+    try:
+        _translate_tab_items(tabs, originals)
+    finally:
+        tabs.blockSignals(blocked)
+
+
+def _translate_tab_items(tabs: QTabWidget, originals: dict) -> None:
     for index in range(tabs.count()):
         key = f"tab:{index}"
         source = originals.setdefault(key, tabs.tabText(index))

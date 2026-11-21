@@ -174,352 +174,704 @@
       <translation>Abrir</translation>
     </message>
     <message>
+      <source>Open an .rbd or .rbds file (Ctrl+O)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Save</source>
       <translation>Salvar</translation>
+    </message>
+    <message>
+      <source>Save (Ctrl+S)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Save As</source>
       <translation>Salvar como</translation>
     </message>
     <message>
+      <source>Save to a new .rbds or .rbd file (Ctrl+Shift+S)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Import Availability Workbench…</source>
       <translation>Importar Availability Workbench…</translation>
+    </message>
+    <message>
+      <source>Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>New</source>
       <translation>Novo</translation>
     </message>
     <message>
+      <source>Create a new blank model (Ctrl+N)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Close</source>
       <translation>Fechar</translation>
+    </message>
+    <message>
+      <source>Close the current model (with save prompt)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Quit</source>
       <translation>Sair</translation>
     </message>
     <message>
+      <source>Quit RAPTOR Studio (Ctrl+Q)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Print…</source>
       <translation>Imprimir…</translation>
+    </message>
+    <message>
+      <source>Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export…</source>
       <translation>Exportar…</translation>
     </message>
     <message>
+      <source>Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Export PDF…</source>
       <translation>Exportar PDF…</translation>
+    </message>
+    <message>
+      <source>Save the printable report (diagram + results + weak link) as a PDF file</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export to Availability Workbench…</source>
       <translation>Exportar para Availability Workbench…</translation>
     </message>
     <message>
+      <source>Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Check Availability Workbench Export…</source>
       <translation>Verificar exportação para Availability Workbench…</translation>
+    </message>
+    <message>
+      <source>Report what an Availability Workbench export would substitute, partially map or drop, without writing a file</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export Reduced AWB Model…</source>
       <translation>Exportar modelo AWB reduzido…</translation>
     </message>
     <message>
+      <source>Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Export Tables…</source>
       <translation>Exportar tabelas…</translation>
+    </message>
+    <message>
+      <source>Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export Excel Workbook…</source>
       <translation>Exportar pasta de trabalho do Excel…</translation>
     </message>
     <message>
+      <source>Save the model's tables and the latest run's results as one Excel workbook (.xlsx), set up to read, filter and print</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Export OpenDocument Spreadsheet…</source>
       <translation>Exportar planilha OpenDocument…</translation>
+    </message>
+    <message>
+      <source>Save the model's tables and the latest run's results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export Diagram SVG…</source>
       <translation>Exportar diagrama SVG…</translation>
     </message>
     <message>
+      <source>Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Save Bitmap</source>
       <translation>Salvar bitmap</translation>
+    </message>
+    <message>
+      <source>Save the diagram view as a PNG image</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Copy View</source>
       <translation>Copiar visualização</translation>
     </message>
     <message>
+      <source>Copy the current view to the clipboard as a high-resolution PNG</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Select All</source>
       <translation>Selecionar tudo</translation>
+    </message>
+    <message>
+      <source>Select all blocks/nodes/events/hierarchies (Ctrl+A)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Copy</source>
       <translation>Copiar</translation>
     </message>
     <message>
+      <source>Copy the selected elements</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Cut</source>
       <translation>Recortar</translation>
+    </message>
+    <message>
+      <source>Copy and delete the selected elements</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Paste</source>
       <translation>Colar</translation>
     </message>
     <message>
+      <source>Paste previously copied elements with fresh ids</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Focus</source>
       <translation>Foco</translation>
+    </message>
+    <message>
+      <source>Dim everything except the selection (topology stays)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Notes</source>
       <translation>Notas</translation>
     </message>
     <message>
+      <source>Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Comments</source>
       <translation>Comentários</translation>
+    </message>
+    <message>
+      <source>Show or hide only the canvas notes that show an element's comment; other annotations stay.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Quick Add</source>
       <translation>Adição rápida</translation>
     </message>
     <message>
+      <source>Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Run a Command…</source>
       <translation>Executar um comando…</translation>
+    </message>
+    <message>
+      <source>Search every command by name (Ctrl+Shift+P)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Find and Replace…</source>
       <translation>Localizar e substituir…</translation>
     </message>
     <message>
+      <source>Find and replace in the Data Tables grid (Ctrl+H there)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Duplicate</source>
       <translation>Duplicar</translation>
+    </message>
+    <message>
+      <source>Duplicate the selected elements in place (Ctrl+D)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Duplicate in Parallel</source>
       <translation>Duplicar em paralelo</translation>
     </message>
     <message>
+      <source>Copy the selected block in parallel between its neighbours (Ctrl+Alt+D)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Array…</source>
       <translation>Matriz…</translation>
+    </message>
+    <message>
+      <source>Duplicate the selection in a row or column</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Paste Data Only</source>
       <translation>Colar somente dados</translation>
     </message>
     <message>
+      <source>Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Project Settings</source>
       <translation>Configurações do projeto</translation>
+    </message>
+    <message>
+      <source>Project Settings — simulation-wide configuration for this model</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Issues</source>
       <translation>Problemas</translation>
     </message>
     <message>
+      <source>What stops the model running, and warnings that do not: a tick when it can run, a red cross when it cannot (F7)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Separate Streams</source>
       <translation>Separar fluxos</translation>
+    </message>
+    <message>
+      <source>Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Import RBD</source>
       <translation>Importar RBD</translation>
     </message>
     <message>
+      <source>Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Select</source>
       <translation>Selecionar</translation>
+    </message>
+    <message>
+      <source>Select tool (Q, Ctrl+1)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Auto Layout</source>
       <translation>Layout automático</translation>
     </message>
     <message>
+      <source>Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Up</source>
       <translation>Subir</translation>
+    </message>
+    <message>
+      <source>Ascend one hierarchy level (or double-click an Out marker)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Home</source>
       <translation>Início</translation>
     </message>
     <message>
+      <source>Return to the home level</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Collapse Selection</source>
       <translation>Recolher seleção</translation>
+    </message>
+    <message>
+      <source>Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Delete Selected</source>
       <translation>Excluir seleção</translation>
     </message>
     <message>
+      <source>Delete selected blocks/nodes (Del)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Add Block</source>
       <translation>Adicionar bloco</translation>
+    </message>
+    <message>
+      <source>Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Add Node</source>
       <translation>Adicionar nó</translation>
     </message>
     <message>
+      <source>Click the canvas to place a new Regular node, or click a link to insert it in series</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Add Event</source>
       <translation>Adicionar evento</translation>
+    </message>
+    <message>
+      <source>Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Add Hierarchy</source>
       <translation>Adicionar hierarquia</translation>
     </message>
     <message>
+      <source>Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Connect</source>
       <translation>Conectar</translation>
+    </message>
+    <message>
+      <source>Click the source element, then the target</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Fit</source>
       <translation>Ajustar</translation>
     </message>
     <message>
+      <source>Fit all: fit the whole diagram to the window (Ctrl+0)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Zoom %</source>
       <translation>Zoom %</translation>
+    </message>
+    <message>
+      <source>Zoom percent: set an exact zoom percentage</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Zoom In</source>
       <translation>Ampliar</translation>
     </message>
     <message>
+      <source>Zoom into the diagram (Ctrl+= or Ctrl+wheel)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Zoom Out</source>
       <translation>Reduzir</translation>
+    </message>
+    <message>
+      <source>Zoom out of the diagram (Ctrl+- or Ctrl+wheel)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Selection</source>
       <translation>Seleção</translation>
     </message>
     <message>
+      <source>Zoom to selection: fit the selected elements in the window (Ctrl+Shift+0)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Hierarchy</source>
       <translation>Hierarquia</translation>
+    </message>
+    <message>
+      <source>Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Flip Horizontal</source>
       <translation>Inverter horizontalmente</translation>
     </message>
     <message>
+      <source>Mirror the selected items left-to-right about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Flip Vertical</source>
       <translation>Inverter verticalmente</translation>
+    </message>
+    <message>
+      <source>Mirror the selected items top-to-bottom about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Text</source>
       <translation>Texto</translation>
     </message>
     <message>
+      <source>Click to place a text annotation (double-click to edit)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Rectangle</source>
       <translation>Retângulo</translation>
+    </message>
+    <message>
+      <source>Drag a rectangle annotation</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Ellipse</source>
       <translation>Elipse</translation>
     </message>
     <message>
+      <source>Drag an ellipse annotation</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Arrow</source>
       <translation>Seta</translation>
+    </message>
+    <message>
+      <source>Click to place the tail, click again to place the head</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Bring to Front</source>
       <translation>Trazer para frente</translation>
     </message>
     <message>
+      <source>Place the selected annotations in front of every diagram element (Ctrl+Shift+])</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Bring Forward</source>
       <translation>Avançar uma camada</translation>
+    </message>
+    <message>
+      <source>Move the selected annotations one step up the stack (Ctrl+])</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Send Backward</source>
       <translation>Recuar uma camada</translation>
     </message>
     <message>
+      <source>Move the selected annotations one step down the stack (Ctrl+[)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Send to Back</source>
       <translation>Enviar para o fundo</translation>
+    </message>
+    <message>
+      <source>Place the selected annotations behind every diagram element (links and hierarchy ovals included) (Ctrl+Shift+[)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Export Library</source>
       <translation>Exportar biblioteca</translation>
     </message>
     <message>
+      <source>Save every block of this model as reusable templates</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Import Library</source>
       <translation>Importar biblioteca</translation>
+    </message>
+    <message>
+      <source>Add a block template from a library file, or update same-named blocks' failure/repair data</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Block Defaults…</source>
       <translation>Padrões de bloco…</translation>
     </message>
     <message>
+      <source>Set the default failure/repair distribution for NEW blocks</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Mass Edit…</source>
       <translation>Edição em massa…</translation>
+    </message>
+    <message>
+      <source>Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Phases…</source>
       <translation>Fases…</translation>
     </message>
     <message>
+      <source>Phases — mission phase durations and per-element Active/Link/Cut assignment</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Run</source>
       <translation>Executar</translation>
+    </message>
+    <message>
+      <source>Run the simulation (F5): at full speed on the cores shown beside it, or animated on one core when Animate is on</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Step</source>
       <translation>Passo</translation>
     </message>
     <message>
+      <source>Advance the simulation ONE event (F6) — watch states change event-by-event</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Next Time</source>
       <translation>Próximo instante</translation>
+    </message>
+    <message>
+      <source>Advance to the next DISTINCT simulation time (Shift+F6) — steps through every event at the current time in one click</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Finish</source>
       <translation>Concluir</translation>
     </message>
     <message>
+      <source>Run the stepped simulation to completion and produce reports (F8)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Run to time…</source>
       <translation>Executar até o instante…</translation>
+    </message>
+    <message>
+      <source>Advance until the sim time set in Step Settings (Debug tab) is reached (or the run ends)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Terminate</source>
       <translation>Encerrar</translation>
     </message>
     <message>
+      <source>Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept (Shift+F5)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Restart</source>
       <translation>Reiniciar</translation>
+    </message>
+    <message>
+      <source>Restart: discard this stepped run and begin a fresh one — all state reset to kickoff values (Ctrl+Shift+F5)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Run Settings…</source>
       <translation>Configurações da execução…</translation>
     </message>
     <message>
+      <source>Open the Run panel — the single editor for trials, termination, analyses and recording</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Trials to Precision…</source>
       <translation>Ensaios para precisão…</translation>
+    </message>
+    <message>
+      <source>How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Sweep…</source>
       <translation>Varredura…</translation>
     </message>
     <message>
+      <source>Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Compare…</source>
       <translation>Comparar…</translation>
+    </message>
+    <message>
+      <source>Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Recommend…</source>
       <translation>Recomendar…</translation>
     </message>
     <message>
+      <source>Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>What If…</source>
       <translation>E se…</translation>
+    </message>
+    <message>
+      <source>Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Sensitivity…</source>
       <translation>Sensibilidade…</translation>
     </message>
     <message>
+      <source>Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Spares…</source>
       <translation>Sobressalentes…</translation>
+    </message>
+    <message>
+      <source>The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Maintenance…</source>
       <translation>Manutenção…</translation>
     </message>
     <message>
+      <source>Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Crews…</source>
       <translation>Equipes…</translation>
+    </message>
+    <message>
+      <source>How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Extract Hierarchy…</source>
       <translation>Extrair hierarquia…</translation>
     </message>
     <message>
+      <source>Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Pause</source>
       <translation>Pausar</translation>
+    </message>
+    <message>
+      <source>Pause or resume the run (F9; Esc also pauses, Esc again stops)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Stop</source>
@@ -530,144 +882,288 @@
       <translation>Saltar</translation>
     </message>
     <message>
+      <source>While stepping: let this run finish and stop at the next run's first change. In a background batch: abandon the current run and start the next one</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Animate</source>
       <translation>Animar</translation>
+    </message>
+    <message>
+      <source>Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Slower</source>
       <translation>Mais lento</translation>
     </message>
     <message>
+      <source>Decrease animation speed ×10</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>1x</source>
       <translation>1x</translation>
+    </message>
+    <message>
+      <source>Reset to 1 event per second (1 ev/s)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Faster</source>
       <translation>Mais rápido</translation>
     </message>
     <message>
+      <source>Increase animation speed ×10</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Max</source>
       <translation>Máx.</translation>
+    </message>
+    <message>
+      <source>Run as fast as possible</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Failure Effects</source>
       <translation>Efeitos de falha</translation>
     </message>
     <message>
+      <source>Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Fail</source>
       <translation>Falhar</translation>
+    </message>
+    <message>
+      <source>Fail a block (or an event) NOW. Select one first, or click Fail then click it. Opens Failure Effects View if it is not open.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Repair</source>
       <translation>Reparar</translation>
     </message>
     <message>
+      <source>Put a failed block (or event) back to Running NOW. Select one first, or click Repair then click it.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Prev Phase</source>
       <translation>Fase anterior</translation>
+    </message>
+    <message>
+      <source>Failure Effects View: go to the previous phase (wraps to the last).</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Next Phase</source>
       <translation>Próxima fase</translation>
     </message>
     <message>
+      <source>Failure Effects View: go to the next phase (wraps to the first).</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Go To Phase…</source>
       <translation>Ir para fase…</translation>
+    </message>
+    <message>
+      <source>Failure Effects View: choose a phase from the list and go straight to it.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Clear Failures</source>
       <translation>Limpar falhas</translation>
     </message>
     <message>
+      <source>Small eraser: repair every failed or PM block and every failed event, and stay in this phase. A block that is Idle stays Idle.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Reset All</source>
       <translation>Redefinir tudo</translation>
+    </message>
+    <message>
+      <source>Large eraser: everything operating again, back to phase 1.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Status</source>
       <translation>Status</translation>
     </message>
     <message>
+      <source>Display Failure Effects: the failed components, the induced failures, the down and degraded nodes and the system status</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Clear Results</source>
       <translation>Limpar resultados</translation>
+    </message>
+    <message>
+      <source>Empty every results tab and return to the placeholder</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Single-Point Failures</source>
       <translation>Falhas de ponto único</translation>
     </message>
     <message>
+      <source>List every component that alone can fail the system — series elements; export as a text file</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Domains…</source>
       <translation>Domínios…</translation>
+    </message>
+    <message>
+      <source>Domain of each node — which elements' failures can propagate to it</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Analytical…</source>
       <translation>Analítico…</translation>
     </message>
     <message>
+      <source>Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Weak Links</source>
       <translation>Elos fracos</translation>
+    </message>
+    <message>
+      <source>Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model's G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel's Analysis section.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Capacity</source>
       <translation>Capacidade</translation>
     </message>
     <message>
+      <source>Colour each capacity node by its average utilization (Green &lt; 70% · Yellow &lt; 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Cost</source>
       <translation>Custo</translation>
+    </message>
+    <message>
+      <source>Colour each block by its total life-cycle cost, relative to the most expensive block (Green &lt; 1/3 · Yellow &lt; 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Spares</source>
       <translation>Sobressalentes</translation>
     </message>
     <message>
+      <source>Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Importance</source>
       <translation>Importância</translation>
+    </message>
+    <message>
+      <source>Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Share of downtime</source>
       <translation>Parcela da inatividade</translation>
     </message>
     <message>
+      <source>Colour each block and event by its share of system downtime (Red from ⅔ of the largest share, Yellow from ⅓), print the share under it, mark the cause that dominates it with a letter in the corner, and ring the letter when the runs disagree on the share. Works out the drivers from the event log when the Drivers tab has not.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Lost capacity</source>
       <translation>Capacidade perdida</translation>
+    </message>
+    <message>
+      <source>Colour each element by its share of the lost flow, with the main-cause letter and the uncertainty ring as for Share of downtime, and draw each link into a capacity node as wide as the flow through that node. Needs Capacity analysis and the event log.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Advisor findings</source>
       <translation>Constatações do Advisor</translation>
     </message>
     <message>
+      <source>Mark each element the Advisor has something to say about: filled by the worst severity (Red error, Yellow warning, blue advice or note), labelled with how many findings concern it, and its tooltip lists them. Needs no run.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Spread</source>
       <translation>Dispersão</translation>
+    </message>
+    <message>
+      <source>Band the ACTIVE colouring by this result set's values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Differences…</source>
       <translation>Diferenças…</translation>
     </message>
     <message>
+      <source>What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Show Results</source>
       <translation>Mostrar resultados</translation>
+    </message>
+    <message>
+      <source>Bring the Results panel to the front, full height (Ctrl+Shift+R)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Float Window</source>
       <translation>Janela flutuante</translation>
     </message>
     <message>
+      <source>Open the Results panel as its own resizable window</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Snap to Grid</source>
       <translation>Ajustar à grade</translation>
+    </message>
+    <message>
+      <source>Align dragged/placed items to the grid (new work only — opened files are never reshuffled)</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Focus Event</source>
       <translation>Evento em foco</translation>
     </message>
     <message>
+      <source>Centre the view on the element that changed at each step</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Data Tables</source>
       <translation>Tabelas de dados</translation>
+    </message>
+    <message>
+      <source>Show the Data Tables panel — every block/node in an editable grid</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Dark Theme</source>
       <translation>Tema escuro</translation>
     </message>
     <message>
+      <source>Toggle light/dark theme</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Preferences…</source>
       <translation>Preferências…</translation>
+    </message>
+    <message>
+      <source>Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Explorer</source>
@@ -678,6 +1174,10 @@
       <translation>Inspetor</translation>
     </message>
     <message>
+      <source>Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Results</source>
       <translation>Resultados</translation>
     </message>
@@ -686,44 +1186,88 @@
       <translation>Painel de execução</translation>
     </message>
     <message>
+      <source>Show the Run panel — trials, termination, analyses and recording for the next run</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Live Log</source>
       <translation>Registro ao vivo</translation>
+    </message>
+    <message>
+      <source>Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Advisor</source>
       <translation>Advisor</translation>
     </message>
     <message>
+      <source>Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Reset Layout</source>
       <translation>Redefinir layout</translation>
+    </message>
+    <message>
+      <source>Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>User Guide</source>
       <translation>Guia do usuário</translation>
     </message>
     <message>
+      <source>Open the User Guide: reliability simulation from scratch, with companion models</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Reference Manual</source>
       <translation>Manual de referência</translation>
+    </message>
+    <message>
+      <source>Open the field-by-field reference: every ribbon control, dialog setting and workflow. Tip: F1 jumps straight to the section for the focused dock or dialog</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>AI Assistant</source>
       <translation>Assistente de IA</translation>
     </message>
     <message>
+      <source>Set up an AI assistant over MCP (Claude Code, Claude Desktop, OpenCode, ...): opens the documentation</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Formulas</source>
       <translation>Fórmulas</translation>
+    </message>
+    <message>
+      <source>Reliability formulas quick reference — every metric the engine reports (availability, MTBDE, MDT, reliability, SEM), the distribution table, and the limits of an RBD model, all on one page</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Keyboard Shortcuts</source>
       <translation>Atalhos de teclado</translation>
     </message>
     <message>
+      <source>Every shortcut key, one page</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>About</source>
       <translation>Sobre</translation>
     </message>
     <message>
+      <source>About RAPTOR Studio — version, credits and licence</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
       <source>Report Issue</source>
       <translation>Relatar problema</translation>
+    </message>
+    <message>
+      <source>Report a bug or request a feature — opens the GitHub issue tracker with a new, prefilled issue</source>
+      <translation type="unfinished" />
     </message>
   </context>
   <context>
@@ -4569,14 +5113,6 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     <message>
       <source>Which phase's law the block labels describe. 'Model' shows the model's own unphased data; a phase shows that phase's stress-adjusted failure time, or that the block is cut. Disabled when the model has no phases.</source>
       <translation>Qual lei de fase os rótulos de bloco descrevem. "Modelo" mostra os dados não faseados do próprio modelo; uma fase mostra o instante de falha ajustado por estresse daquela fase, ou que o bloco está cortado. Desativado quando o modelo não tem fases.</translation>
-    </message>
-    <message>
-      <source>Dependability</source>
-      <translation>Dependabilidade</translation>
-    </message>
-    <message>
-      <source>Reliability</source>
-      <translation>Confiabilidade</translation>
     </message>
     <message>
       <source>Weak Link metric</source>

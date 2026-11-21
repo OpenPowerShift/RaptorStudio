@@ -90,6 +90,7 @@ class ResultsRawMixin(_Base):
             view.setFont(_mono_font())
             view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
             self._raw_views[name] = view
+            view.setProperty("rawKey", name)
             raw_tabs.addTab(view, name)
         # Interim Cost Report: the engine's periodic
         # cost snapshots (`_cost_sink` rows), byte-exact.
@@ -98,6 +99,7 @@ class ResultsRawMixin(_Base):
         self._interim_cost_view.setFont(_mono_font())
         self._interim_cost_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self._interim_cost_view.hide()
+        self._interim_cost_view.setProperty("rawKey", "Interim Cost")
         raw_tabs.addTab(self._interim_cost_view, "Interim Cost")
         self._raw_tabs = raw_tabs
         outer.addWidget(raw_tabs, 1)
@@ -212,8 +214,9 @@ class ResultsRawMixin(_Base):
         idx = self._raw_tabs.currentIndex()
         if idx < 0:
             return
-        name = self._raw_tabs.tabText(idx)
         view = self._raw_tabs.widget(idx)
+        name = (view.property("rawKey") if view is not None else None) \
+            or self._raw_tabs.tabText(idx)
         source = getattr(self, "_raw_sources", {}).get(name)
         text = cast(QPlainTextEdit, view).toPlainText() if view is not None else ""
         if source is None and not text.strip():

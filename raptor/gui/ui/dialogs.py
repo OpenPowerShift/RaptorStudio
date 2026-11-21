@@ -619,8 +619,10 @@ def show_preferences(win):
     units = QComboBox()
     units.setEditable(True)
     for u in ("hours", "days", "weeks", "cycles"):
-        units.addItem(u)
-    units.setCurrentText(prefs["units"])
+        units.addItem(u, u)
+    index = units.findData(prefs["units"])
+    if index >= 0:
+        units.setCurrentIndex(index)
     units.setToolTip("Time unit a newly created model starts in")
     _pref_row(
         new_form, "Time units for new models:", units,
@@ -953,8 +955,8 @@ def show_preferences(win):
     # Write through the one accessor per key, so nothing can be dropped
     # the way the old write-the-whole-blob call dropped
     # `parallel_workers` (it was never IN the blob).
-    _settings.set_value("new_model/units",
-                        units.currentText().strip() or "hours")
+    chosen_units = units.currentData() or units.currentText().strip()
+    _settings.set_value("new_model/units", chosen_units or "hours")
     _settings.set_value("experiments/last_used", prof.currentData())
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())

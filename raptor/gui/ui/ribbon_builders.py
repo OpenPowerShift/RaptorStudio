@@ -781,15 +781,15 @@ class RibbonBuilders(_Base):
     def _build_weak_link_settings(self, group) -> None:
         """Results > Weak Link: metric and G/Y, Y/R thresholds."""
         self._weak_type_combo = QComboBox()
-        self._weak_type_combo.addItem("Availability")
-        self._weak_type_combo.addItem("Dependability")
-        self._weak_type_combo.addItem("Reliability")
+        for metric in ("Availability", "Dependability", "Reliability"):
+            self._weak_type_combo.addItem(metric, metric)
         self._weak_type_combo.setAccessibleName("Weak Link metric")
         self._weak_type_combo.setToolTip(
             "Which metric the Weak Link bands use: dependability "
             "excludes standby/PM/dependency time")
-        self._weak_type_combo.currentTextChanged.connect(
-            lambda t: self._on_weak_type_changed(t))
+        self._weak_type_combo.currentIndexChanged.connect(
+            lambda _i: self._on_weak_type_changed(
+                self._weak_type_combo.currentData() or ""))
         self._weak_type_combo.setFixedWidth(118)
         self._gy_spin = QDoubleSpinBox()
         # Six decimals: a highly available model's blocks differ in the

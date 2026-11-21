@@ -228,8 +228,12 @@ def catalogue(locale: str = "pt_BR",
         for group in page.groups:
             entries["Group"].append(group.title)
     for spec in COMMANDS:
-        if spec.text and spec.id not in ("home.undo", "home.redo"):
+        if spec.id in ("home.undo", "home.redo"):
+            continue
+        if spec.text:
             entries["Command"].append(spec.text)
+        if spec.tooltip:
+            entries["Command"].append(spec.tooltip)
 
     gui, contexts = scanned_strings()
     entries.setdefault("Gui", []).extend(gui)
