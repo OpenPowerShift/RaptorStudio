@@ -91,3 +91,80 @@ def test_the_cli_health_and_declassify_commands(tmp_path, capsys):
                  "--annotations", "all"]) == 0
     assert dest.is_file()
     assert "name(s) replaced" in capsys.readouterr().out
+
+
+def test_declassify_removes_rates_pool_names_and_references():
+    from raptor.core.fileio.rbds import render_rbds
+    rbd = load_rbds(str(Path(__file__).resolve().parents[2] /
+                        "new_docs" / "models" / "WaterTreatment.rbds"))
+    copy, report = declassify(rbd)
+    text = render_rbds(copy)
+    assert "PumpYears" not in text
+    assert "SpareMotors" not in text
+    assert "centrifugal pump set" not in text
+    assert copy.rates == [] and copy.formulas == {}
+    assert report.rates >= 1
+    refs = {r.get("SparePoolName") for r in copy.sections["BLOCK_DATA"].rows}
+    assert any(str(ref).startswith("Spare pool ") for ref in refs)
+
+
+def test_annotation_anchors_and_unknown_element_keys_do_not_leak(rbd):
+    from raptor.core.fileio.rbds import render_rbds
+    from raptor.core.fileio.typed import row_int
+    row = next(r for r in rbd.sections["BLOCK_DATA"].rows
+               if row_int(r.get("ID"), 0) > 0)
+    rbd.annotations = [{"id": 1, "kind": "arrow", "parent": 0,
+                        "anchor": {"ref": f"block:{row['ID']}",
+                                   "target": row["blockName"]}}]
+    row["_rbds_extra"] = {"owner": "Alice Smith"}
+    copy, _report = declassify(
+        rbd, RedactOptions(annotations="keep", comments=False,
+                           metadata=True, rates=True))
+    text = render_rbds(copy)
+    assert "Alice Smith" not in text
+    assert row["blockName"] not in text
+    anchor = copy.annotations[0]["anchor"]
+    assert anchor.get("target") != row["blockName"]
+    assert anchor["ref"] == f"block:{row['ID']}"
+
+
+def test_a_comment_note_is_removed_even_when_annotations_are_kept(rbd):
+    rbd.annotations = [{"id": 1, "kind": "text", "parent": 0,
+                        "text": "private", "comment_of": "block:1"}]
+    copy, report = declassify(
+        rbd, RedactOptions(annotations="keep", comments=True,
+                           names=False, metadata=False, advisor=False,
+                           rates=False))
+    assert copy.annotations == []
+    assert report.comments == 1
+
+
+def test_health_counts_named_keyed_sections_and_finds_unused_pools():
+    from raptor.api import health
+    rbd = load_rbds(str(Path(__file__).resolve().parents[2] /
+                        "new_docs" / "models" / "WaterTreatment.rbds"))
+    report = health.report(rbd)
+    assert report.counts["spare_pools"] >= 1
+    from raptor.core.fileio.rbds import load_rbds as _load
+    air = _load(str(Path(__file__).resolve().parents[2] /
+                    "new_docs" / "models" / "AirlinerMission.rbds"))
+    assert health.report(air).counts["phases"] >= 1
+
+
+def test_declassify_refuses_to_overwrite_the_source(tmp_path):
+    source = Path(__file__).resolve().parents[2] / "new_docs" / "models" / "DC1.rbds"
+    rbd = load_rbds(str(source))
+    with pytest.raises(ValueError, match="must not overwrite"):
+        write_share_copy(rbd, source, source=source)
+    # and the source is unchanged
+    assert load_rbds(str(source)).sections["BLOCK_DATA"].rows[1]["blockName"] != ""
+
+
+def test_cli_refuses_in_place_declassify_and_keeps_the_source(tmp_path, capsys):
+    from raptor.cli.main import main
+    src = tmp_path / "plant.rbds"
+    src.write_text(Path(MODEL).read_text(), encoding="utf-8")
+    before = src.read_text()
+    assert main(["declassify", str(src), str(src)]) != 0
+    assert src.read_text() == before
+    assert "must not overwrite" in capsys.readouterr().err

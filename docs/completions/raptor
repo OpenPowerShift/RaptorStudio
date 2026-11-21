@@ -13,7 +13,7 @@ _raptor() {
     completion) opts="--help" ;;
     config) opts="--help" ;;
     convert) opts="--allow-lossy --dry-run --format --help --no-sidecar --normalize-out --report --strict --to" ;;
-    declassify) opts="--annotations --help --keep-advisor --keep-comments --keep-metadata --keep-names" ;;
+    declassify) opts="--annotations --help --keep-advisor --keep-comments --keep-metadata --keep-names --keep-rates" ;;
     describe) opts="--element --format --help" ;;
     diff) opts="--all --exit-code --format --help --ignore --match --only" ;;
     doctor) opts="--format --help" ;;

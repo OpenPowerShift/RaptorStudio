@@ -83,6 +83,7 @@ complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-advisor
 complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-comments
 complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-metadata
 complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-names
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-rates
 complete -c raptor -n '__fish_use_subcommand' -a describe
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l element
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l format

@@ -54,7 +54,8 @@ class HealthReport:
         return [i for i in self.issues if i.severity == "warning"]
 
     def summary(self) -> str:
-        parts = [f"{n:,} {key.replace('_', ' ')}"
+        parts = [f"{n:,} {key.replace('_', ' ').rstrip('s')}"
+                 f"{'' if n == 1 else 's'}"
                  for key, n in self.counts.items() if n]
         return " · ".join(parts) or "empty model"
 
@@ -73,7 +74,9 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
     for key, section in _SECTIONS:
         sec = sections.get(section)
         found = list(sec.rows) if sec is not None else []
-        if key != "links":
+        # Keyed sections (pools/resources/triggers/phases) have no ID column;
+        # filtering them by ID>0 reported every one of them as zero.
+        if key in ("blocks", "nodes", "events", "hierarchies"):
             found = [r for r in found if row_int(r.get("ID"), 0) > 0]
         rows[key] = found
         out.counts[key] = len(found)
@@ -92,7 +95,8 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
         from raptor.api.validate import issues as validate_issues
         for issue in validate_issues(rbd):
             out.issues.append(HealthIssue(
-                issue.severity, f"{issue.element}: {issue.message}"))
+                issue.severity, f"{issue.element}: {issue.message}",
+                issue.element))
     except Exception as exc:  # noqa: BLE001 - health must not fail
         out.issues.append(HealthIssue(
             "warning", f"validation could not run: {exc}"))
@@ -117,11 +121,16 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
         name = str(row.get("blockName") or "").strip().casefold()
         if name:
             seen.setdefault(name, []).append(row_int(row.get("ID"), 0))
+    display = {}
+    for row in rows.get("blocks", []):
+        name = str(row.get("blockName") or "").strip()
+        if name:
+            display.setdefault(name.casefold(), name)
     for name, ids in seen.items():
         if len(ids) > 1:
             out.issues.append(HealthIssue(
                 "warning",
-                f"{len(ids)} blocks share the name {name!r}: "
+                f"{len(ids)} blocks share the name {display.get(name, name)!r}: "
                 + ", ".join(str(i) for i in ids)))
 
     used_pools = {str(r.get("SparePoolName") or "").strip()

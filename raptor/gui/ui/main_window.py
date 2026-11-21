@@ -3353,13 +3353,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             on_share=self._share_safe_copy)
         dialog.exec()
 
-    def _locate_health_element(self, ref: str) -> None:
+    def _locate_health_element(self, ref: str) -> bool:
         kind, _, ident = str(ref).partition(":")
         try:
-            oid = int(ident)
+            return self._diagram_dock.view.locate_id(kind, int(ident))
         except ValueError:
-            return
-        self._diagram_dock.view.locate_id(kind, oid)
+            # Validation issues carry a human label such as
+            # "Block 101 'Utility_A'"; reuse the Issues dialog locator.
+            locate = getattr(self, "_locate_issue", None)
+            return bool(locate(ref)) if callable(locate) else False
 
     def _share_safe_copy(self):
         """File ▸ Share-safe Copy: declassify a copy of the open model."""
@@ -3371,7 +3373,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui.project_health_dialog import ShareSafeDialog
         stem = (Path(self._current_file).stem if self._current_file
                 else "model")
-        dialog = ShareSafeDialog(self, str(Path(stem + "-shared.rbds")))
+        folder = (Path(self._current_file).parent if self._current_file
+                  else Path.cwd())
+        dialog = ShareSafeDialog(
+            self, str(folder / (stem + "-shared.rbds")),
+            source=self._current_file or "")
         if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.path:
             return
         try:

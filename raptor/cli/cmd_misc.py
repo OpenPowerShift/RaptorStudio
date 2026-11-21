@@ -67,6 +67,8 @@ def add_parser(sub: Any) -> None:
                     help="keep the print title block and project preferences")
     dd.add_argument("--keep-advisor", action="store_true",
                     help="keep the reasons attached to dismissed Advisor findings")
+    dd.add_argument("--keep-rates", action="store_true",
+                    help="keep the rate library and field formulas")
     dd.set_defaults(func=declassify_command)
 
     r = sub.add_parser(
@@ -122,9 +124,11 @@ def declassify_command(args: Any) -> int:
         comments=not args.keep_comments,
         annotations=args.annotations,
         metadata=not args.keep_metadata,
-        advisor=not args.keep_advisor)
+        advisor=not args.keep_advisor,
+        rates=not args.keep_rates)
     try:
-        dest, report = write_share_copy(rbd, args.output, options)
+        dest, report = write_share_copy(
+            rbd, args.output, options, source=args.model)
     except Exception as exc:  # noqa: BLE001
         raise CliError(f"could not write {args.output}: {exc}", X.RUNTIME) from exc
     print(f"wrote {dest}")

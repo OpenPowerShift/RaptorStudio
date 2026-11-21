@@ -20,7 +20,7 @@ class ProjectHealthDialog(QDialog):
     """Counts, validation findings and project-level housekeeping issues."""
 
     def __init__(self, parent: Any, report: HealthReport,
-                 on_locate: Callable[[str], None] | None = None,
+                 on_locate: Callable[[str], bool] | None = None,
                  on_share: Callable[[], None] | None = None):
         super().__init__(parent)
         self._report = report
@@ -48,6 +48,9 @@ class ProjectHealthDialog(QDialog):
         self._list = QListWidget()
         self._list.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection)
+        self._list.setWordWrap(True)
+        self._list.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self._list.setSpacing(2)
         self._list.itemDoubleClicked.connect(
             lambda _item: self._locate())
         for issue in self._report.issues:
@@ -89,8 +92,8 @@ class ProjectHealthDialog(QDialog):
 
     def _locate(self) -> None:
         element = self._selected_element()
-        if element and self._on_locate is not None:
-            self._on_locate(element)
+        if element and self._on_locate is not None and self._on_locate(element):
+            self.accept()
 
     def _share_clicked(self) -> None:
         if self._on_share is not None:
@@ -100,9 +103,11 @@ class ProjectHealthDialog(QDialog):
 class ShareSafeDialog(QDialog):
     """Choose what the share-safe copy removes."""
 
-    def __init__(self, parent: Any, default_path: str = ""):
+    def __init__(self, parent: Any, default_path: str = "",
+                 source: str = ""):
         super().__init__(parent)
         self._default_path = default_path
+        self._source = source
         self.path: str | None = None
         self.report = None
         self.setWindowTitle("Share-safe Copy")
@@ -130,11 +135,14 @@ class ShareSafeDialog(QDialog):
         self._metadata.setChecked(True)
         self._advisor = QCheckBox("Clear Advisor notes")
         self._advisor.setChecked(True)
+        self._rates = QCheckBox("Remove rate names, descriptions and formulas")
+        self._rates.setChecked(True)
         form.addRow("", self._names)
         form.addRow("", self._comments)
         form.addRow("Annotations:", self._annotations)
         form.addRow("", self._metadata)
         form.addRow("", self._advisor)
+        form.addRow("", self._rates)
         lay.addLayout(form)
         note = QLabel(
             "Costs and numerical data are kept. Remove them before sharing "
@@ -155,7 +163,8 @@ class ShareSafeDialog(QDialog):
             comments=self._comments.isChecked(),
             annotations=str(self._annotations.currentData()),
             metadata=self._metadata.isChecked(),
-            advisor=self._advisor.isChecked())
+            advisor=self._advisor.isChecked(),
+            rates=self._rates.isChecked())
 
     def _choose(self) -> None:
         start = self._default_path or "shared-model.rbds"
@@ -172,6 +181,7 @@ class ShareSafeDialog(QDialog):
     def write(self, rbd: Any) -> Path:
         if not self.path:
             raise ValueError("no destination chosen")
-        dest, report = write_share_copy(rbd, self.path, self.options())
+        dest, report = write_share_copy(
+            rbd, self.path, self.options(), source=self._source or None)
         self.report = report
         return dest
