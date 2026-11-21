@@ -3341,6 +3341,52 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui import dialogs
         dialogs.edit_block_defaults(self)
 
+    def _open_project_health(self):
+        """Model ▸ Project Health: statistics, findings and sharing."""
+        if self._rbd is None:
+            return
+        from raptor.api import health
+        from raptor.gui.ui.project_health_dialog import ProjectHealthDialog
+        report = health.report(self._rbd)
+        dialog = ProjectHealthDialog(
+            self, report, on_locate=self._locate_health_element,
+            on_share=self._share_safe_copy)
+        dialog.exec()
+
+    def _locate_health_element(self, ref: str) -> None:
+        kind, _, ident = str(ref).partition(":")
+        try:
+            oid = int(ident)
+        except ValueError:
+            return
+        self._diagram_dock.view.locate_id(kind, oid)
+
+    def _share_safe_copy(self):
+        """File ▸ Share-safe Copy: declassify a copy of the open model."""
+        if self._rbd is None:
+            return
+        self._inspector.flush_pending_comment()
+        self._diagram_dock.view.write_back_to_rbd(self._rbd)
+        self._diagram_dock.view.write_back_annotations()
+        from raptor.gui.ui.project_health_dialog import ShareSafeDialog
+        stem = (Path(self._current_file).stem if self._current_file
+                else "model")
+        dialog = ShareSafeDialog(self, str(Path(stem + "-shared.rbds")))
+        if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.path:
+            return
+        try:
+            dest = dialog.write(self._rbd)
+        except Exception as exc:  # noqa: BLE001
+            msgbox.critical(self, "Share-safe Copy Failed",
+                            f"Could not write the copy:\n\n{exc}")
+            return
+        report = dialog.report
+        msgbox.information(
+            self, "Share-safe Copy",
+            f"Wrote {dest}\n\n{report.summary() if report else ''}")
+        self._statusbar.showMessage(
+            f"Share-safe copy written: {dest}", 8000)
+
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs
         dialogs.on_mass_edit(self)

@@ -127,6 +127,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_export_pdf",
         enabled_when="model_open"),
     CommandSpec(
+        id="file.share_safe",
+        attr="_share_safe_action",
+        text="Share-safe Copy…",
+        icon="share_safe_icon:text",
+        tooltip=(
+            "Write a copy with element names, comments and chosen "
+            "annotations removed; IDs, links and data are kept"),
+        handler="_share_safe_copy",
+        enabled_when="model_open"),
+    CommandSpec(
         id="file.export_awb",
         attr="_export_awb_action",
         text="Export to Availability Workbench…",
@@ -348,6 +358,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="model_info_icon:text",
         tooltip="Project Settings — simulation-wide configuration for this model",
         handler="_open_project_settings",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="home.health",
+        attr="_health_action",
+        text="Project Health",
+        icon="health_icon:text",
+        tooltip=(
+            "Project statistics and housekeeping issues: unnamed elements, "
+            "duplicate names, unused pools and validation findings"),
+        handler="_open_project_health",
         enabled_when="model_open"),
     CommandSpec(
         id="home.validate",
@@ -1506,7 +1526,8 @@ BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     # command palette and on their shortcuts.
     ("Print and Export", ("file.print", "file.export", "file.export_awb",
                           "file.preview_awb", "file.export_awb_normalized",
-                          "file.export_tables", "file.copy_view")),
+                          "file.export_tables", "file.copy_view",
+                          "file.share_safe")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after
@@ -1540,6 +1561,7 @@ LAYOUT: tuple[Page, ...] = (
                        Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
+                       Btn("home.health", True),
                        Btn("results.analytical", True)), priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.

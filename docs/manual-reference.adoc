@@ -49,6 +49,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
+|Project Health |Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings |
 |Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
@@ -408,6 +409,7 @@ documentation.
 |Export Reduced AWB Model… |Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison |
 |Export Tables… |Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table |
 |Copy View |Copy the current view to the clipboard as a high-resolution PNG |
+|Share-safe Copy… |Write a copy with element names, comments and chosen annotations removed; IDs, links and data are kept |
 |===
 
 ==== AI Assistant

@@ -41,6 +41,34 @@ def add_parser(sub: Any) -> None:
     d.add_argument("-f", "--format", choices=("text", "json"), default="text")
     d.set_defaults(func=doctor_command)
 
+    hh = sub.add_parser(
+        "health", help="summarise a model's size, completeness and issues",
+        description="Project health: element counts, validation findings, "
+                    "unnamed elements, duplicate block names and unused pools.")
+    hh.add_argument("model", metavar="MODEL")
+    hh.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    hh.set_defaults(func=health_command)
+
+    dd = sub.add_parser(
+        "declassify", help="write a share-safe copy with names/notes removed",
+        description="Write a declassified .rbds: element names become type "
+                    "labels, and comments, chosen annotations and project "
+                    "metadata can be removed. IDs, links and data are kept.")
+    dd.add_argument("model", metavar="MODEL")
+    dd.add_argument("output", metavar="OUTPUT")
+    dd.add_argument("--annotations", choices=("keep", "text", "all"),
+                    default="all",
+                    help="remove no annotations, text only, or every shape")
+    dd.add_argument("--keep-names", action="store_true",
+                    help="keep element and hierarchy names")
+    dd.add_argument("--keep-comments", action="store_true",
+                    help="keep element comments")
+    dd.add_argument("--keep-metadata", action="store_true",
+                    help="keep the print title block and project preferences")
+    dd.add_argument("--keep-advisor", action="store_true",
+                    help="keep the reasons attached to dismissed Advisor findings")
+    dd.set_defaults(func=declassify_command)
+
     r = sub.add_parser(
         "register-file-types",
         help="open .rbds and .rbd files with RAPTOR Studio (this user only)",
@@ -56,6 +84,52 @@ def add_parser(sub: Any) -> None:
     r.add_argument("--dry-run", action="store_true",
                    help="list the changes without making them")
     r.set_defaults(func=register_file_types_command)
+
+
+def health_command(args: Any) -> int:
+    from raptor.api import health
+    try:
+        rbd = health.load(args.model)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not read {args.model}: {exc}", X.USAGE) from exc
+    report = health.report(rbd)
+    if args.format == "json":
+        emit_json({"schema": "raptor-health/1", "model": args.model,
+                   "counts": report.counts,
+                   "annotations": report.annotations,
+                   "text_annotations": report.text_annotations,
+                   "comments": report.comments,
+                   "formulas": report.formulas, "rates": report.rates,
+                   "issues": [{"severity": i.severity, "message": i.message,
+                               "element": i.element} for i in report.issues]},
+                  None)
+        return X.INVALID if report.errors else X.OK
+    print(report.summary())
+    for issue in report.issues:
+        print(f"{issue.severity.upper():<7} {issue.text()}")
+    return X.INVALID if report.errors else X.OK
+
+
+def declassify_command(args: Any) -> int:
+    from raptor.api import health
+    from raptor.core.redact import RedactOptions, write_share_copy
+    try:
+        rbd = health.load(args.model)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not read {args.model}: {exc}", X.USAGE) from exc
+    options = RedactOptions(
+        names=not args.keep_names,
+        comments=not args.keep_comments,
+        annotations=args.annotations,
+        metadata=not args.keep_metadata,
+        advisor=not args.keep_advisor)
+    try:
+        dest, report = write_share_copy(rbd, args.output, options)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not write {args.output}: {exc}", X.RUNTIME) from exc
+    print(f"wrote {dest}")
+    print(report.summary())
+    return X.OK
 
 
 def register_file_types_command(args: Any) -> int:

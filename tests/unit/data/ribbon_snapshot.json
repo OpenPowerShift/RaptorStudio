@@ -851,6 +851,16 @@
    "text": "User Guide",
    "tooltip": "Open the User Guide: reliability simulation from scratch, with companion models"
   },
+  "_health_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Project Health",
+   "tooltip": "Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings\n\nUnavailable: open or create a model first"
+  },
   "_hier_home_action": {
    "checkable": false,
    "checked": false,
@@ -1437,6 +1447,16 @@
    "text": "Sensitivity\u2026",
    "tooltip": "Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.\n\nUnavailable: open or create a model first"
   },
+  "_share_safe_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Share-safe Copy\u2026",
+   "tooltip": "Write a copy with element names, comments and chosen annotations removed; IDs, links and data are kept\n\nUnavailable: open or create a model first"
+  },
   "_shortcuts_action": {
    "checkable": false,
    "checked": false,
@@ -1862,6 +1882,7 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": false,
    "_hier_home_action": false,
    "_hier_up_action": false,
    "_import_awb_action": true,
@@ -1917,6 +1938,7 @@
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,
+   "_share_safe_action": false,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -2031,6 +2053,7 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
    "_import_awb_action": true,
@@ -2086,6 +2109,7 @@
    "_select_action": true,
    "_select_all_action": true,
    "_sensitivity_action": true,
+   "_share_safe_action": true,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -2200,6 +2224,7 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": false,
    "_hier_home_action": false,
    "_hier_up_action": false,
    "_import_awb_action": true,
@@ -2255,6 +2280,7 @@
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,
+   "_share_safe_action": false,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -2388,6 +2414,11 @@
        "kind": "action",
        "large": true,
        "text": "Issues"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Project Health"
       },
       {
        "kind": "action",

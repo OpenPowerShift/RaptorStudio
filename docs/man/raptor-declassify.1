@@ -1,0 +1,26 @@
+.TH "RAPTOR-DECLASSIFY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-declassify \- write a share\-safe copy with names/notes removed
+.SH SYNOPSIS
+\fBraptor declassify\fR [\-h] [\-\-annotations {keep,text,all}] [\-\-keep\-names] [\-\-keep\-comments] [\-\-keep\-metadata] [\-\-keep\-advisor] MODEL OUTPUT
+.SH DESCRIPTION
+Write a declassified .rbds: element names become type labels, and comments, chosen annotations and project metadata can be removed. IDs, links and data are kept.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-annotations\fR \fI{keep|text|all}\fR
+remove no annotations, text only, or every shape
+.TP
+\fB\-\-keep\-names\fR
+keep element and hierarchy names
+.TP
+\fB\-\-keep\-comments\fR
+keep element comments
+.TP
+\fB\-\-keep\-metadata\fR
+keep the print title block and project preferences
+.TP
+\fB\-\-keep\-advisor\fR
+keep the reasons attached to dismissed Advisor findings
+.SH SEE ALSO
+\fBraptor\fR(1)

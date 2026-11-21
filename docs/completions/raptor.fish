@@ -76,6 +76,13 @@ complete -c raptor -n '__fish_seen_subcommand_from convert' -l normalize-out
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l report
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l strict
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l to
+complete -c raptor -n '__fish_use_subcommand' -a declassify
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l annotations
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l help
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-advisor
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-comments
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-metadata
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-names
 complete -c raptor -n '__fish_use_subcommand' -a describe
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l element
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l format
@@ -167,6 +174,9 @@ complete -c raptor -n '__fish_use_subcommand' -a gui
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l help
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l new
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l theme
+complete -c raptor -n '__fish_use_subcommand' -a health
+complete -c raptor -n '__fish_seen_subcommand_from health' -l format
+complete -c raptor -n '__fish_seen_subcommand_from health' -l help
 complete -c raptor -n '__fish_use_subcommand' -a help
 complete -c raptor -n '__fish_seen_subcommand_from help' -l help
 complete -c raptor -n '__fish_use_subcommand' -a info
