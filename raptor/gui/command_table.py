@@ -719,6 +719,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_on_mass_edit",
         enabled_when="can_mass_edit"),
     CommandSpec(
+        id="data.import_table",
+        attr="_import_table_action",
+        text="Import Table…",
+        icon="csv_icon:text",
+        tooltip=(
+            "Import failure/repair parameters, PM settings or stock from "
+            "an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are "
+            "validated first and applied as one undo step; formula cells "
+            "use the workbook's calculated value"),
+        handler="_import_data_table",
+        enabled_when="model_open"),
+    CommandSpec(
         id="data.phases",
         attr="_phases_action",
         text="Phases…",
@@ -1567,6 +1579,7 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
                            Btn("data.mass_edit", True),
+                           Btn("data.import_table", True),
                            Btn("data.own_streams", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),
