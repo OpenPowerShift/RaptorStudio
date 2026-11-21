@@ -175,7 +175,7 @@
     </message>
     <message>
       <source>Open an .rbd or .rbds file (Ctrl+O)</source>
-      <translation type="unfinished" />
+      <translation>Abrir um arquivo .rbd ou .rbds (Ctrl+O)</translation>
     </message>
     <message>
       <source>Save</source>
@@ -183,7 +183,7 @@
     </message>
     <message>
       <source>Save (Ctrl+S)</source>
-      <translation type="unfinished" />
+      <translation>Salvar (Ctrl+S)</translation>
     </message>
     <message>
       <source>Save As</source>
@@ -191,7 +191,7 @@
     </message>
     <message>
       <source>Save to a new .rbds or .rbd file (Ctrl+Shift+S)</source>
-      <translation type="unfinished" />
+      <translation>Salvar em um novo arquivo .rbds ou .rbd (Ctrl+Shift+S)</translation>
     </message>
     <message>
       <source>Import Availability Workbench…</source>
@@ -199,7 +199,7 @@
     </message>
     <message>
       <source>Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent</source>
-      <translation type="unfinished" />
+      <translation>Abrir um projeto .awb do Isograph Availability Workbench 5.0 como um novo modelo RAPTOR; o resumo lista quais recursos do AWB o RAPTOR não consegue representar</translation>
     </message>
     <message>
       <source>New</source>
@@ -207,7 +207,7 @@
     </message>
     <message>
       <source>Create a new blank model (Ctrl+N)</source>
-      <translation type="unfinished" />
+      <translation>Criar um novo modelo em branco (Ctrl+N)</translation>
     </message>
     <message>
       <source>Close</source>
@@ -215,7 +215,7 @@
     </message>
     <message>
       <source>Close the current model (with save prompt)</source>
-      <translation type="unfinished" />
+      <translation>Fechar o modelo atual (com aviso para salvar)</translation>
     </message>
     <message>
       <source>Quit</source>
@@ -223,7 +223,7 @@
     </message>
     <message>
       <source>Quit RAPTOR Studio (Ctrl+Q)</source>
-      <translation type="unfinished" />
+      <translation>Sair do RAPTOR Studio (Ctrl+Q)</translation>
     </message>
     <message>
       <source>Print…</source>
@@ -231,7 +231,7 @@
     </message>
     <message>
       <source>Print diagrams, simulation results and the Weak Link analysis with a project title block (Ctrl+P)</source>
-      <translation type="unfinished" />
+      <translation>Imprimir diagramas, resultados da simulação e a análise de Elo fraco com um bloco de título do projeto (Ctrl+P)</translation>
     </message>
     <message>
       <source>Export…</source>
@@ -239,7 +239,7 @@
     </message>
     <message>
       <source>Save the report, the tables or the diagram: one window, pick the file type (PDF, Excel, OpenDocument, SVG or PNG)</source>
-      <translation type="unfinished" />
+      <translation>Salvar o relatório, as tabelas ou o diagrama: uma única janela, escolha o tipo de arquivo (PDF, Excel, OpenDocument, SVG ou PNG)</translation>
     </message>
     <message>
       <source>Export PDF…</source>
@@ -247,7 +247,7 @@
     </message>
     <message>
       <source>Save the printable report (diagram + results + weak link) as a PDF file</source>
-      <translation type="unfinished" />
+      <translation>Salvar o relatório para impressão (diagrama + resultados + elo fraco) como um arquivo PDF</translation>
     </message>
     <message>
       <source>Export to Availability Workbench…</source>
@@ -255,7 +255,7 @@
     </message>
     <message>
       <source>Save this model as an Isograph Availability Workbench 5.0 .awb project; the summary lists what RAPTOR features AWB cannot represent</source>
-      <translation type="unfinished" />
+      <translation>Salvar este modelo como um projeto .awb do Isograph Availability Workbench 5.0; o resumo lista quais recursos do RAPTOR o AWB não consegue representar</translation>
     </message>
     <message>
       <source>Check Availability Workbench Export…</source>
@@ -263,7 +263,7 @@
     </message>
     <message>
       <source>Report what an Availability Workbench export would substitute, partially map or drop, without writing a file</source>
-      <translation type="unfinished" />
+      <translation>Relatar o que uma exportação para o Availability Workbench substituiria, mapearia parcialmente ou descartaria, sem gravar nenhum arquivo</translation>
     </message>
     <message>
       <source>Export Reduced AWB Model…</source>
@@ -271,7 +271,7 @@
     </message>
     <message>
       <source>Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison</source>
-      <translation type="unfinished" />
+      <translation>Salvar um par correspondente: um modelo RAPTOR reduzido e o .awb que ele representa, para uma comparação justa entre motores</translation>
     </message>
     <message>
       <source>Export Tables…</source>
@@ -279,7 +279,7 @@
     </message>
     <message>
       <source>Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table</source>
-      <translation type="unfinished" />
+      <translation>Escolha quais tabelas gravar, as do modelo e as dos resultados de uma execução, como arquivos CSV, texto ou uma planilha com uma aba por tabela</translation>
     </message>
     <message>
       <source>Export Excel Workbook…</source>
@@ -287,7 +287,7 @@
     </message>
     <message>
       <source>Save the model's tables and the latest run's results as one Excel workbook (.xlsx), set up to read, filter and print</source>
-      <translation type="unfinished" />
+      <translation>Salvar as tabelas do modelo e os resultados da última execução como uma pasta de trabalho do Excel (.xlsx), pronta para ler, filtrar e imprimir</translation>
     </message>
     <message>
       <source>Export OpenDocument Spreadsheet…</source>
@@ -295,7 +295,7 @@
     </message>
     <message>
       <source>Save the model's tables and the latest run's results as one OpenDocument spreadsheet (.ods) for LibreOffice and other OpenDocument applications</source>
-      <translation type="unfinished" />
+      <translation>Salvar as tabelas do modelo e os resultados da última execução como uma planilha OpenDocument (.ods) para o LibreOffice e outros aplicativos OpenDocument</translation>
     </message>
     <message>
       <source>Export Diagram SVG…</source>
@@ -303,7 +303,7 @@
     </message>
     <message>
       <source>Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution</source>
-      <translation type="unfinished" />
+      <translation>Salvar o nível de hierarquia exibido no momento como um arquivo vetorial escalável (.svg), para editar ou incorporar em outros lugares em qualquer resolução</translation>
     </message>
     <message>
       <source>Save Bitmap</source>
@@ -311,7 +311,7 @@
     </message>
     <message>
       <source>Save the diagram view as a PNG image</source>
-      <translation type="unfinished" />
+      <translation>Salvar a visualização do diagrama como uma imagem PNG</translation>
     </message>
     <message>
       <source>Copy View</source>
@@ -319,7 +319,7 @@
     </message>
     <message>
       <source>Copy the current view to the clipboard as a high-resolution PNG</source>
-      <translation type="unfinished" />
+      <translation>Copiar a visualização atual para a área de transferência como um PNG de alta resolução</translation>
     </message>
     <message>
       <source>Select All</source>
@@ -327,7 +327,7 @@
     </message>
     <message>
       <source>Select all blocks/nodes/events/hierarchies (Ctrl+A)</source>
-      <translation type="unfinished" />
+      <translation>Selecionar todos os blocos/nós/eventos/hierarquias (Ctrl+A)</translation>
     </message>
     <message>
       <source>Copy</source>
@@ -335,7 +335,7 @@
     </message>
     <message>
       <source>Copy the selected elements</source>
-      <translation type="unfinished" />
+      <translation>Copiar os elementos selecionados</translation>
     </message>
     <message>
       <source>Cut</source>
@@ -343,7 +343,7 @@
     </message>
     <message>
       <source>Copy and delete the selected elements</source>
-      <translation type="unfinished" />
+      <translation>Copiar e excluir os elementos selecionados</translation>
     </message>
     <message>
       <source>Paste</source>
@@ -351,7 +351,7 @@
     </message>
     <message>
       <source>Paste previously copied elements with fresh ids</source>
-      <translation type="unfinished" />
+      <translation>Colar elementos copiados anteriormente com novos ids</translation>
     </message>
     <message>
       <source>Focus</source>
@@ -359,7 +359,7 @@
     </message>
     <message>
       <source>Dim everything except the selection (topology stays)</source>
-      <translation type="unfinished" />
+      <translation>Esmaecer tudo exceto a seleção (a topologia permanece)</translation>
     </message>
     <message>
       <source>Notes</source>
@@ -367,7 +367,7 @@
     </message>
     <message>
       <source>Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved.</source>
-      <translation type="unfinished" />
+      <translation>Mostrar ou ocultar todas as anotações (texto, formas, setas) no diagrama. As anotações ocultas permanecem no modelo e são salvas.</translation>
     </message>
     <message>
       <source>Comments</source>
@@ -375,7 +375,7 @@
     </message>
     <message>
       <source>Show or hide only the canvas notes that show an element's comment; other annotations stay.</source>
-      <translation type="unfinished" />
+      <translation>Mostrar ou ocultar somente as notas do diagrama que exibem o comentário de um elemento; as demais anotações permanecem.</translation>
     </message>
     <message>
       <source>Quick Add</source>
@@ -383,7 +383,7 @@
     </message>
     <message>
       <source>Repeat the selected block in series or parallel, or add a copy or a part type (Space or / on the canvas)</source>
-      <translation type="unfinished" />
+      <translation>Repetir o bloco selecionado em série ou paralelo, ou adicionar uma cópia ou um tipo de peça (Espaço ou / no diagrama)</translation>
     </message>
     <message>
       <source>Run a Command…</source>
@@ -391,7 +391,7 @@
     </message>
     <message>
       <source>Search every command by name (Ctrl+Shift+P)</source>
-      <translation type="unfinished" />
+      <translation>Pesquisar todos os comandos por nome (Ctrl+Shift+P)</translation>
     </message>
     <message>
       <source>Find and Replace…</source>
@@ -399,7 +399,7 @@
     </message>
     <message>
       <source>Find and replace in the Data Tables grid (Ctrl+H there)</source>
-      <translation type="unfinished" />
+      <translation>Localizar e substituir na grade de Tabelas de dados (Ctrl+H ali)</translation>
     </message>
     <message>
       <source>Duplicate</source>
@@ -407,7 +407,7 @@
     </message>
     <message>
       <source>Duplicate the selected elements in place (Ctrl+D)</source>
-      <translation type="unfinished" />
+      <translation>Duplicar os elementos selecionados no próprio local (Ctrl+D)</translation>
     </message>
     <message>
       <source>Duplicate in Parallel</source>
@@ -415,7 +415,7 @@
     </message>
     <message>
       <source>Copy the selected block in parallel between its neighbours (Ctrl+Alt+D)</source>
-      <translation type="unfinished" />
+      <translation>Copiar o bloco selecionado em paralelo entre seus vizinhos (Ctrl+Alt+D)</translation>
     </message>
     <message>
       <source>Array…</source>
@@ -423,7 +423,7 @@
     </message>
     <message>
       <source>Duplicate the selection in a row or column</source>
-      <translation type="unfinished" />
+      <translation>Duplicar a seleção em uma linha ou coluna</translation>
     </message>
     <message>
       <source>Paste Data Only</source>
@@ -431,7 +431,7 @@
     </message>
     <message>
       <source>Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)</source>
-      <translation type="unfinished" />
+      <translation>Copiar os dados do bloco na área de transferência para os blocos selecionados (Ctrl+Shift+V)</translation>
     </message>
     <message>
       <source>Project Settings</source>
@@ -439,7 +439,7 @@
     </message>
     <message>
       <source>Project Settings — simulation-wide configuration for this model</source>
-      <translation type="unfinished" />
+      <translation>Configurações do projeto — configuração de toda a simulação para este modelo</translation>
     </message>
     <message>
       <source>Issues</source>
@@ -447,7 +447,7 @@
     </message>
     <message>
       <source>What stops the model running, and warnings that do not: a tick when it can run, a red cross when it cannot (F7)</source>
-      <translation type="unfinished" />
+      <translation>O que impede o modelo de executar, e avisos que não impedem: uma marca de verificação quando ele pode executar, um X vermelho quando não pode (F7)</translation>
     </message>
     <message>
       <source>Separate Streams</source>
@@ -455,7 +455,7 @@
     </message>
     <message>
       <source>Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable</source>
-      <translation type="unfinished" />
+      <translation>Dê a cada bloco que compartilha um fluxo aleatório um fluxo de falha e reparo próprio, salvo no modelo, para que alterar um bloco não desloque as amostras dos outros. Após 49 blocos, os fluxos são reutilizados. Os resultados então deixam de coincidir com os do Raptor 7. Para experimentar sem editar o modelo, use a opção Fluxos do Painel de execução. Pode ser desfeito</translation>
     </message>
     <message>
       <source>Import RBD</source>
@@ -463,7 +463,7 @@
     </message>
     <message>
       <source>Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out</source>
-      <translation type="unfinished" />
+      <translation>Mesclar um arquivo de modelo existente como uma hierarquia: seus marcadores Start/End se tornam a entrada e a saída do novo nível</translation>
     </message>
     <message>
       <source>Select</source>
@@ -471,7 +471,7 @@
     </message>
     <message>
       <source>Select tool (Q, Ctrl+1)</source>
-      <translation type="unfinished" />
+      <translation>Ferramenta de seleção (Q, Ctrl+1)</translation>
     </message>
     <message>
       <source>Auto Layout</source>
@@ -479,7 +479,7 @@
     </message>
     <message>
       <source>Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L)</source>
-      <translation type="unfinished" />
+      <translation>Reorganizar a hierarquia atual pelo fluxo do grafo. A direção e a quebra de coluna ficam no grupo Layout. (Ctrl+L)</translation>
     </message>
     <message>
       <source>Up</source>
@@ -487,7 +487,7 @@
     </message>
     <message>
       <source>Ascend one hierarchy level (or double-click an Out marker)</source>
-      <translation type="unfinished" />
+      <translation>Subir um nível de hierarquia (ou clicar duas vezes em um marcador de saída)</translation>
     </message>
     <message>
       <source>Home</source>
@@ -495,7 +495,7 @@
     </message>
     <message>
       <source>Return to the home level</source>
-      <translation type="unfinished" />
+      <translation>Voltar ao nível inicial</translation>
     </message>
     <message>
       <source>Collapse Selection</source>
@@ -503,7 +503,7 @@
     </message>
     <message>
       <source>Move the selected elements into a NEW hierarchy; boundary links are rewired to the hierarchy oval</source>
-      <translation type="unfinished" />
+      <translation>Mover os elementos selecionados para uma NOVA hierarquia; os vínculos de fronteira são religados à elipse da hierarquia</translation>
     </message>
     <message>
       <source>Delete Selected</source>
@@ -511,7 +511,7 @@
     </message>
     <message>
       <source>Delete selected blocks/nodes (Del)</source>
-      <translation type="unfinished" />
+      <translation>Excluir os blocos/nós selecionados (Del)</translation>
     </message>
     <message>
       <source>Add Block</source>
@@ -519,7 +519,7 @@
     </message>
     <message>
       <source>Click the canvas to place a new block. Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
-      <translation type="unfinished" />
+      <translation>Clique no diagrama para posicionar um novo bloco. Clique em um vínculo para inseri-lo em série, ou em um bloco, evento ou hierarquia para adicioná-lo em paralelo</translation>
     </message>
     <message>
       <source>Add Node</source>
@@ -527,7 +527,7 @@
     </message>
     <message>
       <source>Click the canvas to place a new Regular node, or click a link to insert it in series</source>
-      <translation type="unfinished" />
+      <translation>Clique no diagrama para posicionar um novo nó Regular, ou clique em um vínculo para inseri-lo em série</translation>
     </message>
     <message>
       <source>Add Event</source>
@@ -535,7 +535,7 @@
     </message>
     <message>
       <source>Click the canvas to place a new Bernoulli event (P=0.5 — edit it in the Inspector or Data Tables). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
-      <translation type="unfinished" />
+      <translation>Clique no diagrama para posicionar um novo evento Bernoulli (P=0,5 — edite-o no Inspetor ou em Tabelas de dados). Clique em um vínculo para inseri-lo em série, ou em um bloco, evento ou hierarquia para adicioná-lo em paralelo</translation>
     </message>
     <message>
       <source>Add Hierarchy</source>
@@ -543,7 +543,7 @@
     </message>
     <message>
       <source>Click the canvas to place a new hierarchy (with its In/Out markers). Click a link to insert it in series, or a block, event or hierarchy to add it in parallel</source>
-      <translation type="unfinished" />
+      <translation>Clique no diagrama para posicionar uma nova hierarquia (com seus marcadores de entrada/saída). Clique em um vínculo para inseri-la em série, ou em um bloco, evento ou hierarquia para adicioná-la em paralelo</translation>
     </message>
     <message>
       <source>Connect</source>
@@ -551,7 +551,7 @@
     </message>
     <message>
       <source>Click the source element, then the target</source>
-      <translation type="unfinished" />
+      <translation>Clique no elemento de origem e depois no destino</translation>
     </message>
     <message>
       <source>Fit</source>
@@ -559,7 +559,7 @@
     </message>
     <message>
       <source>Fit all: fit the whole diagram to the window (Ctrl+0)</source>
-      <translation type="unfinished" />
+      <translation>Ajustar tudo: ajustar o diagrama inteiro à janela (Ctrl+0)</translation>
     </message>
     <message>
       <source>Zoom %</source>
@@ -567,7 +567,7 @@
     </message>
     <message>
       <source>Zoom percent: set an exact zoom percentage</source>
-      <translation type="unfinished" />
+      <translation>Percentual de zoom: definir um percentual de zoom exato</translation>
     </message>
     <message>
       <source>Zoom In</source>
@@ -575,7 +575,7 @@
     </message>
     <message>
       <source>Zoom into the diagram (Ctrl+= or Ctrl+wheel)</source>
-      <translation type="unfinished" />
+      <translation>Ampliar o diagrama (Ctrl+= ou Ctrl+roda do mouse)</translation>
     </message>
     <message>
       <source>Zoom Out</source>
@@ -583,7 +583,7 @@
     </message>
     <message>
       <source>Zoom out of the diagram (Ctrl+- or Ctrl+wheel)</source>
-      <translation type="unfinished" />
+      <translation>Reduzir o diagrama (Ctrl+- ou Ctrl+roda do mouse)</translation>
     </message>
     <message>
       <source>Selection</source>
@@ -591,7 +591,7 @@
     </message>
     <message>
       <source>Zoom to selection: fit the selected elements in the window (Ctrl+Shift+0)</source>
-      <translation type="unfinished" />
+      <translation>Zoom na seleção: ajustar os elementos selecionados à janela (Ctrl+Shift+0)</translation>
     </message>
     <message>
       <source>Hierarchy</source>
@@ -599,7 +599,7 @@
     </message>
     <message>
       <source>Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it)</source>
-      <translation type="unfinished" />
+      <translation>Zoom na hierarquia: entrar na elipse de hierarquia selecionada (como clicar duas vezes nela)</translation>
     </message>
     <message>
       <source>Flip Horizontal</source>
@@ -607,7 +607,7 @@
     </message>
     <message>
       <source>Mirror the selected items left-to-right about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</source>
-      <translation type="unfinished" />
+      <translation>Espelhar os itens selecionados da esquerda para a direita em torno do centro do intervalo (selecione 2+). As formas mantêm o tamanho; apenas as posições são refletidas.</translation>
     </message>
     <message>
       <source>Flip Vertical</source>
@@ -615,7 +615,7 @@
     </message>
     <message>
       <source>Mirror the selected items top-to-bottom about the middle of their span (select 2+). Shapes keep their size; only positions reflect.</source>
-      <translation type="unfinished" />
+      <translation>Espelhar os itens selecionados de cima para baixo em torno do centro do intervalo (selecione 2+). As formas mantêm o tamanho; apenas as posições são refletidas.</translation>
     </message>
     <message>
       <source>Text</source>
@@ -623,7 +623,7 @@
     </message>
     <message>
       <source>Click to place a text annotation (double-click to edit)</source>
-      <translation type="unfinished" />
+      <translation>Clique para posicionar uma anotação de texto (clique duas vezes para editar)</translation>
     </message>
     <message>
       <source>Rectangle</source>
@@ -631,7 +631,7 @@
     </message>
     <message>
       <source>Drag a rectangle annotation</source>
-      <translation type="unfinished" />
+      <translation>Arraste para desenhar uma anotação retangular</translation>
     </message>
     <message>
       <source>Ellipse</source>
@@ -639,7 +639,7 @@
     </message>
     <message>
       <source>Drag an ellipse annotation</source>
-      <translation type="unfinished" />
+      <translation>Arraste para desenhar uma anotação elíptica</translation>
     </message>
     <message>
       <source>Arrow</source>
@@ -647,7 +647,7 @@
     </message>
     <message>
       <source>Click to place the tail, click again to place the head</source>
-      <translation type="unfinished" />
+      <translation>Clique para posicionar a cauda e clique novamente para posicionar a ponta</translation>
     </message>
     <message>
       <source>Bring to Front</source>
@@ -655,7 +655,7 @@
     </message>
     <message>
       <source>Place the selected annotations in front of every diagram element (Ctrl+Shift+])</source>
-      <translation type="unfinished" />
+      <translation>Colocar as anotações selecionadas à frente de todos os elementos do diagrama (Ctrl+Shift+])</translation>
     </message>
     <message>
       <source>Bring Forward</source>
@@ -663,7 +663,7 @@
     </message>
     <message>
       <source>Move the selected annotations one step up the stack (Ctrl+])</source>
-      <translation type="unfinished" />
+      <translation>Mover as anotações selecionadas uma camada para cima (Ctrl+])</translation>
     </message>
     <message>
       <source>Send Backward</source>
@@ -671,7 +671,7 @@
     </message>
     <message>
       <source>Move the selected annotations one step down the stack (Ctrl+[)</source>
-      <translation type="unfinished" />
+      <translation>Mover as anotações selecionadas uma camada para baixo (Ctrl+[)</translation>
     </message>
     <message>
       <source>Send to Back</source>
@@ -679,7 +679,7 @@
     </message>
     <message>
       <source>Place the selected annotations behind every diagram element (links and hierarchy ovals included) (Ctrl+Shift+[)</source>
-      <translation type="unfinished" />
+      <translation>Colocar as anotações selecionadas atrás de todos os elementos do diagrama (inclusive vínculos e elipses de hierarquia) (Ctrl+Shift+[)</translation>
     </message>
     <message>
       <source>Export Library</source>
@@ -687,7 +687,7 @@
     </message>
     <message>
       <source>Save every block of this model as reusable templates</source>
-      <translation type="unfinished" />
+      <translation>Salvar todos os blocos deste modelo como modelos reutilizáveis</translation>
     </message>
     <message>
       <source>Import Library</source>
@@ -695,7 +695,7 @@
     </message>
     <message>
       <source>Add a block template from a library file, or update same-named blocks' failure/repair data</source>
-      <translation type="unfinished" />
+      <translation>Adicionar um modelo de bloco de um arquivo de biblioteca, ou atualizar os dados de falha/reparo dos blocos com o mesmo nome</translation>
     </message>
     <message>
       <source>Block Defaults…</source>
@@ -703,7 +703,7 @@
     </message>
     <message>
       <source>Set the default failure/repair distribution for NEW blocks</source>
-      <translation type="unfinished" />
+      <translation>Definir a distribuição padrão de falha/reparo para blocos NOVOS</translation>
     </message>
     <message>
       <source>Mass Edit…</source>
@@ -711,7 +711,7 @@
     </message>
     <message>
       <source>Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</source>
-      <translation type="unfinished" />
+      <translation>Aplicar uma distribuição de falha/reparo a todos os elementos selecionados de uma vez (selecione 2+ elementos)</translation>
     </message>
     <message>
       <source>Phases…</source>
@@ -719,7 +719,7 @@
     </message>
     <message>
       <source>Phases — mission phase durations and per-element Active/Link/Cut assignment</source>
-      <translation type="unfinished" />
+      <translation>Fases — durações das fases de missão e atribuição Ativo/Vinculado/Cortado por elemento</translation>
     </message>
     <message>
       <source>Run</source>
@@ -727,7 +727,7 @@
     </message>
     <message>
       <source>Run the simulation (F5): at full speed on the cores shown beside it, or animated on one core when Animate is on</source>
-      <translation type="unfinished" />
+      <translation>Executar a simulação (F5): em velocidade máxima nos núcleos mostrados ao lado, ou animada em um núcleo quando Animar está ativado</translation>
     </message>
     <message>
       <source>Step</source>
@@ -735,7 +735,7 @@
     </message>
     <message>
       <source>Advance the simulation ONE event (F6) — watch states change event-by-event</source>
-      <translation type="unfinished" />
+      <translation>Avançar a simulação UM evento (F6) — observe os estados mudarem evento a evento</translation>
     </message>
     <message>
       <source>Next Time</source>
@@ -743,7 +743,7 @@
     </message>
     <message>
       <source>Advance to the next DISTINCT simulation time (Shift+F6) — steps through every event at the current time in one click</source>
-      <translation type="unfinished" />
+      <translation>Avançar até o próximo instante DISTINTO da simulação (Shift+F6) — percorre todos os eventos do instante atual em um clique</translation>
     </message>
     <message>
       <source>Finish</source>
@@ -751,7 +751,7 @@
     </message>
     <message>
       <source>Run the stepped simulation to completion and produce reports (F8)</source>
-      <translation type="unfinished" />
+      <translation>Executar a simulação passo a passo até o fim e gerar relatórios (F8)</translation>
     </message>
     <message>
       <source>Run to time…</source>
@@ -759,7 +759,7 @@
     </message>
     <message>
       <source>Advance until the sim time set in Step Settings (Debug tab) is reached (or the run ends)</source>
-      <translation type="unfinished" />
+      <translation>Avançar até atingir o instante de simulação definido em Configurações de passo (aba Depurar), ou até a execução terminar</translation>
     </message>
     <message>
       <source>Terminate</source>
@@ -767,7 +767,7 @@
     </message>
     <message>
       <source>Early Terminate: finalize the stepped run at the CURRENT sim time — partial results are kept (Shift+F5)</source>
-      <translation type="unfinished" />
+      <translation>Encerrar antecipadamente: finalizar a execução passo a passo no instante ATUAL da simulação — os resultados parciais são mantidos (Shift+F5)</translation>
     </message>
     <message>
       <source>Restart</source>
@@ -775,7 +775,7 @@
     </message>
     <message>
       <source>Restart: discard this stepped run and begin a fresh one — all state reset to kickoff values (Ctrl+Shift+F5)</source>
-      <translation type="unfinished" />
+      <translation>Reiniciar: descartar esta execução passo a passo e começar outra — todo o estado redefinido para os valores iniciais (Ctrl+Shift+F5)</translation>
     </message>
     <message>
       <source>Run Settings…</source>
@@ -783,7 +783,7 @@
     </message>
     <message>
       <source>Open the Run panel — the single editor for trials, termination, analyses and recording</source>
-      <translation type="unfinished" />
+      <translation>Abrir o Painel de execução — o editor único para ensaios, término, análises e gravação</translation>
     </message>
     <message>
       <source>Trials to Precision…</source>
@@ -791,7 +791,7 @@
     </message>
     <message>
       <source>How many trials the answer needs: runs a copy in growing batches until the confidence interval is within a stated precision (for availability, of the unavailability), then sets the trials for the next Run.</source>
-      <translation type="unfinished" />
+      <translation>Quantos ensaios a resposta precisa: executa uma cópia em lotes crescentes até que o intervalo de confiança fique dentro de uma precisão declarada (para disponibilidade, da indisponibilidade) e então define os ensaios para a próxima Execução.</translation>
     </message>
     <message>
       <source>Sweep…</source>
@@ -799,7 +799,7 @@
     </message>
     <message>
       <source>Run the model once per value of one number -- a failure or repair parameter, a rate, the k of a k-of-n node -- and see the results as a table and a chart. Full speed, on the cores in the Cores box. Runs on copies: the open model is not changed.</source>
-      <translation type="unfinished" />
+      <translation>Executar o modelo uma vez por valor de um número -- um parâmetro de falha ou reparo, uma taxa, o k de um nó k-de-n -- e ver os resultados como tabela e gráfico. Velocidade máxima, nos núcleos da caixa Núcleos. Executa em cópias: o modelo aberto não é alterado.</translation>
     </message>
     <message>
       <source>Compare…</source>
@@ -807,7 +807,7 @@
     </message>
     <message>
       <source>Run several models -- this one and others from disk -- with the same number of trials and compare their results, best in bold. Full speed, on the cores in the Cores box. Runs on copies: nothing is changed.</source>
-      <translation type="unfinished" />
+      <translation>Executar vários modelos -- este e outros do disco -- com o mesmo número de ensaios e comparar os resultados, o melhor em negrito. Velocidade máxima, nos núcleos da caixa Núcleos. Executa em cópias: nada é alterado.</translation>
     </message>
     <message>
       <source>Recommend…</source>
@@ -815,7 +815,7 @@
     </message>
     <message>
       <source>Find the blocks that cause the most downtime, propose one change for each (faster repair, one more spare, one more crew, ...) and test every change against this model with paired runs: the change, the gain it measurably gives and its cost. Runs on copies; Apply writes a change in as one undo step.</source>
-      <translation type="unfinished" />
+      <translation>Encontrar os blocos que causam mais tempo de inatividade, propor uma alteração para cada um (reparo mais rápido, um sobressalente a mais, uma equipe a mais, ...) e testar cada alteração contra este modelo com execuções emparelhadas: a alteração, o ganho mensurável que ela traz e seu custo. Executa em cópias; Aplicar grava uma alteração como um único passo de desfazer.</translation>
     </message>
     <message>
       <source>What If…</source>
@@ -823,7 +823,7 @@
     </message>
     <message>
       <source>Compare changes with this model: half a block's repair time, one more spare, no PM, or any PATH=VALUE change. Base and each scenario run with the same seed, so the gain is measured pair by pair. Runs on copies; Apply writes a scenario in as one undo step.</source>
-      <translation type="unfinished" />
+      <translation>Comparar alterações com este modelo: metade do tempo de reparo de um bloco, um sobressalente a mais, sem MP, ou qualquer alteração PATH=VALUE. A Base e cada cenário são executados com a mesma semente, então o ganho é medido par a par. Executa em cópias; Aplicar grava um cenário como um único passo de desfazer.</translation>
     </message>
     <message>
       <source>Sensitivity…</source>
@@ -831,7 +831,7 @@
     </message>
     <message>
       <source>Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.</source>
-      <translation type="unfinished" />
+      <translation>A quais entradas o resultado é mais sensível: vida e reparo de cada bloco, intervalos de MP, estoque de sobressalentes e equipes movidos para baixo e para cima, um de cada vez, com execuções emparelhadas, desenhados como um tornado, a maior variação primeiro. Executa em cópias.</translation>
     </message>
     <message>
       <source>Spares…</source>
@@ -839,7 +839,7 @@
     </message>
     <message>
       <source>The cheapest spare stock that meets an availability target with 95 % confidence, or the whole cost/availability trade-off, found with paired runs. Runs on copies; Apply writes the stock in.</source>
-      <translation type="unfinished" />
+      <translation>O estoque de sobressalentes mais barato que atinge uma meta de disponibilidade com 95 % de confiança, ou todo o compromisso custo/disponibilidade, encontrado com execuções emparelhadas. Executa em cópias; Aplicar grava o estoque.</translation>
     </message>
     <message>
       <source>Maintenance…</source>
@@ -847,7 +847,7 @@
     </message>
     <message>
       <source>Is planned maintenance worthwhile on each block, and how often? A formula screens each block, then no PM and several intervals are run with paired runs. Runs on copies; Apply writes the best interval in.</source>
-      <translation type="unfinished" />
+      <translation>A manutenção planejada vale a pena em cada bloco, e com que frequência? Uma fórmula tria cada bloco e então nenhuma MP e vários intervalos são executados com execuções emparelhadas. Executa em cópias; Aplicar grava o melhor intervalo.</translation>
     </message>
     <message>
       <source>Crews…</source>
@@ -855,7 +855,7 @@
     </message>
     <message>
       <source>How many units of each repair crew or tool are needed to meet an availability target with 95 % confidence, found with paired runs. Runs on copies; Apply writes the size in.</source>
-      <translation type="unfinished" />
+      <translation>Quantas unidades de cada equipe de reparo ou ferramenta são necessárias para atingir uma meta de disponibilidade com 95 % de confiança, encontrado com execuções emparelhadas. Executa em cópias; Aplicar grava o tamanho.</translation>
     </message>
     <message>
       <source>Extract Hierarchy…</source>
@@ -863,7 +863,7 @@
     </message>
     <message>
       <source>Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated.</source>
-      <translation type="unfinished" />
+      <translation>Salvar a hierarquia selecionada como um modelo autônomo (sua entrada sempre disponível) e abri-la para executar por conta própria. Mostra o que cruza a fronteira da hierarquia e como cada travessia é tratada.</translation>
     </message>
     <message>
       <source>Pause</source>
@@ -871,7 +871,7 @@
     </message>
     <message>
       <source>Pause or resume the run (F9; Esc also pauses, Esc again stops)</source>
-      <translation type="unfinished" />
+      <translation>Pausar ou retomar a execução (F9; Esc também pausa, Esc novamente para)</translation>
     </message>
     <message>
       <source>Stop</source>
@@ -883,7 +883,7 @@
     </message>
     <message>
       <source>While stepping: let this run finish and stop at the next run's first change. In a background batch: abandon the current run and start the next one</source>
-      <translation type="unfinished" />
+      <translation>Durante o passo a passo: deixar esta execução terminar e parar na primeira mudança da próxima execução. Em um lote em segundo plano: abandonar a execução atual e iniciar a próxima</translation>
     </message>
     <message>
       <source>Animate</source>
@@ -891,7 +891,7 @@
     </message>
     <message>
       <source>Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model.</source>
-      <translation type="unfinished" />
+      <translation>Animar: uma execução limpa que você pode acompanhar -- em um núcleo, o diagrama é recolorido a cada evento e o registro de eventos é transmitido para o Painel de resultados. Desligado: velocidade máxima em vários núcleos (a caixa Núcleos). Lembrado entre sessões; não faz parte do modelo.</translation>
     </message>
     <message>
       <source>Slower</source>
@@ -899,7 +899,7 @@
     </message>
     <message>
       <source>Decrease animation speed ×10</source>
-      <translation type="unfinished" />
+      <translation>Diminuir a velocidade da animação ×10</translation>
     </message>
     <message>
       <source>1x</source>
@@ -907,7 +907,7 @@
     </message>
     <message>
       <source>Reset to 1 event per second (1 ev/s)</source>
-      <translation type="unfinished" />
+      <translation>Redefinir para 1 evento por segundo (1 ev/s)</translation>
     </message>
     <message>
       <source>Faster</source>
@@ -915,7 +915,7 @@
     </message>
     <message>
       <source>Increase animation speed ×10</source>
-      <translation type="unfinished" />
+      <translation>Aumentar a velocidade da animação ×10</translation>
     </message>
     <message>
       <source>Max</source>
@@ -923,7 +923,7 @@
     </message>
     <message>
       <source>Run as fast as possible</source>
-      <translation type="unfinished" />
+      <translation>Executar o mais rápido possível</translation>
     </message>
     <message>
       <source>Failure Effects</source>
@@ -931,7 +931,7 @@
     </message>
     <message>
       <source>Failure Effects View: fail and repair blocks by clicking them and see what happens to the system, with nothing simulated. Click again to leave.</source>
-      <translation type="unfinished" />
+      <translation>Visualização de efeitos de falha: faça blocos falharem e serem reparados clicando neles e veja o que acontece com o sistema, sem simular nada. Clique novamente para sair.</translation>
     </message>
     <message>
       <source>Fail</source>
@@ -939,7 +939,7 @@
     </message>
     <message>
       <source>Fail a block (or an event) NOW. Select one first, or click Fail then click it. Opens Failure Effects View if it is not open.</source>
-      <translation type="unfinished" />
+      <translation>Fazer um bloco (ou evento) falhar AGORA. Selecione um primeiro, ou clique em Falhar e depois nele. Abre a Visualização de efeitos de falha se ela não estiver aberta.</translation>
     </message>
     <message>
       <source>Repair</source>
@@ -947,7 +947,7 @@
     </message>
     <message>
       <source>Put a failed block (or event) back to Running NOW. Select one first, or click Repair then click it.</source>
-      <translation type="unfinished" />
+      <translation>Devolver um bloco (ou evento) falho ao estado Running AGORA. Selecione um primeiro, ou clique em Reparar e depois nele.</translation>
     </message>
     <message>
       <source>Prev Phase</source>
@@ -955,7 +955,7 @@
     </message>
     <message>
       <source>Failure Effects View: go to the previous phase (wraps to the last).</source>
-      <translation type="unfinished" />
+      <translation>Visualização de efeitos de falha: ir para a fase anterior (volta à última).</translation>
     </message>
     <message>
       <source>Next Phase</source>
@@ -963,7 +963,7 @@
     </message>
     <message>
       <source>Failure Effects View: go to the next phase (wraps to the first).</source>
-      <translation type="unfinished" />
+      <translation>Visualização de efeitos de falha: ir para a próxima fase (volta à primeira).</translation>
     </message>
     <message>
       <source>Go To Phase…</source>
@@ -971,7 +971,7 @@
     </message>
     <message>
       <source>Failure Effects View: choose a phase from the list and go straight to it.</source>
-      <translation type="unfinished" />
+      <translation>Visualização de efeitos de falha: escolher uma fase na lista e ir direto para ela.</translation>
     </message>
     <message>
       <source>Clear Failures</source>
@@ -979,7 +979,7 @@
     </message>
     <message>
       <source>Small eraser: repair every failed or PM block and every failed event, and stay in this phase. A block that is Idle stays Idle.</source>
-      <translation type="unfinished" />
+      <translation>Borracha pequena: reparar todo bloco falho ou em MP e todo evento falho, e permanecer nesta fase. Um bloco que está Idle continua Idle.</translation>
     </message>
     <message>
       <source>Reset All</source>
@@ -987,7 +987,7 @@
     </message>
     <message>
       <source>Large eraser: everything operating again, back to phase 1.</source>
-      <translation type="unfinished" />
+      <translation>Borracha grande: tudo operando novamente, de volta à fase 1.</translation>
     </message>
     <message>
       <source>Status</source>
@@ -995,7 +995,7 @@
     </message>
     <message>
       <source>Display Failure Effects: the failed components, the induced failures, the down and degraded nodes and the system status</source>
-      <translation type="unfinished" />
+      <translation>Exibir efeitos de falha: os componentes falhos, as falhas induzidas, os nós inativos e degradados e o status do sistema</translation>
     </message>
     <message>
       <source>Clear Results</source>
@@ -1003,7 +1003,7 @@
     </message>
     <message>
       <source>Empty every results tab and return to the placeholder</source>
-      <translation type="unfinished" />
+      <translation>Esvaziar todas as abas de resultados e voltar ao espaço reservado</translation>
     </message>
     <message>
       <source>Single-Point Failures</source>
@@ -1011,7 +1011,7 @@
     </message>
     <message>
       <source>List every component that alone can fail the system — series elements; export as a text file</source>
-      <translation type="unfinished" />
+      <translation>Listar todo componente que sozinho pode falhar o sistema — elementos em série; exportar como arquivo de texto</translation>
     </message>
     <message>
       <source>Domains…</source>
@@ -1019,7 +1019,7 @@
     </message>
     <message>
       <source>Domain of each node — which elements' failures can propagate to it</source>
-      <translation type="unfinished" />
+      <translation>Domínio de cada nó — quais falhas de elementos podem se propagar até ele</translation>
     </message>
     <message>
       <source>Analytical…</source>
@@ -1027,7 +1027,7 @@
     </message>
     <message>
       <source>Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.</source>
-      <translation type="unfinished" />
+      <translation>Confiabilidade exata ou disponibilidade em regime permanente para o subconjunto estático deste modelo — série, paralelo, k-de-n e hierarquias. Sem amostragem, sem alterações no modelo.</translation>
     </message>
     <message>
       <source>Weak Links</source>
@@ -1035,7 +1035,7 @@
     </message>
     <message>
       <source>Colour every block, node, event and hierarchy by its post-simulation availability, dependability or reliability, against the model's G/Y and Y/R thresholds; the value is printed under each element (digits in Preferences ▸ Advanced). Enable Weak Link in the Run panel's Analysis section.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada bloco, nó, evento e hierarquia pela sua disponibilidade, dependabilidade ou confiabilidade pós-simulação, conforme os limites Verde/Amarelo e Amarelo/Vermelho do modelo; o valor é impresso sob cada elemento (dígitos em Preferências ▸ Avançado). Ative Elo fraco na seção Análise do Painel de execução.</translation>
     </message>
     <message>
       <source>Capacity</source>
@@ -1043,7 +1043,7 @@
     </message>
     <message>
       <source>Colour each capacity node by its average utilization (Green &lt; 70% · Yellow &lt; 90% · Red ≥ 90%). Needs Capacity analysis and at least one node without unrestricted flow.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada nó de capacidade pela sua utilização média (Verde &lt; 70% · Amarelo &lt; 90% · Vermelho ≥ 90%). Requer análise de Capacidade e pelo menos um nó sem fluxo irrestrito.</translation>
     </message>
     <message>
       <source>Cost</source>
@@ -1051,7 +1051,7 @@
     </message>
     <message>
       <source>Colour each block by its total life-cycle cost, relative to the most expensive block (Green &lt; 1/3 · Yellow &lt; 2/3 · Red ≥ 2/3); Spread bands it by quartile instead. Needs Cost Analysis.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada bloco pelo seu custo total do ciclo de vida, em relação ao bloco mais caro (Verde &lt; 1/3 · Amarelo &lt; 2/3 · Vermelho ≥ 2/3); Dispersão o divide por quartil. Requer análise de Custo.</translation>
     </message>
     <message>
       <source>Spares</source>
@@ -1059,7 +1059,7 @@
     </message>
     <message>
       <source>Colour each block Red if it ever ran out of spares or reached end of life during the run (% of run time and sparing cost on hover), Green otherwise. Needs Weak Link analysis.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada bloco de Vermelho se ele ficou sem sobressalentes ou atingiu o fim da vida durante a execução (% do tempo de execução e custo de provisão ao passar o mouse), caso contrário Verde. Requer análise de Elo fraco.</translation>
     </message>
     <message>
       <source>Importance</source>
@@ -1067,7 +1067,7 @@
     </message>
     <message>
       <source>Colour each block by its importance, using the measure the Importance tab ranks by (Vesely–Fussell when it is defined, since Birnbaum saturates in a series system). Red = highest leverage (≥ ⅔ of the largest value), Yellow ≥ ⅓, Green below; the value is printed under each block. This is a RANKING, not a health reading: red means 'fix this first'. Greyed out until the run has importance measures: switch on Run ▸ Analysis ▸ Importance measures and run again.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada bloco pela sua importância, usando a medida pela qual a aba Importância classifica (Vesely–Fussell quando definida, já que Birnbaum satura em um sistema em série). Vermelho = maior alavancagem (≥ ⅔ do maior valor), Amarelo ≥ ⅓, Verde abaixo; o valor é impresso sob cada bloco. Isto é uma CLASSIFICAÇÃO, não uma leitura de saúde: vermelho significa “corrija isto primeiro”. Esmaecido até a execução ter medidas de importância: ative Painel de execução ▸ Análise ▸ Medidas de importância e execute novamente.</translation>
     </message>
     <message>
       <source>Share of downtime</source>
@@ -1075,7 +1075,7 @@
     </message>
     <message>
       <source>Colour each block and event by its share of system downtime (Red from ⅔ of the largest share, Yellow from ⅓), print the share under it, mark the cause that dominates it with a letter in the corner, and ring the letter when the runs disagree on the share. Works out the drivers from the event log when the Drivers tab has not.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada bloco e evento pela sua parcela do tempo de inatividade do sistema (Vermelho a partir de ⅔ da maior parcela, Amarelo a partir de ⅓), imprimir a parcela sob ele, marcar com uma letra no canto a causa que o domina e circundar a letra quando as execuções discordarem da parcela. Calcula os responsáveis a partir do registro de eventos quando a aba Responsáveis ainda não o fez.</translation>
     </message>
     <message>
       <source>Lost capacity</source>
@@ -1083,7 +1083,7 @@
     </message>
     <message>
       <source>Colour each element by its share of the lost flow, with the main-cause letter and the uncertainty ring as for Share of downtime, and draw each link into a capacity node as wide as the flow through that node. Needs Capacity analysis and the event log.</source>
-      <translation type="unfinished" />
+      <translation>Colorir cada elemento pela sua parcela do fluxo perdido, com a letra da causa principal e o anel de incerteza como em Parcela da inatividade, e desenhar cada vínculo para um nó de capacidade com a largura do fluxo que passa por esse nó. Requer análise de Capacidade e o registro de eventos.</translation>
     </message>
     <message>
       <source>Advisor findings</source>
@@ -1091,7 +1091,7 @@
     </message>
     <message>
       <source>Mark each element the Advisor has something to say about: filled by the worst severity (Red error, Yellow warning, blue advice or note), labelled with how many findings concern it, and its tooltip lists them. Needs no run.</source>
-      <translation type="unfinished" />
+      <translation>Marcar cada elemento sobre o qual o Advisor tem algo a dizer: preenchido pela pior severidade (vermelho erro, amarelo aviso, azul conselho ou nota), rotulado com quantas constatações o concernem, e sua dica de ferramenta as lista. Não requer execução.</translation>
     </message>
     <message>
       <source>Spread</source>
@@ -1099,7 +1099,7 @@
     </message>
     <message>
       <source>Band the ACTIVE colouring by this result set's values: the best quarter Green, the worst quarter Red, the middle half Yellow. Applies to Weak Links or Cost; Capacity and Spares use fixed or flag bands. For Weak Links it sets the two thresholds.</source>
-      <translation type="unfinished" />
+      <translation>Distribuir em faixas a coloração ATIVA pelos valores deste conjunto de resultados: o melhor quarto em Verde, o pior quarto em Vermelho, a metade central em Amarelo. Aplica-se a Elos fracos ou Custo; Capacidade e Sobressalentes usam faixas fixas ou de indicador. Para Elos fracos, define os dois limites.</translation>
     </message>
     <message>
       <source>Differences…</source>
@@ -1107,7 +1107,7 @@
     </message>
     <message>
       <source>What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run.</source>
-      <translation type="unfinished" />
+      <translation>O que é diferente entre este modelo e outro: seu arquivo salvo (o que você alterou), qualquer modelo, ou um recente -- parâmetros e conexões. Nada é executado.</translation>
     </message>
     <message>
       <source>Show Results</source>
@@ -1115,7 +1115,7 @@
     </message>
     <message>
       <source>Bring the Results panel to the front, full height (Ctrl+Shift+R)</source>
-      <translation type="unfinished" />
+      <translation>Trazer o Painel de resultados para a frente, com altura total (Ctrl+Shift+R)</translation>
     </message>
     <message>
       <source>Float Window</source>
@@ -1123,7 +1123,7 @@
     </message>
     <message>
       <source>Open the Results panel as its own resizable window</source>
-      <translation type="unfinished" />
+      <translation>Abrir o Painel de resultados como uma janela própria redimensionável</translation>
     </message>
     <message>
       <source>Snap to Grid</source>
@@ -1131,7 +1131,7 @@
     </message>
     <message>
       <source>Align dragged/placed items to the grid (new work only — opened files are never reshuffled)</source>
-      <translation type="unfinished" />
+      <translation>Alinhar itens arrastados/posicionados à grade (somente trabalho novo — arquivos abertos nunca são reorganizados)</translation>
     </message>
     <message>
       <source>Focus Event</source>
@@ -1139,7 +1139,7 @@
     </message>
     <message>
       <source>Centre the view on the element that changed at each step</source>
-      <translation type="unfinished" />
+      <translation>Centralizar a visualização no elemento que mudou a cada passo</translation>
     </message>
     <message>
       <source>Data Tables</source>
@@ -1147,7 +1147,7 @@
     </message>
     <message>
       <source>Show the Data Tables panel — every block/node in an editable grid</source>
-      <translation type="unfinished" />
+      <translation>Mostrar o painel Tabelas de dados — cada bloco/nó em uma grade editável</translation>
     </message>
     <message>
       <source>Dark Theme</source>
@@ -1155,7 +1155,7 @@
     </message>
     <message>
       <source>Toggle light/dark theme</source>
-      <translation type="unfinished" />
+      <translation>Alternar tema claro/escuro</translation>
     </message>
     <message>
       <source>Preferences…</source>
@@ -1163,7 +1163,7 @@
     </message>
     <message>
       <source>Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options</source>
-      <translation type="unfinished" />
+      <translation>Preferências: padrões para novos modelos, hábitos de trabalho, unidade de exibição deste modelo, opções avançadas e de desenvolvedor</translation>
     </message>
     <message>
       <source>Explorer</source>
@@ -1175,7 +1175,7 @@
     </message>
     <message>
       <source>Show the Failure Effects panel — the live system state, failures, effects and capacity while Failure Effects View is open</source>
-      <translation type="unfinished" />
+      <translation>Mostrar o painel Efeitos de falha — o estado ao vivo do sistema, falhas, efeitos e capacidade enquanto a Visualização de efeitos de falha está aberta</translation>
     </message>
     <message>
       <source>Results</source>
@@ -1187,7 +1187,7 @@
     </message>
     <message>
       <source>Show the Run panel — trials, termination, analyses and recording for the next run</source>
-      <translation type="unfinished" />
+      <translation>Mostrar o Painel de execução — ensaios, término, análises e gravação para a próxima execução</translation>
     </message>
     <message>
       <source>Live Log</source>
@@ -1195,7 +1195,7 @@
     </message>
     <message>
       <source>Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector</source>
-      <translation type="unfinished" />
+      <translation>Mostrar o Registro ao vivo — a lista de eventos da simulação passo a passo, em aba ao lado do Inspetor</translation>
     </message>
     <message>
       <source>Advisor</source>
@@ -1203,7 +1203,7 @@
     </message>
     <message>
       <source>Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it</source>
-      <translation type="unfinished" />
+      <translation>Mostrar o Advisor — o que parece errado ou imprudente no modelo, por quê, e o que fazer a respeito</translation>
     </message>
     <message>
       <source>Reset Layout</source>
@@ -1211,7 +1211,7 @@
     </message>
     <message>
       <source>Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too</source>
-      <translation type="unfinished" />
+      <translation>Devolver cada painel ao seu lugar inicial: ancorado, aberto e em tamanho total. O layout salvo também é esquecido</translation>
     </message>
     <message>
       <source>User Guide</source>
@@ -1219,7 +1219,7 @@
     </message>
     <message>
       <source>Open the User Guide: reliability simulation from scratch, with companion models</source>
-      <translation type="unfinished" />
+      <translation>Abrir o Guia do usuário: simulação de confiabilidade do zero, com modelos de acompanhamento</translation>
     </message>
     <message>
       <source>Reference Manual</source>
@@ -1227,7 +1227,7 @@
     </message>
     <message>
       <source>Open the field-by-field reference: every ribbon control, dialog setting and workflow. Tip: F1 jumps straight to the section for the focused dock or dialog</source>
-      <translation type="unfinished" />
+      <translation>Abrir a referência campo a campo: cada controle da faixa de opções, configuração de diálogo e fluxo de trabalho. Dica: F1 vai direto para a seção do painel ou diálogo em foco</translation>
     </message>
     <message>
       <source>AI Assistant</source>
@@ -1235,7 +1235,7 @@
     </message>
     <message>
       <source>Set up an AI assistant over MCP (Claude Code, Claude Desktop, OpenCode, ...): opens the documentation</source>
-      <translation type="unfinished" />
+      <translation>Configurar um assistente de IA via MCP (Claude Code, Claude Desktop, OpenCode, ...): abre a documentação</translation>
     </message>
     <message>
       <source>Formulas</source>
@@ -1243,7 +1243,7 @@
     </message>
     <message>
       <source>Reliability formulas quick reference — every metric the engine reports (availability, MTBDE, MDT, reliability, SEM), the distribution table, and the limits of an RBD model, all on one page</source>
-      <translation type="unfinished" />
+      <translation>Referência rápida de fórmulas de confiabilidade — cada métrica que o motor relata (disponibilidade, MTBDE, MDT, confiabilidade, SEM), a tabela de distribuições e os limites de um modelo RBD, tudo em uma página</translation>
     </message>
     <message>
       <source>Keyboard Shortcuts</source>
@@ -1251,7 +1251,7 @@
     </message>
     <message>
       <source>Every shortcut key, one page</source>
-      <translation type="unfinished" />
+      <translation>Todas as teclas de atalho, em uma página</translation>
     </message>
     <message>
       <source>About</source>
@@ -1259,7 +1259,7 @@
     </message>
     <message>
       <source>About RAPTOR Studio — version, credits and licence</source>
-      <translation type="unfinished" />
+      <translation>Sobre o RAPTOR Studio — versão, créditos e licença</translation>
     </message>
     <message>
       <source>Report Issue</source>
@@ -1267,7 +1267,7 @@
     </message>
     <message>
       <source>Report a bug or request a feature — opens the GitHub issue tracker with a new, prefilled issue</source>
-      <translation type="unfinished" />
+      <translation>Relatar um bug ou solicitar um recurso — abre o rastreador de problemas do GitHub com um novo problema pré-preenchido</translation>
     </message>
   </context>
   <context>
