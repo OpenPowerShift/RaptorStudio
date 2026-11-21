@@ -656,6 +656,20 @@ def show_preferences(win):
         "Switches the whole application, including the chart surfaces and "
         "the cause fills' dark variants. The View menu has the same switch.",
         "app")
+    from raptor.gui import i18n as _i18n
+    language = QComboBox()
+    language.addItem("System language", "system")
+    for code, name in _i18n.available_locales():
+        language.addItem(name, code)
+    current_language = str(_settings.get("appearance/language", "system"))
+    language.setCurrentIndex(max(0, language.findData(current_language)))
+    language.setToolTip("UI language; takes effect on the next launch")
+    _pref_row(
+        app_form, "Language:", language,
+        "The translated interface. English is the source language; a "
+        "catalogue is shipped for each listed language. Takes effect when "
+        "the application is restarted.", "app")
+
     from raptor.api.insight import palette as _palette
     palette_box = QComboBox()
     for key in _palette.names():
@@ -1016,7 +1030,12 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
-    win._statusbar.showMessage("Preferences saved")
+    if str(language.currentData()) != current_language:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to change language",
+            8000)
+    else:
+        win._statusbar.showMessage("Preferences saved")
 
 
 

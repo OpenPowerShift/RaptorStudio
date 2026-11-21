@@ -31,6 +31,8 @@ from shiboken6 import isValid
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 
+from raptor.gui.i18n import tr
+
 # ---------------------------------------------------------------------------
 # State and predicates
 # ---------------------------------------------------------------------------
@@ -422,12 +424,13 @@ class CommandRegistry:
 
     def _build(self, spec: CommandSpec) -> QAction:
         action = (self.factories[spec.factory](self.window, spec)
-                  if spec.factory else QAction(spec.text, self.window))
+                  if spec.factory else QAction(tr(spec.text, "Command"),
+                                               self.window))
         icon = self._icon(spec)
         if icon is not None:
             action.setIcon(icon)
         if spec.tooltip:
-            action.setToolTip(spec.tooltip)
+            action.setToolTip(tr(spec.tooltip, "Command"))
         self._apply_shortcuts(action, spec)
         self._show_shortcut_in_tooltip(action, spec)
         if spec.checkable:
@@ -446,7 +449,7 @@ class CommandRegistry:
         if spec.factory or not action.shortcut().toString():
             return
         keys = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
-        tip = spec.tooltip or spec.text
+        tip = action.toolTip() or tr(spec.tooltip or spec.text, "Command")
         portable = action.shortcut().toString()
         if any(f"({k}" in tip or f"{k})" in tip or f", {k}" in tip
                for k in (keys, portable)):
@@ -604,7 +607,7 @@ def build_pages(window: Any, registry: CommandRegistry,
     for page_spec in layout:
         page = RibbonPage()
         for group_spec in page_spec.groups:
-            group = RibbonGroup(group_spec.title)
+            group = RibbonGroup(tr(group_spec.title, "Group"))
             group.collapse_priority = group_spec.priority
             page.add_group(group)
             for item in group_spec.items:
@@ -615,5 +618,5 @@ def build_pages(window: Any, registry: CommandRegistry,
                         page_spec.title, {}).get(item.id, ""))
                 else:
                     getattr(window, item.builder)(group)
-        index = window._ribbon.add_page(page_spec.title, page)
+        index = window._ribbon.add_page(tr(page_spec.title, "Page"), page)
         setattr(window, page_spec.index_attr, index)

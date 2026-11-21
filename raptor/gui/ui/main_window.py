@@ -351,6 +351,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         qapp = cast(QApplication | None, QApplication.instance())
         if qapp is not None:
             ensure_fusion(qapp)
+        # Settings migration and the UI catalogue must be in place before
+        # the ribbon copies command text into QActions.
+        settings.ensure_migrated()
+        from raptor.gui import i18n
+        i18n.install(qapp)
 
         self._setup_ribbon()
         self._setup_central()
@@ -429,11 +434,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._tooltip_keeper.install(QApplication.instance())
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
-        # One-shot settings migration BEFORE any read, so a user
-        # upgrading gets their preferences moved into the namespaced
-        # tree (and told if the gap was too big to interpret) rather
-        # than silently reset. See `ui/settings.py`.
-        settings.ensure_migrated()
         # Remember the theme across launches. Applied before the window
         # is shown, so startup doesn't flash light first; the checkable
         # ribbon action follows via the _on_theme_changed callback.
