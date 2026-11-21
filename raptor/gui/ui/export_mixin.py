@@ -331,7 +331,8 @@ class ExportMixin(_Base):
         if self._rbd is None:
             return
         if path is None:
-            dlg = QFileDialog(self, "Save Diagram as PNG")
+            from raptor.gui.i18n import tr
+            dlg = QFileDialog(self, tr("Save Diagram as PNG", "Gui"))
             dlg.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
             dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
             fdg.theme_file_dialog(dlg)

@@ -13,5 +13,10 @@ from PySide6.QtWidgets import QDialog
 
 def exec_dialog(dlg: QDialog) -> int:
     """Run `dlg` modally for its parent window only (the Help viewer and other top-level windows stay live)."""
+    from raptor.gui import i18n
+    # Every dialog that uses this seam is translated on the way in, so a
+    # builder does not have to remember: the source stays English, the
+    # widget tree is walked once for the active catalogue.
+    i18n.translate_widgets(dlg)
     dlg.setWindowModality(Qt.WindowModality.WindowModal)
     return dlg.exec()

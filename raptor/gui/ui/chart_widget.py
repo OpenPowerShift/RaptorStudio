@@ -2166,7 +2166,8 @@ class ChartWidget(QWidget):
         buttons.rejected.connect(dialog.reject)
         buttons.accepted.connect(dialog.accept)
         layout.addWidget(buttons)
-        dialog.exec()
+        from raptor.gui import i18n
+        i18n.exec_translated(dialog)
 
     def _ask_png(self) -> None:
         if path := ask_chart_path(self, "Save chart", "", "PNG image", ".png"):

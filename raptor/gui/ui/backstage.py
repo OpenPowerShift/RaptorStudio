@@ -133,6 +133,9 @@ class Backstage(QWidget):
         # (`MainWindow._handle_escape_activated`): a second Esc shortcut
         # here made the key ambiguous, so neither fired.
         window.installEventFilter(self)
+        # Built on first use, after the main window's own translation pass.
+        from raptor.gui import i18n
+        i18n.translate_widgets(self)
 
     # ---- construction ---------------------------------------------------
 

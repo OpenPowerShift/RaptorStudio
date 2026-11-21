@@ -40,6 +40,8 @@ def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
     again = QCheckBox("Don't ask again")
     box.setCheckBox(again)
     box.setDefaultButton(yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes, again.isChecked()
 
@@ -72,6 +74,8 @@ def question_box(parent, title: str, text: str, *,
     no = box.addButton(no_text, QMessageBox.ButtonRole.NoRole)
     no.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogNoButton))
     box.setDefaultButton(no if not default_yes else yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes
 

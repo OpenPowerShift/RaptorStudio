@@ -10,7 +10,7 @@ from raptor.gui.ui.modality import exec_dialog
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
-from raptor.gui import text_editing
+from raptor.gui import i18n, text_editing
 import time
 import weakref
 from typing import Any, cast
@@ -18,7 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import (Qt, QTimer, QObject, QPoint, QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QAction, QShortcut)
 from PySide6.QtWidgets import (
-    QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
+    QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QFileDialog, QMessageBox,
     QDialog, QFormLayout, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
 )
 
@@ -354,7 +354,6 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Settings migration and the UI catalogue must be in place before
         # the ribbon copies command text into QActions.
         settings.ensure_migrated()
-        from raptor.gui import i18n
         i18n.install(qapp)
 
         self._setup_ribbon()
@@ -439,6 +438,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # ribbon action follows via the _on_theme_changed callback.
         ThemeManager.instance().set_dark(
             settings.get_bool("appearance/dark_mode"))
+        # The whole window tree exists now (ribbon, docks, run panel, results
+        # and inspector): translate its English literals once. Data-driven
+        # action text and tooltips were translated where the registry built
+        # them; this covers ordinary QLabels/buttons/tabs/combos/menus.
+        i18n.translate_widgets(self)
 
     @property
     def _step_session(self):
@@ -1965,7 +1969,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._esc_redispatching = False
 
     def _setup_statusbar(self):
-        self._statusbar = QStatusBar()
+        self._statusbar = i18n.TranslatingStatusBar()
         self._statusbar.showMessage("Ready — Open an .rbd or .rbds file to begin (Ctrl+O)")
         self.setStatusBar(self._statusbar)
         # Never let a resizeDocks request shrink the status bar away
@@ -2704,6 +2708,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             box.setText(f"Cannot {what} while a print/PDF export is "
                         f"running.\n\nWait for the export to finish.")
             box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+            i18n.translate_widgets(box)
             box.exec()
             return True
         if not getattr(self, "_run_in_progress", False):
@@ -2714,6 +2719,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         box.setText(f"Cannot {what} while a simulation is running.\n\n"
                     "Stop the run first.")
         box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+        i18n.translate_widgets(box)
         box.exec()
         return True
 
@@ -3094,6 +3100,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             remember = ask_again.add_box(box, "Remember my choice for every run")
             remember.setToolTip("Preferences ▸ Working ▸ Unsaved changes "
                                 "before running changes it back")
+        i18n.translate_widgets(box)
         box.exec()
         clicked = box.clickedButton()
         if clicked is cancel_btn:

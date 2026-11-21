@@ -165,6 +165,8 @@ class ResultsRawMixin(_Base):
         # dialog isn't garbage-collected before `accepted` fires.
         self._appendix_c_dialog = dlg
         self._appendix_c_checks = (cb_key, cb_fail, cb_down, cb_end, cb_ao)
+        from raptor.gui import i18n
+        i18n.translate_widgets(dlg)
         dlg.accepted.connect(self._do_export_appendix_c_files)
         dlg.show()
 
