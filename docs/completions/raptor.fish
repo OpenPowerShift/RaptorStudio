@@ -173,6 +173,7 @@ complete -c raptor -n '__fish_use_subcommand' -a history
 complete -c raptor -n '__fish_seen_subcommand_from history' -l force
 complete -c raptor -n '__fish_seen_subcommand_from history' -l format
 complete -c raptor -n '__fish_seen_subcommand_from history' -l help
+complete -c raptor -n '__fish_seen_subcommand_from history' -l label
 complete -c raptor -n '__fish_seen_subcommand_from history' -l output
 complete -c raptor -n '__fish_seen_subcommand_from history' -l restore
 complete -c raptor -n '__fish_seen_subcommand_from history' -l snapshot

@@ -1,6 +1,7 @@
 """Version history: record, dedupe, retention and restore."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -136,3 +137,75 @@ def test_a_corrupt_index_is_recovered_from_snapshot_files(tmp_path):
     shots = store.snapshots(path)
     assert {s.id for s in shots} == {first.id, second.id}
     assert all(s.reason == "recovered" for s in shots)
+
+
+def test_recovered_versions_still_verify_their_checksum(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path)
+    path.write_text("model-v2", encoding="utf-8")
+    store.record(path)
+    store._index_path(path).write_text("not json", encoding="utf-8")
+    recovered = next(s for s in store.snapshots(path) if s.id == first.id)
+    assert recovered.sha256                     # computed during recovery
+    store.restore(recovered)
+    assert path.read_text() == "model-v1"
+
+
+def test_histories_are_per_file_even_for_identical_content(tmp_path):
+    a = tmp_path / "a.rbds"
+    b = tmp_path / "b.rbds"
+    a.write_text("same", encoding="utf-8")
+    b.write_text("same", encoding="utf-8")
+    store = HistoryStore(tmp_path / "history")
+    store.record(a)
+    assert store.snapshots(b) == []
+    assert len(store.snapshots(a)) == 1
+
+
+def test_a_label_on_unchanged_bytes_relabels_the_newest_version(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, label="first")
+    again = store.record(path, label="before upgrade")
+    assert again is not None and again.id == shot.id
+    assert [s.label for s in store.snapshots(path)] == ["before upgrade"]
+    assert store.record(path, label="before upgrade") is None
+    assert store.set_label(path, shot.id, "")
+    assert store.snapshots(path)[0].label == ""
+
+
+def test_the_byte_cap_keeps_the_newest_versions_and_removes_the_rest(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=30, max_bytes=2_500)
+    ids = []
+    for i in range(3):
+        path.write_text(f"{i}" * 1_000, encoding="utf-8")
+        ids.append(store.record(path).id)
+    assert [s.id for s in store.snapshots(path)] == [ids[2], ids[1]]
+    assert len(list((tmp_path / "history").rglob("*.rbds"))) == 2
+
+
+def test_one_version_larger_than_the_byte_cap_is_still_kept(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=30, max_bytes=100)
+    path.write_text("x" * 500, encoding="utf-8")
+    big = store.record(path).id
+    path.write_text("y" * 500, encoding="utf-8")
+    newest = store.record(path).id
+    assert [s.id for s in store.snapshots(path)] == [newest]
+    assert big != newest
+
+
+def test_index_entries_cannot_point_outside_the_history_folder(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path)
+    outside = tmp_path / "outside.rbds"
+    outside.write_text("secret", encoding="utf-8")
+    index = store._index_path(path)
+    doc = json.loads(index.read_text(encoding="utf-8"))
+    doc["snapshots"].append(dict(doc["snapshots"][0],
+                                 id="escape", stored="../outside.rbds"))
+    index.write_text(json.dumps(doc), encoding="utf-8")
+    assert [s.id for s in store.snapshots(path)] == [shot.id]

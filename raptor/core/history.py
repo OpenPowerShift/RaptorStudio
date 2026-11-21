@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import tempfile
 import threading
 from contextlib import contextmanager
@@ -30,6 +31,32 @@ DEFAULT_KEEP = 30
 #: ... and never let one file's history exceed this many bytes.
 DEFAULT_MAX_BYTES = 50 * 1024 * 1024
 INDEX_VERSION = 1
+#: Longest label accepted; labels are metadata, not part of the snapshot.
+MAX_LABEL = 200
+
+_umask_lock = threading.Lock()
+
+
+def file_digest(path: str | Path) -> str:
+    """SHA-256 of *path*, or "" when it cannot be read.
+
+    The GUI and CLI use this to mark the version that matches the file as
+    it is on disk right now.
+    """
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return ""
+    return digest.hexdigest()
+
+
+def clean_label(label: str | None) -> str:
+    """One line, bounded length: labels are shown in lists and messages."""
+    text = " ".join(str(label or "").split())
+    return text[:MAX_LABEL]
 
 
 @contextmanager
@@ -82,6 +109,14 @@ class Snapshot:
         return f"{self.bytes / (1024 * 1024):.1f} MB"
 
 
+def _new_file_mode() -> int:
+    """The mode a normal `open(..., "w")` would give a new file."""
+    with _umask_lock:
+        mask = os.umask(0)
+        os.umask(mask)
+    return 0o666 & ~mask
+
+
 def _atomic_write(path: Path, data: bytes) -> None:
     # Write through a symlink rather than replacing the link itself.
     path = Path(os.path.realpath(path))
@@ -98,13 +133,21 @@ def _atomic_write(path: Path, data: bytes) -> None:
             f.flush()
             os.fsync(f.fileno())
         if previous is not None:
+            # Preserve the owner's read/write/execute bits, including a
+            # group-shared model's group permissions, but never carry
+            # setuid/setgid/sticky bits onto the replacement.
             try:
-                os.chmod(tmp, previous.st_mode)
+                os.chmod(tmp, stat.S_IMODE(previous.st_mode) & 0o777)
             except OSError:
                 pass
             try:
                 os.chown(tmp, previous.st_uid, previous.st_gid)
             except (AttributeError, OSError):
+                pass
+        else:
+            try:
+                os.chmod(tmp, _new_file_mode())
+            except OSError:
                 pass
         os.replace(tmp, path)
         try:
@@ -157,14 +200,27 @@ class HistoryStore:
             # Keep the damaged index for diagnosis; rebuild what the file
             # names can tell us so snapshots are not lost.
             try:
-                os.replace(path, path.with_name(
-                    path.name + ".corrupt-" + str(int(os.stat(path).st_mtime))))
+                quarantine = path.with_name(
+                    f"{path.name}.corrupt-{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}")
+                os.replace(path, quarantine)
             except OSError:
                 pass
             raw = self._rebuild_index(file)
         if not isinstance(raw, dict) or not isinstance(raw.get("snapshots"), list):
             raw = {"version": INDEX_VERSION, "file": str(file), "snapshots": []}
+        raw["snapshots"] = [entry for entry in raw["snapshots"]
+                            if self._safe_stored(entry)]
         return raw
+
+    @staticmethod
+    def _safe_stored(entry: Any) -> bool:
+        """A snapshot filename must stay inside its own history folder."""
+        if not isinstance(entry, dict):
+            return False
+        name = str(entry.get("stored") or "")
+        return (bool(name) and Path(name).name == name
+                and name not in (".", "..")
+                and "/" not in name and "\\" not in name and "\0" not in name)
 
     def _rebuild_index(self, file: str | Path) -> dict[str, Any]:
         entries = []
@@ -179,9 +235,13 @@ class HistoryStore:
                           f"{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}"
             except Exception:  # noqa: BLE001
                 created = ""
+            try:
+                size = path.stat().st_size
+            except OSError:
+                continue
             entries.append({"id": sid, "file": str(file), "created": created,
                             "reason": "recovered", "label": "",
-                            "bytes": path.stat().st_size, "sha256": "",
+                            "bytes": size, "sha256": file_digest(path),
                             "stored": path.name})
         return {"version": INDEX_VERSION, "file": str(file),
                 "snapshots": entries}
@@ -226,6 +286,10 @@ class HistoryStore:
 
         `data` lets a caller snapshot bytes it already holds (a save that has
         not hit disk yet); otherwise the file is read.
+
+        A label on identical bytes re-labels the newest version instead of
+        creating a duplicate snapshot, so `--snapshot --label` on an
+        unchanged file still does the useful thing.
         """
         path = Path(file)
         try:
@@ -233,9 +297,22 @@ class HistoryStore:
         except OSError as exc:
             raise HistoryError(f"cannot read {path}: {exc}") from exc
         digest = hashlib.sha256(payload).hexdigest()
+        label = clean_label(label)
         with self._lock, _file_lock(self._folder(path) / "index.lock"):
             existing = self.snapshots(path)
             if existing and existing[0].sha256 == digest:
+                if label and existing[0].label != label:
+                    doc = self._read_index(path)
+                    for entry in doc.get("snapshots", []):
+                        if isinstance(entry, dict) and \
+                                entry.get("id") == existing[0].id:
+                            entry["label"] = label
+                    self._write_index(path, doc)
+                    latest = existing[0]
+                    return Snapshot(
+                        id=latest.id, file=latest.file, created=latest.created,
+                        reason=latest.reason, label=label, bytes=latest.bytes,
+                        sha256=latest.sha256, path=latest.path)
                 return None
             now = datetime.now(UTC)
             # The id is also the filename stem; two saves in one second get
@@ -252,38 +329,80 @@ class HistoryStore:
             entries.append({
                 "id": sid, "file": str(path), "created": now.isoformat(
                     timespec="seconds"),
-                "reason": str(reason or "save"), "label": str(label or ""),
+                "reason": str(reason or "save"), "label": label,
                 "bytes": len(payload), "sha256": digest, "stored": stored,
             })
-            doc = self._prune(path, entries)
+            doc, removed = self._prune(path, entries)
+            # The index is the truth: commit it first, then delete the
+            # files it no longer names. A crash in between leaves an
+            # unreferenced snapshot (recoverable) rather than an index
+            # entry whose file is gone.
             self._write_index(path, doc)
+            self._unlink(path, removed)
             return Snapshot(
                 id=sid, file=str(path),
                 created=now.isoformat(timespec="seconds"),
-                reason=str(reason or "save"), label=str(label or ""),
+                reason=str(reason or "save"), label=label,
                 bytes=len(payload), sha256=digest, path=target)
 
+    def _entry_size(self, folder: Path, entry: dict[str, Any]) -> int:
+        try:
+            size = int(entry.get("bytes") or 0)
+        except (TypeError, ValueError):
+            size = 0
+        if size > 0:
+            return size
+        try:
+            return (folder / str(entry.get("stored") or "")).stat().st_size
+        except OSError:
+            return 0
+
     def _prune(self, file: str | Path, entries: list[dict[str, Any]]
-               ) -> dict[str, Any]:
+               ) -> tuple[dict[str, Any], list[str]]:
+        """Keep the newest versions within both limits.
+
+        The byte cap is checked between versions, so the newest version is
+        always kept even when it alone is larger than the cap. Returns the
+        new index and the stored names to delete after it is written.
+        """
+        folder = self._folder(file)
         entries = sorted(
             entries, key=lambda e: (str(e.get("created") or ""),
                                     str(e.get("id") or "")), reverse=True)
         kept: list[dict[str, Any]] = []
+        removed: list[str] = []
         total = 0
         for entry in entries:
             name = str(entry.get("stored") or "")
-            size = int(entry.get("bytes") or 0)
+            size = self._entry_size(folder, entry)
             if len(kept) >= self.keep or (kept and total + size > self.max_bytes):
                 if name:
-                    try:
-                        (self._folder(file) / name).unlink()
-                    except OSError:
-                        pass
+                    removed.append(name)
                 continue
             kept.append(entry)
             total += size
         return {"version": INDEX_VERSION, "file": str(file),
-                "snapshots": kept}
+                "snapshots": kept}, removed
+
+    def _unlink(self, file: str | Path, names: list[str]) -> None:
+        folder = self._folder(file)
+        for name in names:
+            try:
+                (folder / name).unlink()
+            except OSError:
+                pass
+
+    def set_label(self, file: str | Path, snapshot_id: str, label: str) -> bool:
+        """Set or clear the label of one snapshot; content is unchanged."""
+        text = clean_label(label)
+        with self._lock, _file_lock(self._folder(file) / "index.lock"):
+            doc = self._read_index(file)
+            for entry in doc.get("snapshots", []):
+                if isinstance(entry, dict) and entry.get("id") == snapshot_id:
+                    entry["label"] = text
+                    self._write_index(file, doc)
+                    return True
+            return False
 
     # -- reading / restoring -------------------------------------------
     def snapshot(self, file: str | Path, snapshot_id: str) -> Snapshot | None:
@@ -311,7 +430,7 @@ class HistoryStore:
         return destination
 
     def discard(self, file: str | Path, snapshot_id: str) -> bool:
-        with self._lock:
+        with self._lock, _file_lock(self._folder(file) / "index.lock"):
             doc = self._read_index(file)
             kept = []
             removed = None

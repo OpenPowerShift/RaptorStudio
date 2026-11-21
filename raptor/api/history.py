@@ -30,3 +30,7 @@ def restore(path: str | Path, snapshot_id: str,
 
 def discard(path: str | Path, snapshot_id: str) -> bool:
     return default_store().discard(path, snapshot_id)
+
+
+def set_label(path: str | Path, snapshot_id: str, label: str) -> bool:
+    return default_store().set_label(path, snapshot_id, label)

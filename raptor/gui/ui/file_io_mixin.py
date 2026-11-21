@@ -706,6 +706,22 @@ class FileIoMixin(_Base):
             import logging
             logging.getLogger(__name__).exception("could not record history")
 
+    def _history_changed_on_disk(self, path: str) -> bool:
+        """True when the file no longer matches its newest recorded version.
+
+        Another program (or a previous session with history switched off)
+        can change the file while this window still shows the old model.
+        Restoring would throw that change away, so the caller warns first
+        even though the replaced bytes are recorded.
+        """
+        from raptor.api import history
+        from raptor.core.history import file_digest
+        shots = history.snapshots(path)
+        if not shots or not shots[0].sha256:
+            return False
+        disk = file_digest(path)
+        return bool(disk) and disk != shots[0].sha256
+
     def _open_model_any(self, path: str):
         """Read .rbds or legacy .rbd by extension: the loader the CLI and MCP
         server use too, with the same schema check and messages."""
@@ -753,6 +769,17 @@ class FileIoMixin(_Base):
             # the model a second later overwrites.
             if not self._confirm_discard_unsaved(closing=True):
                 return
+            if self._history_changed_on_disk(self._current_file):
+                if not question_box(
+                        self, "File Changed Outside RAPTOR Studio",
+                        f"{Path(self._current_file).name} is different on "
+                        "disk from the newest version in History: another "
+                        "program, or an earlier session, changed it.\n\n"
+                        "Restoring replaces those changes. A copy of the "
+                        "file as it is now is recorded in History first, so "
+                        "you can recover them from this list.\n\nContinue?",
+                        yes_text="Continue", no_text="Cancel"):
+                    return
             if not question_box(
                     self, "Restore Version",
                     f"Replace {Path(self._current_file).name} with the version "

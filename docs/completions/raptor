@@ -25,7 +25,7 @@ _raptor() {
     get) opts="--format --help" ;;
     gui) opts="--help --new --theme" ;;
     help) opts="--help" ;;
-    history) opts="--force --format --help --output --restore --snapshot" ;;
+    history) opts="--force --format --help --label --output --restore --snapshot" ;;
     info) opts="--element --format --help" ;;
     library) opts="--help" ;;
     mcp) opts="" ;;

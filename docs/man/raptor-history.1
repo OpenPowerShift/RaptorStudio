@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-history \- list, snapshot or restore saved versions of a model
 .SH SYNOPSIS
-\fBraptor history\fR [\-h] [\-\-snapshot] [\-\-restore SNAPSHOT] [\-o PATH] [\-\-force] [\-f {text,json}] MODEL
+\fBraptor history\fR [\-h] [\-\-snapshot] [\-\-label TEXT] [\-\-restore SNAPSHOT] [\-o PATH] [\-\-force] [\-f {text,json}] MODEL
 .SH DESCRIPTION
 Version history kept by the desktop application on save. Snapshots live in the user's private state folder, not beside the model.
 .SH OPTIONS
@@ -11,6 +11,9 @@ Version history kept by the desktop application on save. Snapshots live in the u
 \fB\-\-snapshot\fR
 record the file as it is now
 .TP
+\fB\-\-label\fR \fITEXT\fR
+label the snapshot (with \-\-snapshot); an unchanged file re\-labels its newest version
+.TP
 \fB\-\-restore\fR \fISNAPSHOT\fR
 write this snapshot to \-\-output (or \-\-force over MODEL)
 .TP
@@ -18,7 +21,7 @@ write this snapshot to \-\-output (or \-\-force over MODEL)
 destination for \-\-restore
 .TP
 \fB\-\-force\fR
-allow \-\-restore to overwrite MODEL
+allow \-\-restore to overwrite MODEL or an existing \-\-output
 .TP
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 output format (default text)

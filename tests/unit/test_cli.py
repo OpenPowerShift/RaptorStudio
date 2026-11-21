@@ -134,6 +134,88 @@ def test_malformed_set_paths_are_2(capsys, bad):
     assert code == X.USAGE and err
 
 
+# --- version history -------------------------------------------------------
+
+def _history_store(tmp_path, monkeypatch):
+    from raptor.api import history as api_history
+    from raptor.core.history import HistoryStore
+    store = HistoryStore(tmp_path / "history")
+    monkeypatch.setattr(api_history, "default_store", lambda: store)
+    return store
+
+
+def test_history_missing_model_is_2(capsys):
+    code, _, err = run_cli(capsys, "history", "no/such/model.rbds")
+    assert code == X.USAGE and "file not found" in err
+
+
+def test_history_option_mistakes_are_2(capsys, tmp_path):
+    model = tmp_path / "m.rbds"
+    model.write_text("v1", encoding="utf-8")
+    cases = [
+        (["--label", "x"], "--label"),
+        (["--force"], "--force"),
+        (["-o", str(tmp_path / "out.rbds")], "--output"),
+        (["--snapshot", "--restore", "ID"], "separate actions"),
+    ]
+    for extra, needle in cases:
+        code, _, err = run_cli(capsys, "history", str(model), *extra)
+        assert code == X.USAGE and needle in err
+
+
+def test_history_snapshot_list_restore_and_exit_codes(capsys, tmp_path, monkeypatch):
+    store = _history_store(tmp_path, monkeypatch)
+    model = tmp_path / "m.rbds"
+    model.write_text("v1", encoding="utf-8")
+
+    code, out, _ = run_cli(capsys, "history", str(model), "--snapshot",
+                           "--label", "baseline")
+    assert code == X.OK and "recorded" in out and "baseline" in out
+    shot = store.snapshots(model)[0]
+
+    code, out, _ = run_cli(capsys, "history", str(model), "-f", "json")
+    doc = json.loads(out)
+    assert code == X.OK
+    assert doc["snapshots"][0]["label"] == "baseline"
+    assert doc["snapshots"][0]["current"] is True
+    assert doc["current_id"] == shot.id
+
+    copy = tmp_path / "old.rbds"
+    code, out, _ = run_cli(capsys, "history", str(model), "--restore",
+                           shot.id, "-o", str(copy))
+    assert code == X.OK and "restored" in out and copy.read_text() == "v1"
+
+    code, _, err = run_cli(capsys, "history", str(model), "--restore",
+                           shot.id, "-o", str(copy))
+    assert code == X.USAGE and "exists" in err
+    code, _, _ = run_cli(capsys, "history", str(model), "--restore",
+                         shot.id, "-o", str(copy), "--force")
+    assert code == X.OK
+
+    code, _, _ = run_cli(capsys, "history", str(model), "--restore",
+                         shot.id, "--force")
+    assert code == X.OK and model.read_text() == "v1"
+
+    code, _, err = run_cli(capsys, "history", str(model), "--restore",
+                           "no-such-id", "-o", str(tmp_path / "x.rbds"))
+    assert code == X.USAGE and "not found" in err
+
+
+def test_history_restore_of_a_damaged_version_is_1_and_writes_nothing(
+        capsys, tmp_path, monkeypatch):
+    store = _history_store(tmp_path, monkeypatch)
+    model = tmp_path / "m.rbds"
+    model.write_text("v1", encoding="utf-8")
+    assert run_cli(capsys, "history", str(model), "--snapshot")[0] == X.OK
+    shot = store.snapshots(model)[0]
+    shot.path.write_bytes(b"tampered")
+    copy = tmp_path / "old.rbds"
+    code, _, err = run_cli(capsys, "history", str(model), "--restore",
+                           shot.id, "-o", str(copy))
+    assert code == X.RUNTIME and "checksum" in err
+    assert not copy.exists()
+
+
 # --- stdout discipline -----------------------------------------------------
 
 @pytest.mark.parametrize("verbosity", [[], ["-vv"]])
