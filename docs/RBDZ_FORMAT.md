@@ -29,10 +29,13 @@ plant.rbdz
 └── manifest.json                  format, version, entries, sizes, hashes
 ```
 
-Only `model.rbds` and `manifest.json` are required. Every `results/` entry
-is optional, so a model-only archive is a valid `.rbdz`. The model is the
-same document described in [`RBDS_FORMAT.md`](RBDS_FORMAT.md) and is read
-by the same schema-checked reader; nothing in the archive is executable.
+`model.rbds` is required. Every archive written by RAPTOR Studio also
+contains `manifest.json`, and every `results/` entry is optional, so a
+model-only archive is a valid `.rbdz`. A container with a model but no
+manifest still opens (it simply carries no version or result metadata), but
+a manifest that is present must be a JSON object for this format. The model
+is the same document described in [`RBDS_FORMAT.md`](RBDS_FORMAT.md) and is
+read by the same schema-checked reader; nothing in the archive is executable.
 
 ## Manifest
 
@@ -49,6 +52,8 @@ by the same schema-checked reader; nothing in the archive is executable.
     "sha256": "…"
   },
   "results": {
+    "run_id": "a1b2c3d4e5f6",
+    "model_hash": "9f86d081884c7d65…",
     "num_runs": 400,
     "units": "hours",
     "run_at": "2026-11-01T12:51:00",
@@ -59,11 +64,21 @@ by the same schema-checked reader; nothing in the archive is executable.
 }
 ```
 
+`run_id` is the short digest of the run manifest and `model_hash` is the
+hash of the model **as it was run**; the archive's own `model.sha256` is the
+model **as it was saved**, which differs if the model was edited after the
+run. `summary.json` carries the complete run manifest.
+
 `created` is archive metadata, not model content, so it does not affect a
-model diff. The model hash is over the exact `model.rbds` bytes. A reader
-refuses a missing `model.rbds`, a manifest for another product, a format
-version newer than it understands, absolute or `..` paths, more than
-10,000 entries, and an archive that declares more than 4 GiB unpacked.
+model diff. The model hash is over the exact `model.rbds` bytes and is
+checked on open when the manifest has one, so a hand-edited model in an
+existing archive is reported rather than silently shown. A reader also
+refuses a missing `model.rbds`, a manifest for another product, a manifest
+that is not a JSON object or is larger than 8 MiB, a format version newer
+than it understands, absolute or `..` paths, drive-letter/`:` components,
+duplicate entry names, more than 10,000 entries, and an archive that
+declares more than 4 GiB unpacked for the entries it is about to read
+(a model-only open counts only `model.rbds` and `manifest.json`).
 
 ## Compression: what was measured
 
@@ -90,8 +105,10 @@ files that dominate an archive.
 small metadata. `compression="smallest"` selects LZMA for a deliberate
 long save, `compression="fast"` selects deflate throughout. All three use
 the standard library and are readable by 7-Zip and by RAPTOR Studio.
-Archives use a fixed 1980-01-01 entry timestamp, so two saves of the same
-content differ only in the manifest's `created` field.
+Each entry is copied through a fixed-size buffer in both directions, so
+saving or reopening an archive with a 475 MB plot does not need 475 MB of
+RAM. Archives use a fixed 1980-01-01 entry timestamp, so two saves of the
+same content differ only in the manifest's `created` field.
 
 ## Results restore
 
@@ -120,3 +137,10 @@ the ordinary `model.rbds` used by the rest of the workspace. Archive
 creation is available from the GUI's Save As; a command-line
 `--save-archive` option can be added on top of
 `raptor.core.fileio.rbdz.write_archive` without changing the format.
+
+The CLI and API **read** an archive's model; they do not write one. An
+in-place CLI edit of a `.rbdz` (`--in-place`) fails with the API's format
+error instead of replacing the archive with a plain `.rbds` document, and
+`save_model_as` only accepts `.rbds`/`.rbd` output. Results restore is a GUI
+feature: a headless caller that wants the saved numbers reads the archive
+with `read_archive` / `extract_results` directly.

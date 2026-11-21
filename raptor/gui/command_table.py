@@ -53,7 +53,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_save_as_action",
         text="Save As",
         icon="save_as_icon:text",
-        tooltip="Save to a new .rbds or .rbd file (Ctrl+Shift+S)",
+        tooltip=("Save to a new .rbds, .rbdz (model + saved results) or "
+                 ".rbd file (Ctrl+Shift+S)"),
         handler="_save_file_as",
         shortcut="Ctrl+Shift+S",
         enabled_when="model_open"),

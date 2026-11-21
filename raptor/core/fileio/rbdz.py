@@ -18,29 +18,37 @@ same column names, timestamps and states over and over.
 
 ZIP was chosen over a bespoke archive because every operating system can
 open it, the standard library reads and writes it, and an entry can be
-streamed (a 500 MB plot is never held in memory).  Entries are written
-with bzip2 by default — close to LZMA's ratio at a fraction of the time —
-with deflate for small metadata and LZMA available for a deliberate
-"smallest" save.  The layout is documented in ``docs/RBDZ_FORMAT.md``.
+streamed: a 475 MB plot is copied through a fixed-size buffer in both
+directions, never held in memory.  Entries are written with bzip2 by
+default — close to LZMA's ratio at a fraction of the time — with deflate
+for small metadata and LZMA available for a deliberate "smallest" save.
+The layout is documented in ``docs/RBDZ_FORMAT.md``.
 
 Security: an archive is untrusted input.  Paths are checked (no absolute
-names, no ``..``), entry count and uncompressed size are capped, and only
-``model.rbds`` is parsed by the model reader.  Result files are treated as
-text, never executed.
+names, no ``..``, no drive-relative or ``:`` components), entry count and
+uncompressed size are capped, and only ``model.rbds`` is parsed by the
+model reader.  Result files are treated as text, never executed.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import lzma
 import os
+import shutil
+import uuid
 import zipfile
+import zlib
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Iterable
 from typing import Any
 
 FORMAT_ID = "raptor-studio-archive"
+#: ``results/summary.json``'s own format id (not the archive's).
+RESULTS_FORMAT_ID = "raptor-studio-results"
 VERSION = 1
+RESULTS_VERSION = 1
 
 MODEL_NAME = "model.rbds"
 MANIFEST_NAME = "manifest.json"
@@ -58,9 +66,20 @@ DEFAULT_COMPRESSION = "balanced"
 MAX_ENTRIES = 10_000
 #: Refuse an archive whose declared uncompressed size is above this.
 MAX_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024
+#: The manifest is small metadata; a huge one is malformed, not a plan.
+MAX_MANIFEST_BYTES = 8 * 1024 * 1024
 #: Files smaller than this are cheaper to deflate (and stay readable by
 #: every unzipper) than to bzip2/LZMA.
 _SMALL_ENTRY = 4096
+#: Copy buffer for a streamed entry (and for extraction).
+_CHUNK = 1024 * 1024
+#: A local ZIP header's 32-bit size limit; pass it to force a Zip64 header.
+_ZIP64_LIMIT = (1 << 31) - 1
+
+#: Failures a damaged or unsupported entry can raise while being read:
+#: zlib/LZMA streams report their own errors, and bzip2 raises `OSError`.
+_READ_ERRORS = (zipfile.BadZipFile, RuntimeError, NotImplementedError,
+                EOFError, OSError, zlib.error, lzma.LZMAError)
 
 
 class RbdzError(Exception):
@@ -84,35 +103,103 @@ class RbdzArchive:
 
     @property
     def has_results(self) -> bool:
-        return bool(self.results) or bool(
-            (self.manifest.get("results") or {}).get("files"))
+        """True when the container (or its manifest) names result files."""
+        if self.results:
+            return True
+        results = self.manifest.get("results")
+        files = results.get("files") if isinstance(results, dict) else None
+        return bool(files)
+
+
+# ---------------------------------------------------------------------------
+# entry names
+# ---------------------------------------------------------------------------
+
+def _safe_name(name: str) -> str:
+    """Normalise one entry name and refuse anything that could escape.
+
+    Both directions use this rule, so the writer cannot create an entry its
+    own reader would reject.  Absolute names, ``..`` components, NUL bytes
+    and ``:`` components (a Windows drive or an NTFS alternate data stream
+    once the name is joined under an extraction folder) are refused.
+    """
+    clean = str(name).replace("\\", "/")
+    if not clean or clean.startswith("/") or "\x00" in clean:
+        raise RbdzError(f"unsafe entry name {name!r}")
+    parts: list[str] = []
+    for part in clean.split("/"):
+        if part in ("", "."):
+            continue
+        if part == ".." or ":" in part:
+            raise RbdzError(f"unsafe entry name {name!r}")
+        parts.append(part)
+    if not parts:
+        raise RbdzError(f"unsafe entry name {name!r}")
+    return "/".join(parts)
 
 
 # ---------------------------------------------------------------------------
 # writing
 # ---------------------------------------------------------------------------
 
-def _text_bytes(source: Any) -> bytes:
-    """Turn one entry's source into bytes without holding a stream twice."""
-    if isinstance(source, bytes):
-        return source
-    if isinstance(source, str):
-        return source.encode("utf-8")
-    if isinstance(source, os.PathLike):
-        return Path(source).read_bytes()
-    if hasattr(source, "read_all_lines"):
-        # A ResultStream: read its file, not its materialised list.
+def _iter_path(path: Any) -> Iterator[bytes]:
+    """Yield a file's bytes through the fixed-size buffer."""
+    try:
+        with open(path, "rb") as fh:
+            while chunk := fh.read(_CHUNK):
+                yield chunk
+    except OSError as exc:
+        raise RbdzError(f"cannot read {path}: {exc}") from exc
+
+
+def _iter_lines(lines: Iterable[Any]) -> Iterator[bytes]:
+    for line in lines:
+        text = str(line)
+        yield (text if text.endswith("\n") else text + "\n").encode("utf-8")
+
+
+def _iter_source(source: Any) -> Iterator[bytes]:
+    """Yield one entry's bytes in chunks, without materialising a file.
+
+    A path (or an object with a ``path`` such as ``ResultStream``) is read
+    through :data:`_CHUNK`; text and iterables are encoded a line at a
+    time.  The result is the same bytes ``read_all_lines`` would join, but
+    a 475 MB plot never exists in RAM.
+    """
+    if isinstance(source, (bytes, str)):
+        if isinstance(source, bytes):
+            yield source
+        elif source:
+            yield source.encode("utf-8")
+        return
+    path = source if isinstance(source, os.PathLike) else None
+    if path is None and hasattr(source, "read_all_lines"):
         path = getattr(source, "path", None)
-        if path:
-            return Path(path).read_bytes()
-        return "\n".join(source.read_all_lines()).encode("utf-8")
-    if isinstance(source, Iterable):
-        chunks: list[str] = []
-        for line in source:
-            text = str(line)
-            chunks.append(text if text.endswith("\n") else text + "\n")
-        return "".join(chunks).encode("utf-8")
-    raise TypeError(f"cannot archive {type(source).__name__}")
+    if path is not None:
+        yield from _iter_path(path)
+        return
+    if hasattr(source, "read_all_lines"):
+        lines: Iterable[Any] = source.read_all_lines()
+    elif isinstance(source, Iterable):
+        lines = source
+    else:
+        raise TypeError(f"cannot archive {type(source).__name__}")
+    yield from _iter_lines(lines)
+
+
+def _size_hint(source: Any) -> int | None:
+    """The source's size when it is cheap to know (to pick a compressor)."""
+    if isinstance(source, (bytes, str)):
+        return len(source)
+    path = source if isinstance(source, os.PathLike) else None
+    if path is None and hasattr(source, "read_all_lines"):
+        path = getattr(source, "path", None)
+    if path is not None:
+        try:
+            return os.stat(path).st_size
+        except OSError:
+            return None
+    return None
 
 
 def _entry_info(name: str, compress_type: int) -> zipfile.ZipInfo:
@@ -126,23 +213,33 @@ def _entry_info(name: str, compress_type: int) -> zipfile.ZipInfo:
 
 
 def _write_entry(zf: zipfile.ZipFile, name: str, source: Any,
-                 profile: int) -> None:
-    data = _text_bytes(source)
-    compress = profile if len(data) >= _SMALL_ENTRY else zipfile.ZIP_DEFLATED
-    zf.writestr(_entry_info(name, compress), data)
+                 profile: int) -> zipfile.ZipInfo:
+    """Stream one entry into the open archive and return its ``ZipInfo``."""
+    size = _size_hint(source)
+    compress = profile if size is None or size >= _SMALL_ENTRY \
+        else zipfile.ZIP_DEFLATED
+    info = _entry_info(name, compress)
+    # force_zip64 only when the entry may pass the 2 GiB local-header limit
+    # (an unknown-size stream could): every other entry stays an ordinary
+    # header that even the simplest unzipper reads.
+    force64 = size is None or size > _ZIP64_LIMIT
+    with zf.open(info, "w", force_zip64=force64) as dst:
+        for chunk in _iter_source(source):
+            dst.write(chunk)
+    return info
 
 
 def _normalise_results(results: dict[str, Any] | None) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for name, source in (results or {}).items():
-        clean = str(name).replace("\\", "/").strip("/")
-        if not clean or clean.startswith("../") or "/../" in clean:
-            raise RbdzError(f"unsafe result name {name!r}")
+        clean = _safe_name(name)
+        if clean in out:
+            raise RbdzError(f"two result files are both named {clean!r}")
         out[clean] = source
     return out
 
 
-def write_archive(path: str | os.PathLike, model_text: str, *,  # noqa: C901
+def write_archive(path: str | os.PathLike, model_text: str, *,
                   results: dict[str, Any] | None = None,
                   manifest: dict[str, Any] | None = None,
                   compression: str = DEFAULT_COMPRESSION,
@@ -152,17 +249,17 @@ def write_archive(path: str | os.PathLike, model_text: str, *,  # noqa: C901
 
     Returns the manifest that was written.  A result source may be a
     string, bytes, a path, a ``ResultStream`` or an iterable of lines; it
-    is streamed into the archive, not joined in memory first.
+    is streamed into the archive, not read into memory first.
     """
     if compression not in COMPRESSION_PROFILES:
         raise ValueError(f"unknown compression {compression!r}; choose from "
                          f"{', '.join(sorted(COMPRESSION_PROFILES))}")
     profile = COMPRESSION_PROFILES[compression]
     result_sources = _normalise_results(results)
-    if not model_text.strip():
+    model_bytes = model_text.encode("utf-8")
+    if not model_bytes.strip():
         raise RbdzError("the model is empty")
-    if generated := (manifest or {}).get("generator"):
-        generator = generator or generated
+    generator = generator or (manifest or {}).get("generator")
     if generator is None:
         try:
             from raptor import __version__ as _v
@@ -182,42 +279,41 @@ def write_archive(path: str | os.PathLike, model_text: str, *,  # noqa: C901
     doc["model"] = {
         **(doc.get("model") or {}),
         "name": MODEL_NAME,
-        "bytes": len(model_text.encode("utf-8")),
-        "sha256": hashlib.sha256(model_text.encode("utf-8")).hexdigest(),
+        "bytes": len(model_bytes),
+        "sha256": hashlib.sha256(model_bytes).hexdigest(),
     }
 
     result_entries: dict[str, dict[str, Any]] = {}
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_name(target.name + ".part")
+    # A unique temp name means two saves in the same window/folder cannot
+    # empty each other's half-written archive. Unlike `mkstemp`, an ordinary
+    # create keeps the file mode a normal save gets (0666 minus the umask),
+    # so a shared archive is not silently owner-only.
+    tmp = target.with_name(f".{target.name}.{uuid.uuid4().hex}.part")
     try:
-        with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_STORED,
-                             allowZip64=True) as zf:
-            _write_entry(zf, MODEL_NAME, model_text, profile)
+        with zipfile.ZipFile(tmp, "w", allowZip64=True) as zf:
+            _write_entry(zf, MODEL_NAME, model_bytes, profile)
             for name in sorted(result_sources):
-                _write_entry(zf, RESULTS_DIR + name, result_sources[name], profile)
-                info = zf.getinfo(RESULTS_DIR + name)
+                info = _write_entry(zf, RESULTS_DIR + name,
+                                    result_sources[name], profile)
                 result_entries[name] = {"bytes": info.file_size}
             if result_entries:
                 doc["results"] = {**(doc.get("results") or {}),
                                   "files": result_entries}
-            doc.setdefault("files", {})
             doc["files"] = {
-                MODEL_NAME: {"bytes": len(model_text.encode("utf-8"))},
+                MODEL_NAME: {"bytes": len(model_bytes)},
                 **{RESULTS_DIR + k: v for k, v in result_entries.items()},
                 MANIFEST_NAME: {},
             }
             # The manifest goes last: it names the entries and their sizes, so
             # it can only be complete once they have been written.
-            _write_entry(zf, MANIFEST_NAME,
-                         json.dumps(doc, indent=1, sort_keys=True) + "\n",
-                         zipfile.ZIP_DEFLATED)
+            zf.writestr(
+                _entry_info(MANIFEST_NAME, zipfile.ZIP_DEFLATED),
+                json.dumps(doc, indent=1, sort_keys=True) + "\n")
         os.replace(tmp, target)
     except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
+        tmp.unlink(missing_ok=True)
         raise
     return doc
 
@@ -226,76 +322,141 @@ def write_archive(path: str | os.PathLike, model_text: str, *,  # noqa: C901
 # reading
 # ---------------------------------------------------------------------------
 
-def _safe_name(name: str) -> str:
-    clean = name.replace("\\", "/")
-    parts = [p for p in clean.split("/") if p not in ("", ".")]
-    if not parts or any(p == ".." for p in parts):
-        raise RbdzError(f"unsafe entry name {name!r}")
-    if clean.startswith("/") or (len(clean) > 1 and clean[1] == ":"):
-        raise RbdzError(f"unsafe entry name {name!r}")
-    return "/".join(parts)
+def _entries(zf: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
+    """Map every readable entry's safe name to its ``ZipInfo``.
+
+    Reading by ``ZipInfo`` (not by the normalised name) matters: an archive
+    written elsewhere may spell an entry ``./results/x`` or use backslashes,
+    and its stored name is not the name this module normalises to.
+    """
+    infos = zf.infolist()
+    if len(infos) > MAX_ENTRIES:
+        raise RbdzError(
+            f"the archive has {len(infos):,} entries; the limit is "
+            f"{MAX_ENTRIES:,}")
+    entries: dict[str, zipfile.ZipInfo] = {}
+    for info in infos:
+        if info.is_dir():
+            continue
+        name = _safe_name(info.filename)
+        if name in entries:
+            raise RbdzError(f"the archive has two entries named {name!r}")
+        entries[name] = info
+    return entries
 
 
-def read_archive(path: str | os.PathLike, *, with_results: bool = True,  # noqa: C901, PLR0912
+def _read_entry(zf: zipfile.ZipFile, info: zipfile.ZipInfo, *,
+                what: str) -> bytes:
+    """Read one entry, turning a damaged/unsupported stream into `RbdzError`."""
+    try:
+        return zf.read(info)
+    except _READ_ERRORS as exc:
+        raise RbdzError(
+            f"{what} could not be read from the archive ({exc})") from exc
+
+
+def _check_manifest(manifest: dict[str, Any]) -> None:
+    if manifest.get("format") not in (None, FORMAT_ID):
+        raise RbdzError(
+            "the archive manifest is for another product: "
+            f"{manifest.get('format')!r}")
+    try:
+        archived_version = int(manifest.get("version") or 0)
+    except (TypeError, ValueError):
+        raise RbdzError("the archive manifest has an invalid version") from None
+    if archived_version > VERSION:
+        raise RbdzError(
+            "the archive was written by a newer RAPTOR Studio "
+            f"(version {manifest.get('version')}); this build reads "
+            f"version {VERSION}")
+
+
+def _read_manifest(zf: zipfile.ZipFile,
+                   entries: dict[str, zipfile.ZipInfo]) -> dict[str, Any]:
+    """The validated manifest, or ``{}`` for a container that has none."""
+    info = entries.get(MANIFEST_NAME)
+    if info is None:
+        return {}
+    if info.file_size > MAX_MANIFEST_BYTES:
+        raise RbdzError(
+            f"the archive manifest is {info.file_size:,} bytes; the limit "
+            f"is {MAX_MANIFEST_BYTES:,}")
+    raw = _read_entry(zf, info, what=MANIFEST_NAME)
+    try:
+        loaded = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RbdzError("the archive manifest is not valid JSON") from exc
+    if not isinstance(loaded, dict):
+        raise RbdzError("the archive manifest is not a JSON object")
+    _check_manifest(loaded)
+    return loaded
+
+
+def _verify_model(manifest: dict[str, Any], raw: bytes) -> None:
+    """Check the model bytes against the manifest's hash, when it has one."""
+    model = manifest.get("model")
+    expected = model.get("sha256") if isinstance(model, dict) else None
+    if not isinstance(expected, str) or not expected:
+        return
+    if hashlib.sha256(raw).hexdigest() != expected.lower():
+        raise RbdzError(
+            "model.rbds does not match the archive manifest; the archive "
+            "was changed after it was written")
+
+
+def _check_unpacked(entries: Iterable[zipfile.ZipInfo],
+                    limit: int) -> None:
+    total = sum(info.file_size for info in entries)
+    if total > limit:
+        raise RbdzError(
+            f"the archive would unpack to {total / (1024 ** 3):.1f} GB; "
+            f"the limit is {limit / (1024 ** 3):.1f} GB")
+
+
+def read_archive(path: str | os.PathLike, *, with_results: bool = True,
                  max_uncompressed_bytes: int = MAX_UNCOMPRESSED_BYTES
                  ) -> RbdzArchive:
     """Read an archive's model (always) and result files (when requested)."""
-    files: list[zipfile.ZipInfo]
+    results: dict[str, str] = {}
     try:
         with zipfile.ZipFile(path, "r") as zf:
-            files = zf.infolist()
-            if len(files) > MAX_ENTRIES:
+            entries = _entries(zf)
+            if MODEL_NAME not in entries:
                 raise RbdzError(
-                    f"the archive has {len(files):,} entries; the limit is "
-                    f"{MAX_ENTRIES:,}")
-            total = sum(info.file_size for info in files)
-            if total > max_uncompressed_bytes:
-                raise RbdzError(
-                    f"the archive would unpack to {total / (1024 ** 3):.1f} GB; "
-                    f"the limit is {max_uncompressed_bytes / (1024 ** 3):.1f} GB")
-            names = [_safe_name(info.filename) for info in files]
-            if MODEL_NAME not in names:
-                raise RbdzError(f"not a RAPTOR Studio archive: no {MODEL_NAME}")
-            model_text = zf.read(MODEL_NAME).decode("utf-8-sig")
-            manifest: dict[str, Any] = {}
-            if MANIFEST_NAME in names:
-                try:
-                    loaded = json.loads(zf.read(MANIFEST_NAME).decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                    raise RbdzError("the archive manifest is not valid JSON") from exc
-                if isinstance(loaded, dict):
-                    manifest = loaded
-            if manifest.get("format") not in (None, FORMAT_ID):
-                raise RbdzError(
-                    "the archive manifest is for another product: "
-                    f"{manifest.get('format')!r}")
+                    f"not a RAPTOR Studio archive: no {MODEL_NAME}")
+            # Only the entries this call reads count against the size cap:
+            # a model-only open must not be refused because the archive
+            # also carries a legitimate large plot.
+            wanted = entries if with_results else {
+                name: entries[name]
+                for name in (MODEL_NAME, MANIFEST_NAME) if name in entries}
+            _check_unpacked(wanted.values(), max_uncompressed_bytes)
+            manifest = _read_manifest(zf, entries)
+            model_raw = _read_entry(zf, entries[MODEL_NAME], what=MODEL_NAME)
+            _verify_model(manifest, model_raw)
             try:
-                archived_version = int(manifest.get("version") or 0)
-            except (TypeError, ValueError):
-                raise RbdzError("the archive manifest has an invalid version") from None
-            if archived_version > VERSION:
-                raise RbdzError(
-                    "the archive was written by a newer RAPTOR Studio "
-                    f"(version {manifest.get('version')}); this build reads "
-                    f"version {VERSION}")
-            results: dict[str, str] = {}
+                model_text = model_raw.decode("utf-8-sig")
+            except UnicodeDecodeError as exc:
+                raise RbdzError(f"{MODEL_NAME} is not UTF-8 text") from exc
             if with_results:
-                for info in files:
-                    name = _safe_name(info.filename)
-                    if not name.startswith(RESULTS_DIR) or name.endswith("/"):
+                for name in sorted(entries):
+                    if not name.startswith(RESULTS_DIR):
                         continue
                     key = name[len(RESULTS_DIR):]
                     if not key:
                         continue
+                    raw = _read_entry(zf, entries[name],
+                                      what=f"result file {key!r}")
                     try:
-                        results[key] = zf.read(name).decode("utf-8-sig")
+                        results[key] = raw.decode("utf-8-sig")
                     except UnicodeDecodeError as exc:
                         raise RbdzError(
                             f"result file {key!r} is not UTF-8 text") from exc
     except zipfile.BadZipFile as exc:
         raise RbdzError(f"{path} is not a ZIP archive") from exc
     return RbdzArchive(path=str(path), model_text=model_text,
-                       manifest=manifest, results=results, names=names)
+                       manifest=manifest, results=results,
+                       names=list(entries))
 
 
 def load_model(path: str | os.PathLike):
@@ -350,67 +511,50 @@ class ArchivedLines:
 
     def export_to(self, path: str) -> None:
         """Save Raw Report / Save Plot Data can write the extracted file."""
-        import shutil
         shutil.copyfile(self.path, path)
 
 
-def extract_results(path: str | os.PathLike, destination: str | os.PathLike  # noqa: C901
+def extract_results(path: str | os.PathLike, destination: str | os.PathLike,
+                    *,
+                    max_uncompressed_bytes: int = MAX_UNCOMPRESSED_BYTES
                     ) -> tuple[dict[str, Path], dict[str, Any]]:
     """Extract the result entries into *destination* and return their paths.
 
     Returns ``({name: path}, manifest)``.  Extraction is per entry and
-    refuses unsafe names, like ``read_archive``.  The caller owns the
-    destination (the GUI gives it a ``TemporaryDirectory``).
+    streams each one through a fixed buffer.  Unsafe names are refused, like
+    ``read_archive``.  The caller owns the destination (the GUI gives it a
+    ``TemporaryDirectory``).
     """
     out: dict[str, Path] = {}
     target = Path(destination)
     target.mkdir(parents=True, exist_ok=True)
     try:
         with zipfile.ZipFile(path, "r") as zf:
-            infos = zf.infolist()
-            if len(infos) > MAX_ENTRIES:
-                raise RbdzError(
-                    f"the archive has {len(infos):,} entries; the limit is "
-                    f"{MAX_ENTRIES:,}")
-            total = sum(info.file_size for info in infos)
-            if total > MAX_UNCOMPRESSED_BYTES:
-                raise RbdzError(
-                    f"the archive would unpack to {total / (1024 ** 3):.1f} GB; "
-                    f"the limit is {MAX_UNCOMPRESSED_BYTES / (1024 ** 3):.1f} GB")
-            names = [_safe_name(info.filename) for info in infos]
-            manifest: dict[str, Any] = {}
-            if MANIFEST_NAME in names:
-                try:
-                    loaded = json.loads(zf.read(MANIFEST_NAME).decode("utf-8"))
-                    manifest = loaded if isinstance(loaded, dict) else {}
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    manifest = {}
-            if manifest.get("format") not in (None, FORMAT_ID):
-                raise RbdzError(
-                    "the archive manifest is for another product: "
-                    f"{manifest.get('format')!r}")
-            try:
-                archived_version = int(manifest.get("version") or 0)
-            except (TypeError, ValueError):
-                raise RbdzError("the archive manifest has an invalid version") from None
-            if archived_version > VERSION:
-                raise RbdzError(
-                    "the archive was written by a newer RAPTOR Studio "
-                    f"(version {manifest.get('version')}); this build reads "
-                    f"version {VERSION}")
-            for info in infos:
-                name = _safe_name(info.filename)
-                if not name.startswith(RESULTS_DIR) or name.endswith("/"):
+            entries = _entries(zf)
+            _check_unpacked(entries.values(), max_uncompressed_bytes)
+            manifest = _read_manifest(zf, entries)
+            for name in sorted(entries):
+                if not name.startswith(RESULTS_DIR):
                     continue
                 key = name[len(RESULTS_DIR):]
                 if not key:
                     continue
                 # `key` is already a safe relative path; write it under the
-                # destination without letting `..` escape (checked above).
+                # destination without letting `..` or a drive letter escape.
                 dest = target / key
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                with zf.open(info) as src, open(dest, "wb") as dst:
-                    while chunk := src.read(1024 * 1024):
+                # Only the archive side of the copy is wrapped: a full disk
+                # must raise its own OSError, not "the archive is damaged".
+                with zf.open(entries[name]) as src, open(dest, "wb") as dst:
+                    while True:
+                        try:
+                            chunk = src.read(_CHUNK)
+                        except _READ_ERRORS as exc:
+                            raise RbdzError(
+                                f"result file {key!r} could not be read "
+                                f"from the archive ({exc})") from exc
+                        if not chunk:
+                            break
                         dst.write(chunk)
                 out[key] = dest
     except zipfile.BadZipFile as exc:

@@ -1400,7 +1400,7 @@
     "Ctrl+Shift+S"
    ],
    "text": "Save As",
-   "tooltip": "Save to a new .rbds or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
+   "tooltip": "Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
   },
   "_select_action": {
    "checkable": true,

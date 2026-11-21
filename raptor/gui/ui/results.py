@@ -1290,6 +1290,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """A result set is on screen (as opposed to the placeholder)."""
         return bool(self._report_data or self._event_logs)
 
+    def run_count(self) -> int:
+        """How many runs the result set on screen holds."""
+        return len(self._report_data)
+
     def ran_without_event_log(self) -> bool:
         """The results on screen were made with Detailed event log off
         (from the run's own record, not the panel as it is now)."""
@@ -1363,9 +1367,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if self._event_logs:
             from raptor.core.engine.eventlog import format_event_log_file
             import time as _time
-            sources["events.txt"] = "\n".join(format_event_log_file(
+            # A list of lines, not one joined string: the archive writer
+            # streams it, so a large batch never exists twice in memory.
+            sources["events.txt"] = format_event_log_file(
                 self._event_logs, self._source_file_name or "model.rbds",
-                _time.ctime()))
+                _time.ctime())
         ao = getattr(self, "_ao_lines", None)
         if ao is not None and (not hasattr(ao, "__len__") or len(ao)):
             sources["availability_plot.txt"] = ao
@@ -1375,10 +1381,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if value is not None and (not hasattr(value, "__len__")
                                       or len(value)):
                 sources[key] = value
-        if self._report_data:
+        run_rows = [rd for rd in self._report_data if rd is not None]
+        if run_rows:
             sources["per_run.json"] = json.dumps(
-                [_rd_to_dict(rd) for rd in self._report_data
-                 if rd is not None])
+                [_rd_to_dict(rd) for rd in run_rows])
         attribution = (self._drivers_page.attribution()
                        if hasattr(self, "_drivers_page") else None)
         if attribution:
@@ -1386,24 +1392,31 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if getattr(self, "_outages", None) is not None:
                 doc["outages"] = self._outages
             sources["attribution.json"] = json.dumps(doc)
+        from raptor.core.fileio.rbdz import RESULTS_FORMAT_ID, RESULTS_VERSION
+        from raptor.core.run_manifest import manifest_digest
+        run_manifest = self._manifest or {}
         summary = {
-            "format": "raptor-studio-results",
-            "version": 1,
+            "format": RESULTS_FORMAT_ID,
+            "version": RESULTS_VERSION,
+            # What the reviewer's first questions are: which run, and
+            # which model it was run against (the archive's own model may
+            # have been edited since).
+            "run_id": manifest_digest(run_manifest) if run_manifest else None,
+            "model_hash": run_manifest.get("model_hash"),
             "model_name": self._source_file_name or "",
             "units": self._units or "",
-            "num_runs": len(self._report_data),
+            "num_runs": len(run_rows),
             "run_at": (self._run_at.isoformat()
                        if getattr(self, "_run_at", None) else None),
-            "manifest": self._manifest or {},
+            "manifest": run_manifest,
             "has_phases": any(bool(getattr(d, "has_phases", False))
-                              for d in self._report_data),
+                              for d in run_rows),
         }
         sources["summary.json"] = json.dumps(summary, indent=1)
         return sources
 
     def set_archive_results(self, files: dict[str, Any],
                             summary: dict[str, Any] | None = None,
-                            manifest: dict[str, Any] | None = None,
                             rbd=None) -> bool:
         """Put an `.rbdz` archive's saved result set on screen.
 
@@ -1452,9 +1465,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     return json.loads(value.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     return fallback
+            if isinstance(value, (str, bytes)):
+                try:
+                    return json.loads(value)
+                except ValueError:
+                    return fallback
             return fallback
 
-        summary = summary or {}
+        summary = summary if isinstance(summary, dict) else {}
         run_rows = load_json("per_run.json", [])
         if not isinstance(run_rows, list):
             run_rows = []
@@ -1501,22 +1519,26 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if not isinstance(attribution, dict):
             attribution = None
         units = str(summary.get("units") or "")
-        notes = []
-        run_at = summary.get("run_at")
+        run_at = None
+        raw_run_at = summary.get("run_at")
+        if isinstance(raw_run_at, str) and raw_run_at:
+            from datetime import datetime
+            try:
+                run_at = datetime.fromisoformat(raw_run_at)
+            except ValueError:
+                run_at = None
+        # Only `summary.manifest` is the RUN manifest the result pages
+        # expect; the archive's own manifest is format metadata, not a run.
+        run_manifest = summary.get("manifest")
         self.set_results(
             event_logs, object_lines("end_of_run.txt"),
             lines("final_results.txt"), report_data=runs, units=units,
-            notes=notes, ao_lines=object_lines("availability_plot.txt"),
+            notes=[], ao_lines=object_lines("availability_plot.txt"),
             cap_lines=object_lines("capacity.txt"),
             cost_lines=object_lines("cost.txt"),
-            manifest=summary.get("manifest") or manifest or {},
-            importance=None, rbd=rbd, attribution=attribution)
-        if run_at:
-            from datetime import datetime
-            try:
-                self._run_at = datetime.fromisoformat(run_at)
-            except ValueError:
-                pass
+            manifest=run_manifest if isinstance(run_manifest, dict) else None,
+            importance=None, rbd=rbd, attribution=attribution,
+            run_at=run_at)
         self._source_file_name = str(summary.get("model_name") or "")
         return bool(runs or event_logs)
 
@@ -1790,7 +1812,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     importance: dict | None = None,
                     rbd=None,
                     progress=None,
-                    attribution: dict | None = None):
+                    attribution: dict | None = None,
+                    run_at=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
         # have been edited. It also means changing a run setting (trial
@@ -1810,7 +1833,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._rbd = rbd
         self._refresh_scope_banner()
         from datetime import datetime
-        self._run_at = datetime.now()
+        # A live run is "now"; an archive passes the time it was run, so the
+        # Story, Charts and Run Info say when that run happened.
+        self._run_at = run_at or datetime.now()
         self._event_logs = event_logs
         self._report_data = list(report_data or [])
         # The importance analysis belongs to a run, not to the model, so it

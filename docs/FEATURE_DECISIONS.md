@@ -23,8 +23,9 @@ are in [`RBDZ_FORMAT.md`](RBDZ_FORMAT.md).
 **Opening:** `load_model_file` accepts `.rbdz`, so the GUI, CLI and MCP use
 the same schema-checked model reader. The GUI then extracts result entries
 to a temporary folder and restores them lazily (a 475 MB plot is not read
-into RAM), including a saved `attribution.json` so Drivers do not replay
-the log. A model-only archive is valid.
+into RAM when saving or reopening), including a saved `attribution.json` so
+Drivers do not replay the log. A model-only archive is valid; saving one
+with no run on screen says so in the status bar.
 
 **Not in v1:** several named result sets in one archive, and a CLI
 `--save-archive`. The manifest and entry layout leave room for both.

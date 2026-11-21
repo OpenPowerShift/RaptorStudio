@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+import json
 import os
 import re
 from pathlib import Path
@@ -40,6 +41,21 @@ if TYPE_CHECKING:
     import raptor.gui.ui.run_panel
 else:
     _Base = object
+
+
+def _suffix_for_filter(name_filter: str, default: str) -> str:
+    """The extension a Save dialog's chosen name filter asks for.
+
+    Qt does not append the filter's extension for us, so typing a bare
+    name while "RAPTOR Studio archives (*.rbdz)" is selected used to save
+    `plant.rbds` anyway.  Longest suffixes are checked first so `*.rbdz`
+    is not mistaken for `*.rbd`.
+    """
+    lower = (name_filter or "").lower()
+    for suffix in (".rbdz", ".rbds", ".rbd"):
+        if f"*{suffix}" in lower:
+            return suffix
+    return default
 
 
 class FileIoMixin(_Base):
@@ -131,12 +147,12 @@ class FileIoMixin(_Base):
             dlg.setNameFilter(
                 "All RAPTOR models (*.rbds *.rbdz *.rbd);;"
                 "RAPTOR Studio models (*.rbds);;"
-                "RAPTOR Studio archives, with results (*.rbdz);;"
+                "RAPTOR Studio archives (*.rbdz);;"
                 "Classic RAPTOR (*.rbd)")
         else:
             dlg.setNameFilter(
                 "RAPTOR Studio models (*.rbds);;"
-                "RAPTOR Studio archives, with results (*.rbdz);;"
+                "RAPTOR Studio archives (*.rbdz);;"
                 "Classic RAPTOR (*.rbd)")
             # The Save filter's active default matches the open file's
             # own extension. Plain Save keeps the open format; only
@@ -587,36 +603,36 @@ class FileIoMixin(_Base):
         self._diagram_dock.view.write_back_annotations()
         if str(path).lower().endswith(".rbdz"):
             # The archive carries the model AND whatever result set is on
-            # screen. The model entry is named after the archive so a
-            # reopened result's report cover still says the right thing.
+            # screen. The model entry keeps the .rbds name so a reopened
+            # result's report cover still says the right thing.
             from datetime import datetime
             from raptor.core.fileio.rbdz import write_archive
             rbd = req(self._rbd)
             rbd.file_name = Path(path).with_suffix(".rbds").name
             sources = self._results.archive_payload()
-            manifest = {
+            created = datetime.now().isoformat(timespec="seconds")
+            manifest: dict[str, Any] = {
                 "model": {"file_name": Path(path).name},
-                "created": datetime.now().isoformat(timespec="seconds"),
             }
             if sources is not None:
                 summary = {}
                 text = sources.get("summary.json")
                 if isinstance(text, str):
                     try:
-                        import json
                         summary = json.loads(text)
                     except ValueError:
                         summary = {}
+                # The manifest is what a reviewer reads before opening:
+                # name the run and the model it was run against.
                 manifest["results"] = {
                     key: summary.get(key) for key in
-                    ("num_runs", "units", "run_at", "model_name")
+                    ("run_id", "model_hash", "num_runs", "units", "run_at",
+                     "model_name")
                     if summary.get(key) is not None
                 }
             write_archive(path, rbds_io.render_for_save(rbd),
-                          results=sources or {},
-                          manifest=manifest,
-                          created=manifest["created"])
-            self._current_archive_results = bool(sources)
+                          results=sources, manifest=manifest,
+                          created=created)
             return True
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
@@ -763,7 +779,7 @@ class FileIoMixin(_Base):
         self._clear_archive_results_temp()
         temp = tempfile.TemporaryDirectory(prefix="raptor_rbdz_")
         try:
-            files, manifest = extract_results(path, temp.name)
+            files, _ = extract_results(path, temp.name)
         except Exception as exc:  # noqa: BLE001 - show the file, don't crash
             temp.cleanup()
             msgbox.warning(
@@ -785,8 +801,7 @@ class FileIoMixin(_Base):
                 summary = {}
         self._archive_temp = temp
         shown = self._results.set_archive_results(
-            files, summary if isinstance(summary, dict) else {},
-            manifest, rbd=self._rbd)
+            files, summary if isinstance(summary, dict) else {}, rbd=self._rbd)
         if shown:
             self._results_show_action.setEnabled(True)
             self._results_float_action.setEnabled(True)
@@ -798,6 +813,19 @@ class FileIoMixin(_Base):
             self._clear_archive_results_temp()
         return shown
 
+
+    def _save_message(self, path: str) -> tuple[str, int]:
+        """The status-bar text after a successful save, and how long to show it."""
+        name = Path(path).name
+        if not str(path).lower().endswith(".rbdz"):
+            return f"Saved: {name}", 4000
+        runs = self._results.run_count()
+        if runs:
+            plural = "" if runs == 1 else "s"
+            return (f"Saved archive: {name} "
+                    f"({runs:,} run{plural} of results included)", 8000)
+        return (f"Saved archive: {name} "
+                "(model only — run the model to include results)", 8000)
 
     def _save_file(self):
         if self._rbd is None:
@@ -813,7 +841,8 @@ class FileIoMixin(_Base):
             self._undo_stack.setClean()
             self._dirty = False
             self._update_title()
-            self._statusbar.showMessage(f"Saved: {Path(self._current_file).name}")
+            message, timeout = self._save_message(self._current_file)
+            self._statusbar.showMessage(message, timeout)
         except Exception as e:
             msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
 
@@ -849,8 +878,10 @@ class FileIoMixin(_Base):
         if not path:
             return
         if not str(path).lower().endswith((".rbds", ".rbdz", ".rbd")):
-            # no extension -> new default format
-            path += suffix
+            # No extension: the filter the user chose names the format, so
+            # selecting "RAPTOR Studio archives" and typing "plant" saves
+            # plant.rbdz instead of silently falling back to .rbds.
+            path += _suffix_for_filter(dlg.selectedNameFilter(), suffix)
         from raptor.gui import open_models
         other = open_models.window_for_file(path)
         if other is not None and other is not self:
@@ -874,4 +905,5 @@ class FileIoMixin(_Base):
         self._refresh_commands()
         self._update_title()
         self._remember_recent(path)
-        self._statusbar.showMessage(f"Saved: {Path(path).name}")
+        message, timeout = self._save_message(path)
+        self._statusbar.showMessage(message, timeout)
