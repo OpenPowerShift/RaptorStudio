@@ -195,4 +195,6 @@ class RecentFilesMixin(_Base):
                 self, "Open Failed", f"Could not open {path}:\n\n{e}")
             return
         self._load_into_app(rbd, path)
+        if str(path).lower().endswith(".rbdz"):
+            self._restore_archive_results(path)
         self._remember_recent(path)

@@ -53,7 +53,8 @@ organisations, and nobody may charge a fee for it without Booz Allen Hamilton's 
 
 - **A model file you can read and diff.** `.rbds` is one JSON document with friendly field names, and `raptor diff`
   (or **File ▸ Differences**) says in words what changed between two versions of a model. `.rbd` files open and save
-  exactly as before.
+  exactly as before. `.rbdz` is the archive form: the same model plus its result files in one ZIP, so a run can be
+  reopened or sent to a reviewer without re-simulating. See [`docs/RBDZ_FORMAT.md`](docs/RBDZ_FORMAT.md).
 - **Interchange with Availability Workbench.** `raptor convert` reads and writes Isograph AWB 5.0 `.awb` projects and
   prints a summary of the features either side cannot represent — capacity products, PM tasks, spares, cost models
   and the rest — so a conversion never loses something silently. See [`docs/AWB_FORMAT.md`](docs/AWB_FORMAT.md).

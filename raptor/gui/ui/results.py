@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import html
 import itertools
+import json
 import re
 import weakref
 
@@ -181,6 +182,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
+        #: Attribution read from an `.rbdz`, applied once the result pages
+        #: exist instead of replaying the event log again.
+        self._saved_attribution: dict | None = None
         self._period_summary: dict | None = None
         self._drivers_page.enable_requested.connect(self.enable_requested)
         self._tabs.addTab(self._drivers_page, "Drivers")
@@ -1329,6 +1333,193 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         run_at=getattr(self, "_run_at", None),
                         manifest=getattr(self, "_manifest", None))
 
+    # ---- `.rbdz` archive --------------------------------------------------
+
+    def archive_payload(self) -> dict[str, Any] | None:
+        """The result files and summary an `.rbdz` save should carry.
+
+        Returns None before a run.  Large sinks are passed as streams (the
+        archive writer reads their files), never joined here.
+        """
+        if not self.has_results():
+            return None
+        from raptor.api.run import _rd_to_dict
+
+        def text(value: Any) -> str:
+            if value is None:
+                return ""
+            if hasattr(value, "read_all_lines"):
+                lines = value.read_all_lines()
+            else:
+                lines = list(value)
+            return "\n".join(str(x) for x in lines)
+
+        sources: dict[str, Any] = {}
+        if self._final_lines:
+            sources["final_results.txt"] = text(self._final_lines)
+        eor = getattr(self, "_eor_lines", None)
+        if eor is not None and (not hasattr(eor, "__len__") or len(eor)):
+            sources["end_of_run.txt"] = eor
+        if self._event_logs:
+            from raptor.core.engine.eventlog import format_event_log_file
+            import time as _time
+            sources["events.txt"] = "\n".join(format_event_log_file(
+                self._event_logs, self._source_file_name or "model.rbds",
+                _time.ctime()))
+        ao = getattr(self, "_ao_lines", None)
+        if ao is not None and (not hasattr(ao, "__len__") or len(ao)):
+            sources["availability_plot.txt"] = ao
+        for key, attr in (("capacity.txt", "_cap_lines"),
+                          ("cost.txt", "_cost_lines")):
+            value = getattr(self, attr, None)
+            if value is not None and (not hasattr(value, "__len__")
+                                      or len(value)):
+                sources[key] = value
+        if self._report_data:
+            sources["per_run.json"] = json.dumps(
+                [_rd_to_dict(rd) for rd in self._report_data
+                 if rd is not None])
+        attribution = (self._drivers_page.attribution()
+                       if hasattr(self, "_drivers_page") else None)
+        if attribution:
+            doc = dict(attribution)
+            if getattr(self, "_outages", None) is not None:
+                doc["outages"] = self._outages
+            sources["attribution.json"] = json.dumps(doc)
+        summary = {
+            "format": "raptor-studio-results",
+            "version": 1,
+            "model_name": self._source_file_name or "",
+            "units": self._units or "",
+            "num_runs": len(self._report_data),
+            "run_at": (self._run_at.isoformat()
+                       if getattr(self, "_run_at", None) else None),
+            "manifest": self._manifest or {},
+            "has_phases": any(bool(getattr(d, "has_phases", False))
+                              for d in self._report_data),
+        }
+        sources["summary.json"] = json.dumps(summary, indent=1)
+        return sources
+
+    def set_archive_results(self, files: dict[str, Any],
+                            summary: dict[str, Any] | None = None,
+                            manifest: dict[str, Any] | None = None,
+                            rbd=None) -> bool:
+        """Put an `.rbdz` archive's saved result set on screen.
+
+        `files` maps archive entry names to extracted paths (or text).
+        The per-run rows are restored as lightweight run objects: the
+        Overview, Final Results, Event Log and Charts read the same
+        fields they read after a live run.  Attribution is applied from
+        the archive rather than replaying the event log.
+        """
+        from types import SimpleNamespace
+        from raptor.core.fileio.rbdz import ArchivedLines
+
+        def source(name: str) -> Any:
+            value = files.get(name)
+            if value is None:
+                return None
+            return value
+
+        def lines(name: str) -> list[str]:
+            value = source(name)
+            if value is None:
+                return []
+            if hasattr(value, "read_all_lines"):
+                return value.read_all_lines()
+            if hasattr(value, "read_text"):
+                try:
+                    return value.read_text(encoding="utf-8",
+                                           errors="replace").splitlines()
+                except OSError:
+                    return []
+            if isinstance(value, (str, bytes)):
+                text = value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+                return text.splitlines()
+            return list(value)
+
+        def object_lines(name: str) -> Any:
+            value = source(name)
+            return ArchivedLines(value) if value is not None else []
+
+        def load_json(name: str, fallback):
+            value = source(name)
+            if value is None:
+                return fallback
+            if hasattr(value, "read_text"):
+                try:
+                    return json.loads(value.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    return fallback
+            return fallback
+
+        summary = summary or {}
+        run_rows = load_json("per_run.json", [])
+        if not isinstance(run_rows, list):
+            run_rows = []
+        has_phases = bool(summary.get("has_phases"))
+        runs = []
+        for index, row in enumerate(run_rows):
+            if not isinstance(row, dict):
+                continue
+            values = {
+                "run_number": index + 1,
+                "cost": None, "capacity": None, "weak_stats": None,
+                "weak_nodes": None, "weak_events": None, "weak_hiers": None,
+                "has_phases": has_phases, "rcond_assigned": False,
+                "mission_green_percent": None,
+                "mission_yellow_percent": None,
+                "mission_red_percent": None,
+                "dependability": row.get("dependability"),
+                "green_percent": row.get("green_percent"),
+                "yellow_percent": row.get("yellow_percent"),
+                "red_percent": row.get("red_percent"),
+                "ending_sim_time": row.get("ending_sim_time") or 0.0,
+                "missions_attempted": row.get("missions_attempted") or 0,
+            }
+            values.update(row)
+            runs.append(SimpleNamespace(**values))
+
+        event_text = lines("events.txt")
+        # The event log file starts with a three-line title header; the
+        # per-run logs start at the first Begin_Run marker. Drop the header
+        # so run 1 is the user's run 1, not a header-only log.
+        start = next((i for i, line in enumerate(event_text)
+                      if re.search(r"Begin_Run_\d+", line)), None)
+        if start is not None:
+            event_text = event_text[start:]
+        event_logs: list[list[str]] = []
+        for line in event_text:
+            if re.search(r"Begin_Run_\d+", line) or not event_logs:
+                event_logs.append([])
+            event_logs[-1].append(line)
+        if event_logs and not any(event_logs):
+            event_logs = []
+
+        attribution = load_json("attribution.json", None)
+        if not isinstance(attribution, dict):
+            attribution = None
+        units = str(summary.get("units") or "")
+        notes = []
+        run_at = summary.get("run_at")
+        self.set_results(
+            event_logs, object_lines("end_of_run.txt"),
+            lines("final_results.txt"), report_data=runs, units=units,
+            notes=notes, ao_lines=object_lines("availability_plot.txt"),
+            cap_lines=object_lines("capacity.txt"),
+            cost_lines=object_lines("cost.txt"),
+            manifest=summary.get("manifest") or manifest or {},
+            importance=None, rbd=rbd, attribution=attribution)
+        if run_at:
+            from datetime import datetime
+            try:
+                self._run_at = datetime.fromisoformat(run_at)
+            except ValueError:
+                pass
+        self._source_file_name = str(summary.get("model_name") or "")
+        return bool(runs or event_logs)
+
     # ---- Drivers (downtime attribution) -----------------------------------
     #: Above this many event-log lines the attribution waits until the tab
     #: is opened, so a large run's results appear without the extra pass.
@@ -1343,6 +1534,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_stale = False
         # never export a previous result set's periods with this one
         self._period_summary = None
+        saved = self._saved_attribution
+        if saved is not None:
+            # An `.rbdz` already carries the attribution: apply it rather
+            # than replaying the same event log (and showing a progress
+            # caption for work that is already done).
+            self._saved_attribution = None
+            self._apply_attribution(dict(saved))
+            return
         logs = [log for log in (self._event_logs or []) if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
             self._drivers_page.set_attribution(None)
@@ -1352,10 +1551,36 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         experiment = (self._manifest or {}).get("experiment") or {}
         big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
 
+        class _Cancelled(Exception):
+            pass
+
+        progress = None
+        if big:
+            from PySide6.QtWidgets import QProgressDialog
+            progress = QProgressDialog(
+                "Working out what caused the downtime…", "Cancel",
+                0, 1, self)
+            progress.setWindowTitle("Downtime drivers")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setAutoClose(False)
+            progress.setAutoReset(False)
+            progress.show()
+            QApplication.processEvents()
+
         def show(p) -> None:
-            # a long replay says where it has got to and keeps the window alive
-            if big and (p.done % 10 == 0 or p.done == p.total):
-                self._drivers_page.caption.setText(p.text() + " runs…")
+            if progress is None:
+                return
+            if progress.wasCanceled():
+                raise _Cancelled()
+            if p.total:
+                progress.setMaximum(int(p.total))
+            progress.setValue(int(p.done))
+            progress.setLabelText(p.text() + " runs…")
+            # A long replay says where it has got to and keeps the window
+            # alive. Paint every tenth run: repainting a modal dialog per
+            # event would cost more than the replay.
+            if p.done % 10 == 0 or p.done == p.total:
                 QApplication.processEvents()
 
         cap_runs = None
@@ -1376,15 +1601,31 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                                          with_outages=True, capacity=cap_runs,
                                          phases=model_phases(rbd),
                                          hierarchies=model_hierarchies(rbd))
+        except _Cancelled:
+            # Cancelling this view's extra pass must not lose the results
+            # themselves; leave Drivers retryable.
+            self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
+            self._drivers_stale = True
+            return
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
             self._drivers_page.set_attribution(None)
             return
         finally:
+            if progress is not None:
+                progress.close()
+                progress.deleteLater()
             if big:
                 QApplication.restoreOverrideCursor()
-        attribution["units"] = self._units
+        attribution["units"] = self._units or attribution.get("units") or ""
+        self._apply_attribution(attribution)
+
+    def _apply_attribution(self, attribution: dict) -> None:
+        """Put a finished attribution (computed or restored) on every
+        surface that reads it: Drivers, the yearly periods, the Story and
+        the Charts."""
         outages = attribution.pop("outages", None)
         # the run-to-run state ribbon draws from the outage timeline
         self._outages = outages
@@ -1486,6 +1727,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._story_page.set_story(None)
         self._event_logs = []
         self._drivers_stale = False
+        self._saved_attribution = None
         self._drivers_page.set_attribution(None)
         self._report_data = []
         self._importance = None
@@ -1547,7 +1789,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     manifest: dict | None = None,
                     importance: dict | None = None,
                     rbd=None,
-                    progress=None):
+                    progress=None,
+                    attribution: dict | None = None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
         # have been edited. It also means changing a run setting (trial
@@ -1555,6 +1798,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        #: An archive's attribution replaces the replay when present.
+        self._saved_attribution = dict(attribution) if attribution else None
         # The run on screen until now becomes "the run before" -- unless
         # this is the same run again (importance variants populate twice).
         shown = getattr(self, "_shown_figures", None)

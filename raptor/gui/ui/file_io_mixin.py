@@ -129,11 +129,15 @@ class FileIoMixin(_Base):
             # convention) so nothing is hidden on open; the two
             # single-format filters stay available for narrowing.
             dlg.setNameFilter(
-                "All RAPTOR models (*.rbds *.rbd);;"
-                "RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)")
+                "All RAPTOR models (*.rbds *.rbdz *.rbd);;"
+                "RAPTOR Studio models (*.rbds);;"
+                "RAPTOR Studio archives, with results (*.rbdz);;"
+                "Classic RAPTOR (*.rbd)")
         else:
             dlg.setNameFilter(
-                "RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)")
+                "RAPTOR Studio models (*.rbds);;"
+                "RAPTOR Studio archives, with results (*.rbdz);;"
+                "Classic RAPTOR (*.rbd)")
             # The Save filter's active default matches the open file's
             # own extension. Plain Save keeps the open format; only
             # Save As deliberately suggests .rbds (its own selectFile
@@ -154,6 +158,7 @@ class FileIoMixin(_Base):
         self._invalidate_step_session()
         # Closing the model is not an edit: always return the right-hand
         # docks to their unrun state.
+        self._clear_archive_results_temp()
         self._reset_right_docks()
         # Reset the view's per-file state, then leave the canvas EMPTY.
         # It used to keep showing that placeholder model -- a diagram, a full
@@ -280,6 +285,9 @@ class FileIoMixin(_Base):
         a click that lands during the rebuild cannot start a second Open.
         """
         self._dock_extents_at_load_start = self._current_dock_extents()
+        # The previous archive's extracted result files belong to the old
+        # model; keep them until the new load is about to replace it.
+        self._clear_archive_results_temp()
         # Must run before `_loading_model` and before the model swap: the
         # draft belongs to the old model and its old Inspector editor.
         self._inspector.flush_pending_comment()
@@ -319,7 +327,7 @@ class FileIoMixin(_Base):
         # Retention rule: a file opened as legacy .rbd keeps saving as
         # .rbd; new models and .rbds files default to .rbds.
         self._opened_legacy_format = bool(path) and \
-            not str(path).lower().endswith(".rbds")
+            not str(path).lower().endswith((".rbds", ".rbdz"))
         self._undo_stack.setClean()
         self._dirty = False
         # units chip
@@ -577,6 +585,39 @@ class FileIoMixin(_Base):
         # serializing, so deleted/edited annotations don't survive in
         # the saved file.
         self._diagram_dock.view.write_back_annotations()
+        if str(path).lower().endswith(".rbdz"):
+            # The archive carries the model AND whatever result set is on
+            # screen. The model entry is named after the archive so a
+            # reopened result's report cover still says the right thing.
+            from datetime import datetime
+            from raptor.core.fileio.rbdz import write_archive
+            rbd = req(self._rbd)
+            rbd.file_name = Path(path).with_suffix(".rbds").name
+            sources = self._results.archive_payload()
+            manifest = {
+                "model": {"file_name": Path(path).name},
+                "created": datetime.now().isoformat(timespec="seconds"),
+            }
+            if sources is not None:
+                summary = {}
+                text = sources.get("summary.json")
+                if isinstance(text, str):
+                    try:
+                        import json
+                        summary = json.loads(text)
+                    except ValueError:
+                        summary = {}
+                manifest["results"] = {
+                    key: summary.get(key) for key in
+                    ("num_runs", "units", "run_at", "model_name")
+                    if summary.get(key) is not None
+                }
+            write_archive(path, rbds_io.render_for_save(rbd),
+                          results=sources or {},
+                          manifest=manifest,
+                          created=manifest["created"])
+            self._current_archive_results = bool(sources)
+            return True
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
             rbds_io.save_rbds(req(self._rbd), path)
@@ -699,6 +740,65 @@ class FileIoMixin(_Base):
         from raptor.core.fileio.model_file import load_model_file
         return load_model_file(path)
 
+    def _clear_archive_results_temp(self) -> None:
+        """Drop the extracted result files of a previously opened `.rbdz`."""
+        temp = getattr(self, "_archive_temp", None)
+        self._archive_temp = None
+        if temp is not None:
+            try:
+                temp.cleanup()
+            except OSError:
+                pass
+
+    def _restore_archive_results(self, path: str) -> bool:
+        """Put an `.rbdz`'s saved result set back on the Results dock.
+
+        The result entries are extracted to a temporary directory and
+        passed as lazy line sources, so a 475 MB plot is never read into
+        memory just to reopen the archive.
+        """
+        from raptor.core.fileio.rbdz import extract_results
+        import json
+        import tempfile
+        self._clear_archive_results_temp()
+        temp = tempfile.TemporaryDirectory(prefix="raptor_rbdz_")
+        try:
+            files, manifest = extract_results(path, temp.name)
+        except Exception as exc:  # noqa: BLE001 - show the file, don't crash
+            temp.cleanup()
+            msgbox.warning(
+                self, "Saved Results Not Read",
+                f"{Path(path).name} opened, but its saved results could not "
+                f"be read:\n\n{exc}")
+            return False
+        if not files:
+            temp.cleanup()
+            self._statusbar.showMessage(
+                f"{Path(path).name}: no saved results in this archive", 6000)
+            return False
+        summary = {}
+        summary_path = files.get("summary.json")
+        if summary_path is not None:
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                summary = {}
+        self._archive_temp = temp
+        shown = self._results.set_archive_results(
+            files, summary if isinstance(summary, dict) else {},
+            manifest, rbd=self._rbd)
+        if shown:
+            self._results_show_action.setEnabled(True)
+            self._results_float_action.setEnabled(True)
+            runs = summary.get("num_runs") if isinstance(summary, dict) else None
+            self._statusbar.showMessage(
+                f"Opened saved results from {Path(path).name}"
+                + (f" ({runs:,} runs)" if isinstance(runs, int) else ""), 8000)
+        else:
+            self._clear_archive_results_temp()
+        return shown
+
+
     def _save_file(self):
         if self._rbd is None:
             return
@@ -738,17 +838,19 @@ class FileIoMixin(_Base):
         # the native format; plain Save keeps the file's own format
         # unchanged.
         suggested = self._current_file or self._untitled_save_path()
+        suffix = ".rbdz" if str(suggested).lower().endswith(".rbdz") else ".rbds"
         stem = suggested.rsplit(".", 1)[0] if "." in suggested \
             else suggested
-        suggested = stem + ".rbds"
+        suggested = stem + suffix
         dlg.selectFile(suggested)
         if not dlg.exec() or not dlg.selectedFiles():
             return
         path = dlg.selectedFiles()[0]
         if not path:
             return
-        if not str(path).lower().endswith((".rbds", ".rbd")):
-            path += ".rbds"     # no extension -> new default format
+        if not str(path).lower().endswith((".rbds", ".rbdz", ".rbd")):
+            # no extension -> new default format
+            path += suffix
         from raptor.gui import open_models
         other = open_models.window_for_file(path)
         if other is not None and other is not self:
