@@ -975,3 +975,33 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     if with_outages:
         result["outages"] = outage_record(trials, hierarchies)
     return result
+
+
+def attribute_batch(rbd: Any, logs: Iterable[Iterable[Any]], *,
+                    start_stats: float = 0.0,
+                    capacity_lines: Iterable[str] | None = None,
+                    units: str = "", progress: Any = None,
+                    abort: Any = None) -> dict[str, Any] | None:
+    """The whole attribution pass for one finished batch, or None.
+
+    One entry point for the GUI's worker and its synchronous path, so the
+    capacity split, model phases/hierarchies and the unit label cannot
+    drift between them. `abort` is a `threading.Event`; a cancelled pass
+    raises `raptor.api.progress.Cancelled`.
+    """
+    trial_logs = [log for log in (logs or []) if log]
+    if not trial_logs:
+        return None
+    capacity = None
+    if rbd is not None and capacity_lines:
+        try:
+            from raptor.api.insight.capacity_attribution import capacity_runs
+            capacity = capacity_runs(rbd, capacity_lines)
+        except Exception:      # noqa: BLE001 - capacity is an optional extra
+            capacity = None
+    result = attribute_logs(
+        trial_logs, start_stats, progress=progress, abort=abort,
+        with_outages=True, capacity=capacity,
+        phases=model_phases(rbd), hierarchies=model_hierarchies(rbd))
+    result["units"] = units
+    return result

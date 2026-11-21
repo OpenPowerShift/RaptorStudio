@@ -314,7 +314,7 @@ class RunMixin(_Base):
     def _present_baseline_results(self, *, logs, eor, fin, report_data,
                                   notes, ao_lines, cap_lines, cost_lines,
                                   units, manifest, importance_total=None,
-                                  rbd=None):
+                                  rbd=None, attribution=None):
         """Put the finished baseline on screen while importance runs.
 
         Called once per run, on the GUI thread. `follow_up=True` keeps the
@@ -330,7 +330,7 @@ class RunMixin(_Base):
             logs, eor, fin, report_data=report_data, units=units,
             notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, manifest=manifest, importance=None,
-            follow_up=True, rbd=rbd)
+            follow_up=True, rbd=rbd, attribution=attribution)
         if not ok:
             return False
         self._note_results_basis()
@@ -668,10 +668,58 @@ class RunMixin(_Base):
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
+        attribution = self._compute_drivers_now(
+            run_model, event_logs, run_metadata, units,
+            streams.get("capacity"))
         self._present_foreground_run(
             run_model, event_logs, end_of_run_lines, final_results_lines,
             streams=streams, report_data=report_data, report_notes=report_notes,
-            run_metadata=run_metadata)
+            run_metadata=run_metadata, attribution=attribution)
+
+    def _compute_drivers_now(self, rbd, logs, run_metadata, units,
+                             cap_lines=None):
+        """The end-of-run attribution pass, with the run's own progress bar.
+
+        Runs before the results are presented, so the Story, Drivers, Charts
+        and the canvas all read one finished attribution instead of each
+        one replaying the log later. A missing event log simply returns
+        None and leaves the lazy Drivers path in place.
+        """
+        if not any(logs):
+            return None
+        from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
+        experiment = (run_metadata.get("manifest") or {}).get("experiment") or {}
+        start = float(experiment.get("start_stats") or 0.0)
+
+        def show(p) -> None:
+            total = max(int(p.total or 1), 1)
+            self._run_progress.setRange(0, total)
+            self._run_progress.setValue(int(p.done))
+            self._run_progress_label.setText(
+                f"Drivers {p.done:,}/{p.total:,}"
+                if p.total else "Drivers…")
+            self._statusbar.showMessage(p.text())
+            if p.done % 10 == 0 or p.done == p.total:
+                QApplication.processEvents(
+                    QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+        class _Stop:
+            def is_set(self_inner) -> bool:
+                return bool(getattr(self, "_sync_stop", False))
+
+        self._run_progress.setVisible(True)
+        self._run_progress_label.setVisible(True)
+        try:
+            return attribute_batch(
+                rbd, logs, start_stats=start, capacity_lines=cap_lines,
+                units=units, progress=show, abort=_Stop())
+        except Cancelled:
+            return None
+        except Exception:  # noqa: BLE001 - never lose the results for this
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            return None
 
     def _lock_for_foreground_run(self) -> None:
         """Re-entrancy guard and a clean slate for a synchronous batch: Run is
@@ -714,7 +762,8 @@ class RunMixin(_Base):
 
     def _present_foreground_run(self, run_model, event_logs, end_of_run_lines,
                                 final_results_lines, *, streams, report_data,
-                                report_notes, run_metadata) -> None:
+                                report_notes, run_metadata,
+                                attribution=None) -> None:
         """Put a finished (or stopped) batch's results on screen and release the UI."""
         ao_lines = streams.get("ao")
         cap_lines = streams.get("capacity")
@@ -790,7 +839,7 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     units=units, manifest=manifest_with_streams(run_metadata),
-                    rbd=run_model,
+                    rbd=run_model, attribution=attribution,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
             overlays = (self._checked_overlay_state()
@@ -813,7 +862,8 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     manifest=manifest_with_streams(run_metadata),
-                    importance=importance, rbd=run_model)
+                    importance=importance, rbd=run_model,
+                    attribution=attribution)
                 self._note_results_basis()
                 self._remember_report_streams(streams)
                 self._results_show_action.setEnabled(bool(report_data))

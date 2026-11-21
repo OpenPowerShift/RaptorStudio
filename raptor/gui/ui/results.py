@@ -181,6 +181,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
+        #: An attribution computed by the run (or restored from an archive)
+        #: before the pages were populated; applied instead of replaying.
+        self._precomputed_attribution: dict | None = None
         self._period_summary: dict | None = None
         self._drivers_page.enable_requested.connect(self.enable_requested)
         self._tabs.addTab(self._drivers_page, "Drivers")
@@ -1338,53 +1341,97 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
             self._refresh_drivers()
 
+    def attribution(self) -> dict | None:
+        """The attribution on screen, or None before it has been worked out."""
+        page = getattr(self, "_drivers_page", None)
+        return page.attribution() if page is not None else None
+
     def _refresh_drivers(self) -> None:
         """Work out what caused the downtime from this result set's event logs."""
         self._drivers_stale = False
         # never export a previous result set's periods with this one
         self._period_summary = None
+        ready = self._precomputed_attribution
+        if ready is not None:
+            self._precomputed_attribution = None
+            self._apply_attribution(dict(ready))
+            return
         logs = [log for log in (self._event_logs or []) if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
             self._drivers_page.set_attribution(None)
             self._drivers_page.set_periods(None)
             return
-        from raptor.api.insight.attribution import attribute_logs
+        from raptor.api.insight.attribution import attribute_batch
         experiment = (self._manifest or {}).get("experiment") or {}
-        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
+        total_lines = sum(len(log) for log in logs)
+        big = total_lines > self.DRIVERS_EAGER_LINES
+
+        progress = None
+        if big:
+            from PySide6.QtWidgets import QProgressDialog
+            progress = QProgressDialog(
+                "Working out what caused the downtime…", "Cancel",
+                0, max(1, len(logs)), self)
+            progress.setWindowTitle("Downtime drivers")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setAutoClose(False)
+            progress.setAutoReset(False)
+            progress.show()
+            QApplication.processEvents()
+
+        class _Cancelled(Exception):
+            pass
 
         def show(p) -> None:
-            # a long replay says where it has got to and keeps the window alive
-            if big and (p.done % 10 == 0 or p.done == p.total):
-                self._drivers_page.caption.setText(p.text() + " runs…")
+            if progress is None:
+                return
+            if progress.wasCanceled():
+                raise _Cancelled()
+            if p.total:
+                progress.setMaximum(int(p.total))
+            progress.setValue(int(p.done))
+            progress.setLabelText(p.text() + " runs…")
+            if p.done % 10 == 0 or p.done == p.total:
                 QApplication.processEvents()
 
-        cap_runs = None
-        if getattr(self, "_rbd", None) is not None and self._cap_lines:
-            try:
-                from raptor.api.insight.capacity_attribution import capacity_runs
-                cap_runs = capacity_runs(self._rbd, self._cap_lines)
-            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
-                import logging
-                logging.getLogger(__name__).exception("lost-capacity split failed")
         if big:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            from raptor.api.insight.attribution import model_hierarchies, model_phases
             rbd = getattr(self, "_rbd", None)
-            attribution = attribute_logs(logs, start, progress=show,
-                                         with_outages=True, capacity=cap_runs,
-                                         phases=model_phases(rbd),
-                                         hierarchies=model_hierarchies(rbd))
+            attribution = attribute_batch(
+                rbd, logs, start_stats=start,
+                capacity_lines=getattr(self, "_cap_lines", None),
+                units=getattr(self, "_units", ""), progress=show)
+        except _Cancelled:
+            # Cancelling the extra pass must not lose the results.
+            self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
+            self._drivers_stale = True
+            return
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
             self._drivers_page.set_attribution(None)
             return
         finally:
+            if progress is not None:
+                progress.close()
+                progress.deleteLater()
             if big:
                 QApplication.restoreOverrideCursor()
-        attribution["units"] = self._units
+        if attribution is None:
+            self._drivers_page.set_attribution(None)
+            self._drivers_page.set_periods(None)
+            return
+        self._apply_attribution(attribution)
+
+    def _apply_attribution(self, attribution: dict) -> None:
+        """Put a finished attribution (computed or supplied by the run) on
+        every surface that reads it."""
+        attribution = dict(attribution)
+        attribution.setdefault("units", getattr(self, "_units", "") or "")
         outages = attribution.pop("outages", None)
         # the run-to-run state ribbon draws from the outage timeline
         self._outages = outages
@@ -1414,6 +1461,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                               rows=True, units=self._units)
 
     def _schedule_drivers(self) -> None:
+        if self._precomputed_attribution is not None:
+            self._refresh_drivers()
+            return
         lines = sum(len(log) for log in (self._event_logs or []))
         showing = self._tabs.currentWidget() is self._drivers_page
         if showing or lines <= self.DRIVERS_EAGER_LINES:
@@ -1486,6 +1536,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._story_page.set_story(None)
         self._event_logs = []
         self._drivers_stale = False
+        self._precomputed_attribution = None
         self._drivers_page.set_attribution(None)
         self._report_data = []
         self._importance = None
@@ -1547,7 +1598,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     manifest: dict | None = None,
                     importance: dict | None = None,
                     rbd=None,
-                    progress=None):
+                    progress=None,
+                    attribution: dict | None = None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
         # have been edited. It also means changing a run setting (trial
@@ -1555,6 +1607,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
+        #: Worked out once by the run (or restored with the results). The
+        #: Drivers page applies it rather than replaying the event log.
+        self._precomputed_attribution = (
+            dict(attribution) if attribution else None)
         # The run on screen until now becomes "the run before" -- unless
         # this is the same run again (importance variants populate twice).
         shown = getattr(self, "_shown_figures", None)
