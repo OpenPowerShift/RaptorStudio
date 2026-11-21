@@ -126,7 +126,7 @@ class StepMixin(_Base):
             # is on Debug. Starting one used to leave the ribbon where it
             # was, with nothing on screen to end the session by.
             try:
-                self._ribbon.select_page("Debug")
+                self._ribbon.select_page_index(self._debug_page_index)
             except (AttributeError, KeyError):
                 pass
         return self._step_session

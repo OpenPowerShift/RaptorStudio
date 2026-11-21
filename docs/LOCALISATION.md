@@ -5,8 +5,9 @@
 RAPTOR Studio uses Qt's own translation system: source strings go through
 `QCoreApplication.translate`, catalogues are edited in Qt Linguist, and the
 compiled `.qm` file is loaded at start-up. It is the best fit because it is
-already in the Qt runtime, understands message contexts, and Qt ships the
-extraction/compiler tools (`pyside6-lupdate`, `pyside6-lrelease`).
+already in the Qt runtime, understands message contexts, and shipped with
+the compiler (`pyside6-lrelease`). RAPTOR's ribbon strings are data, so a
+small repository generator emits the `.ts` instead of `lupdate`.
 
 ### Compared with the alternatives
 
@@ -23,31 +24,40 @@ the GUI does not need a second runtime.
 
 ## What is translated now
 
-- Ribbon page titles, group titles, command text and command tooltips.
+- Ribbon page titles, group titles, command text and command tooltips that
+  are present in the catalogue. Qt's own standard buttons and file dialogs
+  follow the language too.
 - Preference: **Appearance ▸ Language**, `System language` or a shipped
   catalogue. A change applies on the next launch (existing widgets are not
-  rebuilt mid-session).
-- The settings key is `appearance/language`; from a script:
+  rebuilt mid-session). The language row shows the catalogue's coverage, so
+  a partial catalogue is never presented as complete.
+- The settings key is `appearance/language`; the CLI writes the same
+  QSettings file as the GUI:
 
   ```sh
   raptor config set appearance/language fr
   ```
 
 - `raptor/gui/locale/raptor_fr.ts` is the source catalogue and
-  `raptor_fr.qm` the compiled one. `fr` is a worked example, not a claim of
-  complete coverage; untranslated strings fall back to English, never blank.
+  `raptor_fr.qm` the compiled one. The shipped French catalogue is a worked
+  example (36 of 179 ribbon strings); untranslated strings fall back to
+  English, never blank.
 
 ## Adding or updating a language
 
+The ribbon strings are data (`CommandSpec.text`, `Page.title`,
+`Group.title`), which `pyside6-lupdate` cannot see. Use the generator; it
+keeps existing translations and adds unfinished entries for new strings:
+
 ```sh
-# Edit (or create) the catalogue in Qt Linguist, then compile:
+python tools/gen_locale_catalogue.py raptor/gui/locale/raptor_fr.ts --write
 pyside6-lrelease raptor/gui/locale/raptor_fr.ts \
                   -qm raptor/gui/locale/raptor_fr.qm
 ```
 
-Use `pyside6-lupdate` over the source tree when adding a new batch of
-translatable strings. Keep the locale code in the file name
-(`raptor_<code>.qm`); `available_locales()` discovers it automatically.
+`--check` is the CI gate for a stale catalogue. Keep the locale code in the
+file name (`raptor_<code>.qm`); `available_locales()` discovers it, and the
+label includes the translated/total count.
 
 Plurals use Qt's numerus form:
 
@@ -55,12 +65,15 @@ Plurals use Qt's numerus form:
 qt_plural("Run", "%n run", "%n runs", count)
 ```
 
+`qt_plural` is a thin wrapper over `QCoreApplication.translate`; a
+catalogue entry for a numerus message needs `<numerusform>` children.
+
 ## Coverage plan
 
 The framework is in place; the remaining work is incremental string
 migration. Priority order:
 
-1. Ribbon and main-window chrome (done).
+1. Ribbon and main-window chrome (framework done; French is partial).
 2. Preferences, File view and common dialogs.
 3. Results, Advisor and Inspector labels.
 4. Help book and reference manual (generated documents need their own

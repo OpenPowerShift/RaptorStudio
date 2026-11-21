@@ -66,6 +66,8 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # UI language: "system" or a locale code with a shipped catalogue.
+    "appearance/language": "system",
     # Chart palette: the cause fills on every chart, report and saved image.
     "appearance/chart_palette": "muted",
     # View > Annotations: whether the canvas draws the annotations, and

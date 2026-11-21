@@ -490,7 +490,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         badges = [KeyTipBadge(FILE_KEY_TIP, ribbon.file_button, self)]
         bar = ribbon.tab_bar
         for i in range(bar.count()):
-            tip = TAB_KEY_TIPS.get(bar.tabText(i))
+            stable = (ribbon._pages[i].property("raptorPageTitle")  # noqa: SLF001
+                      if i < len(ribbon._pages) else None)
+            tip = TAB_KEY_TIPS.get(stable or bar.tabText(i))
             if tip:
                 r = bar.tabRect(i)
                 badges.append(KeyTipBadge(
@@ -516,7 +518,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """Level 2: open the tab and letter its buttons."""
         from PySide6.QtCore import QEvent
         from raptor.gui.widgets.key_tip_badge import KeyTipBadge
-        self._ribbon.select_page(title)
+        index = next((i for i, page in enumerate(self._ribbon._pages)
+                      if page.property("raptorPageTitle") == title), None)
+        if index is not None:
+            self._ribbon.select_page_index(index)
+        else:
+            self._ribbon.select_page(title)
         # The page's geometry settles on the next layout pass; badges are
         # placed from it, so run that pass now.
         QApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest)

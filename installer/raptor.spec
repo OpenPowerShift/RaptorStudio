@@ -20,6 +20,8 @@ datas = [
     # The File view's example-model thumbnails.
     (str(ROOT / "raptor" / "gui" / "resources" / "examples"),
      "raptor/gui/resources/examples"),
+    # Qt Linguist catalogues (UI languages).
+    (str(ROOT / "raptor" / "gui" / "locale"), "raptor/gui/locale"),
     (str(ROOT / "docs" / "manual.html"), "docs"),
     (str(ROOT / "docs" / "formulas.html"), "docs"),
     (str(ROOT / "docs" / "KEYBOARD_SHORTCUTS.md"), "docs"),

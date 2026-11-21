@@ -618,5 +618,6 @@ def build_pages(window: Any, registry: CommandRegistry,
                         page_spec.title, {}).get(item.id, ""))
                 else:
                     getattr(window, item.builder)(group)
+        page.setProperty("raptorPageTitle", page_spec.title)
         index = window._ribbon.add_page(tr(page_spec.title, "Page"), page)
         setattr(window, page_spec.index_attr, index)

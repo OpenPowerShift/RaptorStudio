@@ -1030,6 +1030,7 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
+    _settings.set_value("appearance/language", str(language.currentData()))
     if str(language.currentData()) != current_language:
         win._statusbar.showMessage(
             "Preferences saved — restart RAPTOR Studio to change language",
