@@ -169,6 +169,7 @@ TOP_LEVEL_KEYS = frozenset({
     "format", "version", "meta", "system", "experiment", "elements", "links",
     "defaults", "spare_pools", "resources", "triggers", "phases",
     "annotations", "link_grips", "flow_directions", "view", "rates", "formulas",
+    "tags", "groups",
     "display_unit", "advisor", "out_of_service", "targets", "currency",
     "project_meta", "view_transform", "comments",
     # an early layout put the element lists at the top level; still read
@@ -734,6 +735,16 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
         doc["formulas"] = {k: {kk: vv for kk, vv in v.items()
                                if kk != "value"}
                            for k, v in rbd.formulas.items()}
+    # Tags and groups are navigation metadata. Sorted and cleaned here so
+    # a hand edit that adds a stale id or duplicates a tag still writes a
+    # canonical document (and so two saves of the same model match).
+    from raptor.core import groups as _groups
+    tags = _groups.clean_tags(getattr(rbd, "tags", None))
+    if tags:
+        doc["tags"] = {ref: tags[ref] for ref in sorted(tags)}
+    groups = _groups.clean_groups(getattr(rbd, "groups", None))
+    if groups:
+        doc["groups"] = groups
     if getattr(rbd, "display_unit", None):
         doc["display_unit"] = rbd.display_unit
     currency = clean_currency(getattr(rbd, "currency", None))
@@ -1080,6 +1091,7 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
             "not a RAPTOR Studio .rbds model: "
             + (f'its "format" is {fmt!r}, not "{FORMAT_ID}"' if fmt is not None
                else f'it has no "format": "{FORMAT_ID}" entry'))
+    from raptor.core import groups as _groups
     version = doc.get("version", 1)
     if isinstance(version, int) and not isinstance(version, bool) and version > VERSION:
         raise ValueError(newer_version_message(doc, version))
@@ -1161,6 +1173,8 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
                   rates=[dict(r) for r in (doc.get("rates") or [])],
                   formulas={k: dict(v) for k, v in
                             (doc.get("formulas") or {}).items()},
+                  tags=_groups.clean_tags(doc.get("tags")),
+                  groups=_groups.clean_groups(doc.get("groups")),
                   display_unit=doc.get("display_unit") or None,
                   view_transform=doc.get("view_transform") or None,
                   project_meta=_read_project_meta(doc),
@@ -1171,6 +1185,9 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
     # that follow from the rows.
     from raptor.core.fileio.builder import sync_counts
     sync_counts(out)
+    # A group or tag that names an element the file no longer has cannot
+    # select anything; drop it rather than let a deleted id linger.
+    _groups.prune(out, _groups.valid_refs_from_model(out))
     if out.rates or out.formulas:
         # Rate values from their expressions, linked fields from their
         # rates: the file stores neither number.

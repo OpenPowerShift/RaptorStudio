@@ -246,6 +246,15 @@ class RbdFile:
     #: has no representation; the GUI confirms with the user and writes
     #: the plain values only.
     formulas: dict = field(default_factory=dict)
+    #: .rbds-only component TAGS: `{"block:3": ["pumps", "rotating"]}`.
+    #: Free-form labels for navigation, not simulation data. See
+    #: `raptor.core.groups`. Legacy .rbd has no representation.
+    tags: dict = field(default_factory=dict)
+    #: .rbds-only component GROUPS: named, coloured sets of elements that
+    #: may span hierarchies. A group is an explicit member list, a tag
+    #: query, or both. Presentation/navigation only; never a simulation
+    #: hierarchy. See `raptor.core.groups`.
+    groups: list = field(default_factory=list)
     #: .rbds-only DISPLAY-unit override: view/enter time values in e.g.
     #: years on an hours-native model without hand-converting. `None` =
     #: show the model's own native `units` unchanged. Never touches a

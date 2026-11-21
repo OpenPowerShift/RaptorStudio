@@ -121,6 +121,10 @@ def rbds_only_content(rbd: RbdFile) -> list[str]:  # noqa: C901, PLR0912
         lost.append("rate definitions")
     if getattr(rbd, "formulas", None):
         lost.append("formulas")
+    if getattr(rbd, "tags", None):
+        lost.append("component tags")
+    if getattr(rbd, "groups", None):
+        lost.append("component groups")
     block = rbd.sections.get("BLOCK_DATA")
     if block is not None:
         for row in block.rows:

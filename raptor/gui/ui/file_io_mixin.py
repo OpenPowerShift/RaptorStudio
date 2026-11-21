@@ -595,6 +595,14 @@ class FileIoMixin(_Base):
                 f"{n_ann} annotation(s) (text/shapes) cannot be "
                 f"stored in the .rbd format and will be "
                 f"DROPPED. Save as .rbds to keep them.")
+        n_groups = len(getattr(self._rbd, "groups", []) or [])
+        if n_groups or getattr(self._rbd, "tags", None):
+            msgbox.warning(
+                self, "Groups and tags not supported in the .rbd format",
+                f"{n_groups} component group(s) and the component tags "
+                "cannot be stored in the .rbd format and will be DROPPED. "
+                "They are navigation metadata only; the model and its "
+                "results are unaffected. Save as .rbds or .rbdz to keep them.")
         if getattr(self._rbd, "display_unit", None):
             msgbox.warning(
                 self, "Display unit not supported in the .rbd format",

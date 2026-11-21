@@ -1185,6 +1185,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda hid: self._diagram_dock.view.enter_level(hid))
         self._explorer.ascend_requested.connect(
             self._diagram_dock.view.go_up)
+        self._explorer.group_view_changed.connect(
+            self._diagram_dock.view.set_group_view)
         # Re-parents the ribbon-built Find combo into this dock's own
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
@@ -3344,6 +3346,33 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs
         dialogs.on_mass_edit(self)
+
+    def _open_groups_dialog(self):
+        """Data ▸ Groups / Tags: edit navigation metadata as one undo step."""
+        if self._rbd is None:
+            return
+        from raptor.gui.ui.groups_dialog import GroupsCommand, GroupsDialog
+        from raptor.core import groups as group_model
+        view = self._diagram_dock.view
+        blocks, nodes, events, hiers = view.selected_elements()
+        selected = ([group_model.element_ref("block", i) for i in blocks]
+                    + [group_model.element_ref("node", i) for i in nodes]
+                    + [group_model.element_ref("event", i) for i in events]
+                    + [group_model.element_ref("hier", i) for i in hiers])
+        dialog = GroupsDialog(self, self._rbd, selected)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        import copy
+        before = (copy.deepcopy(getattr(self._rbd, "tags", None) or {}),
+                  copy.deepcopy(getattr(self._rbd, "groups", None) or []))
+        after = dialog.result_data()
+        if before == after:
+            return
+        self._undo_stack.push(
+            GroupsCommand(view, before, after, "Component groups and tags"))
+        self._statusbar.showMessage(
+            f"Saved {len(after[1])} component group(s) and "
+            f"{len(after[0])} tagged element(s) — Ctrl+Z to undo", 6000)
 
 
     # --- Preferences -------------------

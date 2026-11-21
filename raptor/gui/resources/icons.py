@@ -1024,6 +1024,21 @@ def pencil_multi_icon(colour: str) -> QIcon:
     return _icon("massedit", colour, draw)
 
 
+def tag_icon(colour: str) -> QIcon:
+    """Component groups/tags: a luggage-tag shape with its eyelet."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        tag = QPolygonF([QPointF(11, 14), QPointF(27, 14),
+                         QPointF(39, 24), QPointF(27, 34),
+                         QPointF(11, 34)])
+        p.drawPolygon(tag)
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(16, 21, 6, 6)
+    return _icon("tag", colour, draw)
+
+
 def droplet_icon(colour: str) -> QIcon:
     """Weak-link colouring: droplet quartered G/Y/R."""
     def draw(p: QPainter, c: QColor):

@@ -132,6 +132,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
+|Groups / Tags… |Component groups and tags — named, coloured views over the model. They may span hierarchies and never change the simulation |
 |Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
 |===
 
