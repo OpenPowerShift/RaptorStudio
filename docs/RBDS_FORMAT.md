@@ -724,9 +724,13 @@ as annotations.
 
 A reference is `block:<id>`, `node:<id>`, `event:<id>` or `hier:<id>`.
 `members` is an explicit list; `tag` also includes every element carrying
-that tag. Both may be present. Missing, malformed or dangling references
-are ignored on read, never fatal. Group ids are stable, lowercase slugs;
-a hand edit may supply any id matching `[a-z0-9][a-z0-9_-]*`.
+that tag. Both may be present, and a group may be empty. Missing,
+malformed or dangling references are ignored on read, never fatal. Group
+ids are stable, lowercase slugs of at most 48 characters; a hand edit may
+supply any id matching `[a-z0-9][a-z0-9_-]*`. Names are at most 64
+characters, tags at most 48, and `colour` is a six-digit hex value such as
+`#2F80ED` (stored uppercase). A colour that is not a hex value is replaced
+by the palette on read, rather than refusing the file.
 
 ## Result targets (.rbds only)
 

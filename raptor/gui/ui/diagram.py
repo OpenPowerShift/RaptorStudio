@@ -796,6 +796,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._last_hier_dsi: dict | None = None
         # A group view belongs to the previous model's element ids.
         self._group_view = None
+        self._group_hiers: set[str] = set()
         self._live_state_cache = None
         self._hier_boundary_cache = None
         self._link_file_ids_cache = None
@@ -3022,21 +3023,43 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
 
         The group is navigation metadata: this changes only the opacity of
         the elements on the current level, never the model or the links.
+        Hierarchy ovals on the path to a member stay bright, like folders in
+        the Explorer, so a group that spans levels keeps its context.
         `None` restores every element.
         """
         self._group_view = set(refs) if refs is not None else None
+        rbd = getattr(self, "_rbd_ref", None)
+        from raptor.core import groups as group_model
+        self._group_hiers = (group_model.ancestor_hiers(rbd, refs)
+                             if refs is not None and rbd is not None else set())
         self._apply_group_view()
 
-    def _apply_group_view(self) -> None:
+    def _group_keeps(self, kind: str, oid: int) -> bool:
+        """Whether a group view keeps this element at full opacity."""
         refs = getattr(self, "_group_view", None)
+        if refs is None:
+            return True
+        if f"{kind}:{oid}" in refs:
+            return True
+        return (kind == "hier"
+                and f"hier:{oid}" in getattr(self, "_group_hiers", ()))
+
+    def _apply_group_view(self) -> None:
+        """Repaint opacity for the active group view and focus mode."""
+        if getattr(self, "_focus_mode", False):
+            try:
+                selected = self._scene.selectedItems()
+            except RuntimeError:
+                return
+            self._apply_focus(selected)
+            return
         for kind, items in (("block", self._block_items),
                             ("node", self._node_items),
                             ("event", self._event_items),
                             ("hier", getattr(self, "_hier_items", {}))):
             for oid, item in items.items():
                 try:
-                    keep = refs is None or f"{kind}:{oid}" in refs
-                    item.setOpacity(1.0 if keep else 0.25)
+                    item.setOpacity(1.0 if self._group_keeps(kind, oid) else 0.25)
                 except RuntimeError:
                     continue
 
@@ -3057,16 +3080,15 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # the threshold: a big diagram reads as the few elements that matter
         chosen = set(selected) | {item for item, f in self._layer_fractions.items()
                                   if f >= self._focus_threshold}
-        group = getattr(self, "_group_view", None)
         for kind, items in (("block", self._block_items),
                             ("node", self._node_items),
                             ("event", self._event_items),
                             ("hier", getattr(self, "_hier_items", {}))):
             for oid, item in items.items():
                 try:
-                    in_group = group is None or f"{kind}:{oid}" in group
-                    item.setOpacity(1.0 if in_group and (
-                        not self._focus_mode or item in chosen) else 0.25)
+                    keep = self._group_keeps(kind, oid) and (
+                        not self._focus_mode or item in chosen)
+                    item.setOpacity(1.0 if keep else 0.25)
                 except RuntimeError:
                     continue
 

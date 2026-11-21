@@ -39,6 +39,12 @@ class ExplorerDock(QWidget):
         #: The last group refs sent to the canvas, so a plain Explorer
         #: refresh does not reset focus dimming by re-emitting "all".
         self._emitted_group: object = object()
+        #: A temporary "no elements" row under the root, owned by the tree.
+        self._empty_item: QTreeWidgetItem | None = None
+        #: The active view's refs, so typing in Find does not rebuild the
+        #: tag index on every keystroke. `_refresh` invalidates it.
+        self._group_refs: set[str] = set()
+        self._group_refs_for: tuple[str, str] | None = None
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setIndentation(16)
@@ -179,18 +185,42 @@ class ExplorerDock(QWidget):
         # only emits while a group is active.
         self._emit_group_view()
 
-    def _emit_group_view(self) -> None:
+    def _group_refs_now(self) -> set[str]:
+        """The active group/tag view's refs, cached until the view changes."""
         group = self._selected_group()
         if group is None:
-            value = None
-        else:
+            return set()
+        if group != self._group_refs_for:
             from raptor.core import groups as group_model
             rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
-            value = frozenset(group_model.refs_for_view(rbd, *group)
-                              if rbd is not None else ())
+            self._group_refs_for = group
+            self._group_refs = (group_model.refs_for_view(rbd, *group)
+                                if rbd is not None else set())
+        return self._group_refs
+
+    def _emit_group_view(self) -> None:
+        group = self._selected_group()
+        value = None if group is None else frozenset(self._group_refs_now())
         if value != self._emitted_group:
             self._emitted_group = value
             self.group_view_changed.emit(set(value) if value is not None else None)
+
+    @staticmethod
+    def _choice_tooltip(rbd, kind: str, value: str, tag_counts: dict) -> str:
+        """What a group/tag selector entry contains, for its tooltip."""
+        from raptor.core import groups as group_model
+        if kind == "group":
+            group = group_model.group_by_id(rbd, value)
+            if group is None:
+                return ""
+            count = len(group_model.group_members(rbd, group))
+            parts = [f"{count} element(s)"]
+            if group.get("tag"):
+                parts.append(f"tag query “{group['tag']}”")
+            if group.get("description"):
+                parts.append(group["description"])
+            return f"{group['name']} — " + ", ".join(parts)
+        return f"{value} — {len(tag_counts.get(value, ()))} element(s) tagged"
 
     def refresh_groups(self) -> None:
         """Fill the group/tag selector from the model, keeping the choice."""
@@ -199,13 +229,20 @@ class ExplorerDock(QWidget):
             return
         from raptor.core import groups as group_model
         rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
+        self._group_refs_for = None    # the model may have changed
         choices = group_model.view_choices(rbd) if rbd is not None else []
+        tag_counts = group_model.tag_index(rbd) if rbd is not None else {}
         current = self._selected_group()
         combo.blockSignals(True)
         combo.clear()
         combo.addItem("All elements", None)
+        combo.setItemData(0, "Show the whole model", Qt.ItemDataRole.ToolTipRole)
         for label, kind, value in choices:
             combo.addItem(label, (kind, value))
+            combo.setItemData(
+                combo.count() - 1,
+                self._choice_tooltip(rbd, kind, value, tag_counts),
+                Qt.ItemDataRole.ToolTipRole)
         wanted = 0
         if current is not None:
             for i in range(combo.count()):
@@ -237,14 +274,9 @@ class ExplorerDock(QWidget):
         """
         from PySide6.QtGui import QBrush, QColor
         from raptor.gui.resources.design_tokens import active_colour
-        from raptor.core import groups as group_model
         text = (text or "").strip().lower()
         group = self._selected_group()
-        selected: set[str] = set()
-        if group is not None:
-            rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
-            selected = (group_model.refs_for_view(rbd, *group)
-                        if rbd is not None else set())
+        selected = self._group_refs_now() if group is not None else set()
         c = active_colour()
         normal = QBrush(QColor(c["text"]))
         accent = QBrush(QColor(c["accent"]))
@@ -252,6 +284,7 @@ class ExplorerDock(QWidget):
         root = self._tree.topLevelItem(0)
         if root is None:
             return
+        self._clear_empty_state()
         if not text and group is None:
             def show_all(item):
                 item.setHidden(False)
@@ -296,6 +329,41 @@ class ExplorerDock(QWidget):
         keep(root)
         root.setForeground(0, normal)
         root.setExpanded(True)
+        # A view with nothing in it used to leave an empty panel: the user
+        # could not tell "no members" from a failed filter.
+        if not any(not root.child(i).isHidden()
+                   for i in range(root.childCount())):
+            self._show_empty_state(group, text, muted)
+
+    def _clear_empty_state(self) -> None:
+        item = getattr(self, "_empty_item", None)
+        self._empty_item = None
+        if item is None:
+            return
+        root = self._tree.topLevelItem(0)
+        if root is not None:
+            root.removeChild(item)
+
+    def _show_empty_state(self, group, text: str, muted) -> None:
+        """One muted, unselectable row saying why the tree is empty."""
+        if group is not None:
+            label = self._group_combo.currentText()
+            message = (f"No elements in “{label}” match “{text}”."
+                       if text else
+                       f"{label} has no elements yet — add members in "
+                       "Data ▸ Groups / Tags…")
+        else:
+            message = f"No elements match “{text}”."
+        root = self._tree.topLevelItem(0)
+        if root is None:
+            return
+        item = QTreeWidgetItem([message])
+        item.setData(0, Qt.ItemDataRole.UserRole, "empty")
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setForeground(0, muted)
+        item.setToolTip(0, message)
+        root.addChild(item)
+        self._empty_item = item
 
     def refresh(self):
         """Rebuild the tree from the whole model (after edits that bypass
@@ -346,6 +414,7 @@ class ExplorerDock(QWidget):
         # A rebuild deletes the items an in-progress Expand all still holds.
         self._cancel_expand()
         self._tree.clear()
+        self._empty_item = None        # owned (and deleted) by the tree
         self.refresh_groups()
         self._hier_tree_items: dict[int, QTreeWidgetItem] = {}
         #: node id -> (node type, parent hierarchy id), for double-click.

@@ -3360,7 +3360,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                     + [group_model.element_ref("event", i) for i in events]
                     + [group_model.element_ref("hier", i) for i in hiers])
         dialog = GroupsDialog(self, self._rbd, selected)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        if exec_dialog(dialog) != QDialog.DialogCode.Accepted:
             return
         import copy
         before = (copy.deepcopy(getattr(self._rbd, "tags", None) or {}),
