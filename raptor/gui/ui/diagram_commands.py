@@ -85,6 +85,9 @@ class _ViewCmd(QUndoCommand):
             return
         if level and level not in getattr(v, "hiers", {}):
             return                       # not there (yet): act where we are
+        if getattr(v, "_history_jump", False):
+            v._history_jump_level = level
+            return
         v._set_level(level)
 
     def _done(self):

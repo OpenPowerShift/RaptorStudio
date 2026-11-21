@@ -29,9 +29,12 @@ def _stack(texts):
 def test_the_dialog_lists_steps_and_jumps_to_one(qapp):
     stack = _stack(["Add Pump", "Change repair", "Move block"])
     dialog = UndoHistoryDialog(None, stack)
-    assert dialog._list.count() == 3
+    assert dialog._list.count() == 4          # base row + three commands
     assert "currently after step 3" in dialog._note.text()
-    dialog._list.setCurrentRow(0)
+    dialog._list.setCurrentRow(0)              # before the first retained step
+    dialog._go_to_selected()
+    assert stack.index() == 0
+    dialog._list.setCurrentRow(1)              # after "Add Pump"
     dialog._go_to_selected()
     assert stack.index() == 1
     assert "currently after step 1" in dialog._note.text()
@@ -63,3 +66,18 @@ def test_preferences_apply_the_cap_to_the_window_stack(qapp, tmp_path, monkeypat
         w._dirty = False
         w.close()
         settings.set_value("editing/undo_limit", 200)
+
+
+def test_a_history_jump_is_refused_while_a_run_is_active(qapp):
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    settings.set_value("startup/show_start_page", False)
+    w = MainWindow()
+    try:
+        w._run_in_progress = True
+        assert w._jump_history(0) is False
+        assert "Stop the run" in w._statusbar.currentMessage()
+    finally:
+        w._run_in_progress = False
+        w._dirty = False
+        w.close()

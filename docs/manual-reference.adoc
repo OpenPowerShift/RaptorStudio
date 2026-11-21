@@ -327,7 +327,7 @@ current value).
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
 |Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
 |Advisor |Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it |
-|Model History |Browse the model's undo steps and jump to any point; the maximum number kept is set in Preferences |
+|Model History |Browse the model's retained undo steps and jump to one; the maximum number kept is set in Preferences |
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===

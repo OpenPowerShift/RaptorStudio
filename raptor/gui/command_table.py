@@ -1321,8 +1321,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Model History",
         icon="history_clock_icon:text",
         tooltip=(
-            "Browse the model's undo steps and jump to any point; the "
-            "maximum number kept is set in Preferences"),
+            "Browse the model's retained undo steps and jump to one; "
+            "the maximum number kept is set in Preferences"),
         handler="_show_undo_history",
         enabled_when="model_open"),
     CommandSpec(

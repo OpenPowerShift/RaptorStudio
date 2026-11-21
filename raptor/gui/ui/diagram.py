@@ -273,6 +273,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
         self._focus_mode = False
+        #: While a history jump replays commands, level switches are
+        #: recorded and applied once at the end, not rebuilt per step.
+        self._history_jump = False
+        self._history_jump_level: int | None = None
         #: With a result layer on, focus keeps what holds at least this
         #: fraction of the largest share (7.6.6); the Yellow band's edge.
         self._focus_threshold = 1 / 3
@@ -3004,6 +3008,17 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "DepNum", "DepType", "DepNothing", "DepIdle",
                            "DepPM", "DepFail", "DepPMThresh",
                            "defDepStateIdle")
+
+    def begin_history_jump(self) -> None:
+        self._history_jump = True
+        self._history_jump_level = None
+
+    def end_history_jump(self) -> None:
+        self._history_jump = False
+        level = self._history_jump_level
+        self._history_jump_level = None
+        if level is not None and level != self._current_parent:
+            self._set_level(level)
 
     def set_focus_mode(self, enabled: bool) -> None:
         """Dim everything not selected; keep the topology visible."""

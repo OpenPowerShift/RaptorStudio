@@ -3341,12 +3341,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui import dialogs
         dialogs.edit_block_defaults(self)
 
+    def _jump_history(self, index: int) -> bool:
+        """Move the model to a history step atomically.
+
+        Level switches are deferred to one rebuild at the end; results are
+        discarded before the jump (never midway through it), and a run or
+        step session refuses the jump.
+        """
+        if getattr(self, "_run_in_progress", False) or \
+                getattr(self, "_step_session", None) is not None:
+            self._statusbar.showMessage(
+                "Stop the run before jumping through history", 4000)
+            return False
+        if self._results.has_results():
+            from raptor.gui.ui.dialogs import question_box
+            if not question_box(
+                    self, "Jump Through History",
+                    "Changing the model history discards the results on "
+                    "screen, because they describe the model as it was "
+                    "before these edits.\n\nContinue?",
+                    yes_text="Jump and discard results", no_text="Cancel"):
+                return False
+            self._discard_results()
+        view = self._diagram_dock.view
+        view.begin_history_jump()
+        try:
+            self._undo_stack.setIndex(index)
+        finally:
+            view.end_history_jump()
+        self._statusbar.showMessage(
+            f"History: step {self._undo_stack.index()} of "
+            f"{self._undo_stack.count()}", 4000)
+        return True
+
     def _show_undo_history(self):
         """View ▸ Panels ▸ Model History: a modeless undo browser."""
         dialog = getattr(self, "_undo_history_dialog", None)
         if dialog is None:
             from raptor.gui.ui.undo_history_dialog import UndoHistoryDialog
-            dialog = UndoHistoryDialog(self, self._undo_stack)
+            dialog = UndoHistoryDialog(
+                self, self._undo_stack, on_jump=self._jump_history)
             dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
             dialog.finished.connect(
                 lambda _result: setattr(self, "_undo_history_dialog", None))
