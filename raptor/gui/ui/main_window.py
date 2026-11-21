@@ -1483,6 +1483,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _on_annotation_selected(self, anno_id: int):
         self._queue_inspector_selection("annotation", anno_id)
 
+    def _sync_chart_selection(self):
+        """Two or more selected hierarchy ovals become the chart overlay."""
+        try:
+            _blocks, _nodes, _events, hiers = self._diagram_dock.view.selected_elements()
+        except RuntimeError:
+            return
+        if len(hiers) >= 2:
+            self._results.set_chart_hierarchies(hiers)
+
     def _on_level_changed(self, parent_id: int):
         # A queued Inspector rebuild belongs to the level we just left;
         # letting it fire would show an element the user can no longer see.
@@ -1506,6 +1515,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             v3 = self._diagram_dock.view
             self._results.set_hierarchy_options(
                 {h: hh.name for h, hh in v3.hiers.items()}, parent_id)
+            self._results.set_chart_hierarchy(parent_id)
         self._refresh_goto_combo()
         # Add Hierarchy and Collapse depend on how deep this level is.
         self._refresh_commands(self._command_state(reuse_validity=True),
@@ -1774,9 +1784,21 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._mark_dirty()
 
     def _on_result_element_clicked(self, kind: str, name: str):
+        v = self._diagram_dock.view
+        if kind == "hierarchy":
+            if name in {"(no hierarchy)", "Not in a hierarchy", "other"}:
+                return
+            target = name.split(" > ")[-1]
+            found = next((hid for hid, h in v.hiers.items()
+                          if h.name in (name, target)), None)
+            if found is not None:
+                v.enter_level(found)
+                return
+            self._statusbar.showMessage(
+                f"Couldn't find hierarchy '{name}' in the model", 6000)
+            return
         if kind not in ("block", "node"):
             return
-        v = self._diagram_dock.view
         if not v.locate_element(kind, name):
             self._statusbar.showMessage(
                 f"Couldn't find {kind} '{name}' in the model", 6000)
@@ -2253,6 +2275,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.selection_changed.connect(
             self._results.refresh_weak_selection)
         self._diagram_dock.view.selection_changed.connect(
+            self._sync_chart_selection)
+        self._diagram_dock.view.selection_changed.connect(
             self._inspector_forward_on_click)
 
     def _wire_widget_hooks(self):
@@ -2287,6 +2311,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.importance_metric_changed.connect(
             self._on_importance_metric_changed)
         self._results.y_axis_min_changed.connect(self._on_y_axis_min_changed)
+        self._results.targets_changed.connect(self._on_targets_changed)
 
     def _on_theme_changed(self, dark: bool):
         self._theme_action.blockSignals(True)

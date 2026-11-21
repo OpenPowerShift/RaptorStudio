@@ -132,14 +132,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     importance_metric_changed = Signal(str)
     #: The user set the Ao graphs' Y-axis minimum (written to `graphYmin`, as Raptor 7 does).
     y_axis_min_changed = Signal(float)
+    #: The Charts tab's availability and capacity targets, as fractions
+    #: or None; saved in the model's `targets` object.
+    targets_changed = Signal(object, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         #: (runs asked for, why it stopped) for a batch stopped early
         self._requested_runs: tuple[int, str] | None = None
-        #: the Charts page's target line, as a fraction (a view setting)
+        #: the Charts page's target line, as a fraction (saved in the model)
         self._target: float | None = None
+        #: capacity-weighted availability target, a fraction or None
+        self._capacity_target: float | None = None
         self._target_measure = "availability"
+        #: canvas level the Charts tab follows (0 = System)
+        self._chart_hierarchy = 0
         self._event_logs: list[list[str]] = []
         self._report_data = []
         self._final_lines: list[str] = []
@@ -180,8 +187,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._tabs.currentChanged.connect(self._on_tab_shown_for_drivers)
         self._tabs.addTab(self._details_holder, "Final Results")
         self._charts_page.locate_requested.connect(
-            lambda _kind, name: self.element_clicked.emit("block", name))
+            lambda kind, name: self.element_clicked.emit(
+                "block" if kind == "element" else kind, name))
         self._charts_page.target_changed.connect(self.set_target)
+        self._charts_page.capacity_target_changed.connect(
+            self.set_capacity_target)
         self._tabs.addTab(self._charts_page, "Charts")
         self._tabs.addTab(self._event_page, "Event Log")
         self._tabs.addTab(self._raw_page, "Report Text")
@@ -542,6 +552,19 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
+
+    def set_chart_hierarchy(self, hierarchy_id: int | None) -> None:
+        """The canvas level the Charts tab follows (0/None is System)."""
+        self._chart_hierarchy = int(hierarchy_id or 0)
+        page = getattr(self, "_charts_page", None)
+        if page is not None:
+            page.follow_hierarchy(self._chart_hierarchy)
+
+    def set_chart_hierarchies(self, hierarchy_ids: list[int]) -> None:
+        """Several selected hierarchy ovals become the chart comparison."""
+        page = getattr(self, "_charts_page", None)
+        if page is not None:
+            page.set_compare(list(hierarchy_ids or []))
 
     def set_hierarchy_options(self, hiers: dict[int, str],
                               current: int = 0):
@@ -1200,9 +1223,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._event_page = page
 
 
-    #: Plot-file parsing guard: beyond this many rows the interactive
-    #: view shows only the first slice and says so — the full data stays
-    #: in the stream file for Export Data.
+    #: Points kept per run for the interactive charts over time.  Every
+    #: recorded row is read; this only bounds what a painter is handed.
+    _PLOT_POINTS_PER_RUN = 240
+    #: Cost rows still materialise into a table, so its interactive view
+    #: keeps a bounded slice (the full rows stay in the stream for Export).
     _MAX_PARSE_ROWS = 200_000
     #: Live per-run refresh guard for the Capacity plot (same rationale,
     #: applied to the per-progress-tick re-parse).
@@ -1402,12 +1427,46 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         return self._target
 
     def set_target(self, value: float | None) -> None:
-        """A visual cue for this session: a dashed line on the charts and a
-        verdict in the Story. The model and its results do not change."""
+        """A target for the charts and the Story verdict, saved with the
+        model. The model's numbers and its results do not change."""
         self._target = value if value and 0.0 < value <= 1.0 else None
         if hasattr(self, "_charts_page"):
             self._charts_page.set_target(self._target)
         self._refresh_story()
+        self.targets_changed.emit(self._target, self._capacity_target)
+
+    def set_capacity_target(self, value: float | None) -> None:
+        """The capacity-weighted availability target, saved with the model."""
+        self._capacity_target = value if value and 0.0 < value <= 1.0 else None
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_capacity_target(self._capacity_target)
+        self.targets_changed.emit(self._target, self._capacity_target)
+
+    def set_targets(self, targets: dict | None) -> None:
+        """Apply the model's saved targets on load (no change signal)."""
+        raw = targets or {}
+        target = raw.get("availability")
+        capacity = raw.get("capacity")
+        self._target = (float(target) if isinstance(target, (int, float))
+                        and not isinstance(target, bool) and 0 < target <= 1
+                        else None)
+        self._capacity_target = (
+            float(capacity) if isinstance(capacity, (int, float))
+            and not isinstance(capacity, bool) and 0 < capacity <= 1 else None)
+        if hasattr(self, "_charts_page"):
+            self._charts_page.set_target(self._target)
+            self._charts_page.set_capacity_target(self._capacity_target)
+        self._refresh_story()
+
+    @property
+    def targets(self) -> dict[str, float]:
+        """The targets to save in the model (empty when both are cleared)."""
+        out: dict[str, float] = {}
+        if self._target is not None:
+            out["availability"] = float(self._target)
+        if self._capacity_target is not None:
+            out["capacity"] = float(self._capacity_target)
+        return out
 
     def set_requested_runs(self, requested: int | None, why: str = "") -> None:
         """A batch stopped before its end: how many runs were asked for and
@@ -1422,6 +1481,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._rbd = None
         self._period_summary = None
         self._outages = None
+        self._chart_hierarchy = 0
         if hasattr(self, "_story_page"):
             self._story_page.set_story(None)
         self._event_logs = []
@@ -1470,6 +1530,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._raw_sources = {}
         if hasattr(self, "_charts_page"):
             self._charts_page.set_series([], [])
+            self._charts_page.set_compare([])
+            self._charts_page.set_baseline(None)
             self._charts_page.set_inputs()
             self._charts_page.set_note("")
         self._tabs.hide()
@@ -1801,6 +1863,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     generated = flow_generated_of(self._rbd) or None
                 except Exception:  # noqa: BLE001 - only a reference line
                     generated = None
+            model_hier = model_phases = None
+            if getattr(self, "_rbd", None) is not None:
+                from raptor.api.insight.attribution import (
+                    model_hierarchies, model_phases as phases_of,
+                )
+                model_hier = bool(model_hierarchies(self._rbd))
+                model_phases = bool(phases_of(self._rbd))
             page.set_inputs(
                 per_run=per_run, attribution=attribution,
                 importance=getattr(self, "_importance", None),
@@ -1809,7 +1878,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 run_id=str(manifest.get("run_id") or ""),
                 drivers=drivers,
                 measure="dependability" if dependability else "availability",
-                generated=generated, target=self._target)
+                generated=generated, target=self._target,
+                hierarchy=self._chart_hierarchy or None,
+                model_hierarchies=model_hier, model_phases=model_phases,
+                currency=getattr(self._rbd, "currency", None))
             self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
@@ -1894,10 +1966,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 run_id=str(manifest.get("run_id")
                            or manifest.get("digest") or ""),
                 requested_runs=(self._requested_runs or (None, ""))[0],
-                truncated=(self._requested_runs or (None, ""))[1])
+                truncated=(self._requested_runs or (None, ""))[1],
+                currency=getattr(getattr(self, "_rbd", None), "currency", None))
             page.set_story(story)
-            page.set_target_note("target set on the Charts page (a visual cue; "
-                                 "the model is unchanged)" if self._target is not None
+            page.set_target_note("target set on the Charts page and saved with "
+                                 "the model" if self._target is not None
                                  else "")
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
@@ -2337,7 +2410,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if not self._charts_page.note.isVisible():
                 self._charts_page.set_note(
                     "Live charts paused — the data is large; the full set "
-                    "appears when the batch completes")
+                    "appears when the batch completes", time_charts_only=True)
             return
         self._update_graphs()
         self._placeholder.hide()
@@ -2360,7 +2433,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if not self._charts_page.note.isVisible():
                 self._charts_page.set_note(
                     "Live charts paused — the data is large; the full set "
-                    "appears when the batch completes")
+                    "appears when the batch completes", time_charts_only=True)
             return
         self._update_graphs()
         self._placeholder.hide()

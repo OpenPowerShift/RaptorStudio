@@ -982,6 +982,24 @@ def test_y_axis_minimum_is_the_models_and_changes_the_chart_scale(qapp):
     assert dock.y_axis_min == 0.0
 
 
+def test_targets_apply_and_are_exposed_for_saving(qapp):
+    from PySide6.QtTest import QSignalSpy
+    dock = ResultsDock()
+    spy = QSignalSpy(dock.targets_changed)
+    dock.set_target(0.995)
+    assert spy.count() == 1 and spy.at(0) == [0.995, None]
+    dock.set_capacity_target(0.98)
+    assert spy.count() == 2 and spy.at(1) == [0.995, 0.98]
+    assert dock.targets == {"availability": 0.995, "capacity": 0.98}
+    # load the file's values without marking anything changed
+    dock.set_targets({"availability": 0.9, "capacity": 0.85})
+    assert spy.count() == 2
+    assert dock.targets == {"availability": 0.9, "capacity": 0.85}
+    dock.set_targets({})
+    assert dock.targets == {}
+    assert spy.count() == 2
+
+
 def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_flag(qapp):
     import os
     from raptor.core.fileio.rbd import load_rbd
@@ -995,6 +1013,29 @@ def test_y_axis_minimum_round_trips_through_the_model_without_a_spurious_dirty_f
     assert w._results.y_axis_min == float(before["graphYmin"])
     w._results.y_axis_min_changed.emit(0.25)
     assert w._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] == "0.250000" and w._dirty
+
+
+def test_targets_are_written_to_the_model_and_loaded_back(qapp, tmp_path):
+    import os
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.core.fileio.rbds import load_rbds, save_rbds
+    from raptor.gui.ui.main_window import MainWindow
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    rbd = load_rbd(os.path.join(repo, "tests", "golden", "MotorDemo", "input.rbd"))
+    w = MainWindow()
+    w._load_into_app(rbd, "x")
+    assert w._rbd.targets == {}
+    w._results.targets_changed.emit(0.995, 0.98)
+    assert w._rbd.targets == {"availability": 0.995, "capacity": 0.98}
+    assert w._dirty
+    path = tmp_path / "targets.rbds"
+    save_rbds(w._rbd, str(path))
+    loaded = load_rbds(str(path))
+    assert loaded.targets == {"availability": 0.995, "capacity": 0.98}
+    w2 = MainWindow()
+    w2._load_into_app(loaded, str(path))
+    assert not w2._dirty
+    assert w2._results.targets == {"availability": 0.995, "capacity": 0.98}
 
 
 def test_event_log_more_placeholder_keeps_the_current_run(qapp):

@@ -285,8 +285,11 @@
  },
  "configure_system": {
   "params": [
+   "availability_target",
    "capacity",
+   "capacity_target",
    "cost",
+   "currency",
    "display_unit",
    "flow_generated",
    "gy_threshold",
@@ -923,12 +926,19 @@
  },
  "run_chart": {
   "params": [
+   "by_hierarchy",
    "chart",
+   "compare_to",
+   "depth",
+   "fold",
+   "hierarchies",
+   "hierarchy",
    "min_share",
    "page",
    "render_svg",
    "run",
    "run_id",
+   "show_delivered",
    "target",
    "y_floor"
   ],

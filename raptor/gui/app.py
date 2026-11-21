@@ -217,6 +217,9 @@ def main(argv: list[str] | None = None, splash_delay_ms: int | None = None,
     ensure_fusion(app)
     app.setOrganizationName("OpenPowerShift")
     app.setApplicationName("RAPTOR Studio")
+    from raptor.api.insight import palette as _palette
+    from raptor.gui.ui import settings as _settings
+    _palette.set_active(str(_settings.get("appearance/chart_palette", _palette.DEFAULT)))
     _install_excepthook()
     # A native crash (segfault) prints the Python stack of every thread
     # to the terminal, always -- not only under --debug -- so a report of

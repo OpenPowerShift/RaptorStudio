@@ -18,7 +18,7 @@ _ORDER = ("error", "warning", "advice", "info")
 _PROGRESS = ("auto", "bar", "json", "none")
 
 
-def add_parser(sub: Any) -> None:
+def add_parser(sub: Any) -> None:  # noqa: PLR0915 - one flag per statement
     a = sub.add_parser(
         "advise", help="say what looks wrong or unwise in a model",
         description="Check each MODEL for things a reliability engineer would "
@@ -135,6 +135,17 @@ def add_parser(sub: Any) -> None:
                    help="fold the items below this share of the whole (0 to 1, "
                         "e.g. 0.01) into one 'N others' row or cell; rankings "
                         "and treemaps only")
+    e.add_argument("--chart-fold", metavar="MODE", default=None,
+                   help="the Charts tab's Others control: top:10, top:20, "
+                        "fraction:0.25 (top quartile) or tail:0.05 (fold the "
+                        "smallest items making up the last 5 %% of the total); "
+                        "replaces --chart-min-share")
+    e.add_argument("--sankey", choices=("hierarchy", "cause"), default="hierarchy",
+                   help="capacity-sankey grouping: lost flow by hierarchy then "
+                        "cause (default), or straight to the causes")
+    e.add_argument("--no-delivered", action="store_true",
+                   help="capacity-sankey: leave out the delivered branch so a "
+                        "small loss fills the figure")
     e.add_argument("--chart-run", metavar="N", type=int, default=1,
                    help="the run a one-run chart over time shows "
                         "(availability-through-run, interval-availability, "
@@ -142,6 +153,19 @@ def add_parser(sub: Any) -> None:
     e.add_argument("--y-floor", metavar="F", type=float, default=None,
                    help="lower limit of an availability chart over time, "
                         "0 to 1 (default: fitted to the data)")
+    e.add_argument("--hierarchy", metavar="NAME|ID", default=None,
+                   help="scope an element chart to one hierarchy (name, id or "
+                        "path like 'Intake > Pump house')")
+    e.add_argument("--hierarchies", metavar="LIST", default=None,
+                   help="two to four hierarchies for the overlay, comma "
+                        "separated (name, id or path)")
+    e.add_argument("--compare-to", metavar="RUN-ID", default=None,
+                   help="a stored run whose hierarchy table is the baseline "
+                        "for hierarchy-delta")
+    e.add_argument("--depth", metavar="N", type=int, default=None,
+                   help="hierarchy level for the ranking charts and the "
+                        "maximum rings for the sunburst (default: all, or "
+                        "top level for rankings)")
     e.add_argument("--list-charts", action="store_true",
                    help="list the chart names and exit")
     e.add_argument("--progress", choices=_PROGRESS, default="auto",
@@ -317,7 +341,7 @@ def _emit(docs: list[dict], fmt: str, why: bool) -> None:
             _text(d, why)
 
 
-def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options in turn
+def explain_command(args: Any) -> int:  # noqa: C901, PLR0912 - one command, its options in turn
     from raptor.api import run as run_api
     from raptor.api.insight import charts, drivers
     if args.list_charts:
@@ -335,6 +359,11 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
         mid = open_model(ws, args.model)
         from raptor.cli.runopts import apply_run_options
         apply_run_options(ws, mid, args)
+        if not targets:
+            # the target the Charts tab saved in the model, as the window uses
+            saved = (getattr(ws.get(mid).rbd, "targets", None) or {}).get("availability")
+            if saved is not None:
+                targets = [{"metric": "availability", "op": ">=", "value": float(saved)}]
         try:
             from raptor.api.insight.timecharts import TIME_CHARTS
             # an availability chart over time needs the plot recorded (the
@@ -342,9 +371,12 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
             plot = (True if chart_name in TIME_CHARTS
                     and not chart_name.startswith("capacity") else None)
             from raptor.cli.common import parse_duration
+            # the cost charts over time need the interim cost report
+            cost_plot = True if chart_name in charts.COST_SERIES_CHARTS else None
             result = run_api.run(ws, mid, num_runs=args.runs, workers=max(1, args.jobs),
                                  seed=args.seed, attribution=True,
                                  availability_plot=plot,
+                                 interim_cost=cost_plot,
                                  capacity_rule=args.capacity_rule,
                                  confirm_long_run=True,
                                  timeout_s=parse_duration(args.timeout),
@@ -372,7 +404,14 @@ def explain_command(args: Any) -> int:  # noqa: C901 - one command, its options 
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
                            min_share=args.chart_min_share,
-                           target=_availability_target(targets))
+                           fold=args.chart_fold,
+                           by_hierarchy=args.sankey == "hierarchy",
+                           show_delivered=not args.no_delivered,
+                           target=_availability_target(targets),
+                           hierarchy=args.hierarchy,
+                           hierarchies=(_split_csv(args.hierarchies)
+                                        if args.hierarchies else None),
+                           compare_to=args.compare_to, depth=args.depth)
         yearly = None
         if args.yearly or args.year_length is not None or args.below is not None:
             try:
@@ -432,10 +471,19 @@ def _warn_unused_chart_options(args: Any, chart_name: str | None) -> None:
         unused += [flag for flag, set_ in (
             ("--chart-page", args.chart_page != "screen"),
             ("--chart-run", args.chart_run != 1),
-            ("--chart-min-share", bool(args.chart_min_share))) if set_]
+            ("--chart-min-share", bool(args.chart_min_share)),
+            ("--chart-fold", args.chart_fold is not None),
+            ("--sankey", args.sankey != "hierarchy"),
+            ("--no-delivered", args.no_delivered)) if set_]
     else:
         if args.chart_run != 1 and chart_name not in PER_RUN_CHARTS:
             unused.append("--chart-run (only the one-run charts use it)")
+        if ((args.sankey != "hierarchy" or args.no_delivered)
+                and chart_name != "capacity-sankey"):
+            unused.append("--sankey/--no-delivered (only capacity-sankey uses them)")
+        if args.chart_fold is not None and chart_name not in _RANKED_CHARTS:
+            unused.append("--chart-fold (only rankings and treemaps fold "
+                          "small items)")
         if args.chart_min_share and chart_name not in _RANKED_CHARTS:
             unused.append("--chart-min-share (only rankings and treemaps fold "
                           "small items)")
@@ -447,7 +495,12 @@ def _warn_unused_chart_options(args: Any, chart_name: str | None) -> None:
 
 #: The charts `--chart-min-share` folds.
 _RANKED_CHARTS = ("downtime-pareto", "downtime-treemap", "cost-pareto", "cost-treemap",
-                  "lost-capacity-pareto", "lost-capacity-treemap")
+                  "lost-capacity-pareto", "lost-capacity-treemap",
+                  "component-failures")
+
+
+def _split_csv(text: str) -> list[str]:
+    return [part.strip() for part in str(text).split(",") if part.strip()]
 
 
 def _availability_target(targets: list[dict]) -> float | None:
@@ -458,18 +511,26 @@ def _availability_target(targets: list[dict]) -> float | None:
                  if REQUIREMENT_FIELDS.get(str(t.get("metric"))) == "availability"), None)
 
 
-def _chart_for(ws: Any, run_id: str, name: str | None,
+def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901 - gathers each chart's inputs
                attribution: dict, *, run: int = 1,
                y_floor: float | None = None, min_share: float = 0.0,
-               target: float | None = None) -> Any:
+               target: float | None = None,
+               hierarchy: str | int | None = None,
+               hierarchies: list[str] | None = None,
+               compare_to: str | None = None,
+               depth: int | None = None,
+               fold: str | None = None,
+               by_hierarchy: bool = True,
+               show_delivered: bool = True) -> Any:
     """Build the requested chart from a finished run, or None; with
-    `min_share`, its small items folded into one (`charts.fold_small`)."""
+    `min_share` or `fold`, its small items folded into one
+    (`charts.fold_small`).  Without `target`, the model's saved target."""
     if not name:
         return None
     from raptor.api.insight import charts
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run, run_units
+    from raptor.api.run_tables import read_per_run, run_currency, run_units
     per_run = read_per_run(run_dir(ws, run_id), run_id) or []
     over_time = (stored_inputs(run_dir(ws, run_id)) if name in TIME_CHARTS
                  else {})
@@ -478,24 +539,52 @@ def _chart_for(ws: Any, run_id: str, name: str | None,
         raise CliError("--y-floor must be at least 0 and below 1", X.USAGE)
     if not 0.0 <= min_share < 1.0:
         raise CliError("--chart-min-share must be at least 0 and below 1", X.USAGE)
+    if fold is not None and min_share:
+        raise CliError("pass --chart-fold or --chart-min-share, not both", X.USAGE)
+    try:
+        folding = (charts.parse_fold(fold) if fold is not None
+                   else {"min_share": min_share})
+    except ValueError as exc:
+        raise CliError(f"--chart-fold: {exc}", X.USAGE) from exc
+    if target is None:
+        from raptor.api.run_tables import run_targets
+        target = run_targets(ws, run_id).get(
+            "capacity" if name == "annual-capacity-fan" else "availability")
     periods = None
     from raptor.api.insight import drivers
-    if name == "ensemble-ribbon":
+    if name in ("ensemble-ribbon", "hierarchy-overlay", "hierarchy-ribbon"):
         attribution = drivers.with_outages(ws, run_id, attribution) or attribution
     if name in ("annual-fan", "annual-dots", "annual-capacity-fan"):
         periods = drivers.periods(ws, run_id)
+    baseline = None
+    if compare_to:
+        try:
+            baseline = drivers.read(ws, compare_to).get("hierarchies")
+        except Exception as exc:  # noqa: BLE001 - a CLI error, not a traceback
+            raise CliError(f"cannot read baseline run {compare_to}: {exc}",
+                           X.USAGE) from exc
     try:
         costs = (charts.stored_element_costs(ws, run_id)
                  if name in charts.COST_CHARTS else None)
+        cost_runs = None
+        if name in charts.COST_SERIES_CHARTS:
+            from raptor.api.insight.cost_series import stored_runs
+            cost_runs = stored_runs(ws, run_id)
         importance = (charts.stored_importance(ws, run_id)
                       if name == "importance-quadrant" else None)
         return charts.fold_small(
-            charts.chart_named(name, per_run=per_run, attribution=attribution,
-                               periods=periods, costs=costs, run=run,
+            charts.chart_named(name, currency=run_currency(ws, run_id),
+                               per_run=per_run, attribution=attribution,
+                               periods=periods, costs=costs,
+                               cost_runs=cost_runs, run=run,
                                importance=importance, y_floor=y_floor,
                                units=run_units(ws, run_id), surface="cli",
-                               target=target,
-                               **over_time), min_share)
+                               target=target, hierarchy=hierarchy,
+                               hierarchies=hierarchies, baseline=baseline,
+                               baseline_label=compare_to,
+                               depth=depth, by_hierarchy=by_hierarchy,
+                               show_delivered=show_delivered,
+                               **over_time), **folding)
     except ValueError as exc:
         raise CliError(str(exc), X.USAGE) from exc
 

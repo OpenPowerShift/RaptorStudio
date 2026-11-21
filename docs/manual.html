@@ -948,16 +948,31 @@ session this tab fills line by line.</p>
 <li>
 <p><strong>Charts</strong> — every result chart in one place. The list on the left
 groups them by the question they answer: <strong>The answer</strong> (run-to-run
-outcome, chance of reaching a value, availability ladder, has the run
-settled), <strong>Over time</strong> (availability through a run, interval by
-interval and across all runs; capacity through a run and across all
-runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by year</strong>, <strong>Cost</strong> and
-<strong>What matters most</strong>. Click a group heading to fold it. A chart the run
-cannot draw stays in the list, greyed; choosing it names the check box
+outcome, chance of reaching a value, reliability over time, availability
+ladder, has the run settled), <strong>By hierarchy</strong>, <strong>Over time</strong> (availability through a run,
+interval by interval and across all runs; capacity through a run and
+across all runs), <strong>Why it goes down</strong>, <strong>Lost capacity</strong>, <strong>Year by
+year</strong>, <strong>Cost</strong> and <strong>What matters most</strong>. Type in <strong>Search charts</strong> to
+filter the list by title or group (Esc clears it); click a group heading
+to fold it.
+<strong>By hierarchy</strong> reads a nested model level by level: a scorecard and
+Pareto, one nested view with a <strong>Treemap / Sunburst</strong> switch, cumulative
+overlays, small multiples, cause and phase heatmaps, a state ribbon, an
+outage anatomy and a change-against-baseline chart. <strong>Scope</strong> pins one
+hierarchy or follows the canvas level (choose <strong>Follow canvas</strong>); <strong>Depth</strong>
+shows the top level, one numbered level, or every level; the nested
+charts grow the chosen number of rings/levels. <strong>Compare</strong> chooses up to
+four hierarchies for the overlay, small multiples and Sankey and refuses
+a parent and its child together, because that would count the same
+downtime twice. <strong>Baseline</strong> keeps this run&#8217;s hierarchy table so the
+next run can show what moved. A chart the run cannot draw because a
+switch is off stays in the list, greyed; choosing it names the check box
 to tick and where it is (for example <strong>Detailed event log</strong> under Run
 panel ▸ Recording for the downtime charts, <strong>Cost</strong> under Run panel ▸
 Results to calculate for the cost charts) and offers a button, <strong>Turn on … and run</strong>,
-that ticks it as one undoable step and runs again. When the event log
+that ticks it as one undoable step and runs again. A chart the model
+cannot support at all — no hierarchy roll-up, no mission phases — is not
+listed. When the event log
 is there but the drivers have not been worked out yet, the button works
 them out instead. The Drivers tab has the same button. Over MCP and on
 the command line the same message names <code>simulate(attribution=true)</code>,
@@ -969,13 +984,22 @@ it lasted) and how many runs were down at that moment; drag across a
 stretch of time to zoom in, and double-click (or right-click ▸ <strong>Show
 the whole run</strong>) to zoom out. Above the chart are only the
 controls it uses: <strong>Run</strong> for a one-run chart over time, <strong>Axis from</strong>
-for an availability chart over time, <strong>Fold items below</strong> for a
-ranking or treemap (gathers the items under 1, 2 or 5 % of the whole
-into one "N others" row or cell, on screen and in what you save; the
-caption names them), and <strong>Export</strong> (copy, PNG, SVG, PDF, the chart&#8217;s
+for an availability chart over time, <strong>Y axis</strong> for a capacity chart
+over time (fit the data, the full-capacity goal, proximity to that goal,
+a central probability band, an exceedance level or a numeric range),
+<strong>Others</strong> for a
+ranking or treemap: keep all items, keep the top 10 or 20 plus one
+"N others" row, keep the top quartile, or take the smallest items until
+they are the last 5 % of the total. The tail becomes one row or cell,
+on screen and in what you save; the caption names the folded items.
+<strong>Export</strong> (copy, PNG, SVG, PDF, the chart&#8217;s
 data as CSV, and, for a chart over time, every recorded plot row in
 Raptor&#8217;s <code>rpt_*_plot</code> layout). Hover a chart over time to read every
-layer at that moment.</p>
+layer at that moment. Right-click a treemap&#8217;s gathered "N others" cell
+to open a scrollable, sortable table of the items it holds. The charts
+over time read every recorded row; each run is reduced to a few hundred
+drawn points (its highs, lows and ends are kept), and the note under
+the chart says so.</p>
 <div class="paragraph">
 <p>Saved and copied charts are drawn for a page, chosen under <strong>Export ▸
 Page size</strong>: Screen (760 × 400), Slide (16:9), A4 or A3 landscape (the
@@ -985,8 +1009,22 @@ drawing, made for reports and slides: no label is ever shortened with
 room, and a treemap cell too small for its name gets a number and is
 named under the chart. A share and its uncertainty range never pass
 100 %. <code>raptor explain --chart NAME --chart-svg FILE</code> takes the same
-<code>--chart-page</code> and <code>--chart-min-share</code>, and the <code>run_chart</code> tool takes
-<code>page</code> and <code>min_share</code>.
+<code>--chart-page</code>, <code>--chart-min-share</code> and, for the <strong>Others</strong> presets,
+<code>--chart-fold</code> (<code>top:10</code>, <code>top:20</code>, <code>fraction:0.25</code>, <code>tail:0.05</code>); the
+<code>run_chart</code> tool takes <code>page</code>, <code>min_share</code> and <code>fold</code>. For the Sankey,
+<code>--sankey cause</code> and <code>--no-delivered</code> (tool: <code>by_hierarchy=false</code>,
+<code>show_delivered=false</code>) match its two controls.
+<strong> <strong>Which components fail most often?</strong> counts every block failure, including
+   the redundant units a system outage never reveals; it is deliberately
+   separate from the downtime Pareto, which charges only outages that took
+   the system down.
+</strong> <strong>Reliability over time</strong> is the chance the system has not yet gone down
+   by each time, estimated from every run&#8217;s time to its first outage. Any
+   outage counts, planned maintenance included, so a PM that takes the
+   whole system down shows as a cliff; the caption says so when many runs
+   first go down at the same instant. A run that ended without an outage
+   is censored at its end, not counted as one. The caption gives the times
+   by which reliability is down to 90 % and to 50 %.
 <strong> <strong>Availability through a run</strong> shows the share of time so far spent
    fully up (green), degraded (yellow) and down (red); the top of the
    yellow band is the run&#8217;s availability to date.
@@ -1005,13 +1043,89 @@ named under the chart. A share and its uncertainty range never pass
    bands, and the share of the flow generated the runs delivered.
 </strong> <strong>Axis from</strong> is <strong>auto</strong> at 0 (the axis is fitted to the data); a
    saved non-zero value (<code>graphYmin</code>) is a fixed floor for every
-   availability chart over time.</p>
+   availability chart over time. <strong>Target</strong> draws a dashed availability
+   target on the outcome, chance, convergence, time and year charts and on
+   the availability ladder; <strong>Capacity target</strong> draws one on the capacity
+   year chart. Both targets are saved in the model&#8217;s <code>targets</code> object, so
+   reopening the <code>.rbds</code> file restores them; they never change the model&#8217;s
+   numbers or the simulation, and setting one does not make a result look
+   out of date. The <code>configure_system</code> tool sets them
+   (<code>availability_target</code>, <code>capacity_target</code>; 0 clears), and <code>run_chart</code>,
+   <code>run_story</code> and <code>raptor explain</code> use the saved ones when no target is
+   given. The dot plots also mark the median (and the quartiles);
+   convergence marks the median of the runs. Drag across a chart over time
+   (or hold Ctrl and turn the wheel) to zoom the time axis; double-click or
+   right-click <strong>Show the whole run</strong> restores it.</p>
+</div>
+<div class="paragraph">
+<p>+
+The <strong>Cost</strong> group is life-cycle cost a run. <strong>Where the money goes</strong> ranks the
+individual elements; <strong>Cost by category</strong> splits capital, running, repair,
+planned maintenance, spares, crews and equipment, system downtime and lost
+flow, with the two capacity-related rows kept apart from the rest.
+<strong>Cumulative operating cost over time</strong> draws the mean cumulative total in each operating category (capital is separate)
+from the interim cost report, so repairs, spares, resources and PM can be
+read separately. <strong>Operating cost per year</strong> gives each whole year&#8217;s
+operating cost across the runs: the dark band (a box for three years or
+fewer) is the middle half, the light band 9 in 10 and the line the median. It leaves the one-off capital purchase out
+so the first year does not hide every other year. The last three need
+<strong>Cost plot</strong> ticked under Run panel ▸ Recording (<code>simulate
+(interim_cost=true)</code>, <code>raptor run -r interim-cost</code>; <code>raptor explain
+--chart cost-annual</code> records it for you). The interim report samples on
+its interval and never exactly at the end of a run, so each run is closed
+with its End of Run cost totals: the last part-year is counted and the
+category totals equal the End of Run report&#8217;s.</p>
+</div>
+<div class="paragraph">
+<p>+
+The <strong>By hierarchy</strong> group answers the same questions one level at a time.
+<strong>Hierarchy scorecard</strong> ranks the top eight hierarchies at the chosen depth;
+<strong>Hierarchy Pareto</strong>, <strong>Hierarchy by cause</strong> and <strong>Hierarchy by phase</strong> use the
+children of one hierarchy at one level, so a parent and its child are never
+counted twice. <strong>Hierarchy by phase</strong> splits each hierarchy&#8217;s downtime across
+mission phases; its rows add to 100 %, and a zero cell is a real zero.
+<strong>Phase by cause</strong> does the same for phases: each phase&#8217;s downtime is split by
+cause, so a phase that is mostly repair reads differently from one that is
+mostly waiting for a spare. <strong>Where the downtime sits</strong> nests every level:
+the <strong>Treemap</strong> layout puts child groups inside their parent&#8217;s area, and the
+<strong>Sunburst</strong> layout draws one concentric ring per level with each wedge sized
+within its parent, so a deep model stays readable. On a model with
+hierarchies the flat element treemap is not listed: those elements are
+already inside the hierarchy treemap; a flat model keeps it.
+<strong>When did each hierarchy&#8217;s downtime build up?</strong> overlays cumulative curves
+for up to four branches, and <strong>Is the hierarchy ranking stable?</strong> shows each
+hierarchy&#8217;s run-to-run dots (overlapping branches are refused, because they
+double count); <strong>Hierarchy change against baseline</strong> compares
+the current run with a stored one; <strong>Outage paths across hierarchies</strong> and the
+state ribbon show a single run&#8217;s intervals. In <strong>Lost capacity</strong>,
+<strong>Lost capacity by hierarchy and cause</strong> (Sankey) follows the lost flow
+through hierarchies and causes. <strong>Hierarchy → cause / Cause only</strong> leaves the
+hierarchy column out, and <strong>Delivered</strong> can be switched off so the lost flow
+fills the figure instead of being squeezed by the delivered branch. Each
+hierarchy and cause label also gives its share of the lost flow.</p>
+</div>
+<div class="paragraph">
+<p>+
+Above the chart, <strong>Scope</strong> picks the hierarchy the element charts and the
+ranking charts read (System, or any hierarchy by its indented path), and
+<strong>Follow canvas</strong> keeps the charts on the hierarchy level shown in the
+diagram. <strong>Depth</strong> is <strong>All levels</strong> by default: ranking charts then use the
+top level, while the treemap and sunburst draw every level. Choose <strong>Top
+level</strong> or <strong>Level N</strong> to show one level in a ranking and to stop the nested
+charts at that level. <strong>Compare</strong> selects the hierarchies for the overlay,
+small multiples and Sankey; <strong>Baseline</strong> stores a finished run for the
+change chart. A chart&#8217;s data carries each hierarchy&#8217;s full path (<code>Intake &gt;
+Pump house</code>); labels use the short name, and the Scope menu shows the
+indented tree, so a repeated name can be told apart.</p>
 </div>
 <div class="paragraph">
 <p>+
 The same charts come from the command line (<code>raptor explain MODEL
 --chart NAME</code>, with <code>--chart-run N</code> and <code>--y-floor F</code> for the charts over
-time; <code>--list-charts</code> names them) and from the MCP <code>run_chart</code> tool.</p>
+time; <code>--list-charts</code> names them; <code>--hierarchy NAME</code>, <code>--hierarchies A,B</code>,
+<code>--depth N</code> and <code>--compare-to RUN</code> select the hierarchy views) and from the
+MCP <code>run_chart</code> tool with the same <code>hierarchy</code>, <code>hierarchies</code>, <code>depth</code> and
+<code>compare_to</code> arguments.</p>
 </div>
 </li>
 <li>
@@ -2518,12 +2632,20 @@ Keyboard Shortcuts page (Help tab).</p>
 <div class="sectionbody">
 <div class="paragraph">
 <p><strong>View ▸ Appearance ▸ Preferences…</strong> is one scrolling page of sections: <strong>New models</strong>,
-<strong>Working</strong>, <strong>This model</strong>, <strong>Advanced</strong> and <strong>Developer</strong>. The list on the left
-jumps to a section; the <strong>Filter</strong> box above it hides every setting (and
-section) that does not match what you type, across all sections at once, so
-you never have to hunt through them. Settings in <strong>This model</strong> are stored
+<strong>Appearance</strong>, <strong>Working</strong>, <strong>This model</strong>, <strong>Advanced</strong> and <strong>Developer</strong>. The list on
+the left jumps to a section; the <strong>Filter</strong> box above it hides every setting
+(and section) that does not match what you type, across all sections at once,
+so you never have to hunt through them. Settings in <strong>This model</strong> are stored
 with the model file; the rest belong to you and are remembered between
 sessions.</p>
+</div>
+<div class="paragraph">
+<p><strong>Appearance</strong> holds the light/dark theme and the <strong>Chart palette</strong>: <strong>Muted</strong>
+(the default), <strong>Raptor classic</strong>, <strong>Colour-blind (Okabe–Ito)</strong> and <strong>High
+contrast</strong>. A palette changes the cause fills on every chart, report and
+saved image at once; every cause keeps its own fill pattern, so a chart
+still reads in greyscale and for colour-blind readers. The choice is also
+applied to charts already on screen when you press OK.</p>
 </div>
 <div class="paragraph">
 <p><strong>Working</strong> also holds <strong>Open another model in</strong>: a new window (the
@@ -2541,6 +2663,16 @@ brings back any you switched off, and says which they are.</p>
 <p>The <strong>Display unit</strong> setting accepts either one of the built-in choices or a
 unit name of your own (say <code>cycles</code>); durations are then shown in that
 unit and stored in the model&#8217;s own.</p>
+</div>
+<div class="paragraph">
+<p>The <strong>Currency</strong> setting (<strong>This model</strong> tab) is the symbol or code printed in
+front of money in the cost charts, the Story and the report: <code>$</code> (the
+default), <code>€</code>, <code>AUD</code> or any text up to 8 characters. It is saved in the
+model&#8217;s <code>.rbds</code> file as <code>currency</code>. It only labels the numbers: no cost is
+converted, and changing it does not make a result look out of date. The
+<code>configure_system</code> tool sets it too (<code>currency</code>; <code>""</code> goes back to <code>$</code>),
+and <code>run_chart</code>, <code>run_story</code> and <code>raptor explain</code> print money in the
+run&#8217;s model&#8217;s currency.</p>
 </div>
 <div class="paragraph">
 <p>Preferences, Help and the other dialogs do not lock the application:

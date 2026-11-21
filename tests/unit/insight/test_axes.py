@@ -20,9 +20,12 @@ def test_neighbouring_percent_ticks_never_print_alike():
 
 
 def test_money_is_short():
-    assert format_value(1_800_000, "money") == "1.80M"
-    assert format_value(4_690_000, "money") == "4.69M"
-    assert format_value(950, "money") == "950"
+    assert format_value(1_800_000, "money") == "$1.80M"
+    assert format_value(4_690_000, "money") == "$4.69M"
+    assert format_value(950, "money") == "$950"
+    # the same short form without a unit, for quantities that are not money
+    from raptor.api.insight.axes import compact
+    assert compact(1_800_000) == "1.80M"
     assert format_value(0.9934, "percent") == "99.34 %"
 
 

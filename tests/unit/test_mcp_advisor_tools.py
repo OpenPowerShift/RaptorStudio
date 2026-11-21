@@ -255,3 +255,118 @@ def test_a_missing_option_names_the_switch_and_importance_draws(server, model):
     run = ok(call(server, "simulate", model_id=model, num_runs=4, seed=1, importance="both"))
     data = ok(call(server, "run_chart", run_id=run["run_id"], chart="importance-quadrant"))
     assert data["kind"] == "quadrant" and data["title"] == "Importance on availability"
+
+
+def test_a_hierarchy_chart_says_attribution_is_needed(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5))
+    result = call(server, "run_chart", run_id=run["run_id"],
+                  chart="hierarchy-treemap")
+    text = " ".join(c.text for c in result.content)
+    assert result.is_error
+    assert "hierarchy roll-up" in text and "attribution" in text
+
+
+def test_compare_to_is_only_for_the_delta_chart(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    result = call(server, "run_chart", run_id=run["run_id"],
+                  chart="downtime-pareto", compare_to=run["run_id"])
+    assert result.is_error
+    assert "only used by hierarchy-delta" in " ".join(
+        c.text for c in result.content)
+
+
+def test_result_targets_round_trip_through_configure_system(server, model):
+    from raptor.mcp import context
+    done = ok(call(server, "configure_system", model_id=model,
+                   availability_target=0.995, capacity_target=0.98))
+    assert {"availability_target", "capacity_target"} <= set(done["applied"])
+    assert context.workspace().get(model).rbd.targets == {
+        "availability": 0.995, "capacity": 0.98}
+    ok(call(server, "configure_system", model_id=model, capacity_target=0))
+    assert context.workspace().get(model).rbd.targets == {"availability": 0.995}
+    # a percentage is refused before anything is written
+    bad = call(server, "configure_system", model_id=model, num_runs=7,
+               availability_target=99.5)
+    assert bad.is_error and "fraction" in bad.content[0].text
+    assert context.workspace().get(model).rbd.targets == {"availability": 0.995}
+
+
+def test_currency_is_set_through_configure_system_and_used_by_run_chart(server, model):
+    from raptor.api.run import model_hash
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=5))
+    before = model_hash(context.workspace().get(model).rbd)
+    done = ok(call(server, "configure_system", model_id=model, currency="€"))
+    assert done["previous"]["currency"] == "$"
+    assert context.workspace().get(model).rbd.currency == "€"
+    # a label, not an input: the run is not made stale
+    assert model_hash(context.workspace().get(model).rbd) == before
+    chart = ok(call(server, "run_chart", run_id=run["run_id"], chart="trial-outcome"))
+    assert chart["provenance"]["currency"] == "€"
+    ok(call(server, "configure_system", model_id=model, currency=""))
+    assert context.workspace().get(model).rbd.currency == "$"
+
+
+def test_run_chart_and_story_use_the_saved_target(server, model):
+    from raptor.api.run import model_hash
+    from raptor.mcp import context
+    run = ok(call(server, "simulate", model_id=model, seed=5))
+    before = model_hash(context.workspace().get(model).rbd)
+    ok(call(server, "configure_system", model_id=model, availability_target=0.9))
+    # a target is a reporting setting: the run is not made stale by it
+    assert model_hash(context.workspace().get(model).rbd) == before
+    chart = ok(call(server, "run_chart", run_id=run["run_id"], chart="trial-outcome"))
+    assert {"kind": "target", "value": 0.9} in [
+        {"kind": m.get("kind"), "value": m.get("value")} for m in chart["marks"]]
+    explicit = ok(call(server, "run_chart", run_id=run["run_id"],
+                       chart="trial-outcome", target=0.5))
+    assert 0.5 in [m.get("value") for m in explicit["marks"] if m.get("kind") == "target"]
+    story = ok(call(server, "run_story", run_id=run["run_id"]))
+    assert story["headline"]["target"] == pytest.approx(0.9)
+    assert story["headline"]["met"] is not None
+
+
+def test_run_chart_takes_the_charts_tabs_fold_presets(server, model):
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    from raptor.api.insight import charts, drivers
+    from raptor.mcp import context
+    plain = ok(call(server, "run_chart", run_id=run["run_id"], chart="downtime-pareto"))
+    tail = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="downtime-pareto", fold="tail:0.5"))
+    # the tool folds exactly as the Charts tab's preset does
+    spec = charts.chart_named("downtime-pareto", attribution=drivers.read(
+        context.workspace(), run["run_id"]))
+    assert tail["series"] == charts.fold_small(
+        spec, **charts.parse_fold("tail:0.5")).to_dict()["series"]
+    assert plain["series"] == spec.to_dict()["series"]
+    for args in ({"fold": "top:0"}, {"fold": "top:2", "min_share": 0.1},
+                 {"by_hierarchy": False}):
+        bad = call(server, "run_chart", run_id=run["run_id"],
+                   chart="downtime-pareto", **args)
+        assert bad.is_error, args
+
+
+def test_the_command_line_chart_options_match_the_tool(server, model):
+    """`raptor explain`'s chart builder takes the same fold presets, Sankey
+    switches and saved target as `run_chart`."""
+    from raptor.cli.cmd_advise import _chart_for
+    from raptor.cli.common import CliError
+    from raptor.cli.main import build_parser
+    from raptor.mcp import context
+    args = build_parser().parse_args(["explain", "m.rbds", "--chart", "capacity-sankey",
+                                      "--chart-fold", "top:10", "--sankey", "cause",
+                                      "--no-delivered"])
+    assert (args.chart_fold, args.sankey, args.no_delivered) == ("top:10", "cause", True)
+    run = ok(call(server, "simulate", model_id=model, seed=5, attribution=True))
+    ws = context.workspace()
+    from raptor.api.insight import drivers
+    attribution = drivers.read(ws, run["run_id"])
+    cli = _chart_for(ws, run["run_id"], "downtime-pareto", attribution, fold="tail:0.5")
+    tool = ok(call(server, "run_chart", run_id=run["run_id"],
+                   chart="downtime-pareto", fold="tail:0.5"))
+    assert cli.to_dict()["series"] == tool["series"]
+    with pytest.raises(CliError):
+        _chart_for(ws, run["run_id"], "downtime-pareto", attribution, fold="top:0")
+    ok(call(server, "configure_system", model_id=model, availability_target=0.8))
+    outcome = _chart_for(ws, run["run_id"], "trial-outcome", attribution)
+    assert 0.8 in [m.get("value") for m in outcome.marks if m.get("kind") == "target"]

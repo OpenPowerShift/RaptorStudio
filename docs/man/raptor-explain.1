@@ -2,7 +2,7 @@
 .SH NAME
 raptor\-explain \- run a model and say what causes its downtime
 .SH SYNOPSIS
-\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N|new] [\-\-timeout DURATION] [\-\-target EXPR] [\-\-analysis LIST] [\-\-importance MODE] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-page {screen,slide,a4,a3}] [\-\-chart\-min\-share S] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
+\fBraptor explain\fR [\-h] [\-n N] [\-j N] [\-\-seed N|new] [\-\-timeout DURATION] [\-\-target EXPR] [\-\-analysis LIST] [\-\-importance MODE] [\-\-top N] [\-\-yearly] [\-\-year\-length T] [\-\-year\-offset T] [\-\-below A] [\-\-capacity\-rule {proportional,marginal,first_failed}] [\-\-report PATH] [\-\-report\-include LIST] [\-\-story] [\-\-chart NAME] [\-\-chart\-svg PATH] [\-\-chart\-page {screen,slide,a4,a3}] [\-\-chart\-min\-share S] [\-\-chart\-fold MODE] [\-\-sankey {hierarchy,cause}] [\-\-no\-delivered] [\-\-chart\-run N] [\-\-y\-floor F] [\-\-hierarchy NAME|ID] [\-\-hierarchies LIST] [\-\-compare\-to RUN\-ID] [\-\-depth N] [\-\-list\-charts] [\-\-progress {auto,bar,json,none}] [\-f {text,json}] [MODEL]
 .SH DESCRIPTION
 Run MODEL and attribute every system outage to the element that started it and to a cause: hands\-on repair, waiting for a spare, waiting for people or equipment, logistics delay, planned maintenance, or being held by another element. Shows each element's share of system downtime (with its sampling error), of outages and of failures, and what typical outages look like. The engine's results are unchanged: this replays the event log.
 .SH OPTIONS
@@ -68,11 +68,32 @@ page the SVG is drawn for: a bigger page gives long names more room; slide, a4 a
 \fB\-\-chart\-min\-share\fR \fIS\fR
 fold the items below this share of the whole (0 to 1, e.g. 0.01) into one 'N others' row or cell; rankings and treemaps only
 .TP
+\fB\-\-chart\-fold\fR \fIMODE\fR
+the Charts tab's Others control: top:10, top:20, fraction:0.25 (top quartile) or tail:0.05 (fold the smallest items making up the last 5 %% of the total); replaces \-\-chart\-min\-share
+.TP
+\fB\-\-sankey\fR \fI{hierarchy|cause}\fR
+capacity\-sankey grouping: lost flow by hierarchy then cause (default), or straight to the causes
+.TP
+\fB\-\-no\-delivered\fR
+capacity\-sankey: leave out the delivered branch so a small loss fills the figure
+.TP
 \fB\-\-chart\-run\fR \fIN\fR
 the run a one\-run chart over time shows (availability\-through\-run, interval\-availability, capacity\-through\-run; default 1)
 .TP
 \fB\-\-y\-floor\fR \fIF\fR
 lower limit of an availability chart over time, 0 to 1 (default: fitted to the data)
+.TP
+\fB\-\-hierarchy\fR \fINAME|ID\fR
+scope an element chart to one hierarchy (name, id or path like 'Intake > Pump house')
+.TP
+\fB\-\-hierarchies\fR \fILIST\fR
+two to four hierarchies for the overlay, comma separated (name, id or path)
+.TP
+\fB\-\-compare\-to\fR \fIRUN\-ID\fR
+a stored run whose hierarchy table is the baseline for hierarchy\-delta
+.TP
+\fB\-\-depth\fR \fIN\fR
+hierarchy level for the ranking charts and the maximum rings for the sunburst (default: all, or top level for rankings)
 .TP
 \fB\-\-list\-charts\fR
 list the chart names and exit

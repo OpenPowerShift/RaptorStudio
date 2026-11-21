@@ -24,10 +24,64 @@ a run, so the rest are additive.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 #: Substring that marks a run boundary in both the Ao and capacity sinks.
 _RUN_MARKER = "End_of_Run_"
+
+
+def _iter_file(path: str) -> Iterator[str]:
+    """Rows from a plot file, one at a time (never the whole file in RAM)."""
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        yield from handle
+
+
+def _keep_bucket(seq: list[Any], start: int, end: int) -> set[int]:
+    """Indices worth keeping from one bucket of a long run.
+
+    First and last preserve the run's bounds; the smallest and largest value
+    preserve dips and peaks the reader is looking for.  Dozens of evenly
+    spaced buckets therefore carry the shape of a plot with millions of
+    rows, not just its first slice.
+    """
+    keep = {start, max(start, end - 1)}
+    best_low = best_high = None
+    seen_low = seen_high = None
+    for index in range(start, end):
+        value = seq[index]
+        if value is None:
+            continue
+        if seen_low is None or value < seen_low:
+            seen_low, best_low = value, index
+        if seen_high is None or value > seen_high:
+            seen_high, best_high = value, index
+    if best_low is not None:
+        keep.add(best_low)
+    if best_high is not None:
+        keep.add(best_high)
+    return keep
+
+
+def _sample_indices(*columns: list[Any], limit: int) -> list[int]:
+    """At most about `limit` row indices of one run, keeping its extremes.
+
+    One plot file can carry millions of rows for a long batch; the charts
+    need its shape, not every sample.  A third of the budget is spent on
+    evenly spaced buckets, and each bucket also keeps its smallest and
+    largest value in every column, so a short dip is never sampled away.
+    """
+    n = len(columns[0]) if columns else 0
+    if n <= limit or limit <= 0:
+        return list(range(n))
+    buckets = max(1, limit // 3)
+    size = max(1, math.ceil(n / buckets))
+    keep: set[int] = {0, n - 1}
+    for start in range(0, n, size):
+        end = min(n, start + size)
+        for column in columns:
+            keep |= _keep_bucket(column, start, end)
+    return sorted(keep)
 
 
 # ---------------------------------------------------------------------------
@@ -71,31 +125,33 @@ def _num(token: str) -> float | None:
         return None
 
 
-def parse_ao_runs(text: str) -> list[dict[str, Any]]:
-    """Parse Ao text into one run dict per run.
+def _sample_ao_run(run: dict[str, Any], limit: int | None) -> dict[str, Any]:
+    if not limit or len(run["t"]) <= limit:
+        return run
+    keep = _sample_indices(run["t"], run["values"], run["interval"],
+                           limit=limit)
+    return {key: [values[i] for i in keep] for key, values in run.items()}
 
-    Runs are split on the ``End_of_Run_N`` markers -- the boundary check
-    must precede the generic ``*`` skip, because the separator line ITSELF
-    is the boundary.  *values* is the availability (``Ao``) column.
 
-    The remaining columns of the same row are kept alongside it as
-    ``green``/``yellow``/``red``/``interval``, so a consumer that paints
-    the Green/Yellow/Red bands (the availability chart over time) does not have to parse the
-    row a second time.  A column the row does not carry -- the run-end row
-    has no ``Interval`` -- is ``None``, and so is one that does not parse
-    as a number: the availability series is unaffected either way, because
-    only ``t`` and ``values`` are ever required of a run.
+def parse_ao_lines(lines: Iterable[str], *,
+                   max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse Ao rows into one run dict per run.
+
+    `lines` may be a list or a file iterator.  With `max_points`, each run
+    is reduced to about that many rows after it ends, keeping the first,
+    last and the extremes of every column, so the charts read every run
+    without holding millions of samples in memory.
     """
     runs: list[dict[str, Any]] = []
     current: dict[str, list[Any]] | None = None
 
-    for line in text.splitlines():
+    for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
         if _RUN_MARKER in stripped:
             if current is not None:
-                runs.append(current)
+                runs.append(_sample_ao_run(current, max_points))
                 current = None
             continue
         if stripped.startswith("*") or stripped.startswith("#"):
@@ -122,8 +178,34 @@ def parse_ao_runs(text: str) -> list[dict[str, Any]]:
         current["interval"].append(interval)
 
     if current is not None:
-        runs.append(current)
+        runs.append(_sample_ao_run(current, max_points))
     return runs
+
+
+def parse_ao_runs(text: str, *, max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse Ao text into one run dict per run.
+
+    Runs are split on the ``End_of_Run_N`` markers -- the boundary check
+    must precede the generic ``*`` skip, because the separator line ITSELF
+    is the boundary.  *values* is the availability (``Ao``) column.
+
+    The remaining columns of the same row are kept alongside it as
+    ``green``/``yellow``/``red``/``interval``, so a consumer that paints
+    the Green/Yellow/Red bands (the availability chart over time) does not have to parse the
+    row a second time.  A column the row does not carry -- the run-end row
+    has no ``Interval`` -- is ``None``, and so is one that does not parse
+    as a number: the availability series is unaffected either way, because
+    only ``t`` and ``values`` are ever required of a run.
+
+    `max_points` reduces each run after it ends (see `parse_ao_lines`).
+    """
+    return parse_ao_lines(text.splitlines(), max_points=max_points)
+
+
+def parse_ao_file(path: str, *,
+                  max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse an availability plot file without joining it into one string."""
+    return parse_ao_lines(_iter_file(path), max_points=max_points)
 
 
 def _interp(xs: list[float], ys: list[float], x: float) -> float:
@@ -242,24 +324,20 @@ def capacity_envelope(
 # Capacity-over-time
 # ---------------------------------------------------------------------------
 
-def parse_capacity_runs(text: str) -> list[dict[str, Any]]:
-    """Parse capacity text into one ``{t, flow, capacity}`` dict per run.
+def _sample_capacity_run(run: dict[str, Any], limit: int | None) -> dict[str, Any]:
+    if not limit or len(run["t"]) <= limit:
+        return run
+    keep = _sample_indices(run["t"], run["flow"], run["capacity"], limit=limit)
+    return {key: [values[i] for i in keep] for key, values in run.items()}
 
-    The capacity sink's real format (deduplicated
-    on flow change) is whitespace-separated::
 
-        SimulationTime        Flow       Capacity
-        0.000000              2050       2050
-        ******************************End_of_Run_1******************************
-
-    Rows are split on the same ``End_of_Run_N`` markers as the Ao sink.
-    A ``SimulationTime`` header (or any other non-numeric line) is skipped.
-    Returns one dict per run; each value list is the same length as ``t``.
-    """
+def parse_capacity_lines(lines: Iterable[str], *,
+                         max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse capacity rows into one run per dict, with optional sampling."""
     runs: list[dict[str, list[float]]] = []
     current: dict[str, list[float]] | None = None
 
-    for line in text.splitlines():
+    for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
@@ -267,7 +345,7 @@ def parse_capacity_runs(text: str) -> list[dict[str, Any]]:
         # separator line itself is the run boundary.
         if _RUN_MARKER in stripped:
             if current is not None:
-                runs.append(current)
+                runs.append(_sample_capacity_run(current, max_points))
                 current = None
             continue
         if stripped.startswith("*") or stripped.startswith("#"):
@@ -288,8 +366,33 @@ def parse_capacity_runs(text: str) -> list[dict[str, Any]]:
         current["capacity"].append(capacity)
 
     if current is not None:
-        runs.append(current)
+        runs.append(_sample_capacity_run(current, max_points))
     return runs
+
+
+def parse_capacity_runs(text: str, *,
+                        max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse capacity text into one ``{t, flow, capacity}`` dict per run.
+
+    The capacity sink's real format (deduplicated
+    on flow change) is whitespace-separated::
+
+        SimulationTime        Flow       Capacity
+        0.000000              2050       2050
+        ******************************End_of_Run_1******************************
+
+    Rows are split on the same ``End_of_Run_N`` markers as the Ao sink.
+    A ``SimulationTime`` header (or any other non-numeric line) is skipped.
+    Returns one dict per run; each value list is the same length as ``t``.
+    `max_points` reduces each run after it ends (see `parse_capacity_lines`).
+    """
+    return parse_capacity_lines(text.splitlines(), max_points=max_points)
+
+
+def parse_capacity_file(path: str, *,
+                        max_points: int | None = None) -> list[dict[str, Any]]:
+    """Parse a capacity plot file without joining it into one string."""
+    return parse_capacity_lines(_iter_file(path), max_points=max_points)
 
 
 def parse_capacity_text(text: str) -> dict[str, Any]:

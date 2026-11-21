@@ -337,6 +337,10 @@ class FileIoMixin(_Base):
             self._results.set_y_axis_min(cfg.graph_ymin)
         except (NameError, AttributeError, UnboundLocalError):
             pass
+        try:
+            self._results.set_targets(getattr(self._rbd, "targets", None))
+        except (NameError, AttributeError, UnboundLocalError):
+            pass
         # Freeze the MTBDE/MDT readouts to the new units now: if the
         # frozen width only adapted at the first run's first update, the
         # run start would visibly reflow the bar.
@@ -600,6 +604,20 @@ class FileIoMixin(_Base):
                 "values in the model's own native unit again. The "
                 "underlying numbers are unaffected either way. Save as "
                 ".rbds to keep the preference.")
+        if getattr(self._rbd, "targets", None):
+            msgbox.warning(
+                self, "Result targets not supported in the .rbd format",
+                "The availability and capacity targets cannot be stored "
+                "in the .rbd format and will be DROPPED; the dashed target "
+                "lines disappear when the file is reopened. The model and "
+                "its results are unaffected. Save as .rbds to keep them.")
+        if getattr(self._rbd, "currency", "$") not in ("", "$"):
+            msgbox.warning(
+                self, "Currency not supported in the .rbd format",
+                "The currency (" + str(req(self._rbd).currency) + ") cannot "
+                "be stored in the .rbd format and will be DROPPED; money "
+                "shows as $ when the file is reopened. The costs themselves "
+                "are unaffected. Save as .rbds to keep it.")
         if getattr(self._rbd, "project_meta", None):
             msgbox.warning(
                 self, "Print title block not supported in the .rbd format",

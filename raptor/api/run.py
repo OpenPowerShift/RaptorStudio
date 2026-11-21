@@ -187,9 +187,18 @@ def _new_run_dir(root: Path) -> tuple[str, Path]:
 
 
 def model_hash(rbd: RbdFile) -> str:
-    """Deterministic content hash of a model."""
+    """Deterministic content hash of a model's engineering content.
+
+    Result targets and the currency are display/report settings (dashed
+    lines, a Story verdict, a symbol in front of money), not model inputs,
+    so changing one must not make an existing result set look stale.
+    """
+    from dataclasses import replace
+
     from raptor.core.fileio.rbds import render_rbds
-    return hashlib.sha256(render_rbds(rbd).encode("utf-8")).hexdigest()[:16]
+    # targets and currency are reporting settings, not model inputs
+    content = replace(rbd, targets={}, currency="$")
+    return hashlib.sha256(render_rbds(content).encode("utf-8")).hexdigest()[:16]
 
 
 def _rd_to_dict(rd: RunReportData) -> dict[str, object]:

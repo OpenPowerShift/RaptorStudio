@@ -22,7 +22,8 @@ def test_a_dot_plot_keeps_the_runs_and_counts_the_met_target():
     spec = charts.trial_outcome(per_run, target=0.95)
     assert spec.kind == "dot_plot"
     assert spec.provenance == {"runs": 3, "units": "", "measure": "availability",
-                               "format": "percent", "met": 2, "target": 0.95}
+                               "format": "percent", "met": 2, "target": 0.95,
+                               "higher_is_better": True}
     assert spec.marks == [{"kind": "target", "value": 0.95}]
     assert spec.series[0]["dots"]
     assert "2 of 3" in spec.caption
@@ -46,6 +47,81 @@ def test_the_waterfall_steps_from_one_to_the_operational_value():
     assert repair["to"] == pytest.approx(0.95)
     assert pm["to"] == pytest.approx(0.925)
     assert spec.marks[0]["value"] == pytest.approx(0.925)
+
+
+def test_component_failures_count_every_block_not_only_downing_ones():
+    per_run = [
+        {"num_component_failures": 10,
+         "criticality": {"1": {"name": "Pump", "failure": 0.8},
+                         "2": {"name": "Valve", "failure": 0.2}}},
+        {"num_component_failures": 20,
+         "criticality": {"1": {"name": "Pump", "failure": 0.5},
+                         "2": {"name": "Valve", "failure": 0.5}}},
+    ]
+    spec = charts.component_failure_pareto(per_run)
+    # Pump: (0.8*10 + 0.5*20)/2 = 9 a run; Valve: (0.2*10 + 0.5*20)/2 = 6
+    assert [(row["name"], row["value"]) for row in spec.series] == [
+        ("Pump", 9.0), ("Valve", 6.0)]
+    assert spec.provenance["format"] == "count"
+    assert "Pump fails most often: 9 failures a run" in spec.caption
+    assert "did not down the system" in spec.subtitle
+    assert charts.component_failure_pareto([]).series == []
+
+
+def test_the_reliability_curve_censors_runs_that_never_failed():
+    per_run = [
+        {"mttff": 10.0, "mttff_censored": False},
+        {"mttff": 20.0, "mttff_censored": False},
+        {"mttff": 50.0, "mttff_censored": True},
+        {"mttff": 50.0, "mttff_censored": True},
+    ]
+    spec = charts.reliability_curve(per_run, units="hours")
+    assert spec.kind == "timeline"
+    assert spec.provenance["failures"] == 2
+    assert spec.provenance["censored"] == 2
+    layer = spec.series[0]
+    # after the first failure (of four at risk) survival is 3/4, then 2/3
+    assert layer["t"][:6] == [0.0, 10.0, 10.0, 20.0, 20.0, 50.0]
+    assert layer["y"][:6] == pytest.approx([1.0, 1.0, 0.75, 0.75, 0.5, 0.5])
+    assert "censored" in spec.caption
+    assert "Reliability is 90 % or less by 10 hours and 50 % or less by 20 hours" in spec.caption
+    # a run still up at its end is censored, not a failure
+    ended = charts.reliability_curve([
+        {"ending_sim_time": 100.0}, {"mttff": 5.0, "mttff_censored": False}])
+    assert ended.provenance["censored"] == 1
+    assert "No run recorded" in charts.reliability_curve([]).caption
+    # runs that all go down at one instant are a scheduled outage
+    planned = charts.reliability_curve(
+        [{"mttff": 52560.0, "mttff_censored": False}] * 4
+        + [{"mttff": 900.0, "mttff_censored": False}], units="hours")
+    assert "4 runs first went down at exactly 52,560 hours" in planned.caption
+    assert "planned maintenance" in planned.subtitle
+
+
+def test_the_waterfall_uses_the_ladder_rungs_so_the_two_agree():
+    from raptor.api.insight import measures
+    per_run = [{"total_time": 100.0, "downtime": 10.0,
+                "red_corrective_time": 6.0, "red_pm_time": 2.0,
+                "red_logistics_time": 1.0, "red_done_time": 1.0,
+                "red_other_time": 0.0,
+                "inherent_availability": 0.94,
+                "achieved_availability": 0.92,
+                "operational_availability": 0.90}]
+    ladder = measures.availability_ladder(per_run)
+    attribution = {"runs": 1, "causes": {"repair": 0.6, "pm": 0.2,
+                                         "logistics": 0.1, "done": 0.1}}
+    spec = charts.downtime_waterfall(attribution, ladder=ladder)
+    assert spec.provenance["basis"] == "ladder"
+    assert [step["name"] for step in spec.series] == [
+        "Hands-on repair", "Planned maintenance",
+        "Logistics, spares and crews", "Not repairable"]
+    assert spec.series[-1]["to"] == pytest.approx(0.90)
+    assert sum(step["value"] for step in spec.series) == pytest.approx(0.10)
+    assert "same Red-time split" in spec.caption
+    # without the ladder the attribution still drives the steps
+    fallback = charts.downtime_waterfall(attribution, 0.90)
+    assert fallback.provenance["basis"] == "attribution"
+    assert [step["name"] for step in fallback.series][0] == "Hands-on repair"
 
 
 def test_the_ladder_drops_a_rung_the_report_did_not_compute():
@@ -87,7 +163,7 @@ def test_the_frequency_duration_map_reads_in_counts_and_time_when_it_can():
     assert charts.bubble_tip(spec, spec.series[0]) == (
         "Pump: 4 outages a run, 2.5 hours each on average; 20 % of downtime")
     from raptor.render.charts_svg import render
-    assert " %" not in render(spec).split("Frequency against duration")[1].split("share of downtime")[0]
+    assert " %" not in render(spec).split("Frequent or long outages?")[1].split("share of downtime")[0]
 
 
 def test_the_quadrant_drops_elements_without_both_importance_measures():
@@ -335,7 +411,7 @@ def test_cost_treemap_by_hand():
     # areas are proportional to the values
     area = {n: c["w"] * c["h"] for n, c in cells.items()}
     assert area["Pump"] / area["Seals"] == pytest.approx(4.0)
-    assert "Pump occupies the largest area (400, 80 % of the cost)" in spec.caption
+    assert "Pump occupies the largest area ($400, 80 % of the cost)" in spec.caption
 
 
 def test_lost_capacity_treemap_uses_the_capacity_shares():
@@ -356,12 +432,14 @@ def test_lost_capacity_treemap_uses_the_capacity_shares():
 def test_phase_downtime_keeps_phase_order_and_names_the_weakest():
     attribution = {"runs": 2, "phases": [
         {"name": "Launch", "share_of_downtime": 0.25, "availability": 0.5,
+         "time": {"mean": 100.0}, "red_time": {"mean": 50.0},
          "drivers": [{"name": "Pump", "share": 1.0}]},
         {"name": "Cruise", "share_of_downtime": 0.75, "availability": 0.9,
+         "time": {"mean": 100.0}, "red_time": {"mean": 10.0},
          "drivers": [{"name": "Valve", "share": 0.6}]}]}
     spec = charts.phase_downtime(attribution)
     assert [r["name"] for r in spec.series] == ["Launch", "Cruise"]
-    assert spec.caption == ("Launch has the lowest availability of the phases (50 %) "
+    assert spec.caption == ("Launch has the lowest availability of the mission phases (50 %) "
                             "and 25 % of all downtime, mostly started by Pump. "
                             "Cruise holds the most downtime (75 %).")
     from raptor.render.charts_svg import render
@@ -391,6 +469,22 @@ def test_fold_small_gathers_a_ranking_tail_and_names_it():
     assert folded["causes"] == pytest.approx({"repair": 0.5, "wait_spare": 0.5})
     assert "E7" in spec.caption
     assert spec.provenance["folded"] == 6
+
+
+def test_fold_small_can_keep_top_n_or_the_last_share():
+    from raptor.api.insight import charts
+    base = charts.downtime_pareto(_many(20))
+    top = charts.fold_small(base, top=10)
+    assert [row["name"] for row in top.series][:10] == [
+        f"E{i}" for i in range(10)]
+    assert top.series[-1]["name"] == "10 others"
+    assert top.series[-1]["value"] == pytest.approx(10 * 0.1 / 18)
+    tail = charts.fold_small(base, tail_share=0.05)
+    assert tail.series[-1]["name"].startswith("9 others (last 5 %")
+    assert tail.series[-1]["value"] == pytest.approx(0.05)
+    quartile = charts.fold_small(base, fraction=0.25)
+    assert quartile.series[-1]["name"] == "15 others"
+    assert sum(row["value"] for row in quartile.series) == pytest.approx(1.0)
 
 
 def test_fold_small_relays_a_treemap_and_keeps_the_total():
@@ -456,3 +550,141 @@ def test_quartile_lines_on_run_to_run_and_chance_of_reaching():
     same = quartile_marks([1.0] * 8)
     assert [m["label"] for m in same] == ["Q1, median, Q3"]
     assert quartile_marks([0.9, 1.0]) == []      # too few runs for quartiles
+
+
+def test_a_non_mission_phase_is_never_called_the_weakest():
+    attribution = {"runs": 1, "phases": [
+        {"name": "Cruise", "mission": True, "share_of_downtime": 0.25,
+         "availability": 0.98, "time": {"mean": 100.0},
+         "red_time": {"mean": 2.0}, "drivers": []},
+        {"name": "Standby", "mission": False, "share_of_downtime": 0.75,
+         "availability": 0.50, "time": {"mean": 10.0},
+         "red_time": {"mean": 5.0}, "drivers": []}]}
+    spec = charts.phase_downtime(attribution)
+    assert "Cruise has the lowest availability of the mission phases" in spec.caption
+    assert "Standby" not in spec.caption.split("Cruise")[1].split(".")[0]
+    assert spec.series[1]["mission"] is False
+
+
+def test_phase_cause_heatmap_rows_add_to_one_and_names_the_peak():
+    attribution = {"runs": 1, "phases": [
+        {"name": "Launch", "share_of_downtime": 0.6,
+         "causes": {"repair": 0.75, "pm": 0.25}},
+        {"name": "Cruise", "share_of_downtime": 0.4,
+         "causes": {"wait_spare": 1.0}}]}
+    spec = charts.phase_cause_heatmap(attribution)
+    assert [row["name"] for row in spec.series] == ["Launch", "Cruise"]
+    assert sum(spec.series[0]["cells"].values()) == pytest.approx(1.0)
+    assert spec.caption == ("Cruise is mostly waiting for a spare "
+                            "(100 % of its downtime).")
+    assert spec.provenance["row_label"] == "phase"
+    assert [item["label"] for item in spec.provenance["columns"]] == [
+        "Hands-on repair", "Waiting for a spare", "Planned maintenance"]
+    header, _rows = charts.csv_table(spec)
+    assert header[0] == "phase"
+
+
+def test_phase_cause_heatmap_needs_phases_and_the_breakdown():
+    with pytest.raises(ValueError, match="needs a phased model"):
+        charts.phase_cause_heatmap({"runs": 1, "phases": []})
+    attribution = {"runs": 1, "phases": [{"name": "Launch",
+                                          "share_of_downtime": 1.0}]}
+    with pytest.raises(ValueError, match="phase-by-cause breakdown"):
+        charts.phase_cause_heatmap(attribution)
+
+
+def test_phase_caption_handles_no_mission_downtime_and_not_entered():
+    attribution = {"runs": 1, "phases": [
+        {"name": "Cruise", "mission": True, "share_of_downtime": 0.0,
+         "availability": 1.0, "time": {"mean": 50.0},
+         "red_time": {"mean": 0.0}, "drivers": []},
+        {"name": "Standby", "mission": False, "share_of_downtime": 1.0,
+         "availability": 0.5, "time": {"mean": 10.0},
+         "red_time": {"mean": 5.0}, "drivers": []},
+        {"name": "Unused", "mission": True, "share_of_downtime": 0.0,
+         "availability": None, "time": {"mean": 0.0},
+         "red_time": {"mean": 0.0}, "drivers": []}]}
+    spec = charts.phase_downtime(attribution)
+    assert "All system downtime is in non-mission phases (by design)" in spec.caption
+    assert "lowest availability" not in spec.caption
+    unused = next(row for row in spec.series if row["name"] == "Unused")
+    assert unused["entered"] is False
+    assert unused["mission"] is True
+    assert spec.series[1]["mission"] is False
+
+
+def test_phase_text_lines_keep_availability_and_the_non_mission_mark():
+    attribution = {"runs": 1, "phases": [
+        {"name": "Launch", "mission": True, "share_of_downtime": 1.0,
+         "availability": 0.9, "time": {"mean": 10.0},
+         "red_time": {"mean": 1.0}, "drivers": []},
+        {"name": "Standby", "mission": False, "share_of_downtime": 0.0,
+         "availability": 1.0, "time": {"mean": 5.0},
+         "red_time": {"mean": 0.0}, "drivers": []}]}
+    lines = charts.text_lines(charts.phase_downtime(attribution))
+    assert any("availability 90 %" in line for line in lines)
+    assert any("Standby" in line and "non-mission" in line for line in lines)
+
+
+def test_chart_named_dispatches_the_phase_heatmap():
+    attribution = {"runs": 1, "phases": [
+        {"name": "Launch", "mission": True, "share_of_downtime": 1.0,
+         "causes": {"repair": 1.0}}]}
+    spec = charts.chart_named("phase-cause-heatmap", attribution=attribution)
+    assert spec.kind == "heatmap"
+    assert spec.title == "Phase by cause"
+    with pytest.raises(ValueError, match="phased model"):
+        charts.chart_named("phase-cause-heatmap", attribution={"runs": 1})
+
+
+def test_trial_outcome_meets_a_lower_is_better_target_and_survives_no_runs():
+    rows = [{"mdt": 5.0}, {"mdt": 6.0}, {"mdt": 20.0}]
+    spec = charts.trial_outcome(rows, "mdt", target=10.0,
+                                higher_is_better=False)
+    assert "2 of 3 (66.7 %) met the target" in spec.caption
+    assert charts.trial_outcome([], target=0.95).caption == (
+        "Availability: 0 runs.")
+
+
+def test_dot_plot_text_counts_runs_once_and_targetless_empty_input_is_safe():
+    spec = charts.trial_outcome([{"availability": 0.9},
+                                 {"availability": 0.95},
+                                 {"availability": 1.0}])
+    lines = charts.text_lines(spec)
+    assert any("runs: 3" in line for line in lines)
+    assert not charts.trial_outcome([]).caption.endswith("met the target.")
+
+
+def test_ensemble_ribbon_keeps_the_worst_run_when_it_samples():
+    runs = [{"start": 0, "end": 10, "red": [0, 1]} for _ in range(204)]
+    runs.append({"start": 0, "end": 10, "red": [0, 10]})
+    spec = charts.ensemble_ribbon({"runs": 205, "outages": {"runs": runs}},
+                                  max_runs=200)
+    assert len(spec.series) == 200
+    assert spec.series[-1]["run"] == 205
+    assert "worst 0 % up" in spec.caption
+
+
+def test_annual_capacity_fan_draws_the_capacity_target():
+    periods = {"runs": 2, "periods_per_run": 2, "threshold": 0.95,
+               "capacity": {"by_index": [
+                   {"index": 1, "n": 2, "p50": 0.90},
+                   {"index": 2, "n": 2, "p50": 0.97}]}}
+    spec = charts.annual_capacity_fan(periods, target=0.99)
+    assert any(mark.get("kind") == "target" and mark.get("value") == 0.99
+               for mark in spec.marks)
+    assert spec.title == "Capacity delivered year by year"
+
+
+def test_parse_fold_is_the_one_reading_of_the_others_presets():
+    assert charts.parse_fold("") == {} and charts.parse_fold(None) == {}
+    assert charts.parse_fold("top:10") == {"top": 10}
+    assert charts.parse_fold("fraction:0.25") == {"fraction": 0.25}
+    assert charts.parse_fold("tail:0.05") == {"tail_share": 0.05}
+    assert charts.parse_fold(0.01) == {"min_share": 0.01}
+    # every GUI preset parses
+    for mode in charts.FOLD_PRESETS.values():
+        charts.parse_fold(mode)
+    for bad in ("top:0", "top:2.5", "tail:5", "fraction:1", "bogus"):
+        with pytest.raises(ValueError):
+            charts.parse_fold(bad)

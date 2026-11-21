@@ -265,6 +265,18 @@ class RbdFile:
     #: and writes this; the legacy .rbd format has no representation
     #: (same warn-and-drop precedent as annotations/display_unit).
     project_meta: dict | None = None
+    #: .rbds-only result targets the owner set in the Charts tab:
+    #: `{"availability": 0.995, "capacity": 0.98}` (fractions, absent when
+    #: cleared). They draw the dashed target lines and the Story verdict;
+    #: they do not change the model or the simulation. Legacy .rbd has no
+    #: representation.
+    targets: dict = field(default_factory=dict)
+    #: .rbds-only CURRENCY the cost charts, the Story and the report print
+    #: in front of money ("$", "€", "AUD"). A presentation setting like
+    #: `display_unit`: it never changes a cost or the simulation, and the
+    #: default "$" is not written to the file. Legacy .rbd has no
+    #: representation (dropped with a warning when not the default).
+    currency: str = "$"
     #: .rbds-only RUN EXPERIMENT (see `raptor/gui/ui/run_experiment_mixin.py`):
     #: trials, termination, statistics start, enabled analyses and
     #: recording/plot selection. Travels with the model so a colleague

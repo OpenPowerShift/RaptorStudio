@@ -2014,6 +2014,9 @@ def configure_system(
     system_streams: str | None = None,
     display_unit: str | None = None,
     flow_generated: float | None = None,
+    availability_target: float | None = None,
+    capacity_target: float | None = None,
+    currency: str | None = None,
 ) -> CallToolResult:
     """Configure system-level simulation settings.
 
@@ -2021,7 +2024,14 @@ def configure_system(
     termination: 'TimeSim' or 'CycleSim'.  display_unit overrides the
     display unit without changing stored values.  capacity=true enables
     capacity analysis; `flow_generated` sets its demand (the flow the
-    system is asked to deliver).  Returns {applied, previous}.
+    system is asked to deliver).  `availability_target` and
+    `capacity_target` (fractions, e.g. 0.995; 0 clears) are the result
+    targets the Charts tab saves in the model: `run_chart` and `run_story`
+    use them when no target is passed.  They never change the simulation.
+    `currency` ("$", "€", "AUD"; at most 8 characters, "" resets to the
+    default "$") is printed in front of money in the cost charts, the Story
+    and the report; it never changes a cost.
+    Returns {applied, previous}.
     """
     context.require_write()
     ws = context.workspace()
@@ -2033,6 +2043,9 @@ def configure_system(
         cost=cost, capacity=capacity, gy_threshold=gy_threshold,
         yr_threshold=yr_threshold, system_streams=system_streams,
         display_unit=display_unit, flow_generated=flow_generated,
+        availability_target=availability_target,
+        capacity_target=capacity_target,
+        currency=currency,
     )
     applied = result.get("applied", {})
     md = "Updated system settings" + (

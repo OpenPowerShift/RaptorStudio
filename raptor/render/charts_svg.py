@@ -13,15 +13,16 @@ from __future__ import annotations
 import html
 import math
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    FAN_LINE_MIN, compact, currency, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
     period_axis, place_labels, tick_text,
 )
+from raptor.api.insight import palette as _palette
 from raptor.api.insight.charts import ChartSpec
 
 WIDTH = 760
@@ -46,15 +47,24 @@ _TONES = {"up": UP, "degraded": DEGRADED, "down": DOWN, "accent": ACCENT,
 
 #: Cause fills, matching the GUI palette; every cause but repair also has a
 #: pattern so the chart reads without colour.
-CAUSE_COLOURS = {
-    "repair": "#C4472F", "wait_spare": "#B07806",
-    "wait_resource": "#2F6FB7", "logistics": "#7A5AA6",
-    "pm": "#2A8C82", "pm_wait": "#5E9C3F", "dependency": "#6B7785",
-    "done": "#3C4653", "other": "#848F9B",
-    # cost components (the cost treemap); spares share wait_spare's colour
-    "purchase": "#2F6FB7", "operating": "#A9591A", "sparing": "#B07806",
-    "disposal": "#6B7785", "spare_pool": "#8E5B9E",
-}
+class _CauseColours(Mapping[str, str]):
+    """Live view of the active palette's light fills."""
+
+    def __getitem__(self, cause: str) -> str:
+        return _palette.colour(cause)
+
+    def __iter__(self):
+        return iter(_palette.colours())
+
+    def __len__(self) -> int:
+        return len(_palette.colours())
+
+    def items(self):
+        return _palette.colours().items()
+
+
+#: The active palette's light fills, kept live for every renderer.
+CAUSE_COLOURS = _CauseColours()
 _PATTERN_PATHS = {
     "repair": "",
     "wait_spare": "M0,4 l4,-4 M-1,1 l2,-2 M3,5 l2,-2",
@@ -84,6 +94,15 @@ def _esc(text: str) -> str:
 def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) \
         and math.isfinite(float(value))
+
+
+def _shrink(text: str, width: float) -> str:
+    """Text that fits `width`, with an ellipsis when it has to lose letters."""
+    if _width(text) <= width:
+        return text
+    while text and _width(text + "…") > width:
+        text = text[:-1]
+    return text + "…"
 
 
 def _width(text: str) -> float:
@@ -153,12 +172,14 @@ def _ink_on(colour: str) -> str:
 
 def _cause_fill(cause: str) -> str:
     cause = cause if cause in CAUSE_COLOURS else "other"
-    return f"url(#pat-{cause})" if _PATTERN_PATHS.get(cause) else CAUSE_COLOURS[cause]
+    return (f"url(#pat-{cause})" if _PATTERN_PATHS.get(cause)
+            else _palette.colour(cause))
 
 
 def _cause_defs() -> list[str]:
     out = ["<defs>"]
-    for cause, colour in CAUSE_COLOURS.items():
+    for cause in CAUSE_COLOURS:
+        colour = _palette.colour(cause)
         path = _PATTERN_PATHS.get(cause, "")
         if not path:
             continue
@@ -327,6 +348,14 @@ def _target_word(spec: ChartSpec) -> str:
 def _target_line(out: list[str], frame: _Frame, value: float, *,
                  horizontal: bool, label: str) -> None:
     box = frame.box
+    if not label:
+        if horizontal:
+            out.append(_line(box.left, frame.y(value), box.right, frame.y(value),
+                             STOP, width=1.6, dash="5,3"))
+        else:
+            out.append(_line(frame.x(value), box.top, frame.x(value), box.bottom,
+                             STOP, width=1.6, dash="5,3"))
+        return
     w = _width(label) + 8
     if horizontal:
         y = frame.y(value)
@@ -381,9 +410,15 @@ def _dot_plot(spec: ChartSpec, area: _Box) -> list[str]:
         return []
     target = _target(spec)
     fmt = _fmt_of(spec)
-    low, high = nice_range(min(values + ([target] if target is not None else [])),
-                           max(values + ([target] if target is not None else [])), 5,
-                           share=fmt == "percent")
+    if spec.provenance.get("x_range"):
+        low, high = (float(v) for v in spec.provenance["x_range"])
+    else:
+        low, high = nice_range(
+            min(values + ([target] if target is not None else [])),
+            max(values + ([target] if target is not None else [])), 5,
+            share=fmt == "percent")
+        pad = max(1e-9, (high - low) * 0.03)
+        low, high = low - pad, high + pad
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(low, high), y_range=(0, 1),
                    x_fmt=fmt, y_ticks=[], y_label="", y_axis=False)
@@ -414,9 +449,15 @@ def _exceedance(spec: ChartSpec, area: _Box) -> list[str]:
     fmt = _fmt_of(spec)
     target = _target(spec)
     values = [float(p["value"]) for p in points]
-    low, high = nice_range(min(values + ([target] if target is not None else [])),
-                           max(values + ([target] if target is not None else [])), 5,
-                           share=fmt == "percent")
+    if spec.provenance.get("x_range"):
+        low, high = (float(v) for v in spec.provenance["x_range"])
+    else:
+        low, high = nice_range(
+            min(values + ([target] if target is not None else [])),
+            max(values + ([target] if target is not None else [])), 5,
+            share=fmt == "percent")
+        pad = max(1e-9, (high - low) * 0.03)
+        low, high = low - pad, high + pad
     out: list[str] = []
     frame = _frame(out, spec, area, x_range=(0.0, 1.0), y_range=(low, high),
                    x_fmt="percent", y_fmt=fmt,
@@ -466,18 +507,25 @@ def _swatch(x: float, y: float, fill: str, colour: str) -> str:
     return _rect(x, y + 3, 14, 11, fill)
 
 
-def _key(spec: ChartSpec) -> list[tuple[str, str]]:
+def _key(spec: ChartSpec) -> list[tuple[str, str]]:  # noqa: C901, PLR0912
     """(label, fill) for every cause, series or layer the chart shows
     (`_swatch` says how a fill is drawn)."""
     if spec.kind in _FIXED_KEYS:
         return list(_FIXED_KEYS[spec.kind])
+    if spec.kind == "sunburst":
+        from raptor.api.insight.hierarchy import SERIES_COLOURS
+        roots = [node for node in spec.series if not node.get("parent")]
+        roots.sort(key=lambda node: -float(node.get("value") or 0.0))
+        return [(str(node.get("name") or ""),
+                 SERIES_COLOURS[i % len(SERIES_COLOURS)])
+                for i, node in enumerate(roots)]
     if spec.kind == "timeline":
         # the bands share a colour and differ in opacity: two plain swatches
         # of one colour could not be told apart
         from raptor.api.insight.timecharts import in_key
         out = []
         for layer in filter(in_key, spec.series):
-            tone = _TONES.get(str(layer.get("tone")), ACCENT)
+            tone = layer.get("colour") or _TONES.get(str(layer.get("tone")), ACCENT)
             if layer.get("role") == "area":
                 alpha = layer.get("alpha")
                 fill = f"area:{tone}:{_fmt(float(alpha)) if isinstance(alpha, (int, float)) else '0.85'}"
@@ -490,7 +538,11 @@ def _key(spec: ChartSpec) -> list[tuple[str, str]]:
         causes = [str(c) for row in spec.series for c in (row.get("causes") or {})]
     elif spec.kind in ("waterfall", "treemap", "icicle"):
         # a cell with no cause is drawn as Other, so Other is in the key
-        causes = [str(row.get("cause") or "other") for row in spec.series]
+        causes = [str(row.get("cause") or "other") for row in spec.series
+                  if not row.get("is_group")]
+    elif spec.kind == "sankey":
+        causes = [str(link.get("cause")) for link in spec.series
+                  if link.get("cause")]
     else:
         causes = []
     for cause in causes:
@@ -528,7 +580,7 @@ def _bars(spec: ChartSpec, area: _Box, rows: list[dict], *, fmt: str,
     return out
 
 
-def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
+def _pareto(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901
     rows = [r for r in spec.series if _number(r.get("value"))]
     if not rows:
         return []
@@ -544,6 +596,10 @@ def _pareto(spec: ChartSpec, area: _Box) -> list[str]:
         text = format_value(float(row["value"]), fmt, 3)
         if _number(row.get("availability")):
             text += f" (availability {format_value(float(row['availability']), 'percent', 5)})"
+        if row.get("mission") is False:
+            text += " (non-mission)"
+        if row.get("entered") is False:
+            text += " (not entered)"
         return text
 
     # a share's uncertainty range stops at 0 and 100 %, and so does its axis
@@ -629,7 +685,7 @@ def _waterfall(spec: ChartSpec, area: _Box) -> list[str]:
         else:
             # inside the bar: on a plate of the bar's colour, so the hatch
             # never runs through the figure
-            fill = CAUSE_COLOURS.get(str(step.get("cause")), CAUSE_COLOURS["other"])
+            fill = _palette.colour(str(step.get("cause")))
             out.append(_rect(x + width / 2 - _width(drop) / 2 - 3, min(y0, y1) + 3,
                              _width(drop) + 6, LINE_H, fill))
             out.append(_text(x + width / 2, min(y0, y1) + 14, drop, size=10,
@@ -720,10 +776,21 @@ def _histogram(spec: ChartSpec, area: _Box) -> list[str]:
         y = frame.y(float(row["count"]))
         out.append(_rect(x0 + 1, y, max(1.0, x1 - x0 - 2), frame.box.bottom - y,
                          ACCENT))
+    last_right = -1e9
     for mark in spec.marks:
         if mark.get("kind") == "quantile" and _number(mark.get("value")):
-            _target_line(out, frame, float(mark["value"]), horizontal=False,
-                         label=f"{mark.get('label', '')} {_short(float(mark['value']))}")
+            value = float(mark["value"])
+            label = str(mark.get("label") or "")
+            shown = _short(value)
+            if shown not in label:
+                label = f"{label} {shown}".strip()
+            x = frame.x(value)
+            width = _width(label) + 8
+            if x - last_right < width + 4:
+                label = ""
+            else:
+                last_right = x + width
+            _target_line(out, frame, value, horizontal=False, label=label)
     return out
 
 
@@ -872,6 +939,15 @@ def _convergence(spec: ChartSpec, area: _Box) -> list[str]:
     if target is not None and low <= target <= high:
         _target_line(out, frame, target, horizontal=True,
                      label=f"target {format_value(target, fmt, 5)}")
+    median = next((float(m["value"]) for m in spec.marks
+                   if m.get("kind") == "median" and _number(m.get("value"))),
+                  None)
+    if median is not None and low <= median <= high:
+        y = frame.y(median)
+        out.append(_line(frame.box.left, y, frame.box.right, y, MUTED,
+                         width=1.2, dash="4,3"))
+        label = f"median {format_value(median, fmt, 5)}"
+        out.append(_text(frame.box.left + 4, y - 4, label, size=9))
     return out
 
 
@@ -996,7 +1072,7 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
     low, high = (float(v) for v in (spec.provenance.get("y_range") or [0.0, 1.0])[:2])
     if high <= low:
         high = low + 1.0
-    if fmt != "percent":
+    if fmt != "percent" and not spec.provenance.get("y_axis_exact"):
         low, high = nice_range(low, high, 5)
     ticks = nice_ticks(low, high, 5)
     if fmt == "percent" and high >= 1.0:
@@ -1012,7 +1088,7 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
 
     for layer in layers:
         ts = [float(x) for x in layer["t"]]
-        colour = _TONES.get(str(layer.get("tone")), ACCENT)
+        colour = layer.get("colour") or _TONES.get(str(layer.get("tone")), ACCENT)
         if layer.get("role") == "area":
             alpha = layer.get("alpha")
             out.append(_polygon(
@@ -1034,6 +1110,15 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
     if target is not None and low <= target <= high:
         _target_line(out, frame, target, horizontal=True,
                      label=f"target {format_value(target, fmt, 5)}")
+    median = next((float(m["value"]) for m in spec.marks
+                   if m.get("kind") == "median" and _number(m.get("value"))),
+                  None)
+    if median is not None and low <= median <= high:
+        y = frame.y(median)
+        out.append(_line(frame.box.left, y, frame.box.right, y, MUTED,
+                         width=1.2, dash="4,3"))
+        label = f"median {format_value(median, fmt, 5)}"
+        out.append(_text(frame.box.left + 4, y - 4, label, size=9))
     return out
 
 
@@ -1057,7 +1142,7 @@ def _cell_text(out: list[str], x: float, y: float, w: float, h: float,
     wrapped = [part for line in lines for part in _wrap(line, w - 10, size=10)]
     if len(wrapped) * LINE_H + 3 > h:
         return False
-    colour = CAUSE_COLOURS.get(cause, CAUSE_COLOURS["other"])
+    colour = _palette.colour(cause)
     ink = _ink_on(colour)
     top = y + 2
     for text in wrapped:
@@ -1185,11 +1270,21 @@ def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
     def draw(body: _Box) -> tuple[list[str], list[_Unlabelled]]:
         out: list[str] = []
         missing: list[_Unlabelled] = []
+        group_labels: list[tuple[float, float, str, float]] = []
         for row in rows:
             x = body.left + float(row["x"]) / width * body.width
             y = body.top + float(row["y"]) / height * body.height
             w = float(row["w"]) / width * body.width
             h = float(row["h"]) / height * body.height
+            if row.get("is_group"):
+                # a hierarchy group is a background frame, not a cause cell:
+                # its children carry the cause colours and the area
+                out.append(_rect(x, y, w, h, "#EDF2F7",
+                                 " stroke='#8FA3B5' stroke-width='1.3'"))
+                if h >= 18 and w >= 24:
+                    group_labels.append((x + 6, y + 15, str(row["name"]),
+                                         w - 8))
+                continue
             cause = str(row.get("cause") or "other")
             out.append(_rect(x, y, w, h, _cause_fill(cause),
                              " stroke='#ffffff' stroke-width='1.5'"))
@@ -1198,6 +1293,10 @@ def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
                 missing.append(_Unlabelled(
                     f"{row['name']}: {amount}", _share(row, total),
                     (x, y) if w >= 16 and h >= 14 else None))
+        for x, y, name, label_w in group_labels:
+            name = _shrink(name, label_w - 6)
+            out.append(_rect(x - 2, y - 10, _width(name) + 6, 15, "#EDF2F7"))
+            out.append(_text(x, y + 2, name, size=11, weight="600", colour=INK))
         return out, missing
 
     return _with_footnote(area, draw)
@@ -1231,9 +1330,10 @@ def _icicle(spec: ChartSpec, area: _Box) -> list[str]:
                         float(row["value"]) / total,
                         (x + 1, y + 1) if h - 2 >= 14 else None))
                 y += h
-            out.append(_text(body.left + column * width + width / 2, body.bottom + 14,
-                             "first" if column == 0 else f"then (step {column + 1})",
-                             size=10, anchor="middle", colour=MUTED))
+            if not (columns == 1 and spec.provenance.get("single_column")):
+                out.append(_text(body.left + column * width + width / 2, body.bottom + 14,
+                                 "first" if column == 0 else f"then (step {column + 1})",
+                                 size=10, anchor="middle", colour=MUTED))
         return out, missing
 
     return _with_footnote(area, draw, limit=8)
@@ -1246,9 +1346,14 @@ def _ribbon(spec: ChartSpec, area: _Box) -> list[str]:
     start = min(float(row["start"]) for row in rows)
     end = max(float(row["end"]) for row in rows)
     out: list[str] = []
-    frame = _frame(out, spec, area, x_range=(start, end),
+    labels = [str(row.get("label") or row.get("name") or "") for row in rows
+              if row.get("name")]
+    gutter = min(180.0, max((_width(name) for name in labels), default=0.0) + 18)
+    plot = _Box(area.left + gutter, area.top, area.right, area.bottom)
+    frame = _frame(out, spec, plot, x_range=(start, end),
                    y_range=(0.0, float(len(rows))), y_ticks=[],
-                   y_label=(f"{len(rows)} of {spec.provenance['runs']:,} runs, best at the top"
+                   y_label=(str(spec.y_label) if any(row.get("name") for row in rows)
+                            else f"{len(rows)} of {spec.provenance['runs']:,} runs, best at the top"
                             if isinstance(spec.provenance.get("runs"), int)
                             and spec.provenance["runs"] > len(rows)
                             else f"{len(rows)} runs, best at the top"))
@@ -1260,13 +1365,346 @@ def _ribbon(spec: ChartSpec, area: _Box) -> list[str]:
         for a, b in row.get("red") or []:
             x0, x1 = frame.x(float(a)), frame.x(float(b))
             out.append(_rect(x0, y, max(1.0, x1 - x0), max(1.0, height - 0.4), DOWN))
+        if row.get("name"):
+            out.append(_text(area.left + gutter - 6, y + height / 2 + 4,
+                             _shrink(str(row.get("label") or row["name"]),
+                                     gutter - 10), size=9, anchor="end"))
+    return out
+
+
+def _delta(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = spec.series
+    if not rows:
+        return []
+    values = [float(row.get("value") or 0.0) for row in rows]
+    if not any(abs(value) > 1e-12 for value in values):
+        return []
+    bound = max(max(abs(v) for v in values), 1e-9)
+    bound = nice_range(-bound, bound, 4)[1]
+    labels = [str(row.get("name") or "") for row in rows]
+    gutter = min(area.width * 0.4, _gutter(area, labels, len(rows)))
+    out: list[str] = []
+    fmt = "percent" if spec.provenance.get("format") == "percent" else ""
+    frame = _frame(out, spec, area, x_range=(-bound, bound),
+                   y_range=(0.0, float(len(rows))), y_ticks=[],
+                   x_fmt=fmt, x_label=spec.x_label,
+                   y_label="hierarchy")
+    box = frame.box
+    band = box.height / len(rows)
+    bar_h = max(3.0, min(16.0, band * 0.45))
+    zero = frame.x(0.0)
+    out.append(_line(zero, box.top, zero, box.bottom, MUTED, width=1.2,
+                     dash="4,3"))
+    for i, row in enumerate(rows):
+        value = float(row.get("value") or 0.0)
+        y = box.top + i * band + (band - bar_h) / 2
+        x = frame.x(value)
+        colour = DOWN if value > 0 else UP if value < 0 else MUTED
+        out.append(_rect(min(zero, x), y, max(1.0, abs(x - zero)), bar_h, colour))
+        sem = float(row["sem"]) if _number(row.get("sem")) else 0.0
+        if sem > 0:
+            lo, hi = frame.x(value - 2 * sem), frame.x(value + 2 * sem)
+            mid = y + bar_h / 2
+            out.append(_line(lo, mid, hi, mid, INK, width=1.2))
+            out.append(_line(lo, mid - 4, lo, mid + 4, INK, width=1.2))
+            out.append(_line(hi, mid - 4, hi, mid + 4, INK, width=1.2))
+        units = str(spec.provenance.get("units") or "")
+        unit = " h" if units.lower().startswith("hour") else (
+            f" {units}" if units else "")
+        text = format_value(value, fmt, 3) + unit
+        left = x + 4 if value >= 0 else x - _width(text) - 4
+        out.append(_text(left, y + bar_h - 2, text, size=10,
+                         anchor="start" if value >= 0 else "end"))
+        out.append(_text(area.left + gutter - 8, y + bar_h - 2,
+                         _shrink(str(row.get("name") or ""), gutter - 10),
+                         size=10, anchor="end"))
+    return out
+
+
+def _heat_colour(value: float, largest: float) -> str:
+    """A sequential blue from the surface to the accent for 0..largest."""
+    if largest <= 0:
+        return "#F7FAFC"
+    share = max(0.0, min(1.0, value / largest))
+    lo = (247, 250, 252)
+    hi = (19, 113, 187)
+    rgb = tuple(round(lo[i] + (hi[i] - lo[i]) * share) for i in range(3))
+    return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+
+
+def _heatmap(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = spec.series
+    columns = [str(item.get("key")) for item in
+               spec.provenance.get("columns") or []]
+    if not rows or not columns:
+        return []
+    labels = [str(item.get("label")) for item in spec.provenance.get("columns") or []]
+    fm_gutter = max((_width(str(row.get("name") or "")) for row in rows), default=80)
+    fm_gutter = min(max(90.0, fm_gutter + 14), area.width * 0.32)
+    left = area.left + fm_gutter
+    top = area.top + 30
+    width = max(1.0, area.right - left)
+    height = max(1.0, area.bottom - top - 12)
+    col_w = width / len(columns)
+    row_h = height / len(rows)
+    largest = max((float((row.get("cells") or {}).get(c) or 0.0)
+                   for row in rows for c in columns), default=0.0)
+    out: list[str] = []
+    for i, label in enumerate(labels):
+        x = left + i * col_w + col_w / 2
+        out.append(_text(x, top - 8, _shrink(label, col_w - 4), size=9,
+                         anchor="middle"))
+    for i, row in enumerate(rows):
+        y = top + i * row_h
+        out.append(_text(left - 7, y + row_h / 2 + 4,
+                         _shrink(str(row.get("name") or ""), fm_gutter - 10),
+                         size=10, anchor="end"))
+        for j, cause in enumerate(columns):
+            value = float((row.get("cells") or {}).get(cause) or 0.0)
+            x = left + j * col_w
+            out.append(_rect(x + 1, y + 1, col_w - 2, row_h - 2,
+                             _heat_colour(value, largest)))
+            if col_w >= 38 and row_h >= 18:
+                ink = "#ffffff" if value / largest > 0.55 else INK
+                out.append(_text(x + col_w / 2, y + row_h / 2 + 4,
+                                 f"{100 * value:.0f}%", size=9,
+                                 anchor="middle", colour=ink))
+    return out
+
+
+def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - one flow layout
+    nodes = list(spec.provenance.get("nodes") or [])
+    links = spec.series
+    if not nodes or not links:
+        return []
+    total_lost = next((float(n.get("value") or 0.0) for n in nodes
+                       if n.get("id") == "lost"), 0.0)
+
+    def amount_of(raw: float) -> str:
+        return (compact(raw) if abs(raw) >= 1e6
+                else f"{raw:,.0f}" if abs(raw) >= 1000 else f"{raw:,.4g}")
+
+    def share_of(node: dict, amount: str) -> str:
+        """A loss node's amount, with its share of the lost flow."""
+        ident = str(node.get("id") or "")
+        if total_lost <= 0 or not (ident.startswith(("cause-", "hier-"))
+                                   or ident == "unattributed"):
+            return amount
+        return f"{amount} ({pct(float(node.get('value') or 0.0) / total_lost)})"
+
+    columns = sorted({int(node.get("column") or 0) for node in nodes})
+    first = [str(n.get("name") or "") for n in nodes
+             if int(n.get("column") or 0) == columns[0]]
+    last = [f"{n.get('name') or ''} · "
+            f"{share_of(n, amount_of(float(n.get('value') or 0)))}"
+            for n in nodes if int(n.get("column") or 0) == columns[-1]]
+    left_pad = min(area.width * 0.28,
+                   max(110.0, max((_width(x) for x in first), default=0) + 18))
+    right_pad = min(area.width * 0.50,
+                    max(300.0, max((_width(x) for x in last), default=0) + 22))
+    span = max(1.0, area.width - left_pad - right_pad)
+    col_x = {col: area.left + left_pad + span * i / max(1, len(columns) - 1)
+             for i, col in enumerate(columns)}
+    totals = {col: sum(float(node.get("value") or 0.0) for node in nodes
+                       if int(node.get("column") or 0) == col)
+              for col in columns}
+    gap = 6.0
+    placed: dict[str, tuple[float, float, float]] = {}
+    for col in columns:
+        members = [node for node in nodes if int(node.get("column") or 0) == col]
+        total = totals[col] or 1.0
+        available = max(1.0, area.height - gap * max(0, len(members) - 1))
+        y = area.top
+        for node in members:
+            h = max(2.0, available * float(node.get("value") or 0.0) / total)
+            placed[str(node["id"])] = (col_x[col], y, h)
+            y += h + gap
+    out: list[str] = []
+    # links behind nodes
+    for link in links:
+        source = placed.get(str(link.get("source")))
+        target = placed.get(str(link.get("target")))
+        if source is None or target is None:
+            continue
+        value = float(link.get("value") or 0.0)
+        thickness = max(1.0, value / (totals[0] or 1.0) * area.height * 0.45)
+        x0, y0, h0 = source
+        x1, y1, h1 = target
+        y0 += h0 / 2
+        y1 += h1 / 2
+        cause = str(link.get("cause") or "other")
+        colour = _palette.colour(cause) if link.get("cause") else "#9FB3C8"
+        cx = (x0 + x1) / 2
+        out.append(
+            f"<path d='M{_fmt(x0 + 14)},{_fmt(y0 - thickness / 2)} "
+            f"C{_fmt(cx)},{_fmt(y0 - thickness / 2)} {_fmt(cx)},{_fmt(y1 - thickness / 2)} "
+            f"{_fmt(x1)},{_fmt(y1 - thickness / 2)} L{_fmt(x1)},{_fmt(y1 + thickness / 2)} "
+            f"C{_fmt(cx)},{_fmt(y1 + thickness / 2)} {_fmt(cx)},{_fmt(y0 + thickness / 2)} "
+            f"{_fmt(x0 + 14)},{_fmt(y0 + thickness / 2)} Z' "
+            f"fill='{colour}' fill-opacity='0.34'/>")
+    for node in nodes:
+        x, y, h = placed[str(node["id"])]
+        out.append(_rect(x, y, 14, h, "#6B7785"))
+        label = str(node.get("name") or "")
+        if str(node.get("id") or "").startswith("cause-"):
+            label = CAUSE_LABELS.get(str(node["id"])[6:], label)
+        raw = float(node.get('value') or 0)
+        amount = share_of(node, amount_of(raw))
+        if int(node.get("column") or 0) == 0:
+            out.append(_text(x - 6, y + h / 2 + 4,
+                             _shrink(label, left_pad - 12), size=10,
+                             anchor="end"))
+        elif int(node.get("column") or 0) == max(columns):
+            # a sliver node at the foot of the column: keep its label inside
+            out.append(_text(x + 18, min(y + h / 2 + 4, area.bottom - 2),
+                             _shrink(f"{label} · {amount}", right_pad - 20),
+                             size=9))
+        else:
+            out.append(_text(x + 18, y + h / 2 + 4,
+                             _shrink(f"{label} · {amount}", span / max(1, len(columns) - 1) - 20),
+                             size=9))
+    return out
+
+
+def _arc_path(cx: float, cy: float, inner: float, outer: float,
+              start: float, end: float) -> str:
+    import math as _math
+    large = 1 if end - start > _math.pi else 0
+    p0 = (cx + inner * _math.cos(start), cy + inner * _math.sin(start))
+    p1 = (cx + outer * _math.cos(start), cy + outer * _math.sin(start))
+    p2 = (cx + outer * _math.cos(end), cy + outer * _math.sin(end))
+    p3 = (cx + inner * _math.cos(end), cy + inner * _math.sin(end))
+    return (f"M{_fmt(p0[0])},{_fmt(p0[1])} L{_fmt(p1[0])},{_fmt(p1[1])} "
+            f"A{_fmt(outer)},{_fmt(outer)} 0 {large} 1 {_fmt(p2[0])},{_fmt(p2[1])} "
+            f"L{_fmt(p3[0])},{_fmt(p3[1])} "
+            f"A{_fmt(inner)},{_fmt(inner)} 0 {large} 0 {_fmt(p0[0])},{_fmt(p0[1])} Z")
+
+
+def _mix_colour(colour: str, other: str, amount: float) -> str:
+    a = tuple(int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    b = tuple(int(other[i:i + 2], 16) for i in (1, 3, 5))
+    mixed = tuple(round(a[i] + (b[i] - a[i]) * amount) for i in range(3))
+    return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
+
+
+def _sunburst(spec: ChartSpec, area: _Box) -> list[str]:
+    from raptor.api.insight.hierarchy import SERIES_COLOURS, sunburst_layout
+    nodes = sunburst_layout(spec.series)
+    if not nodes:
+        return []
+    cx = (area.left + area.right) / 2
+    cy = (area.top + area.bottom) / 2
+    radius = min(area.width, area.height) / 2 - 12
+    if radius <= 20:
+        return []
+    import math
+    max_depth = max(int(node.get("depth") or 0) for node in nodes)
+    inner = radius * 0.28
+    ring = (radius - inner) / (max_depth + 1)
+    out: list[str] = []
+    for node in nodes:
+        depth = int(node.get("depth") or 0)
+        outer = inner + (depth + 1) * ring
+        radius_in = inner + depth * ring
+        start, end = float(node.get("start") or 0.0), float(node.get("end") or 0.0)
+        root = int(node.get("root_index") or 0)
+        colour = _mix_colour(SERIES_COLOURS[root % len(SERIES_COLOURS)],
+                             "#FFFFFF", min(0.58, 0.14 * depth))
+        out.append(f"<path d='{_arc_path(cx, cy, radius_in + 1.5, outer - 1.5, start, end)}' "
+                   f"fill='{colour}' stroke='#ffffff' stroke-width='1'/>")
+    placed: list[tuple[float, float, float, float]] = []
+    for node in sorted(nodes, key=lambda item: int(item.get("depth") or 0)):
+        depth = int(node.get("depth") or 0)
+        start, end = float(node.get("start") or 0.0), float(node.get("end") or 0.0)
+        span = end - start
+        if depth == 0 or span < 0.30 or ring < 10:
+            continue
+        angle = (start + end) / 2
+        label = str(node.get("name") or "").split(" > ")[-1]
+        mid = inner + (depth + (0.85 if depth == 0 else 0.5)) * ring
+        if span * mid < _width(label) * 1.2:
+            continue
+        x = cx + mid * math.cos(angle) - _width(label) / 2
+        y = cy + mid * math.sin(angle) - 5
+        box = (x - 2, y - 2, _width(label) + 4, 13)
+        if (box[0] < area.left or box[0] + box[2] > area.right
+                or box[1] < area.top or box[1] + box[3] > area.bottom):
+            continue
+        if any(not (box[0] + box[2] < other[0] or other[0] + other[2] < box[0]
+                    or box[1] + box[3] < other[1] or other[1] + other[3] < box[1])
+               for other in placed):
+            continue
+        placed.append(box)
+        out.append(_text(x, y + 9, label, size=8, colour=_ink_on(colour)))
+    centre = "System"
+    if spec.scope and str(spec.scope.get("kind") or "") != "system":
+        centre = str(spec.scope.get("name") or "System")
+    out.append(_text(cx, cy + 4, centre, size=11, anchor="middle"))
+    return out
+
+
+def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:
+    rows = spec.series
+    if not rows:
+        return []
+    columns = 2 if len(rows) > 2 else 1
+    gap = 10.0
+    width = (area.width - gap * (columns - 1)) / columns
+    rows_n = (len(rows) + columns - 1) // columns
+    height = (area.height - gap * (rows_n - 1)) / max(1, rows_n)
+    out: list[str] = []
+    for i, row in enumerate(rows):
+        col, line = i % columns, i // columns
+        x = area.left + col * (width + gap)
+        y = area.top + line * (height + gap)
+        out.append(_rect(x, y, width, height, "#F5F9FC",
+                         " stroke='#D7E0E8' stroke-width='1'"))
+        out.append(_text(x + 8, y + 18, str(row.get("name") or ""),
+                         size=11, weight="600"))
+        value = float(row.get("value") or 0.0)
+        out.append(_text(x + 8, y + 42, format_value(value, "percent", 3),
+                         size=20, weight="600", colour=ACCENT if value else MUTED))
+        if _number(row.get("sem")):
+            out.append(_text(x + 8, y + 58, f"± {2 * float(row['sem']) * 100:.2g} pts",
+                             size=9, colour=MUTED))
+        detail = (f"{int(row.get('members') or 0)} inside · "
+                  f"{int(row.get('starters') or 0)} started")
+        out.append(_text(x + 8, y + height - 8, detail, size=9, colour=MUTED))
+        cause = str(row.get("cause") or "")
+        if cause:
+            out.append(_text(x + width - 8, y + 18, CAUSE_LABELS.get(cause, cause),
+                             size=9, anchor="end", colour=MUTED))
+    return out
+
+
+def _small_multiples(spec: ChartSpec, area: _Box) -> list[str]:
+    facets = spec.facets
+    if not facets:
+        return []
+    columns = 1 if len(facets) == 1 else 2 if len(facets) <= 4 else 3
+    rows = (len(facets) + columns - 1) // columns
+    gap = 12.0
+    width = (area.width - gap * (columns - 1)) / columns
+    height = (area.height - gap * (rows - 1)) / max(1, rows)
+    out: list[str] = []
+    for i, facet in enumerate(facets):
+        col, line = i % columns, i // columns
+        x = area.left + col * (width + gap)
+        y = area.top + line * (height + gap)
+        out.append(_rect(x, y, width, height, "#FFFFFF",
+                         " stroke='#D7E0E8' stroke-width='0.8'"))
+        out.append(_text(x + 6, y + 14, facet.title, size=10, weight="600"))
+        renderer = _RENDERERS.get(facet.kind)
+        if renderer is not None:
+            out.extend(renderer(facet, _Box(x + 4, y + 18, x + width - 4,
+                                            y + height - 4)))
     return out
 
 
 def _short(value: float) -> str:
     size = abs(value)
     if size >= 1e4:
-        return format_value(value, "money")
+        return compact(value)
     if size >= 100:
         return f"{value:,.0f}"
     return f"{value:.3g}"
@@ -1290,6 +1728,12 @@ _RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
     "icicle": _icicle,
     "ribbon": _ribbon,
     "timeline": _timeline,
+    "delta": _delta,
+    "heatmap": _heatmap,
+    "sankey": _sankey,
+    "sunburst": _sunburst,
+    "scorecard": _scorecard,
+    "small_multiples": _small_multiples,
 }
 
 
@@ -1316,6 +1760,16 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     cell too small for its name is numbered and named in a footnote.
     `id_prefix` makes the pattern ids unique when several charts are inlined
     in one HTML page (the report): repeated ids are invalid there."""
+    # money in the spec's currency (`provenance["currency"]`, else the
+    # caller's), for every tick, bar label and reading
+    with currency(spec.provenance.get("currency")):
+        return _render(spec, width=width, height=height, page=page,
+                       background=background, text_colour=text_colour,
+                       id_prefix=id_prefix)
+
+
+def _render(spec: ChartSpec, *, width: int, height: int, page: str | None,
+            background: str, text_colour: str, id_prefix: str) -> str:
     physical: tuple[str, str] | None = None
     if page is not None:
         if page not in PAGES:
@@ -1342,7 +1796,7 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
         body.append(_lines(width / 2, sub_y, subtitle, anchor="middle", colour=MUTED))
     top = sub_y + LINE_H * (len(subtitle) - 1) + 9.0 if subtitle else sub_y - 8.0
     top = max(top, float(TITLE_H))
-    if not spec.series and not spec.annotations and spec.caption:
+    if not spec.series and not spec.annotations and not spec.facets and spec.caption:
         # nothing to draw: say why where the plot would be, not in small
         # print under an empty frame (an empty chart read as a broken one)
         reason = _wrap(spec.caption, min(width - 2 * PAD, 560), size=14)

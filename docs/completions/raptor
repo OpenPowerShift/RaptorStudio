@@ -9,7 +9,7 @@ _raptor() {
   case "$cmd" in
     advise) opts="--format --help --ignore --jobs --list-rules --min-severity --only --progress --reason --restore --simulate --skip --strict --target --why" ;;
     analytic) opts="--at --bx --dependencies --equation --format --help --hierarchy --ignore --ignore-repairs --importance --max-bdd-nodes --max-variables --mode --no-importance --ods --phase --progress --standby --tau --times --xlsx" ;;
-    compare) opts="--analysis --block-streams --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
+    compare) opts="--analysis --block-streams --by-hierarchy --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --weak-type" ;;
     completion) opts="--help" ;;
     config) opts="--help" ;;
     convert) opts="--allow-lossy --dry-run --format --help --no-sidecar --normalize-out --report --strict --to" ;;
@@ -18,7 +18,7 @@ _raptor() {
     doctor) opts="--format --help" ;;
     edit) opts="--help" ;;
     estimate) opts="--format --help --length --runs" ;;
-    explain) opts="--analysis --below --capacity-rule --chart --chart-min-share --chart-page --chart-run --chart-svg --format --help --importance --jobs --list-charts --progress --report --report-include --runs --seed --story --target --timeout --top --y-floor --year-length --year-offset --yearly" ;;
+    explain) opts="--analysis --below --capacity-rule --chart --chart-fold --chart-min-share --chart-page --chart-run --chart-svg --compare-to --depth --format --help --hierarchies --hierarchy --importance --jobs --list-charts --no-delivered --progress --report --report-include --runs --sankey --seed --story --target --timeout --top --y-floor --year-length --year-offset --yearly" ;;
     extract) opts="--deps --format --help --hierarchy --output --pools --report-hazards --streams --treat" ;;
     fev) opts="--capacity --criticality --cycle --fail --format --help --log --phase --repair --script" ;;
     fit) opts="--block --format --help --law --quantile --repair" ;;

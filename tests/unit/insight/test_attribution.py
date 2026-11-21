@@ -206,6 +206,8 @@ def test_downtime_by_phase_by_hand():
     assert [(d["name"], round(d["share"], 6)) for d in cruise["drivers"]] == [
         ("Pump", round(5 / 7, 6)), ("Valve", round(2 / 7, 6))]
     assert launch["drivers"] == [{"name": "Pump", "kind": "Block", "id": 1, "share": 1.0}]
+    assert launch["causes"] == {"repair": 1.0}
+    assert cruise["causes"] == {"repair": 1.0}
     # the phases add up to the whole run
     assert launch["red_time"]["mean"] + cruise["red_time"]["mean"] == pytest.approx(
         result["system"]["red_time"]["mean"])
@@ -304,3 +306,24 @@ def test_a_hierarchy_owns_what_starts_inside_it_at_any_depth():
 
 def test_a_model_without_hierarchies_has_no_roll_up():
     assert "hierarchies" not in attribute_logs([_two_block_log()])
+
+
+def test_phase_rows_split_each_phases_downtime_by_cause():
+    from raptor.api.insight.attribution import (
+        Initiated, TrialAttribution, _phase_rows,
+    )
+    trial = TrialAttribution(span=100.0, red_time=10.0)
+    trial.phase_time = {"Launch": 40.0, "Cruise": 60.0}
+    trial.phase_red = {"Launch": 4.0, "Cruise": 6.0}
+    trial.phase_initiated = {"Launch": {("block", 1): 4.0},
+                             "Cruise": {("block", 1): 6.0}}
+    trial.phase_cause = {"Launch": {"repair": 4.0},
+                         "Cruise": {"repair": 0.6, "pm": 5.4}}
+    trial.initiated[("block", 1)] = Initiated(outages=2, red_time=10.0)
+    trial.initiator_cause[("block", 1)] = {"repair": 7.5, "pm": 2.5}
+    rows = _phase_rows([trial], {("block", 1): "Pump"},
+                       [{"name": "Launch"}, {"name": "Cruise"}])
+    by_name = {row["name"]: row for row in rows}
+    assert by_name["Launch"]["causes"] == {"repair": 1.0}
+    assert by_name["Cruise"]["causes"]["repair"] == pytest.approx(0.1)
+    assert by_name["Cruise"]["causes"]["pm"] == pytest.approx(0.9)

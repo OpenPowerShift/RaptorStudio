@@ -51,6 +51,9 @@ NEEDS: dict[str, Need] = {
     "cost": Need(
         "cost analysis", "configure_system(cost=true)",
         "--analysis cost", "Cost", ANALYSIS),
+    "cost_plot": Need(
+        "the interim cost report", "simulate(interim_cost=true)",
+        "raptor run -r interim-cost", "Interim cost", RECORDING),
     "weak_link": Need(
         "Weak Link analysis", "configure_system(weak_link=true)",
         "--analysis weak", "Weak Link", ANALYSIS),
@@ -62,7 +65,7 @@ NEEDS: dict[str, Need] = {
 
 #: What a window control needs ticked first (the panel refuses the
 #: capacity plot without capacity analysis, so the click must tick both).
-_REQUIRES = {"capacity_plot": ("capacity",)}
+_REQUIRES = {"capacity_plot": ("capacity",), "cost_plot": ("cost",)}
 
 #: The other direction: what each Run panel option FEEDS, keyed by the
 #: panel's own control key (`analyses` entries, `recording` keys and
@@ -164,6 +167,8 @@ def turn_on(experiment: dict[str, Any], keys: Iterable[str]) -> dict[str, Any]:
             out["recording"]["ao_plot"] = True
         elif key == "capacity_plot":
             out["recording"]["capacity_plot"] = True
+        elif key == "cost_plot":
+            out["recording"]["cost_plot"] = True
         elif key in ("capacity", "cost", "weak_link"):
             name = "weak" if key == "weak_link" else key
             if name not in out["analyses"]:
@@ -180,6 +185,7 @@ def is_on(experiment: dict[str, Any], key: str) -> bool:
         "attribution": bool(recording.get("event_log")),
         "availability_plot": bool(recording.get("ao_plot")),
         "capacity_plot": bool(recording.get("capacity_plot")),
+        "cost_plot": bool(recording.get("cost_plot")),
         "capacity": "capacity" in (experiment.get("analyses") or []),
         "cost": "cost" in (experiment.get("analyses") or []),
         "weak_link": "weak" in (experiment.get("analyses") or []),

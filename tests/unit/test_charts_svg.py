@@ -107,7 +107,8 @@ def test_the_same_spec_renders_the_same_bytes():
 def test_a_pareto_names_every_cause_and_draws_its_pattern():
     svg = charts_svg.render(_specs()["pareto"])
     assert "pat-wait_spare" in svg
-    assert "C4472F" in svg  # the solid repair fill, made distinct by pattern
+    from raptor.api.insight import palette
+    assert palette.colour("repair") in svg  # the solid repair fill, made distinct by pattern
     assert "Pump" in svg and "Valve" in svg
 
 

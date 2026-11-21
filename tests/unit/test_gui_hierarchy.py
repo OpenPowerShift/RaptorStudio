@@ -963,3 +963,14 @@ def test_import_shows_only_the_oval_and_keeps_the_files_layout(qapp, tmp_path):
     for name, p in expected.items():
         assert got[name].x() == pytest.approx(p.x() + ox, abs=1.5), name
         assert got[name].y() == pytest.approx(p.y() + oy, abs=1.5), name
+
+
+def test_changing_level_also_moves_the_charts(window):
+    """The Charts tab follows the canvas level without raising before a run."""
+    v = window._diagram_dock.view
+    v.enter_level(23)
+    QApplication.processEvents()
+    assert window._results._chart_hierarchy == 23
+    v.go_up()
+    QApplication.processEvents()
+    assert window._results._chart_hierarchy == 0

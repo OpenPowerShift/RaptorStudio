@@ -473,6 +473,7 @@ async def simulate(  # noqa: PLR0912, PLR0915
         result,
         display_unit=getattr(handle.rbd, "display_unit", None),
         native_unit=model_units(handle.rbd),
+        cost_unit=getattr(handle.rbd, "currency", None),
     )
     if getattr(result, "isolation", None):
         md = f"**{result.isolation['banner']}**\n\n" + md

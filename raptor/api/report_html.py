@@ -363,7 +363,7 @@ def _raw_html(blocks: Sequence[TextBlock]) -> str:
     return "".join(out)
 
 
-def _story_html(insight: Any) -> str:
+def _story_html(insight: Any) -> str:  # noqa: C901, PLR0912
     story = insight.story or {}
     if not story:
         return ""
@@ -384,6 +384,32 @@ def _story_html(insight: Any) -> str:
         for driver in drivers:
             out.append(f'<li>{_e(driver.get("name", ""))}: '
                        f'{pct(float(driver.get("share") or 0))}</li>')
+        out.append("</ul>")
+    phases = story.get("phases") or []
+    if phases:
+        out.append("<h3>By phase</h3><ul>")
+        for item in phases:
+            if not item.get("entered"):
+                detail = "not entered"
+            else:
+                availability = item.get("availability")
+                detail = ("availability n/a" if availability is None else
+                          f"availability {pct(float(availability))}")
+                detail += f" · {pct(float(item.get('share') or 0))} of downtime"
+                if item.get("mission") is False:
+                    detail += " (non-mission)"
+            out.append(f'<li>{_e(item.get("name", ""))}: {_e(detail)}</li>')
+        out.append("</ul>")
+    hierarchies = story.get("hierarchies") or []
+    if hierarchies:
+        out.append("<h3>By hierarchy</h3><ul>")
+        for item in hierarchies:
+            detail = (f"{int(item.get('members') or 0)} inside, "
+                      f"{int(item.get('starters') or 0)} started an outage")
+            if item.get("status"):
+                detail = str(item["status"])
+            out.append(f'<li>{_e(item.get("path") or item.get("name", ""))}: '
+                       f'{pct(float(item.get("share") or 0))} · {_e(detail)}</li>')
         out.append("</ul>")
     findings = story.get("findings") or []
     if findings:

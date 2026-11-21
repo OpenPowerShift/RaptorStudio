@@ -194,3 +194,36 @@ def run_units(workspace: Any, run_id: str) -> str:
     if not folder.is_dir():
         raise RunNotFoundError(f"Run {run_id!r} not found")
     return str(read_summary(folder, run_id).get("units") or "")
+
+
+def run_model(workspace: Any, run_id: str) -> Any:
+    """The open model a stored run was made from, or None when it is no
+    longer open in the workspace (or the run names none)."""
+    from raptor.api.run import run_dir
+    try:
+        model_id = read_summary(run_dir(workspace, run_id), run_id).get("model_id")
+        return workspace.get(str(model_id)).rbd if model_id else None
+    except Exception:  # noqa: BLE001 - a closed model just is not there
+        return None
+
+
+def run_targets(workspace: Any, run_id: str) -> dict[str, float]:
+    """The result targets saved in the model a stored run was made from.
+
+    `{"availability": 0.995, "capacity": 0.98}` (either may be missing), or
+    `{}` when the model is no longer open in the workspace or has none.
+    Targets are left out of the model hash, so a target set after the run
+    still belongs to it.  The MCP tools and the command line fall back to
+    these when the caller names no target, as the Charts tab does.
+    """
+    from raptor.core.fileio.rbds import clean_targets
+    rbd = run_model(workspace, run_id)
+    return clean_targets(getattr(rbd, "targets", None)) if rbd is not None else {}
+
+
+def run_currency(workspace: Any, run_id: str) -> str:
+    """The currency of the model a stored run was made from ("$" when the
+    model is closed or names none).  Like the targets it is left out of the
+    model hash, so it can be changed after a run."""
+    from raptor.core.fileio.rbds import clean_currency
+    return clean_currency(getattr(run_model(workspace, run_id), "currency", None))

@@ -10,7 +10,9 @@ Wilkinson dot plot (each dot at its own value, equal values stacked).
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 
 def nice_ticks(low: float, high: float, count: int = 5) -> list[float]:
@@ -110,18 +112,68 @@ def tick_text(value: float, ticks: Sequence[float], *, percent: bool = False,
     return text + (" %" if percent else suffix)
 
 
+#: The currency money is printed in, for the chart or Story being built or
+#: drawn (`currency`).  A context variable, not an argument, because money
+#: reaches captions, ticks and bar labels through dozens of builders.
+_CURRENCY: ContextVar[str] = ContextVar("raptor_currency", default="$")
+
+
+@contextmanager
+def currency(symbol: str | None) -> Iterator[str]:
+    """Print money in `symbol` ("$", "€", "AUD") inside the block.
+
+    `None` or "" keeps the current one.  Callers set it around building a
+    `ChartSpec` (captions) and around drawing one (ticks, labels), from the
+    model's `currency` or the spec's ``provenance["currency"]``."""
+    token = _CURRENCY.set(symbol) if symbol else None
+    try:
+        yield _CURRENCY.get()
+    finally:
+        if token is not None:
+            _CURRENCY.reset(token)
+
+
+def current_currency() -> str:
+    """The currency money is printed in here (default "$")."""
+    return _CURRENCY.get()
+
+
+def with_currency(text: str, symbol: str | None = None) -> str:
+    """`text` (an amount) with the currency in front: "$4.56M", "-€12k",
+    "AUD 1,234" (a code that ends in a letter gets a space)."""
+    sym = _CURRENCY.get() if symbol is None else symbol
+    if not sym:
+        return text
+    gap = " " if sym[-1].isalpha() else ""
+    if text.startswith("-"):
+        return f"-{sym}{gap}{text[1:]}"
+    return f"{sym}{gap}{text}"
+
+
 def _money(value: float, step: float | None = None) -> str:
-    """1,234 / 12.3k / 4.56M: short enough for a tick or a bar label."""
+    """$1,234 / $12.3k / $4.56M: short enough for a tick or a bar label,
+    in the current currency."""
+    return with_currency(compact(value, step))
+
+
+def compact(value: float, step: float | None = None) -> str:
+    """1,234 / 12.3k / 4.56M with no unit: for money (see `_money`) and for
+    any large quantity, such as a Sankey's flow × time."""
     size = abs(value)
     for limit, unit in ((1e9, "G"), (1e6, "M"), (1e3, "k")):
         if size >= limit:
             scaled = value / limit
             places = 0
             if step is not None and step > 0:
-                places = max(0, min(3, -math.floor(math.log10(step / limit))))
+                ratio = step / limit
+                places = max(0, len(f"{ratio:.3f}".rstrip("0").split(".")[-1]))
+                places = min(3, places)
             elif abs(scaled) < 100:
                 places = 1 if abs(scaled) >= 10 else 2
-            return f"{scaled:,.{places}f}{unit}"
+            text = f"{scaled:,.{places}f}"
+            if step is not None and "." in text:
+                text = text.rstrip("0").rstrip(".")
+            return f"{text}{unit}"
     return f"{value:,.0f}" if size >= 10 or value == 0 else f"{value:.3g}"
 
 
@@ -145,8 +197,8 @@ def format_value(value: float, fmt: str = "", digits: int = 4) -> str:
     """One value as a chart prints it beside a mark.
 
     ``percent`` for fractions (0.9934 -> ``99.34 %``), ``money`` for costs
-    (``1.8M``), ``count`` for whole numbers, anything else six significant
-    digits."""
+    (``$1.8M``, in the current `currency`), ``count`` for whole numbers,
+    anything else six significant digits."""
     if fmt == "percent":
         return pct(value, digits)
     if fmt == "money":

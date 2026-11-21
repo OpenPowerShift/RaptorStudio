@@ -66,6 +66,8 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # Chart palette: the cause fills on every chart, report and saved image.
+    "appearance/chart_palette": "muted",
     # View > Annotations: whether the canvas draws the annotations, and
     # the notes that show an element's comment. A view of the model, not
     # part of it: hidden notes are still saved.

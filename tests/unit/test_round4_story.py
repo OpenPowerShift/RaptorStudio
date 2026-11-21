@@ -193,7 +193,9 @@ def test_the_charts_target_draws_a_line_and_judges_the_story(qapp, monkeypatch):
     page.set_inputs(per_run=[{"availability": a} for a in (0.9, 0.95, 0.99)])
     page.select("trial-outcome")
     assert page.target_button.isVisibleTo(page)
-    assert "visual cue" in page.target_button.toolTip()
+    # saved with the model, never an input to the simulation
+    assert "saved in the model file" in page.target_button.toolTip()
+    assert "does not change the simulation" in page.target_button.toolTip()
     monkeypatch.setattr(QInputDialog, "getDouble",
                         staticmethod(lambda *a, **k: (95.0, True)))
     seen = []

@@ -355,3 +355,57 @@ def test_a_disabled_default_button_does_not_look_ready(qapp):
         assert middle(off) != accent
         dlg.close()
     ThemeManager.instance().set_dark(False)
+
+
+@pytest.fixture()
+def restore_palette():
+    from raptor.api.insight import palette
+    before = palette.active()
+    yield palette
+    palette.set_active(before)
+
+
+def test_every_palette_keeps_marks_and_inks_readable(restore_palette):
+    """Every cause fill is a 3:1 mark on its surface and has a 4.5:1 ink."""
+    palette = restore_palette
+    for name in palette.names():
+        for dark, surface in ((False, LIGHT_COLOUR["surface"]),
+                              (True, DARK_COLOUR["surface"])):
+            for cause, fill in palette.colours(name, dark=dark).items():
+                assert _ratio(fill, surface) >= 3.0, (name, dark, cause)
+                ink = max(("#111111", "#ffffff"),
+                          key=lambda value: _ratio(value, fill))
+                assert _ratio(ink, fill) >= 4.5, (name, dark, cause)
+
+
+def test_the_default_palette_softens_the_repair_red(restore_palette):
+    palette = restore_palette
+    palette.set_active("muted")
+    assert palette.active() == palette.DEFAULT
+    assert palette.colour("repair") != "#C4472F"
+    assert _ratio(palette.colour("repair"), "#ffffff") > 3.0
+
+
+def test_an_unknown_palette_falls_back_to_the_default(restore_palette):
+    palette = restore_palette
+    assert palette.set_active("no-such-palette") == palette.DEFAULT
+    assert palette.active() == palette.DEFAULT
+
+
+def test_the_svg_and_qt_widget_follow_the_palette(restore_palette, qapp):
+    from raptor.api.insight import charts
+    from raptor.gui.ui import chart_theme
+    from raptor.render import charts_svg
+    palette = restore_palette
+    attribution = {"runs": 2, "causes": {"repair": 1.0},
+                   "elements": [{"name": "Pump", "dtci": {"mean": 0.4},
+                                 "causes": {"repair": 1.0}}]}
+    spec = charts.downtime_pareto(attribution)
+    palette.set_active("classic")
+    classic = charts_svg.render(spec)
+    assert palette.colour("repair") == "#C4472F"
+    assert chart_theme.cause_colour("repair").name().upper() == "#C4472F"
+    palette.set_active("colourblind")
+    other = charts_svg.render(spec)
+    assert classic != other
+    assert chart_theme.cause_colour("repair").name().upper() == "#D55E00"

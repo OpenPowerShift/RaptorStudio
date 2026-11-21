@@ -2421,8 +2421,12 @@
    "annotations": {
     "type": "array"
    },
+   "baseline": {},
    "caption": {
     "type": "string"
+   },
+   "facets": {
+    "type": "array"
    },
    "kind": {
     "type": "string"
@@ -2436,6 +2440,7 @@
    "run_id": {
     "type": "string"
    },
+   "scope": {},
    "series": {
     "type": "array"
    },
@@ -2454,11 +2459,14 @@
   },
   "required": [
    "annotations",
+   "baseline",
    "caption",
+   "facets",
    "kind",
    "marks",
    "provenance",
    "run_id",
+   "scope",
    "series",
    "subtitle",
    "title",
@@ -2587,6 +2595,9 @@
    "headline": {
     "type": "object"
    },
+   "hierarchies": {
+    "type": "array"
+   },
    "met": {
     "type": [
      "integer",
@@ -2601,6 +2612,9 @@
    },
    "others_time": {
     "type": "number"
+   },
+   "phases": {
+    "type": "array"
    },
    "proportion": {
     "type": "string"
@@ -2633,10 +2647,12 @@
    "drivers_measure",
    "findings",
    "headline",
+   "hierarchies",
    "met",
    "numbers",
    "other_drivers_share",
    "others_time",
+   "phases",
    "proportion",
    "provenance",
    "run_id",
