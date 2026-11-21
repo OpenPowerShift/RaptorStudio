@@ -656,6 +656,31 @@ def show_preferences(win):
         "Switches the whole application, including the chart surfaces and "
         "the cause fills' dark variants. The View menu has the same switch.",
         "app")
+    scale = QComboBox()
+    for percent in (100, 125, 150, 175, 200):
+        scale.addItem(f"{percent}%", percent)
+    scale.setCurrentIndex(max(0, scale.findData(
+        _settings.get_int("appearance/ui_scale", 100))))
+    scale.setToolTip("Scales text, spacing and control sizes")
+    _pref_row(
+        app_form, "Interface scale:", scale,
+        "Enlarges text, spacing and controls together for a high-DPI or "
+        "low-vision display. 100% is the design size; takes effect when "
+        "you press OK.", "app",
+        reset=lambda w: w.setCurrentIndex(max(0, w.findData(100))),
+        builtins=("100%",))
+
+    contrast = QCheckBox("High-contrast colours")
+    contrast.setChecked(_settings.get_bool(
+        "appearance/high_contrast", False))
+    contrast.setToolTip(
+        "Black/white surfaces, stronger borders and text, visible focus rings")
+    _pref_row(
+        app_form, "Contrast:", contrast,
+        "Keeps the semantic state colours but makes the window, text, "
+        "borders and focus rings high contrast. Useful in bright rooms or "
+        "for low vision.", "app")
+
     from raptor.api.insight import palette as _palette
     palette_box = QComboBox()
     for key in _palette.names():
@@ -978,6 +1003,12 @@ def show_preferences(win):
     palette_key = str(palette_box.currentData() or _palette.DEFAULT)
     palette_changed = _settings.get("appearance/chart_palette", _palette.DEFAULT) != palette_key
     _settings.set_value("appearance/chart_palette", palette_key)
+    _settings.set_value("appearance/ui_scale", scale.currentData())
+    _settings.set_value("appearance/high_contrast", contrast.isChecked())
+    from raptor.gui.resources.design_tokens import ThemeManager
+    theme = ThemeManager.instance()
+    theme.set_scale(int(scale.currentData()))
+    theme.set_high_contrast(contrast.isChecked())
     _palette.set_active(palette_key)
     if palette_changed:
         results = getattr(win, "_results", None)

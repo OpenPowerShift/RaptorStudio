@@ -66,6 +66,10 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # Interface scale (percent) and a high-contrast palette. Both are
+    # accessibility preferences, not model data.
+    "appearance/ui_scale": 100,
+    "appearance/high_contrast": False,
     # Chart palette: the cause fills on every chart, report and saved image.
     "appearance/chart_palette": "muted",
     # View > Annotations: whether the canvas draws the annotations, and

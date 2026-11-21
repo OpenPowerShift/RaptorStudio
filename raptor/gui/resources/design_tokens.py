@@ -4,10 +4,11 @@ The simulation-state colours come from Raptor 7's block-status CASE.
 ThemeManager provides light/dark switching with live stylesheet updates.
 """
 from __future__ import annotations
+import re
 from collections.abc import Mapping
 from typing import Any, cast
 
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor, QFont
 from PySide6.QtWidgets import QApplication
 
 SPACING = {
@@ -163,6 +164,10 @@ class ThemeManager:
 
     def __init__(self):
         self._dark = False
+        #: Interface scale, as a percentage of the design size.
+        self._scale = 100
+        #: Stronger text, border and focus colours for low-vision use.
+        self._high_contrast = False
         #: whether the token palette and stylesheet have been put on the
         #: application yet: a first `set_dark(False)` must still apply them
         self._applied = False
@@ -178,8 +183,54 @@ class ThemeManager:
         return self._dark
 
     @property
+    def scale(self) -> int:
+        return self._scale
+
+    @property
+    def high_contrast(self) -> bool:
+        return self._high_contrast
+
+    def set_scale(self, percent: int | float) -> None:
+        value = max(75, min(200, int(percent or 100)))
+        if value == self._scale:
+            return
+        self._scale = value
+        self._apply()
+        self._fire()
+
+    def set_high_contrast(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if enabled == self._high_contrast:
+            return
+        self._high_contrast = enabled
+        self._apply()
+        self._fire()
+
+    @property
     def colour(self) -> dict:
-        return DARK_COLOUR if self._dark else LIGHT_COLOUR
+        base = DARK_COLOUR if self._dark else LIGHT_COLOUR
+        if not self._high_contrast:
+            return base
+        # Keep the semantic state colours: they are data, not chrome.
+        high = {
+            "light": {
+                "nav": "#000000", "accent": "#004A99",
+                "selection_bg": "#004A99", "selection_text": "#FFFFFF",
+                "surface": "#FFFFFF", "canvas": "#FFFFFF",
+                "text": "#000000", "muted": "#333333",
+                "border": "#000000", "input_bg": "#FFFFFF",
+                "group_header": "#E6E6E6",
+            },
+            "dark": {
+                "nav": "#000000", "accent": "#66B2FF",
+                "selection_bg": "#004A99", "selection_text": "#FFFFFF",
+                "surface": "#000000", "canvas": "#000000",
+                "text": "#FFFFFF", "muted": "#D0D0D0",
+                "border": "#FFFFFF", "input_bg": "#111111",
+                "group_header": "#1A1A1A",
+            },
+        }["dark" if self._dark else "light"]
+        return {**base, **high}
 
     @property
     def COLOUR(self) -> dict:
@@ -240,6 +291,10 @@ class ThemeManager:
         # Setting an application-wide QPalette derived from the same tokens
         # makes every unstyled widget follow the active theme too.
         app.setPalette(_build_palette(self.colour))
+        font = QFont()
+        font.setFamilies([part.strip() for part in TYPE["family"].split(",")])
+        font.setPixelSize(max(9, round(TYPE["body"] * self._scale / 100)))
+        app.setFont(font)
         app.setStyleSheet(global_stylesheet())
         self._applied = True
         _relink_labels(app)
@@ -330,7 +385,21 @@ def _rgba(hex_colour: str, alpha: float) -> str:
 
 
 def global_stylesheet() -> str:
-    return _build_stylesheet(ThemeManager.instance().colour)
+    css = _build_stylesheet(ThemeManager.instance().colour)
+    return _scale_css(css, ThemeManager.instance().scale)
+
+
+def _scale_css(css: str, percent: int) -> str:
+    """Scale every px length in the design stylesheet for UI scaling."""
+    if percent == 100:
+        return css
+    factor = percent / 100.0
+
+    def repl(match: re.Match[str]) -> str:
+        value = float(match.group(1)) * factor
+        return f"{value:g}px"
+
+    return re.sub(r"(\d+(?:\.\d+)?)px", repl, css)
 
 
 def _build_stylesheet(c: dict) -> str:
@@ -987,5 +1056,14 @@ def _indicator_rules(c: dict) -> str:
     }}
     QRadioButton::indicator:checked, QMenu::indicator:exclusive:checked {{
         image: url({u['dot']});
+    }}
+    /* Visible keyboard focus: the default dotted line disappears on
+       dark surfaces and on busy tables. */
+    QLineEdit:focus, QComboBox:focus, QAbstractSpinBox:focus,
+    QPlainTextEdit:focus, QTextEdit:focus, QAbstractItemView:focus {{
+        border: 2px solid {c['accent']};
+    }}
+    QPushButton:focus, QToolButton:focus {{
+        border: 2px solid {c['accent']};
     }}
     """

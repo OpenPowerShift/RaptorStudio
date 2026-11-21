@@ -437,8 +437,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Remember the theme across launches. Applied before the window
         # is shown, so startup doesn't flash light first; the checkable
         # ribbon action follows via the _on_theme_changed callback.
-        ThemeManager.instance().set_dark(
-            settings.get_bool("appearance/dark_mode"))
+        theme = ThemeManager.instance()
+        theme.set_scale(settings.get_int("appearance/ui_scale", 100))
+        theme.set_high_contrast(
+            settings.get_bool("appearance/high_contrast", False))
+        theme.set_dark(settings.get_bool("appearance/dark_mode"))
 
     @property
     def _step_session(self):
