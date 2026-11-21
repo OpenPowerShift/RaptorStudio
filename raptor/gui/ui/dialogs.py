@@ -829,9 +829,31 @@ def show_preferences(win):
         + ("" if has_model else
            "  (No model is open, so this is unavailable.)"),
         "model")
+    from raptor.core.fileio.rbds import CURRENCY_MAX, DEFAULT_CURRENCY
+    currency_combo = QComboBox()
+    currency_combo.setEditable(True)
+    currency_combo.addItems(["$", "€", "£", "¥", "A$", "AUD", "USD", "EUR", "GBP"])
+    currency_edit = currency_combo.lineEdit()
+    if currency_edit is not None:
+        currency_edit.setMaxLength(CURRENCY_MAX)
+    currency_combo.setCurrentText(
+        str(getattr(win._rbd, "currency", DEFAULT_CURRENCY) or DEFAULT_CURRENCY)
+        if has_model else DEFAULT_CURRENCY)
+    currency_combo.setEnabled(has_model)
+    currency_combo.setToolTip("Pick a symbol or code, or type your own")
+    _pref_row(
+        model_form, "Currency:", currency_combo,
+        "Shown in front of money in the cost charts, the Story and the "
+        "report: $, €, AUD or any symbol or code up to "
+        f"{CURRENCY_MAX} characters. It only labels the numbers; it never "
+        "converts a cost or changes the simulation."
+        + ("" if has_model else
+           "  (No model is open, so this is unavailable.)"),
+        "model", reset=lambda w: w.setCurrentText(DEFAULT_CURRENCY),
+        builtins=(DEFAULT_CURRENCY,))
     model_note = QLabel(
-        "This setting is saved in the MODEL FILE (.rbds), not in "
-        "application settings — it travels with the model and is per-model.")
+        "These settings are saved in the MODEL FILE (.rbds), not in "
+        "application settings — they travel with the model and are per-model.")
     model_note.setObjectName("SectionNote")
     model_note.setWordWrap(True)
     model_form.addRow("", model_note)
@@ -971,6 +993,15 @@ def show_preferences(win):
     _store_developer_rows(dev_widgets)
     win._apply_autosave_timer()
     if win._rbd is not None:
+        from raptor.core.fileio.rbds import clean_currency
+        new_currency = clean_currency(currency_combo.currentText())
+        if new_currency != getattr(win._rbd, "currency", DEFAULT_CURRENCY):
+            win._rbd.currency = new_currency
+            win._mark_dirty()
+            results = getattr(win, "_results", None)
+            if results is not None:       # captions are written in the currency
+                results._refresh_charts()
+                results._refresh_story()
         new_du = parse_display_unit(display_unit_combo.currentText())
         if new_du != getattr(win._rbd, "display_unit", None):
             win._inspector.set_display_unit(new_du)

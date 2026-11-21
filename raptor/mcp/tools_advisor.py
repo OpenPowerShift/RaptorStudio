@@ -297,7 +297,10 @@ def run_story(run_id: str,
 
     `targets` gives the headline its target, as `advise` takes them, e.g.
     `[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
-    the headline; `<=` suits time down per outage).
+    the headline; `<=` suits time down per outage).  Without `targets`, the
+    availability target saved in the run's model (`configure_system
+    (availability_target=...)` or the Charts tab) is used, when the model
+    is still open.
 
     Needs the run's ordinary artefacts. Needs `attribution=True` for the
     drivers strip, the hierarchy strip (top six by downtime) and the
@@ -308,7 +311,12 @@ def run_story(run_id: str,
     from raptor.api.advisor.context import check_requirements
     from raptor.api.insight.story import from_run, text_lines
 
+    from raptor.api.run_tables import run_targets
     check_requirements(targets)
+    if not targets:
+        saved = run_targets(context.workspace(), run_id).get("availability")
+        if saved is not None:
+            targets = [{"metric": "availability", "op": ">=", "value": saved}]
     story = from_run(context.workspace(), run_id, requirements=targets)
     data = {**story.to_dict(), "run_id": run_id}
     return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")
@@ -316,14 +324,17 @@ def run_story(run_id: str,
 
 @mcp.tool(annotations=READ_ONLY("Run chart"))
 @guarded
-def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
+def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912, PLR0915
               render_svg: bool = False, run: int = 1,
               y_floor: float | None = None, page: str = "screen",
               min_share: float = 0.0, target: float | None = None,
               hierarchy: str | int | None = None,
               hierarchies: list[str | int] | None = None,
               compare_to: str | None = None,
-              depth: int | None = None) -> CallToolResult:
+              depth: int | None = None,
+              fold: str | None = None,
+              by_hierarchy: bool = True,
+              show_delivered: bool = True) -> CallToolResult:
     """One chart of a finished run, as data and optionally as SVG.
 
     `chart` is the chart's name: one of those listed below.
@@ -346,9 +357,13 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
     need capacity attribution; `annual-fan` and `annual-dots` need a run long
     enough for whole periods, and `annual-capacity-fan` (capacity delivered
     year by year) needs both. `importance-quadrant` needs
-    `importance="both"` (RAW and RRW); `cost-pareto` and `cost-treemap` (spare pools included) need
-    cost analysis; ask for them only when
-    the run has those. Over time: `availability-through-run`,
+    `importance="both"` (RAW and RRW); `cost-pareto`, `cost-treemap`,
+    `cost-categories`, `cost-cumulative` and `cost-annual` need cost
+    analysis (the last three also need the interim cost report; the
+    cumulative and annual views leave one-off capital out). Ask for them
+    only when the run has those. `component-failures` counts every
+    component failure; `reliability-curve` is the Kaplan–Meier survival
+    curve. Over time: `availability-through-run`,
     `interval-availability` and `availability-band` need the availability
     plot recorded (`availability_plot=true`), `capacity-through-run` and
     `capacity-band` capacity analysis. `run` picks the run a one-run chart
@@ -360,6 +375,10 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
     more room and declare their size in mm) and `min_share` (0 to 1, e.g.
     0.01) folds the items below that share of the whole into one "N others"
     row or cell (element rankings and treemaps; the caption names them).
+    `fold` is the Charts tab's Others control and replaces `min_share`:
+    `top:10` or `top:20` keeps that many items, `fraction:0.25` the top
+    quartile, `tail:0.05` folds the smallest items making up the last 5 %
+    of the total.
     No label is ever shortened: names wrap, and treemap cells too small for
     their name are numbered and listed under the chart.
 
@@ -367,7 +386,10 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
     outcome, chance, convergence, availability-over-time and year charts,
     and on `annual-capacity-fan` for a capacity-weighted availability
     target, as the window's Target buttons do. The dot and convergence
-    charts also mark the median. It is a visual cue only.
+    charts also mark the median. It is a visual cue only. Without
+    `target`, the model's saved targets are used (`configure_system`'s
+    `availability_target`, and `capacity_target` for
+    `annual-capacity-fan`), when the run's model is still open.
 
     Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
     `hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
@@ -382,11 +404,14 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
     level, while the treemap and sunburst grow that many levels (omit it
     for the top level on rankings and every level on the nested charts).
     `compare_to` names a stored run whose hierarchy table is the baseline
-    for `hierarchy-delta`.
+    for `hierarchy-delta`. On `capacity-sankey`, `by_hierarchy=False` goes
+    straight from the lost flow to its causes (no hierarchy roll-up
+    needed), and `show_delivered=False` leaves out the delivered branch so
+    a small loss fills the figure.
     """
     from raptor.api.insight import charts, drivers
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run, run_units
+    from raptor.api.run_tables import read_per_run, run_currency, run_units
 
     ws = context.workspace()
     units = run_units(ws, run_id)            # "not found" before an empty chart
@@ -419,6 +444,10 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
         periods = drivers.periods(ws, run_id)
     costs = (charts.stored_element_costs(ws, run_id)
              if chart in charts.COST_CHARTS else None)
+    cost_runs = None
+    if chart in charts.COST_SERIES_CHARTS:
+        from raptor.api.insight.cost_series import stored_runs
+        cost_runs = stored_runs(ws, run_id)
     importance = (charts.stored_importance(ws, run_id)
                   if chart == "importance-quadrant" else None)
     from raptor.api.insight.timecharts import TIME_CHARTS, stored_inputs
@@ -432,18 +461,32 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912
     if target is not None and not 0.0 < target <= 1.0:
         raise ValueError("target is a fraction: give it as 0 to 1 (0.995), not "
                          f"{target:g}")
+    if target is None:
+        from raptor.api.run_tables import run_targets
+        saved = run_targets(ws, run_id)
+        target = saved.get("capacity" if chart == "annual-capacity-fan"
+                           else "availability")
+    if fold is not None and min_share:
+        raise ValueError("pass fold or min_share, not both")
+    folding = charts.parse_fold(fold) if fold is not None else {"min_share": min_share}
+    if chart != "capacity-sankey" and (not by_hierarchy or not show_delivered):
+        raise ValueError("by_hierarchy and show_delivered only apply to "
+                         "capacity-sankey")
     from raptor.render.charts_svg import PAGES
     if page not in PAGES:
         raise ValueError(f"page must be one of {', '.join(PAGES)}")
     spec = charts.fold_small(
-        charts.chart_named(chart, per_run=per_run, attribution=attribution,
-                           periods=periods, costs=costs, run=run,
+        charts.chart_named(chart, currency=run_currency(ws, run_id),
+                           per_run=per_run, attribution=attribution,
+                           periods=periods, costs=costs, cost_runs=cost_runs,
+                           run=run,
                            importance=importance, y_floor=y_floor,
                            units=units, surface="mcp", target=target,
                            hierarchy=hierarchy, hierarchies=hierarchies,
                            baseline=baseline, baseline_label=compare_to,
-                           depth=depth, **over_time),
-        min_share)
+                           depth=depth, by_hierarchy=by_hierarchy,
+                           show_delivered=show_delivered, **over_time),
+        **folding)
     data = {**spec.to_dict(), "run_id": run_id}
     if render_svg:
         from raptor.render.charts_svg import render

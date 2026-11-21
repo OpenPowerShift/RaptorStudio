@@ -116,6 +116,27 @@ def _dock_with_plot():
     return dock
 
 
+def test_a_large_plot_is_sampled_not_truncated_to_its_first_rows(qapp):
+    rows = ["SimulationTime Ao Green Yellow Red Interval"]
+    for run in range(2):
+        for i in range(2500):
+            rows.append(f"{i + 1} {0.99 - i / 1000000:.6f} 0.9 0.08 0.02 0.99")
+        rows += ["", "*" * 30 + f"End_of_Run_{run + 1}" + "*" * 30, ""]
+    dock = ResultsDock()
+    dock._ao_lines = rows
+    dock._update_graphs()
+    page = dock._charts_page
+    assert len(page._ao_runs) == 2
+    assert page._ao_runs[0]["t"][0] == 1.0
+    assert page._ao_runs[0]["t"][-1] == 2500.0
+    note = page.note.text()
+    assert "use all" in note and "first" not in note
+    page.select("capacity-band")
+    # the note belongs to the charts over time, not to every result chart
+    page.select("trial-outcome")
+    assert not page.note.isVisibleTo(page)
+
+
 @pytest.mark.parametrize("key,shown", [
     ("availability-through-run", True),
     ("interval-availability", True),

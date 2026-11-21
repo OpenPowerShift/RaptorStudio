@@ -16,14 +16,15 @@ import math
 import itertools
 
 from dataclasses import asdict, dataclass, field
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
+from raptor.api.insight import cost_series
 from raptor.api.insight import hierarchy as hier
 from raptor.api.insight.attribution import CAUSES, CAUSE_LABELS
 from raptor.api.insight.dots import quantile_dots
 from raptor.api.insight import measures
-from raptor.api.insight.axes import FAN_LINE_MIN, pct
+from raptor.api.insight.axes import FAN_LINE_MIN, format_value, pct
 from raptor.api.run_needs import message
 
 
@@ -152,15 +153,23 @@ def _mean(values: list[float]) -> float | None:
 def text_lines(chart: ChartSpec, top: int = 10) -> list[str]:
     """The chart as text: its title and caption, then the numbers it draws.
     A timeline gives each layer's value at the end; any other chart its
-    first `top` series rows that carry a value."""
-    from raptor.api.insight.axes import format_value
+    first `top` series rows that carry a value.  Money is printed in the
+    chart's own currency."""
+    from raptor.api.insight.axes import currency
+    with currency(chart.provenance.get("currency")):
+        return _text_lines(chart, top)
+
+
+def _text_lines(chart: ChartSpec, top: int) -> list[str]:  # noqa: C901 - one walk per chart shape
+    from raptor.api.insight.axes import format_value, with_currency
     fmt = str(chart.provenance.get("format") or "")
 
     def shown(value: float) -> str:            # a timeline layer's end value
         return format_value(value, fmt, 5) if fmt else f"{value:,.4g}"
 
     def row_value(value: float) -> str:
-        return f"{value:,.2f}" if fmt == "money" else format_value(value, fmt, 6)
+        return (with_currency(f"{value:,.2f}") if fmt == "money"
+                else format_value(value, fmt, 6))
 
     scope = ""
     if chart.scope:
@@ -272,7 +281,7 @@ def _csv_table(chart: ChartSpec) -> tuple[list[str], list[list[Any]]]:  # noqa: 
                 elif value is None or isinstance(value, (str, int, float, bool)):
                     item[names.get(key, key)] = value
             flat.append(item)
-    header: list[str] = []
+    header = []
     for item in flat:
         header += [k for k in item if k not in header]
     return header, [[item.get(k, "") for k in header] for item in flat]
@@ -560,6 +569,161 @@ def ecdf(per_run: list[dict], field_name: str = "availability", *,
                     "higher_is_better": higher_is_better})
 
 
+def reliability_curve(per_run: list[dict], *, units: str = "") -> ChartSpec:  # noqa: C901, PLR0912, PLR0915 - one estimate, one caption
+    """The chance the system has not yet gone down by each time (Kaplan–Meier).
+
+    "Down" is the engine's first-failure time (`mttff`): the first time the
+    system went Red for any reason, planned maintenance included.
+
+    Every run contributes its time to first system failure; a run that ended
+    without one is censored at its end, not counted as a failure.  A single
+    ``reliability`` value per run (0 or 1) cannot show *when* the failures
+    happen; this curve can.
+    """
+    events: list[tuple[float, bool]] = []
+    censored = 0
+    for row in per_run:
+        failed = not bool(row.get("mttff_censored"))
+        raw = row.get("mttff")
+        if not _number_value(raw):
+            raw = row.get("ending_sim_time") or row.get("total_time")
+            failed = False
+        time = float(raw) if isinstance(raw, (int, float)) and not isinstance(raw, bool) else 0.0
+        if time <= 0:
+            continue
+        events.append((time, failed))
+        censored += 0 if failed else 1
+    if not events:
+        return ChartSpec(
+            "timeline", "Reliability over time",
+            "the chance the system has not yet gone down by each time",
+            "time", "reliability", series=[],
+            caption="No run recorded a time to first failure.",
+            provenance={"runs": 0, "format": "percent", "y_range": [0.0, 1.0]})
+    events.sort()
+    total = len(events)
+    at_risk = total
+    survival = 1.0
+    xs: list[float] = [0.0]
+    ys: list[float] = [1.0]
+    i = 0
+    while i < total:
+        time = events[i][0]
+        failures = 0
+        stops = 0
+        while i < total and events[i][0] == time:
+            if events[i][1]:
+                failures += 1
+            else:
+                stops += 1
+            i += 1
+        before = survival
+        if failures and at_risk > 0:
+            survival *= 1.0 - failures / at_risk
+        at_risk -= failures + stops
+        xs.extend([time, time])
+        ys.extend([before, survival])
+    unit = f" {units}" if units else ""
+    failures = sum(1 for _time_value, failed in events if failed)
+    caption = (f"From {runs_text(total)}, Kaplan–Meier estimate"
+               + (f"; {censored:,} ended before a failure and are censored"
+                  if censored else "")
+               + ".")
+    if failures:
+        # "9 in 10 by 6,469 h" read as nine in ten FAILED by then; name the
+        # level the curve falls to instead
+        reached = []
+        for share in (0.9, 0.5):
+            point = next((x for x, y in zip(xs[1::2], ys[2::2])
+                          if y <= share + 1e-12), None)
+            if point is not None:
+                reached.append(f"{pct(share)} or less by {_quantity(point, unit)}")
+        if reached:
+            caption += " Reliability is " + " and ".join(reached) + "."
+        caption += (f" The last failure was at "
+                    f"{_quantity(max(t for t, failed in events if failed), unit)}.")
+        # `mttff` is the first time the system went down for ANY reason:
+        # many runs going down at the very same instant is a scheduled
+        # outage (planned maintenance, a phase), not random failures
+        counts: dict[float, int] = {}
+        for time_value, failed in events:
+            if failed:
+                counts[time_value] = counts.get(time_value, 0) + 1
+        when, same = max(counts.items(), key=lambda item: item[1])
+        if same >= max(3, math.ceil(0.2 * total)):
+            caption += (f" {same:,} runs first went down at exactly "
+                        f"{_quantity(when, unit)}: a scheduled outage such as "
+                        "planned maintenance, not a random failure.")
+    else:
+        caption += " No run failed."
+    return ChartSpec(
+        "timeline", "Reliability over time",
+        "the chance the system has not yet gone down by each time; any "
+        "outage counts, planned maintenance included (Kaplan–Meier; a run "
+        "still up at its end is censored)",
+        f"time ({units})" if units else "time", "reliability",
+        series=[{"name": "reliability", "role": "line", "tone": "accent",
+                 "t": xs, "y": ys, "width": 2.0}],
+        caption=caption,
+        provenance={"runs": total, "format": "percent", "time_units": units,
+                    "measure": "reliability", "failures": failures,
+                    "censored": censored, "y_range": [0.0, 1.0]})
+
+
+def component_failure_pareto(per_run: list[dict], top: int = 10) -> ChartSpec:
+    """Which components fail most often (every block failure, not only
+    failures that downed the system).
+
+    ``criticality.failure`` is each block's share of the run's component
+    failures; multiplied by ``num_component_failures`` it is that block's
+    failures in the run, averaged over the runs.  Availability, DTCI and
+    the lost-capacity charts cannot show a redundant unit that fails often
+    and is masked; this chart can.
+    """
+    runs = [row for row in per_run
+            if _number_value(row.get("num_component_failures"))]
+    totals: dict[str, float] = {}
+    for row in runs:
+        count = float(row["num_component_failures"])
+        for item in (row.get("criticality") or {}).values():
+            name = str(item.get("name") or "")
+            share = item.get("failure")
+            if name and _number_value(share):
+                totals[name] = totals.get(name, 0.0) + float(share) * count
+    ranked = sorted(((name, total / len(runs)) for name, total in totals.items()
+                     if total > 0), key=lambda pair: -pair[1])
+    if not runs or not ranked:
+        return ChartSpec(
+            "pareto", "Which components fail most often?",
+            "all component failures, including those that did not down the system",
+            "element", "component failures a run",
+            caption="No component failure was recorded in these runs.",
+            provenance={"runs": len(runs), "format": "count"})
+    shown = ranked[:top]
+    total = sum(value for _name, value in ranked)
+    all_failures = sum(float(row["num_component_failures"]) for row in runs) / len(runs)
+    name, value = shown[0]
+    share = value / all_failures if all_failures else 0.0
+    rest = total - sum(amount for _item, amount in shown)
+    note = (f"top {len(shown)} of {len(ranked)}; the other "
+            f"{len(ranked) - len(shown):,} together {rest:,.3g} failures a run"
+            if len(ranked) > len(shown) else "")
+    return ChartSpec(
+        "pareto", "Which components fail most often?",
+        _with_note("all component failures, including those that did not "
+                   "down the system", note),
+        "element", "component failures a run",
+        series=[{"name": item, "value": amount} for item, amount in shown],
+        caption=(f"{name} fails most often: {value:,.3g} failures a run "
+                 f"on average ({pct(share)} of all component failures). "
+                 f"The runs average {all_failures:,.3g} component failures each."),
+        provenance={"runs": len(runs), "format": "count",
+                    "measure": "component failures per run",
+                    "items": len(ranked),
+                    "cut": [{"name": item, "value": amount}
+                            for item, amount in ranked[top:]]})
+
+
 def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
     """C2: who causes the downtime, stacked by what the time was spent on."""
     ranked = sorted((r for r in attribution.get("elements") or []
@@ -589,23 +753,69 @@ def downtime_pareto(attribution: dict[str, Any], top: int = 10) -> ChartSpec:
                              "causes": r.get("causes") or {}} for r in ranked[top:]]})
 
 
-def downtime_waterfall(attribution: dict[str, Any],
-                       operational: float | None = None,
-                       target: float | None = None) -> ChartSpec:
-    """C3: from 100 % availability to the achieved one, one step per cause."""
-    causes = attribution.get("causes") or {}
-    loss = 1.0 - operational if operational is not None else None
+#: The ladder's rungs, in the order the waterfall subtracts them.
+_RUNG_LABELS = {
+    "repair": "Hands-on repair",
+    "pm": "Planned maintenance",
+    "logistics": "Logistics, spares and crews",
+    "not_repairable": "Not repairable",
+    "other": "Other",
+}
+
+
+def _ladder_waterfall_steps(ladder: dict[str, Any], operational: float,
+                            loss: float) -> list[dict[str, Any]]:
+    """Steps from the same Red-time split the availability ladder shows."""
+    rungs = ladder.get("rungs") or {}
+    total = sum(float(value or 0.0) for value in rungs.values())
+    if total <= 0:
+        return []
     steps: list[dict[str, Any]] = []
     running = 1.0
-    for cause in CAUSES:
-        share = float(causes.get(cause, 0.0))
-        if share <= 0:
+    for key, label in _RUNG_LABELS.items():
+        amount = float(rungs.get(key) or 0.0)
+        if amount <= 0:
             continue
-        drop = share * loss if loss is not None else share
-        steps.append({"name": CAUSE_LABELS.get(cause, cause), "cause": cause,
-                      "value": drop, "from": running, "to": running - drop,
-                      "share": share})
+        share = amount / total
+        drop = share * loss
+        steps.append({"name": label, "cause": key, "value": drop,
+                      "from": running, "to": running - drop, "share": share})
         running -= drop
+    return steps
+
+
+def downtime_waterfall(attribution: dict[str, Any],
+                       operational: float | None = None,
+                       target: float | None = None,
+                       ladder: dict[str, Any] | None = None) -> ChartSpec:
+    """C3: from 100 % availability to the achieved one, one step per rung.
+
+    `ladder` is `measures.availability_ladder(per_run)`.  When given, the
+    steps are its Red-time split, so the waterfall and the availability
+    ladder read the same numbers; without it the attribution's causes are
+    used.  (The engine's Red-time buckets are fixed when the system turns
+    Red; attribution reclassifies each instant, so the two need not agree.)
+    """
+    causes = attribution.get("causes") or {}
+    if ladder is not None and ladder.get("operational", {}).get("value") is not None:
+        operational = float(ladder["operational"]["value"])
+    loss = 1.0 - operational if operational is not None else None
+    steps: list[dict[str, Any]] = []
+    if loss is not None and ladder is not None and operational is not None:
+        steps = _ladder_waterfall_steps(ladder, operational, loss)
+    running = 1.0
+    if not steps:
+        for cause in CAUSES:
+            share = float(causes.get(cause, 0.0))
+            if share <= 0:
+                continue
+            drop = share * loss if loss is not None else share
+            steps.append({"name": CAUSE_LABELS.get(cause, cause), "cause": cause,
+                          "value": drop, "from": running, "to": running - drop,
+                          "share": share})
+            running -= drop
+    else:
+        running = steps[-1]["to"]
     if not steps:
         caption = nothing_down(attribution)
     elif loss is None:
@@ -616,17 +826,22 @@ def downtime_waterfall(attribution: dict[str, Any],
         caption = (f"The largest single loss is "
                    f"{largest['name'].lower()} "
                    f"({100 * largest['value']:.3g} points).")
+        if ladder is not None:
+            caption += (" The steps use the same Red-time split as the "
+                        "availability ladder.")
     return ChartSpec(
         "waterfall", "From full availability to the achieved one",
-        "each step is a cause's share of the loss", "cause",
-        "share of loss", series=steps,
+        "each step is a share of the loss, in the availability ladder's "
+        "order" if ladder is not None else "each step is a cause's share of the loss",
+        "cause", "share of loss", series=steps,
         # a target only means something on the availability scale
         marks=([{"kind": "end", "value": running}] if steps else [])
         + ([{"kind": "target", "value": target}]
            if target is not None and operational is not None and steps else []),
         caption=caption,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
-                    "operational": operational})
+                    "operational": operational,
+                    "basis": "ladder" if ladder is not None else "attribution"})
 
 
 def availability_ladder(ladder: dict[str, Any], target: float | None = None) -> ChartSpec:
@@ -895,7 +1110,9 @@ def element_costs_from_tables(tables: list[Any]) -> list[dict[str, Any]]:
     if life is not None:
         for name, parts in _named_rows(life, {k: k for k in _COST_PARTS}).items():
             out.setdefault(name, {"name": name}).update(parts)
-    pools = next((t for k, t in by_key.items() if "sparepool" in k.replace("_", "")), None)
+    pools = (by_key.get("results.cost_sparepools")
+             or next((t for k, t in by_key.items()
+                      if "sparepool" in k.replace("_", "")), None))
     if pools is not None:
         for name, parts in _named_rows(pools, {"spare_pool": "total"}).items():
             out.setdefault(name, {"name": name}).update(parts)
@@ -912,7 +1129,140 @@ def stored_element_costs(workspace: Any, run_id: str) -> list[dict[str, Any]]:
     return element_costs_from_tables(result_tables(bundle_from_run(workspace, run_id)))
 
 
-COST_CHARTS = ("cost-pareto", "cost-treemap")
+COST_CHARTS = ("cost-pareto", "cost-treemap", "cost-categories",
+               "cost-cumulative", "cost-annual")
+#: The cost charts drawn from the interim cost report
+#: (`cost_series.stored_runs`), not from the end-of-run cost tables.
+COST_SERIES_CHARTS = ("cost-categories", "cost-cumulative", "cost-annual")
+
+#: Colour-blind-safe line colours for the cost categories.
+COST_COLOURS = ("#0072B2", "#D55E00", "#009E73", "#CC79A7",
+                "#E69F00", "#56B4E9", "#F0E442", "#6B7785")
+
+
+def _cost_lines_ok(cost_runs: list[dict[str, Any]] | None) -> bool:
+    return bool(cost_runs and any(run.get("t") for run in cost_runs))
+
+
+def cost_categories(cost_runs: list[dict[str, Any]] | None) -> ChartSpec:
+    """Where a run's life-cycle cost goes, one bar per cost category.
+
+    `cost_runs` is `cost_series.stored_runs` (or `load_runs`): the interim
+    snapshots closed with each run's end-of-run totals, so the last
+    part-interval of cost is counted."""
+    if not _cost_lines_ok(cost_runs):
+        return ChartSpec(
+            "pareto", "Cost by category",
+            "purchase, running, repair, maintenance, spares, resources, downtime and lost flow",
+            "category", "cost a run",
+            caption="No interim cost report was recorded. Tick Cost plot under "
+                    "Run panel ▸ Recording and run again.",
+            provenance={"runs": 0, "format": "money"})
+    totals = cost_series.category_totals(cost_runs or [])
+    whole = sum(totals.values())
+    rows = sorted(((key, totals[key]) for key in cost_series.CATEGORIES
+                   if totals[key] > 0), key=lambda item: -item[1])
+    series: list[dict[str, Any]] = [
+        {"name": cost_series.CATEGORY_LABELS[key], "value": value,
+         "share": value / whole if whole else 0.0, "key": key}
+        for key, value in rows]
+    capacity = sum(value for key, value in rows
+                   if key in cost_series.CAPACITY_CATEGORIES)
+    caption = (f"Capital is {pct(series[0]['share'])} of the "
+               f"{format_value(whole, 'money')} a run."
+               if series and series[0]["key"] == "capital" else
+               f"The largest category is {series[0]['name'].lower()} "
+               f"({pct(series[0]['share'])})." if series else "No cost was recorded.")
+    if series:
+        caption += (f" Capacity-related costs (lost flow and system downtime) "
+                    f"are {pct(capacity / whole if whole else 0.0)}.")
+    return ChartSpec(
+        "pareto", "Cost by category",
+        "life-cycle cost a run; capacity-related rows are separated from "
+        "the rest", "category", "cost a run", series=series,
+        caption=caption,
+        provenance={"runs": len(cost_runs or []), "format": "money",
+                    "capacity_related": capacity / whole if whole else 0.0})
+
+
+def cost_cumulative(cost_runs: list[dict[str, Any]] | None) -> ChartSpec:
+    """Mean cumulative cost over the run horizon, one line per category."""
+    if not _cost_lines_ok(cost_runs):
+        return ChartSpec(
+            "timeline", "Cumulative operating cost over time",
+            "mean cumulative cost in each operating category",
+            "simulated time", "cost", series=[],
+            caption="No interim cost report was recorded. Tick Cost plot under "
+                    "Run panel ▸ Recording and run again.",
+            provenance={"runs": 0, "format": "money"})
+    source = cost_runs or []
+    grid, curves = cost_series.mean_curves(source)
+    # Capital is a one-off at the start; on the same axis it flattens every
+    # reliability and operating line.  It has its own bar in Cost by category.
+    shown = tuple(key for key in cost_series.CATEGORIES if key != "capital")
+    layers = [{"name": cost_series.CATEGORY_LABELS[key], "role": "line",
+               "t": grid, "y": curves[key],
+               "colour": COST_COLOURS[cost_series.CATEGORIES.index(key)],
+               "width": 1.7}
+              for key in shown if any(value > 0 for value in curves[key])]
+    totals = cost_series.category_totals(source)
+    whole = sum(totals[key] for key in shown)
+    capacity = sum(totals[key] for key in cost_series.CAPACITY_CATEGORIES)
+    caption = (f"Mean of {len(cost_runs or []):,} runs. At the end, operating "
+               f"cost is {format_value(whole, 'money')} a run; "
+               f"capacity-related costs are {format_value(capacity, 'money')} "
+               f"({pct(capacity / whole if whole else 0.0)}). One-off capital "
+               "is shown in Cost by category, not on this axis.")
+    return ChartSpec(
+        "timeline", "Cumulative operating cost over time",
+        "mean cumulative cost in each operating category; one-off capital is "
+        "separate; capacity-related costs are the lost-flow and "
+        "system-downtime lines",
+        "simulated time", "operating cost", series=layers, caption=caption,
+        provenance={"runs": len(cost_runs or []), "format": "money",
+                    "y_range": [0.0, max((max(curves[key]) for key in shown
+                                          if curves[key]), default=1.0)],
+                    "capacity_related": capacity / whole if whole else 0.0})
+
+
+def cost_annual(cost_runs: list[dict[str, Any]] | None,
+                year: float = 8760.0) -> ChartSpec:
+    """Operating cost per whole year, as the across-run distribution.
+
+    The one-off capital purchase is left out (it is the first bar of *Cost by
+    category*), so the year-to-year movement is O&M, repair, spares and
+    capacity-related cost rather than one enormous first year.
+    """
+    if not _cost_lines_ok(cost_runs):
+        return ChartSpec(
+            "fan", "Operating cost per year",
+            "across the runs; one-off capital is separate", "year", "operating cost a year", series=[],
+            caption="No interim cost report was recorded. Tick Cost plot under "
+                    "Run panel ▸ Recording and run again.",
+            provenance={"runs": 0, "format": "money"})
+    rows = cost_series.annual_rows(cost_runs or [], year=year)
+    if not rows:
+        return ChartSpec(
+            "fan", "Operating cost per year",
+            "across the runs; one-off capital is separate", "year", "operating cost a year", series=[],
+            caption="The runs are shorter than one whole year.",
+            provenance={"runs": len(cost_runs or []), "format": "money"})
+    first, last = rows[0], rows[-1]
+    # the same words as the drawing: boxes for a few years, bands for more
+    spread = ("the box holds the middle half of the runs, the whiskers 9 in 10, "
+              "the bar is the median" if len(rows) < FAN_LINE_MIN else
+              "the dark band holds the middle half of the runs, the light one "
+              "9 in 10, the line is the median")
+    caption = (f"{len(rows)} whole years; the median operating cost moves from "
+               f"{format_value(first['p50'], 'money')} to "
+               f"{format_value(last['p50'], 'money')}. One-off capital is not "
+               "in these years.")
+    return ChartSpec(
+        "fan", "Operating cost per year",
+        f"across the runs: {spread}; one-off capital is separate", "year",
+        "operating cost a year", series=rows, caption=caption,
+        provenance={"runs": len(cost_runs or []), "format": "money",
+                    "years": len(rows), "excludes_capital": True})
 
 
 def stored_importance(workspace: Any, run_id: str) -> dict[str, Any] | None:
@@ -1430,7 +1780,7 @@ def hierarchy_treemap(attribution: dict[str, Any],  # noqa: C901  # noqa: C901
 
 
 def hierarchy_overlay(attribution: dict[str, Any],
-                      hierarchies: list[int | str] | None = None,
+                      hierarchies: Sequence[int | str] | None = None,
                       top: int = 4, depth: int | None = 1) -> ChartSpec:
     """Cumulative system downtime caused by each selected hierarchy."""
     available = [row for row in sorted(
@@ -1486,7 +1836,7 @@ def hierarchy_overlay(attribution: dict[str, Any],
 
 
 def hierarchy_small_multiples(attribution: dict[str, Any],
-                              hierarchies: list[int | str] | None = None,
+                              hierarchies: Sequence[int | str] | None = None,
                               top: int = 4,
                               depth: int | None = 1) -> ChartSpec:
     """One dot-plot panel per hierarchy: each dot is a run's share."""
@@ -1786,21 +2136,26 @@ def hierarchy_anatomy(attribution: dict[str, Any],
         "icicle", "Outage paths across hierarchies",
         "each block is a hierarchy; colour = what started its outages",
         "hierarchy", "share of downtime", series=series,
-        caption=(f"{max(totals, key=totals.get)} starts the largest share "
-                 f"({pct(totals[max(totals, key=totals.get)])} of downtime)."
+        caption=(f"{max(totals, key=lambda name: totals[name])} starts the "
+                 f"largest share ({pct(max(totals.values()))} of downtime)."
                  if totals else "No outage was recorded."),
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "single_column": True, "row_kind": "hierarchy"},
         scope={"kind": "system", "id": 0, "name": "System", "path": ["System"]})
 
 
-def capacity_sankey(attribution: dict[str, Any],
+def capacity_sankey(attribution: dict[str, Any],  # noqa: C901 - two shapes, one flow
                     hierarchy: int | str | None = None,
-                    hierarchies: list[int | str] | None = None) -> ChartSpec:
+                    hierarchies: Sequence[int | str] | None = None, *,
+                    by_hierarchy: bool = True,
+                    show_delivered: bool = True) -> ChartSpec:
     """Generated flow to delivered, lost, hierarchy and cause.
 
     One hierarchy scopes the chart; several siblings compare their share of
     the lost flow.  A parent with its child is refused: it would double count.
+    `by_hierarchy=False` goes straight from the lost flow to causes;
+    `show_delivered=False` leaves the delivered branch out and rescales the
+    figure to the loss, which is often a small share of the generated flow.
     """
     if (attribution.get("capacity") or {}).get("rule") == "marginal":
         raise ValueError("the capacity Sankey needs proportional capacity "
@@ -1808,44 +2163,62 @@ def capacity_sankey(attribution: dict[str, Any],
                          "with --capacity-rule proportional.")
     if hierarchy not in (None, "", 0, "0") and hierarchies:
         raise ValueError("pass hierarchy or hierarchies, not both")
-    source, row, meta = _hierarchy_context(attribution, hierarchy)
-    if not hier.rows(attribution):
+    if by_hierarchy and not hier.rows(attribution):
         raise ValueError("the capacity Sankey needs a hierarchy roll-up: this "
-                         "model has no hierarchies")
-    chosen = (hier.resolve_many(source, hierarchies) if hierarchies else
-              [row] if row is not None else hier.top_rows(source))
-    if hierarchies and len(chosen) > 4:
-        raise ValueError(f"hierarchies takes at most four; got {len(chosen)}")
-    overlap = hier.overlaps(chosen)
-    if overlap:
-        raise ValueError(
-            "these hierarchies overlap (a parent includes its child): "
-            + ", ".join(f"{a} / {b}" for a, b in overlap)
-            + ". Choose different branches, or use one level at a time.")
-    if hierarchies:
-        meta = {"kind": "selection", "id": 0,
-                "name": f"{len(chosen)} hierarchies",
-                "path": [str(item.get("name") or "") for item in chosen]}
-    nodes, links = hier.sankey(source, chosen)
+                         "model has no hierarchies (or turn Hierarchy off)")
+    if not by_hierarchy and hierarchies:
+        raise ValueError("hierarchies only applies with the hierarchy view on")
+    source, row, meta = _hierarchy_context(attribution, hierarchy)
+    chosen: list[dict[str, Any]] = []
+    if by_hierarchy:
+        chosen = (hier.resolve_many(source, hierarchies) if hierarchies else
+                  [row] if row is not None else hier.top_rows(source))
+        if hierarchies and len(chosen) > 4:
+            raise ValueError(f"hierarchies takes at most four; got {len(chosen)}")
+        overlap = hier.overlaps(chosen)
+        if overlap:
+            raise ValueError(
+                "these hierarchies overlap (a parent includes its child): "
+                + ", ".join(f"{a} / {b}" for a, b in overlap)
+                + ". Choose different branches, or use one level at a time.")
+        if hierarchies:
+            meta = {"kind": "selection", "id": 0,
+                    "name": f"{len(chosen)} hierarchies",
+                    "path": [str(item.get("name") or "") for item in chosen]}
+    nodes, links = hier.sankey(source, chosen, by_hierarchy=by_hierarchy,
+                               show_delivered=show_delivered)
     if not nodes:
         raise ValueError(_no_capacity(attribution))
     lost = next(node["value"] for node in nodes if node["id"] == "lost")
-    named = [node for node in nodes if node["column"] == 2
-             and node["id"] != "unattributed"]
-    caption = (f"Lost flow is {lost:,.0f} flow × time a run; the largest "
-               f"hierarchy is {max(named, key=lambda node: node['value'])['name']}."
-               if named else "No lost flow to attribute.")
+    named = [node for node in nodes
+             if (node["id"].startswith("hier-") if by_hierarchy
+                 else node["id"].startswith("cause-"))]
+    caption = (f"Lost flow is {lost:,.0f} flow × time a run"
+               + (f"; the largest hierarchy is "
+                  f"{max(named, key=lambda node: node['value'])['name']}."
+                  if by_hierarchy and named else
+                  f"; the largest cause is "
+                  f"{max(named, key=lambda node: node['value'])['name'].lower()}."
+                  if named else "."))
     remainder = next((node["value"] for node in nodes
                       if node["id"] == "unattributed"), 0.0)
     if remainder > 0 and lost > 0:
         caption += (f" {pct(remainder / lost)} of the lost flow is not inside "
-                    "these hierarchies.")
+                    "these hierarchies." if by_hierarchy else
+                    f" {pct(remainder / lost)} of the lost flow is not "
+                    "attributed to a cause.")
+    subtitle = (("generated flow → delivered and lost → "
+                 if show_delivered else "lost flow → ")
+                + ("hierarchy → cause" if by_hierarchy else "cause"))
     spec = ChartSpec(
-        "sankey", "Lost capacity by hierarchy and cause",
-        "generated flow → delivered and lost → hierarchy → cause",
+        "sankey", "Lost capacity by hierarchy and cause" if by_hierarchy
+        else "Lost capacity by cause",
+        subtitle,
         "flow", "flow × time", series=links, caption=caption,
         provenance={"runs": attribution.get("runs", 0), "nodes": nodes,
                     "format": "", "units": "flow × time",
+                    "by_hierarchy": by_hierarchy,
+                    "show_delivered": show_delivered,
                     "rule": (attribution.get("capacity") or {}).get("rule", "")})
     return hier.annotate(spec, meta)
 
@@ -2007,7 +2380,16 @@ def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
     cells = [dict(i) for i in visible]
     if rest:
         cells.append({"name": f"{len(rest)} others",
-                      "value": sum(float(i["value"]) for i in rest), "cause": None})
+                      "value": sum(float(i["value"]) for i in rest),
+                      "cause": None,
+                      # the right-click table names every item behind the
+                      # one cell, not just their count
+                      "items": [{"name": cell["name"],
+                                 "value": float(cell["value"]),
+                                 "share": (float(cell["value"]) / total
+                                           if total else 0.0),
+                                 "cause": cell.get("cause")}
+                                for cell in rest]})
     for cell in cells:
         cell["share"] = float(cell["value"]) / total if total else 0.0
     rects = layout(cells, width, height)
@@ -2307,31 +2689,130 @@ def foldable(spec: ChartSpec) -> bool:
     return any(_share_of(spec, row) is not None for row in spec.series)
 
 
-def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:  # noqa: C901 - one walk, two layouts
-    """The same chart with every item below `min_share` (0 to 1) of the
-    whole gathered into one "N others below X %" row or cell.
+#: The fold presets the Charts tab offers, as `fold` strings the MCP
+#: tool and `--chart-fold` take too: label -> mode.
+FOLD_PRESETS = {
+    "All items": "",
+    "Top 10 + others": "top:10",
+    "Top 20 + others": "top:20",
+    "Top quartile + others": "fraction:0.25",
+    "Last 5 % of total": "tail:0.05",
+}
 
-    For a presentation: a ranking or treemap of many slivers reads better
-    with them folded, and nothing is hidden (the folded row carries the
-    names and their total).  A treemap is laid out again.  Charts that are
-    not `foldable`, or a fold that would gather fewer than two items, come
-    back unchanged."""
-    if min_share <= 0 or not foldable(spec):
+
+def parse_fold(mode: str | float | None) -> dict[str, Any]:
+    """`fold_small` keyword arguments for one fold mode.
+
+    ``top:N`` keeps the N largest items, ``fraction:F`` keeps that fraction
+    of the items (0.25 = the top quartile), ``tail:S`` folds the smallest
+    items until they make up share S of the total, and ``share:S`` (or a
+    bare number) folds every item below share S.  Empty, ``none`` or 0 folds
+    nothing.  Raises ValueError on anything else, so a typo is never
+    silently "fold nothing".
+    """
+    if mode is None:
+        return {}
+    if isinstance(mode, (int, float)) and not isinstance(mode, bool):
+        mode = f"share:{mode}"
+    text = str(mode).strip().lower()
+    if text in ("", "none", "all", "0", "0.0"):
+        return {}
+    kind, _sep, raw = text.partition(":")
+    if not _sep:
+        kind, raw = "share", text
+    try:
+        number = float(raw)
+    except ValueError:
+        raise ValueError(f"fold {mode!r}: expected top:N, fraction:F, "
+                         "tail:S or share:S") from None
+    if kind == "top":
+        if number < 1 or not number.is_integer():
+            raise ValueError(f"fold {mode!r}: top takes a whole number of at least 1")
+        return {"top": int(number)}
+    if kind in ("fraction", "tail", "share"):
+        if not 0.0 < number < 1.0:
+            raise ValueError(f"fold {mode!r}: {kind} takes a fraction "
+                             "between 0 and 1 (0.25, not 25)")
+        return {"fraction": number} if kind == "fraction" else (
+            {"tail_share": number} if kind == "tail" else {"min_share": number})
+    raise ValueError(f"fold {mode!r}: expected top:N, fraction:F, tail:S or share:S")
+
+
+#: How many folded names a caption lists before "and N more".
+_CAPTION_NAMES = 12
+
+
+def fold_small(spec: ChartSpec, min_share: float = 0.0, *,
+               top: int | None = None, fraction: float | None = None,
+               tail_share: float | None = None) -> ChartSpec:
+    """Gather the tail into one "N others" row or cell (see `_fold_small`),
+    writing any money in the caption in the chart's own currency."""
+    from raptor.api.insight.axes import currency
+    with currency(spec.provenance.get("currency")):
+        return _fold_small(spec, min_share, top=top, fraction=fraction,
+                           tail_share=tail_share)
+
+
+def _fold_small(spec: ChartSpec, min_share: float = 0.0, *,  # noqa: C901, PLR0912, PLR0915 - one walk, two layouts
+                top: int | None = None, fraction: float | None = None,
+                tail_share: float | None = None) -> ChartSpec:
+    """Gather the tail into one "N others" row or cell.
+
+    `min_share` folds every item below that share of the whole (the
+    original control); `top`/`fraction` keep that many items (or that
+    fraction of the item count); `tail_share` takes the smallest items
+    until their combined value is that share of the total.  A treemap is
+    laid out again.  Charts that are not `foldable`, or a fold that would
+    gather fewer than two items, come back unchanged."""
+    mode = (top is not None or fraction is not None or tail_share is not None)
+    if (not mode and min_share <= 0) or not foldable(spec):
         return spec
-    keep: list[dict[str, Any]] = []
-    small: list[dict[str, Any]] = []
     rows = list(spec.series)
     if spec.kind != "treemap":
         rows += spec.provenance.get("cut") or []
-    for row in rows:
-        share = _share_of(spec, row)
-        (small if share is not None and share < min_share else keep).append(row)
+    keep: list[dict[str, Any]] = []
+    small: list[dict[str, Any]] = []
+    if top is not None or fraction is not None:
+        count = (int(top) if top is not None
+                 else max(1, math.ceil(len(rows) * float(fraction or 0.0))))
+        keep, small = rows[:count], rows[count:]
+        label = f"{len(small)} others"
+    elif tail_share is not None:
+        ordered = sorted(rows, key=lambda row: -abs(float(row.get("value") or 0.0)))
+        total = sum(abs(float(row.get("value") or 0.0)) for row in ordered)
+        target = total * max(0.0, min(1.0, float(tail_share)))
+        taken: set[int] = set()
+        reached = 0.0
+        for index in range(len(ordered) - 1, -1, -1):
+            if reached >= target - 1e-12:
+                break
+            taken.add(index)
+            reached += abs(float(ordered[index].get("value") or 0.0))
+        keep = [row for index, row in enumerate(ordered) if index not in taken]
+        small = [row for index, row in enumerate(ordered) if index in taken]
+        label = f"{len(small)} others (last {pct(tail_share)} of the total)"
+    else:
+        for row in rows:
+            share = _share_of(spec, row)
+            (small if share is not None and share < min_share else keep).append(row)
+        label = f"{len(small)} others below {pct(min_share)}"
     if len(small) < 2:
         return spec
-    label = f"{len(small)} others below {pct(min_share)}"
     total = sum(float(r.get("value") or 0.0) for r in small)
     names = [str(r.get("name")) for r in small]
-    folded: dict[str, Any] = {"name": label, "value": total, "folded": names}
+    details: list[dict[str, Any]] = []
+    for row in small:
+        entry = {"name": row.get("name"), "value": float(row.get("value") or 0.0),
+                 "share": _share_of(spec, row), "cause": row.get("cause"),
+                 "downtime": row.get("downtime")}
+        # a folded group may itself be an earlier "N others" cell: carry
+        # its members through, never the group as one opaque line
+        if row.get("items"):
+            details.extend(dict(item) for item in row["items"])
+        else:
+            details.append(entry)
+    folded: dict[str, Any] = {"name": label, "value": total, "folded": names,
+                              "items": details}
     if any("share" in r for r in small):
         folded["share"] = sum(_share_of(spec, r) or 0.0 for r in small)
     if spec.kind == "capacity_pareto":
@@ -2345,8 +2826,12 @@ def fold_small(spec: ChartSpec, min_share: float) -> ChartSpec:  # noqa: C901 - 
         folded["causes"] = {c: v / total for c, v in causes.items()}
     provenance = {**spec.provenance, "folded_below": min_share,
                   "folded": len(small), "cut": []}
+    # a caption is one or two sentences: a long tail is named in full in the
+    # folded row's `items` (the right-click table and the CSV), not here
+    shown_names = names if len(names) <= _CAPTION_NAMES else [
+        *names[:_CAPTION_NAMES], f"and {len(names) - _CAPTION_NAMES:,} more"]
     caption = (f"{spec.caption} " if spec.caption else "") + \
-        f"{label}: {', '.join(names)}."
+        f"{label}: {', '.join(shown_names)}."
     if spec.kind != "treemap":
         return ChartSpec(spec.kind, spec.title, spec.subtitle, spec.x_label,
                          spec.y_label, series=[*keep, folded], marks=spec.marks,
@@ -2401,6 +2886,8 @@ CHARTS = {
         "capacity-band", "Every run's flow at each moment, as bands across the runs."),
     "trial-outcome": trial_outcome,
     "ecdf": ecdf,
+    "reliability-curve": reliability_curve,
+    "component-failures": component_failure_pareto,
     "downtime-pareto": downtime_pareto,
     "downtime-waterfall": downtime_waterfall,
     "availability-ladder": availability_ladder,
@@ -2420,6 +2907,9 @@ CHARTS = {
     "phase-cause-heatmap": phase_cause_heatmap,
     "lost-capacity-treemap": lost_capacity_treemap,
     "cost-treemap": cost_treemap,
+    "cost-categories": cost_categories,
+    "cost-cumulative": cost_cumulative,
+    "cost-annual": cost_annual,
     "outage-anatomy": outage_anatomy,
     "ensemble-ribbon": ensemble_ribbon,
     "hierarchy-scorecard": hierarchy_scorecard,
@@ -2469,12 +2959,14 @@ _INTERVAL_WHERE = {
 #: hierarchy scope must not silently leave them showing the whole system;
 #: the caller gets a reason and the GUI greys the entry instead.
 _SYSTEM_ONLY = {
-    "availability-ladder", "outage-histogram", "phase-downtime",
+    "availability-ladder", "reliability-curve", "component-failures",
+    "outage-histogram", "phase-downtime",
     "phase-cause-heatmap", "lost-capacity-pareto", "capacity-vs-downtime",
     "lost-capacity-treemap",
     "ensemble-ribbon", "capacity-waterfall", "annual-fan", "annual-dots",
     "annual-capacity-fan", "interval-availability", "availability-through-run",
     "availability-band", "capacity-through-run", "capacity-band",
+    "cost-categories", "cost-cumulative", "cost-annual",
 }
 
 
@@ -2484,11 +2976,32 @@ def _system_only(name: str) -> str:
             "multiples, heatmap or state ribbon.")
 
 
-def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, PLR0912, PLR0915 - one table of charts
+def with_currency_stamp(spec: ChartSpec) -> ChartSpec:
+    """`spec` with the current currency (`axes.currency`) recorded in its
+    provenance, so it draws and saves in the same currency later, outside
+    the block it was built in.  A spec that already records one keeps it."""
+    from raptor.api.insight.axes import current_currency
+    if not spec.provenance.get("currency"):
+        spec.provenance = {**spec.provenance, "currency": current_currency()}
+    return spec
+
+
+def chart_named(name: str, *, currency: str | None = None,
+                **kwargs: Any) -> ChartSpec:
+    """Build one chart by name (see `_chart_named` for the inputs), its
+    money printed in `currency` ("$" when not given: the model's
+    `currency`, from `run_tables.run_currency` for a stored run)."""
+    from raptor.api.insight.axes import currency as _currency
+    with _currency(currency):
+        return with_currency_stamp(_chart_named(name, **kwargs))
+
+
+def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, PLR0912, PLR0915 - one table of charts
                 attribution: dict[str, Any] | None = None,
                 importance: dict[str, Any] | None = None,
                 report_data: list[Any] | None = None,
                 costs: list[dict[str, Any]] | None = None,
+                cost_runs: list[dict[str, Any]] | None = None,
                 periods: dict[str, Any] | None = None,
                 field_name: str = "availability",
                 label: str = "Availability",
@@ -2500,10 +3013,12 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, 
                 y_floor: float | None = None,
                 surface: str | None = None,
                 hierarchy: int | str | None = None,
-                hierarchies: list[int | str] | None = None,
+                hierarchies: Sequence[int | str] | None = None,
                 baseline: list[dict[str, Any]] | None = None,
                 baseline_label: str | None = None,
-                depth: int | None = None) -> ChartSpec:
+                depth: int | None = None,
+                by_hierarchy: bool = True,
+                show_delivered: bool = True) -> ChartSpec:
     """Build one chart by name, from whichever inputs it needs.
 
     The charts over time (`raptor.api.insight.timecharts.TIME_CHARTS`) take
@@ -2532,7 +3047,8 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, 
     if hierarchies and name not in MULTI_HIERARCHY_CHARTS:
         raise ValueError(f"{name} does not take several hierarchies: use "
                          "hierarchy-overlay or hierarchy-small-multiples")
-    if name in HIERARCHY_CHARTS and not hier.rows(attribution):
+    if (name in HIERARCHY_CHARTS and not hier.rows(attribution)
+            and not (name == "capacity-sankey" and not by_hierarchy)):
         raise ValueError(
             "this chart needs the hierarchy roll-up from an attributed run: "
             "run again with attribution=True and keep the event log")
@@ -2556,30 +3072,34 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, 
     meta = hier.scope_meta(attribution, row)
     if name == "hierarchy-scorecard":
         return hierarchy_scorecard(source, depth=depth)
+    # checked above: a hierarchy chart without a roll-up has raised
+    rolled_up: dict[str, Any] = attribution or {}
     if name == "hierarchy-pareto":
-        return hierarchy_pareto(attribution, hierarchy, depth=depth)
+        return hierarchy_pareto(rolled_up, hierarchy, depth=depth)
     if name == "hierarchy-treemap":
-        return hierarchy_treemap(attribution, hierarchy, depth=depth)
+        return hierarchy_treemap(rolled_up, hierarchy, depth=depth)
     if name == "hierarchy-overlay":
-        return hierarchy_overlay(attribution, hierarchies, depth=depth)
+        return hierarchy_overlay(rolled_up, hierarchies, depth=depth)
     if name == "hierarchy-small-multiples":
-        return hierarchy_small_multiples(attribution, hierarchies, depth=depth)
+        return hierarchy_small_multiples(rolled_up, hierarchies, depth=depth)
     if name == "hierarchy-delta":
-        return hierarchy_delta(attribution, baseline, depth=depth,
+        return hierarchy_delta(rolled_up, baseline, depth=depth,
                                baseline_label=baseline_label)
     if name == "hierarchy-heatmap":
-        return hierarchy_heatmap(attribution, hierarchy, depth=depth)
+        return hierarchy_heatmap(rolled_up, hierarchy, depth=depth)
     if name == "hierarchy-phase-heatmap":
-        return hierarchy_phase_heatmap(attribution, hierarchy, depth=depth)
+        return hierarchy_phase_heatmap(rolled_up, hierarchy, depth=depth)
     if name == "hierarchy-anatomy":
-        return hierarchy_anatomy(attribution, hierarchy)
+        return hierarchy_anatomy(rolled_up, hierarchy)
     if name == "capacity-sankey":
-        return capacity_sankey(attribution, hierarchy, hierarchies)
+        return capacity_sankey(rolled_up, hierarchy, hierarchies,
+                               by_hierarchy=by_hierarchy,
+                               show_delivered=show_delivered)
     if name == "hierarchy-ribbon":
-        return hierarchy_ribbon(attribution, run, depth=depth,
+        return hierarchy_ribbon(rolled_up, run, depth=depth,
                                hierarchy=hierarchy)
     if name == "hierarchy-sunburst":
-        return hierarchy_sunburst(attribution, hierarchy, depth=depth)
+        return hierarchy_sunburst(rolled_up, hierarchy, depth=depth)
     from raptor.api.insight.timecharts import TIME_CHARTS, time_chart
     if name in TIME_CHARTS:
         generated = (attribution or {}).get("capacity", {}) or {}
@@ -2681,14 +3201,23 @@ def chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901, 
         "ecdf": lambda: ecdf(
             scoped_per_run, field_name, label=label, target=target,
             units=units, higher_is_better=row is None),
+        "reliability-curve": lambda: reliability_curve(
+            per_run or [], units=units),
         "convergence": lambda: convergence(scoped_per_run, field_name,
                                            target, label=label),
         "importance-quadrant": lambda: importance_quadrant(need_importance()),
         "cost-pareto": lambda: cost_pareto(element_cost_rows()),
+        "cost-categories": lambda: cost_categories(cost_runs),
+        "cost-cumulative": lambda: cost_cumulative(cost_runs),
+        "cost-annual": lambda: cost_annual(cost_runs),
         "downtime-waterfall": lambda: downtime_waterfall(
             need_attribution(),
             measures.availability_ladder(per_run or [])["operational"]["value"]
-            if per_run and row is None else None),
+            if per_run and row is None else None,
+            target if row is None else None,
+            ladder=(measures.availability_ladder(per_run or [])
+                    if per_run and row is None else None)),
+        "component-failures": lambda: component_failure_pareto(per_run or []),
         "downtime-pareto": lambda: downtime_pareto(need_attribution()),
         "availability-ladder": lambda: availability_ladder(
             measures.availability_ladder(per_run or [])),

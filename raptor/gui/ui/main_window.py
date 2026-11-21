@@ -2311,6 +2311,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.importance_metric_changed.connect(
             self._on_importance_metric_changed)
         self._results.y_axis_min_changed.connect(self._on_y_axis_min_changed)
+        self._results.targets_changed.connect(self._on_targets_changed)
 
     def _on_theme_changed(self, dark: bool):
         self._theme_action.blockSignals(True)

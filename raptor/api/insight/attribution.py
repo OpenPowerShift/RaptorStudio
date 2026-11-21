@@ -419,9 +419,9 @@ def model_hierarchies(rbd: Any) -> dict[str, Any] | None:  # noqa: C901
     names = {number(r.get("ID")): str(r.get("hierarchyName") or r.get("Name")
                                       or f"Hierarchy {r.get('ID')}")
              for r in hiers}
-    parent = {number(r.get("ID")): number(r.get("Parent")) for r in hiers}
+    parent_of = {number(r.get("ID")): number(r.get("Parent")) for r in hiers}
     children: dict[int, list[int]] = {hid: [] for hid in names}
-    for hid, up in parent.items():
+    for hid, up in parent_of.items():
         if up in children:
             children[up].append(hid)
     for kids in children.values():
@@ -431,7 +431,7 @@ def model_hierarchies(rbd: Any) -> dict[str, Any] | None:  # noqa: C901
         out: list[int] = []
         while hid and hid not in out and len(out) < 16:
             out.append(hid)
-            hid = parent.get(hid, 0)
+            hid = parent_of.get(hid, 0)
         return list(reversed(out))
 
     paths = {hid: [names.get(part, str(part)) for part in path_of(hid)]
@@ -456,7 +456,7 @@ def model_hierarchies(rbd: Any) -> dict[str, Any] | None:  # noqa: C901
 
     for hid in names:
         collect(hid, set())
-    return {"names": names, "parent": parent, "of": of,
+    return {"names": names, "parent": parent_of, "of": of,
             "paths": paths, "depth": {hid: len(path) for hid, path in paths.items()},
             "members": members, "children": children, "direct": direct}
 

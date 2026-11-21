@@ -734,6 +734,8 @@ class _Diff:
         a, b = self.a, self.b
         pairs: list[tuple[str, str, Any, Any]] = [
             ("display_unit", "project", a.display_unit, b.display_unit),
+            ("currency", "project", getattr(a, "currency", "$"),
+             getattr(b, "currency", "$")),
             ("annotations", "layout", len(a.annotations or []),
              len(b.annotations or [])),
             ("comments", "layout", len(_rows(a, "COMMENTS")),

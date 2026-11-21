@@ -85,3 +85,27 @@ def test_an_unchanged_palette_is_still_the_default(qapp, monkeypatch):
         assert box.currentData() == palette.DEFAULT
     _open_prefs(qapp, monkeypatch, mutate)
     assert settings.get("appearance/chart_palette") == palette.DEFAULT
+
+
+def test_the_currency_is_a_model_setting(qapp, monkeypatch):
+    from raptor.gui.ui.dialogs import _SectionPages
+    grabbed = {}
+
+    def mutate(dlg):
+        tabs = dlg.findChild(_SectionPages)
+        names = [tabs.tabText(i) for i in range(tabs.count())]
+        page = tabs.widget(names.index("This model"))
+        combo = next(c for c in page.findChildren(QComboBox)
+                     if c.lineEdit() is not None and c.lineEdit().accessibleName() == "Currency")
+        assert combo.currentText() == "$"
+        combo.setCurrentText("€")
+        page.resize(700, page.sizeHint().height())
+        grabbed["image"] = page.grab()
+    w = _open_prefs(qapp, monkeypatch, mutate)
+    assert w._rbd.currency == "€"
+    assert w._dirty            # a model setting: the file needs saving
+    out = os.environ.get("RAPTOR_PREFS_GRAB")
+    if out:
+        grabbed["image"].save(out)
+    w._dirty = False           # no save prompt on close
+    w.close()

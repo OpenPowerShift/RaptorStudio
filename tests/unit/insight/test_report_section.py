@@ -83,3 +83,44 @@ def test_a_phased_run_reports_the_phase_chart_and_an_unphased_one_does_not():
              "causes": {"repair": 1.0}}]
     assert "Downtime by phase" in titles(rows)
     assert "Phase by cause" in titles(rows)
+
+def test_a_cost_run_puts_its_cost_charts_in_the_report():
+    from pathlib import Path
+    from raptor.api.insight import cost_series
+    root = Path(__file__).resolve().parents[3]
+    runs = cost_series.parse_cost_file(
+        str(root / "tests" / "golden" / "ReleaseProbe27" / "legacy"
+            / "rpt_interim_cost_ReleaseProbe27.txt"))
+    section = report_section.from_parts(
+        {"headline": {}, "units": "hours", "findings": []},
+        [{"ending_sim_time": 2160.0}] * len(runs), cost_runs=runs)
+    titles = [spec.title for spec in section.charts]
+    assert "Cost by category" in titles
+    assert "Cumulative operating cost over time" in titles
+    assert "Operating cost per year" in titles
+
+
+def test_the_report_adds_the_reliability_charts_and_the_ladder_waterfall():
+    per_run = [{"availability": 0.99, "mttff": 100.0, "mttff_censored": False,
+                "num_component_failures": 4,
+                "criticality": {"1": {"name": "Pump", "failure": 1.0}},
+                "ending_sim_time": 500.0},
+               {"availability": 1.0, "mttff": 500.0, "mttff_censored": True,
+                "num_component_failures": 0, "ending_sim_time": 500.0}]
+    attribution = {"runs": 2, "causes": {"repair": 1.0},
+                   "elements": [{"name": "Pump", "kind": "block", "id": 1,
+                                 "dtci": {"mean": 1.0}, "causes": {"repair": 1.0}}]}
+    section = report_section.from_parts(
+        {"headline": {}, "units": "hours", "findings": []}, per_run,
+        attribution=attribution)
+    by_title = {spec.title: spec for spec in section.charts}
+    assert "Reliability over time" in by_title
+    assert "Which components fail most often?" in by_title
+    waterfall = by_title["From full availability to the achieved one"]
+    # the same basis as the Charts tab and run_chart
+    assert waterfall.provenance["basis"] == "ladder"
+    # no system failure in any run: R(t) is a flat line and is left out
+    quiet = report_section.from_parts(
+        {"headline": {}, "units": "hours", "findings": []},
+        [{**per_run[1]}, {**per_run[1]}])
+    assert "Reliability over time" not in {spec.title for spec in quiet.charts}

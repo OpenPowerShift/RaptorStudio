@@ -188,8 +188,10 @@ def _fmt(value: float | None, field_name: str, units: str) -> str:
         text = f"{value:,.0f}" if abs(value) >= 1e4 else f"{value:,.4g}"
         return text + (f" {units}" if units else "")
     if field_name == "grand_total":
-        # money: whole units with separators, never 1.933e+05
-        return f"{value:,.0f}" if abs(value) >= 100 else f"{value:,.2f}"
+        # money: whole units with separators, never 1.933e+05, in the
+        # model's currency (`axes.currency`, set by `build`)
+        from raptor.api.insight.axes import with_currency
+        return with_currency(f"{value:,.0f}" if abs(value) >= 100 else f"{value:,.2f}")
     return f"{value:,.4g}" + (f" {units}" if units else "")
 
 
@@ -406,6 +408,8 @@ def _chips(per_run: list[dict], units: str, has_capacity: bool,
                 continue
             label, value, text = _time_chip(field_name, label, outages, up, down,
                                             length, runs, units)
+        if field_name == "grand_total" and value is not None:
+            text = _fmt(value, field_name, units)   # now, in the model's currency
         if value is None and not text:
             continue
         out.append(NumberChip(label=label, value=value, units=units,
@@ -468,7 +472,8 @@ def _sections(per_run: list[dict], attribution: dict | None, has_capacity: bool,
     if cost_on:
         total = _mean(_values(per_run, "grand_total"))
         out.append(StorySection(
-            "cost", "Cost", f"The batch costs {total:,.4g} in total."
+            # `grand_total` is per run: the mean is a run's cost, not the batch's
+            "cost", "Cost", f"A run costs {_fmt(total, 'grand_total', '')} on average."
             if total is not None else "No cost total was produced.",
             "Show the cost drivers"))
     return out
@@ -517,7 +522,7 @@ def _hierarchy_lines(attribution: dict | None) -> list[HierarchyLine]:
     out = []
     for row in rows[:6]:
         causes = row.get("causes") or {}
-        cause = max(causes, key=causes.get) if causes else ""
+        cause = max(causes, key=lambda name: causes[name]) if causes else ""
         out.append(HierarchyLine(
             name=str(row.get("name") or ""),
             path=hier.path_text(row),
@@ -531,6 +536,36 @@ def _hierarchy_lines(attribution: dict | None) -> list[HierarchyLine]:
 
 
 def build(
+    per_run: list[dict],
+    *,
+    units: str = "",
+    attribution: dict | None = None,
+    findings: list[Any] | None = None,
+    requirements: list[dict] | None = None,
+    has_capacity: bool | None = None,
+    has_phases: bool | None = None,
+    phased: bool | None = None,
+    cost_on: bool | None = None,
+    model_name: str = "",
+    run_id: str = "",
+    model_hash: str = "",
+    requested_runs: int | None = None,
+    truncated: str = "",
+    currency: str | None = None,
+) -> Story:
+    """Build the Story from a finished batch's per-run dicts, money in
+    `currency` (the model's; "$" when not given).  See `_build`."""
+    from raptor.api.insight.axes import currency as _currency
+    with _currency(currency):
+        return _build(
+            per_run, units=units, attribution=attribution, findings=findings,
+            requirements=requirements, has_capacity=has_capacity,
+            has_phases=has_phases, phased=phased, cost_on=cost_on,
+            model_name=model_name, run_id=run_id, model_hash=model_hash,
+            requested_runs=requested_runs, truncated=truncated)
+
+
+def _build(
     per_run: list[dict],
     *,
     units: str = "",
@@ -638,7 +673,8 @@ def from_run(workspace: Any, run_id: str,
         model_hash=str(summary.get("model_hash") or ""),
         run_id=run_id,
         requested_runs=summary.get("requested_runs"),
-        truncated=str(summary.get("truncated") or ""))
+        truncated=str(summary.get("truncated") or ""),
+        currency=getattr(rbd, "currency", None))
 
 
 def text_lines(story: Story) -> list[str]:  # noqa: C901, PLR0912
@@ -669,10 +705,10 @@ def text_lines(story: Story) -> list[str]:  # noqa: C901, PLR0912
                          f"  {pct(item.share):>7} of downtime{mark}")
     if story.hierarchies:
         lines += ["", "By hierarchy:"]
-        for item in story.hierarchies:
-            detail = (f"{item.members} inside, {item.starters} started an outage"
-                      if item.members or item.starters else item.status)
-            lines.append(f"  {item.path:<24}{pct(item.share):>8}  {detail}")
+        for hline in story.hierarchies:
+            detail = (f"{hline.members} inside, {hline.starters} started an outage"
+                      if hline.members or hline.starters else hline.status)
+            lines.append(f"  {hline.path:<24}{pct(hline.share):>8}  {detail}")
     if story.findings:
         lines += ["", "What to look at:"]
         for finding in story.findings:

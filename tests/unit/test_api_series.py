@@ -62,6 +62,33 @@ class TestParseAoRuns:
         assert all(run["t"] == [10.0, 20.0, 30.0, 36.0] for run in runs)
 
 
+class TestSamplingKeepsEveryRun:
+    def test_a_long_run_is_reduced_but_every_run_survives(self):
+        rows = ["SimulationTime Ao Green Yellow Red Interval"]
+        for run in range(3):
+            for i in range(1000):
+                rows.append(f"{i} {0.99 - i / 100000:.6f} 0.9 0.08 0.02 0.99")
+            rows.append("*" * 30 + f"End_of_Run_{run + 1}" + "*" * 30)
+        runs = parse_ao_runs("\n".join(rows), max_points=40)
+        assert len(runs) == 3
+        for run in runs:
+            assert run["t"][0] == 0.0 and run["t"][-1] == 999.0
+            assert len(run["t"]) < 1000
+            assert len(run["t"]) == len(run["values"]) == len(run["interval"])
+
+    def test_capacity_sampling_keeps_every_run(self):
+        rows = []
+        for run in range(4):
+            for i in range(500):
+                rows.append(f"{i} {100 + i % 7} 100")
+            rows.append("*" * 30 + f"End_of_Run_{run + 1}" + "*" * 30)
+        runs = parse_capacity_runs("\n".join(rows), max_points=30)
+        assert len(runs) == 4
+        assert all(run["t"][0] == 0.0 and run["t"][-1] == 499.0
+                   for run in runs)
+        assert all(len(run["t"]) < 500 for run in runs)
+
+
 class TestMeanEnvelope:
     def test_brackets_mean(self):
         runs = parse_ao_runs(AO_TEXT)

@@ -15,6 +15,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any
 
+from raptor.api.insight.attribution import CAUSE_LABELS
+
 #: Categorical colours for hierarchy identity, in reading order.  The hues
 #: follow Okabe-Ito where its lighter entries still met 3:1 on the light
 #: surface; the amber, blue, purple and olive are darker or lighter versions
@@ -507,15 +509,29 @@ def ribbon_rows(attribution: dict[str, Any] | None,
     return out
 
 
-def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912  # noqa: C901, PLR0912
-           selected: Sequence[dict[str, Any]] | None = None
+def _element_causes(elements: Sequence[dict[str, Any]]) -> dict[str, float]:
+    """Lost flow by cause, summed over the capacity elements."""
+    causes: dict[str, float] = {}
+    for item in elements:
+        lost = float((item.get("lost_energy") or {}).get("mean") or 0.0)
+        for cause, share in (item.get("causes") or {}).items():
+            causes[cause] = causes.get(cause, 0.0) + lost * float(share)
+    return causes
+
+
+def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912, PLR0915 - one layout, two shapes
+           selected: Sequence[dict[str, Any]] | None = None, *,
+           by_hierarchy: bool = True,
+           show_delivered: bool = True
            ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Nodes and links for the capacity Sankey.
 
     Generated flow splits into delivered and lost; lost splits into
-    hierarchies; each hierarchy splits into the causes of its lost flow.
-    Every path adds up to ``lost_energy``, so a reader can follow a link
-    from the generator to a cause without double counting.
+    hierarchies (unless `by_hierarchy` is off) and then into causes.
+    `show_delivered=False` starts at the lost flow, so a small loss is not
+    squeezed by the delivered branch.  Every path adds up to
+    ``lost_energy``, so a reader can follow a link from the source to a
+    cause without double counting.
     """
     capacity = (attribution or {}).get("capacity") or {}
     elements = list(capacity.get("elements") or [])
@@ -524,8 +540,50 @@ def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912  # noqa: C
     # `generated` is a flow rate; the Sankey carries energy, so its source
     # is what was actually delivered plus what was lost.
     generated = delivered + total_lost
-    if not elements or total_lost <= 0:
+    if total_lost <= 0 or (by_hierarchy and not elements):
         return [], []
+
+    nodes: list[dict[str, Any]] = []
+    links: list[dict[str, Any]] = []
+    if show_delivered:
+        nodes.append({"id": "generated", "name": "Generated energy", "column": 0,
+                      "value": generated})
+        nodes.append({"id": "delivered", "name": "Delivered", "column": 1,
+                      "value": delivered})
+        nodes.append({"id": "lost", "name": "Lost", "column": 1,
+                      "value": total_lost})
+        links = [{"source": "generated", "target": "delivered", "value": delivered,
+                  "cause": None},
+                 {"source": "generated", "target": "lost", "value": total_lost,
+                  "cause": None}]
+        lost_column = 1
+    else:
+        nodes.append({"id": "lost", "name": "Lost capacity", "column": 0,
+                      "value": total_lost})
+        lost_column = 0
+
+    if not by_hierarchy:
+        cause_flow = {cause: float(stat.get("mean") or 0.0)
+                      for cause, stat in (capacity.get("causes") or {}).items()}
+        if not cause_flow:
+            cause_flow = _element_causes(elements)
+        remainder = max(0.0, total_lost - sum(cause_flow.values()))
+        if remainder > 1e-9 * max(1.0, total_lost):  # not float noise
+            cause_flow["unattributed"] = remainder
+        for cause, amount in cause_flow.items():
+            if amount <= 0:
+                continue
+            cause_id = f"cause-{cause}"
+            name = ("Not attributed" if cause == "unattributed"
+                    else CAUSE_LABELS.get(str(cause), str(cause)))
+            nodes.append({"id": cause_id, "name": name,
+                          "column": lost_column + 1, "value": amount})
+            # the legend reads `cause`: the remainder has no cause colour
+            links.append({"source": "lost", "target": cause_id,
+                          "value": amount,
+                          "cause": None if cause == "unattributed" else cause})
+        return nodes, links
+
     chosen = list(selected or rows(attribution))
     by_key = {(str(item.get("kind")), int(item.get("id") or 0)): item
               for item in elements}
@@ -537,21 +595,13 @@ def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912  # noqa: C
             for key in keys if key in by_key)
     if not any(lost_by_hier.values()):
         return [], []
-    nodes = [{"id": "generated", "name": "Generated energy", "column": 0,
-              "value": generated}]
-    nodes.append({"id": "delivered", "name": "Delivered", "column": 1,
-                  "value": delivered})
-    nodes.append({"id": "lost", "name": "Lost", "column": 1,
-                  "value": total_lost})
-    links = [{"source": "generated", "target": "delivered", "value": delivered,
-              "cause": None},
-             {"source": "generated", "target": "lost", "value": total_lost,
-              "cause": None}]
+    hier_column = lost_column + 1
+    cause_column = hier_column + 1
     selected_total = sum(lost_by_hier.values())
     remainder = max(0.0, total_lost - selected_total)
-    if remainder > 1e-9:
+    if remainder > 1e-9 * max(1.0, total_lost):  # not float noise
         nodes.append({"id": "unattributed", "name": "Not in this selection",
-                      "column": 2, "value": remainder})
+                      "column": hier_column, "value": remainder})
         links.append({"source": "lost", "target": "unattributed",
                       "value": remainder, "cause": None})
     for row in chosen:
@@ -560,7 +610,7 @@ def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912  # noqa: C
         if value <= 0:
             continue
         node_id = f"hier-{hid}"
-        nodes.append({"id": node_id, "name": path_text(row), "column": 2,
+        nodes.append({"id": node_id, "name": path_text(row), "column": hier_column,
                       "value": value})
         links.append({"source": "lost", "target": node_id, "value": value,
                       "cause": None})
@@ -583,7 +633,9 @@ def sankey(attribution: dict[str, Any] | None,  # noqa: C901, PLR0912  # noqa: C
                 continue
             cause_id = f"cause-{cause}"
             if cause_id not in {node["id"] for node in nodes}:
-                nodes.append({"id": cause_id, "name": cause, "column": 3,
+                nodes.append({"id": cause_id,
+                              "name": CAUSE_LABELS.get(str(cause), str(cause)),
+                              "column": cause_column,
                               "value": 0.0})
             next(node for node in nodes if node["id"] == cause_id)["value"] += amount
             links.append({"source": node_id, "target": cause_id,
@@ -626,6 +678,7 @@ def sunburst(attribution: dict[str, Any] | None,
                 continue
             child = (part.get("row") if part["kind"] == "hierarchy"
                      else part.get("element") if part["kind"] == "element" else None)
+            child = child or {}
             child_id = (f"{node_id}-h-{child.get('id')}"
                         if part["kind"] == "hierarchy"
                         else f"{node_id}-e-{child.get('kind')}-{child.get('id')}"

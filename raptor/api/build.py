@@ -888,7 +888,7 @@ def _ref_to_id(ref: Any, name_map: dict) -> int:
 def _apply_system_patch(rbd: RbdFile, row: dict,
                         spec: dict[str, Any]) -> dict[str, Any]:
     patch = {k: v for k, v in spec.items()
-             if k not in ("display_unit", "system_streams", "sys_streams")}
+             if k not in ("display_unit", "currency", "system_streams", "sys_streams")}
     for key in list(patch):
         if key in _SYSTEM_FLOAT_COLS and isinstance(patch[key], (int, float)) \
                 and not isinstance(patch[key], bool):
@@ -1290,6 +1290,9 @@ def build_from_spec(spec: dict[str, Any],
         name="SYSTEM_DATA", columns=list(source_row.keys()), rows=[source_row])
     if sys_spec.get("display_unit"):
         rbd.display_unit = sys_spec["display_unit"]
+    if sys_spec.get("currency"):
+        from raptor.core.fileio.rbds import clean_currency
+        rbd.currency = clean_currency(sys_spec["currency"])
 
     # --- rates ------------------------------------------------------------
     if spec.get("rates"):
@@ -3477,9 +3480,19 @@ def configure_system(
     yr_threshold: float | None = None,
     system_streams: str | list | None = None,
     display_unit: str | None = None,
+    availability_target: float | None = None,
+    capacity_target: float | None = None,
+    currency: str | None = None,
     **kwargs,
 ) -> dict:
     """Configure system-level settings (using ``rbds._SYSTEM_MAP``).
+
+    ``availability_target`` and ``capacity_target`` are the Charts tab's
+    result targets (fractions, 0 < t <= 1; ``0`` clears one).  They are
+    saved in the .rbds ``targets`` object, draw the dashed target lines and
+    the Story verdict, and never change the simulation.  ``currency``
+    ("$", "€", "AUD"; at most 8 characters, "" resets to "$") is printed in
+    front of money in the cost charts, the Story and the report.
 
     Returns ``{applied, previous}`` (plus ``ok`` for compatibility)."""
     handle = workspace.get(model_id)
@@ -3503,6 +3516,13 @@ def configure_system(
                              f"got {num_runs!r}")
         updates["NumRuns"] = runs   # Raptor 7 writes "50.000000"
     # checked before anything is written
+    for key, value in (("availability", availability_target),
+                       ("capacity", capacity_target)):
+        if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float))
+                or not 0.0 <= float(value) <= 1.0):
+            raise BuildError(f"{key}_target is a fraction from 0 to 1 "
+                             f"(0.995, not 99.5; 0 clears it), got {value!r}")
     streams_text = (_system_streams_text(system_streams)
                     if system_streams is not None else None)
     term = termination if termination is not None else term_type
@@ -3570,6 +3590,23 @@ def configure_system(
 
     if streams_text is not None:
         row["SysStreamsArray"] = streams_text
+    for key, value in (("availability", availability_target),
+                       ("capacity", capacity_target)):
+        if value is None:
+            continue
+        targets = dict(getattr(rbd, "targets", None) or {})
+        previous.setdefault(f"{key}_target", targets.get(key))
+        if float(value) > 0:
+            targets[key] = float(value)
+        else:
+            targets.pop(key, None)
+        rbd.targets = targets
+        updates[f"{key}_target"] = float(value) if float(value) > 0 else None
+    if currency is not None:
+        from raptor.core.fileio.rbds import clean_currency
+        previous.setdefault("currency", getattr(rbd, "currency", "$"))
+        rbd.currency = clean_currency(currency)
+        updates["currency"] = rbd.currency
     if display_unit is not None:
         # `display_unit` lives on the RbdFile, not SYSTEM_DATA; keep it
         # in `applied`/`previous` so a caller can see the change.

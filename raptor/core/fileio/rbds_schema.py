@@ -233,6 +233,17 @@ def build_schema() -> dict[str, Any]:
                                 "rule": {"type": "string"},
                                 "target": {"type": "string"},
                                 "reason": {"type": "string"}}}}}},
+            "targets": {
+                "type": "object",
+                "description": "Result targets the owner set in the Charts "
+                               "tab, as fractions 0..1. A visual cue and a "
+                               "Story verdict; the model and run do not change.",
+                "additionalProperties": False,
+                "properties": {
+                    "availability": {"type": "number", "exclusiveMinimum": 0,
+                                     "maximum": 1},
+                    "capacity": {"type": "number", "exclusiveMinimum": 0,
+                                 "maximum": 1}}},
             "out_of_service": {
                 "type": "object",
                 "description": "Elements taken out of service for a what-if, "
@@ -266,6 +277,11 @@ def build_schema() -> dict[str, Any]:
                                      "description": {"type": "string"}}}},
             "formulas": {"type": "object", "additionalProperties": {"type": "object"}},
             "display_unit": {"type": ["string", "null"]},
+            "currency": {
+                "type": "string", "minLength": 1, "maxLength": 8,
+                "description": "Shown in front of money in the cost charts, "
+                               "the Story and the report ($, €, AUD). "
+                               "Absent means $; it never changes a cost."},
             "project_meta": {"type": ["object", "null"],
                              "additionalProperties": {"type": "string"}},
             "view_transform": {"type": ["object", "null"],

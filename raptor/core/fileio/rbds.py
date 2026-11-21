@@ -169,7 +169,7 @@ TOP_LEVEL_KEYS = frozenset({
     "format", "version", "meta", "system", "experiment", "elements", "links",
     "defaults", "spare_pools", "resources", "triggers", "phases",
     "annotations", "link_grips", "flow_directions", "view", "rates", "formulas",
-    "display_unit", "advisor", "out_of_service",
+    "display_unit", "advisor", "out_of_service", "targets", "currency",
     "project_meta", "view_transform", "comments",
     # an early layout put the element lists at the top level; still read
     "blocks", "nodes", "events", "hierarchies"})
@@ -601,6 +601,35 @@ def _emit_system(rbd: RbdFile) -> tuple[dict, dict]:
     return system, experiment
 
 
+def clean_targets(raw: Any) -> dict[str, float]:
+    """The two result targets, as fractions in 0..1 (junk is dropped)."""
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float] = {}
+    for key in ("availability", "capacity"):
+        value = raw.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            number = float(value)
+            if 0.0 < number <= 1.0:
+                out[key] = number
+    return out
+
+
+#: The currency a model shows when it names none (never written to a file).
+DEFAULT_CURRENCY = "$"
+#: Longest currency text kept: a symbol or code ("$", "A$", "AUD", "CHF").
+CURRENCY_MAX = 8
+
+
+def clean_currency(raw: Any) -> str:
+    """A model's currency text: trimmed, at most `CURRENCY_MAX` characters,
+    no control characters; anything empty or unusable is the default "$"."""
+    if not isinstance(raw, str):
+        return DEFAULT_CURRENCY
+    text = "".join(ch for ch in raw.strip() if ch.isprintable())
+    return text[:CURRENCY_MAX] if text else DEFAULT_CURRENCY
+
+
 def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
     """Serialize an in-memory model (the same `RbdFile` the legacy
     writer consumes) into .rbds JSON text."""
@@ -618,6 +647,9 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
                                     **(meta or {})}}
     system, experiment = _emit_system(rbd)
     doc["system"] = system
+    targets = clean_targets(getattr(rbd, "targets", None))
+    if targets:
+        doc["targets"] = targets
     # The seed is written only when it is not Raptor 7's fixed table, so a
     # model that never touched it saves exactly as before (#292).
     if experiment.get("seed_mode") == "fixed":
@@ -704,6 +736,9 @@ def render_rbds(rbd: RbdFile, meta: dict | None = None) -> str:
                            for k, v in rbd.formulas.items()}
     if getattr(rbd, "display_unit", None):
         doc["display_unit"] = rbd.display_unit
+    currency = clean_currency(getattr(rbd, "currency", None))
+    if currency != DEFAULT_CURRENCY:
+        doc["currency"] = currency
     if getattr(rbd, "project_meta", None):
         doc["project_meta"] = dict(rbd.project_meta or {})
     if rbd.view_transform:
@@ -1121,6 +1156,8 @@ def parse_rbds(text: str, default_name: str = "model.rbds") -> RbdFile:
                         (doc.get("view") or {}).items()},
                   advisor=_read_advisor(doc),
                   out_of_service=_read_out_of_service(doc),
+                  targets=clean_targets(doc.get("targets")),
+                  currency=clean_currency(doc.get("currency")),
                   rates=[dict(r) for r in (doc.get("rates") or [])],
                   formulas={k: dict(v) for k, v in
                             (doc.get("formulas") or {}).items()},

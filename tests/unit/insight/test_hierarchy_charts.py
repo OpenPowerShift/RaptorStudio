@@ -260,6 +260,15 @@ def test_capacity_sankey_balances_at_every_node():
         assert out == pytest.approx(value, rel=1e-9), node_id
 
 
+def test_capacity_sankey_labels_each_cause_with_its_share():
+    spec = charts.capacity_sankey(_attribution(), by_hierarchy=False,
+                                  show_delivered=False)
+    svg = render(spec)
+    assert "60 %" in svg and "40 %" in svg
+    assert spec.title == "Lost capacity by cause"
+    assert spec.provenance["by_hierarchy"] is False
+
+
 def test_capacity_sankey_adds_an_unattributed_remainder_for_a_scope():
     attribution = _attribution()
     spec = charts.capacity_sankey(attribution, "Intake")
@@ -382,3 +391,18 @@ def test_six_hierarchies_say_they_show_the_top_four():
     assert "top 4 of 6" in small.caption
     overlay = charts.hierarchy_overlay(attribution)
     assert "top 4 of 6" in overlay.caption
+
+
+def test_the_cause_only_sankey_drops_float_noise_and_labels_its_causes():
+    from raptor.api.insight import hierarchy as hier
+    total = 98_397_807.0
+    attribution = {"capacity": {
+        "lost_energy": {"mean": total}, "delivered": {"mean": 1e9},
+        "causes": {"repair": {"mean": total * 0.7},
+                   "logistics": {"mean": total * 0.3 - 3e-8}},
+        "elements": []}}
+    nodes, links = hier.sankey(attribution, by_hierarchy=False, show_delivered=False)
+    names = {node["name"] for node in nodes}
+    assert "Not attributed" not in names
+    assert {"Hands-on repair", "Logistics delay"} <= names
+    assert all(link["cause"] in ("repair", "logistics") for link in links)

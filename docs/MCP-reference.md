@@ -1360,14 +1360,24 @@ run_length: simulation duration (hours unless `units` says otherwise).
 termination: 'TimeSim' or 'CycleSim'.  display_unit overrides the
 display unit without changing stored values.  capacity=true enables
 capacity analysis; `flow_generated` sets its demand (the flow the
-system is asked to deliver).  Returns {applied, previous}.
+system is asked to deliver).  `availability_target` and
+`capacity_target` (fractions, e.g. 0.995; 0 clears) are the result
+targets the Charts tab saves in the model: `run_chart` and `run_story`
+use them when no target is passed.  They never change the simulation.
+`currency` ("$", "€", "AUD"; at most 8 characters, "" resets to the
+default "$") is printed in front of money in the cost charts, the Story
+and the report; it never changes a cost.
+Returns {applied, previous}.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `availability_target` | number \| null | no | `null` | — |
 | `capacity` | boolean \| null | no | `null` | — |
+| `capacity_target` | number \| null | no | `null` | — |
 | `cost` | boolean \| null | no | `null` | — |
+| `currency` | string \| null | no | `null` | — |
 | `display_unit` | string \| null | no | `null` | — |
 | `flow_generated` | number \| null | no | `null` | — |
 | `gy_threshold` | number \| null | no | `null` | — |
@@ -1383,6 +1393,9 @@ system is asked to deliver).  Returns {applied, previous}.
 
 Parameter notes:
 
+- `availability_target` — `availability_target` and `capacity_target` (fractions, e.g. 0.995; 0 clears) are the result targets the Charts tab saves in the model: `run_chart` and `run_story` use them when no target is passed.
+- `capacity_target` — `availability_target` and `capacity_target` (fractions, e.g. 0.995; 0 clears) are the result targets the Charts tab saves in the model: `run_chart` and `run_story` use them when no target is passed.
+- `currency` — `currency` ("$", "€", "AUD"; at most 8 characters, "" resets to the default "$") is printed in front of money in the cost charts, the Story and the report; it never changes a cost.
 - `flow_generated` — Configure system-level simulation settings. run_length: simulation duration (hours unless `units` says otherwise). termination: 'TimeSim' or 'CycleSim'. display_unit overrides the display unit without changing stored values. capacity=true enables capacity analysis; `flow_generated` sets its demand…
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `num_runs` — Replications (trials). Leave out to use the model's own setting.
@@ -3343,9 +3356,13 @@ a phased model, `phase-downtime` and `phase-cause-heatmap`.
 need capacity attribution; `annual-fan` and `annual-dots` need a run long
 enough for whole periods, and `annual-capacity-fan` (capacity delivered
 year by year) needs both. `importance-quadrant` needs
-`importance="both"` (RAW and RRW); `cost-pareto` and `cost-treemap` (spare pools included) need
-cost analysis; ask for them only when
-the run has those. Over time: `availability-through-run`,
+`importance="both"` (RAW and RRW); `cost-pareto`, `cost-treemap`,
+`cost-categories`, `cost-cumulative` and `cost-annual` need cost
+analysis (the last three also need the interim cost report; the
+cumulative and annual views leave one-off capital out). Ask for them
+only when the run has those. `component-failures` counts every
+component failure; `reliability-curve` is the Kaplan–Meier survival
+curve. Over time: `availability-through-run`,
 `interval-availability` and `availability-band` need the availability
 plot recorded (`availability_plot=true`), `capacity-through-run` and
 `capacity-band` capacity analysis. `run` picks the run a one-run chart
@@ -3357,6 +3374,10 @@ For a report or slide: `page` sizes the SVG (`screen` 760 x 400,
 more room and declare their size in mm) and `min_share` (0 to 1, e.g.
 0.01) folds the items below that share of the whole into one "N others"
 row or cell (element rankings and treemaps; the caption names them).
+`fold` is the Charts tab's Others control and replaces `min_share`:
+`top:10` or `top:20` keeps that many items, `fraction:0.25` the top
+quartile, `tail:0.05` folds the smallest items making up the last 5 %
+of the total.
 No label is ever shortened: names wrap, and treemap cells too small for
 their name are numbered and listed under the chart.
 
@@ -3364,7 +3385,10 @@ their name are numbered and listed under the chart.
 outcome, chance, convergence, availability-over-time and year charts,
 and on `annual-capacity-fan` for a capacity-weighted availability
 target, as the window's Target buttons do. The dot and convergence
-charts also mark the median. It is a visual cue only.
+charts also mark the median. It is a visual cue only. Without
+`target`, the model's saved targets are used (`configure_system`'s
+`availability_target`, and `capacity_target` for
+`annual-capacity-fan`), when the run's model is still open.
 
 Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
 `hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
@@ -3379,15 +3403,20 @@ picks a model level (`1` is the top): ranking charts show that one
 level, while the treemap and sunburst grow that many levels (omit it
 for the top level on rankings and every level on the nested charts).
 `compare_to` names a stored run whose hierarchy table is the baseline
-for `hierarchy-delta`.
+for `hierarchy-delta`. On `capacity-sankey`, `by_hierarchy=False` goes
+straight from the lost flow to its causes (no hierarchy roll-up
+needed), and `show_delivered=False` leaves out the delivered branch so
+a small loss fills the figure.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `by_hierarchy` | boolean | no | `true` | — |
 | `chart` | string | no | `trial-outcome` | — |
 | `compare_to` | string \| null | no | `null` | — |
 | `depth` | integer \| null | no | `null` | — |
+| `fold` | string \| null | no | `null` | — |
 | `hierarchies` | array<string \| integer> \| null | no | `null` | — |
 | `hierarchy` | string \| integer \| null | no | `null` | — |
 | `min_share` | number | no | `0.0` | — |
@@ -3395,6 +3424,7 @@ for `hierarchy-delta`.
 | `render_svg` | boolean | no | `false` | — |
 | `run` | integer | no | `1` | — |
 | `run_id` | string | yes | — | — |
+| `show_delivered` | boolean | no | `true` | — |
 | `target` | number \| null | no | `null` | — |
 | `y_floor` | number \| null | no | `null` | — |
 
@@ -3403,6 +3433,7 @@ Parameter notes:
 - `chart` — `chart` is the chart's name: one of those listed below.
 - `compare_to` — `compare_to` names a stored run whose hierarchy table is the baseline for `hierarchy-delta`.
 - `depth` — `depth` picks a model level (`1` is the top): ranking charts show that one level, while the treemap and sunburst grow that many levels (omit it for the top level on rankings and every level on the nested charts).
+- `fold` — `fold` is the Charts tab's Others control and replaces `min_share`: `top:10` or `top:20` keeps that many items, `fraction:0.25` the top quartile, `tail:0.05` folds the smallest items making up the last 5 % of the total.
 - `hierarchies` — `hierarchy` selects one by id, name or `A > B` path; `hierarchies` selects up to four for the overlay, small multiples or Sankey, and overlapping parent and child selections are refused rather than double counted.
 - `hierarchy` — `hierarchy` selects one by id, name or `A > B` path; `hierarchies` selects up to four for the overlay, small multiples or Sankey, and overlapping parent and child selections are refused rather than double counted.
 - `min_share` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
@@ -3458,7 +3489,10 @@ key numbers, sections only for features the model uses, and provenance.
 
 `targets` gives the headline its target, as `advise` takes them, e.g.
 `[{"metric": "system.ao", "op": ">=", "value": 0.995}]` (the first is
-the headline; `<=` suits time down per outage).
+the headline; `<=` suits time down per outage).  Without `targets`, the
+availability target saved in the run's model (`configure_system
+(availability_target=...)` or the Charts tab) is used, when the model
+is still open.
 
 Needs the run's ordinary artefacts. Needs `attribution=True` for the
 drivers strip, the hierarchy strip (top six by downtime) and the

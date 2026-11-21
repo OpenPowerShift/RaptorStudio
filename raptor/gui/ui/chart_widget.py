@@ -28,7 +28,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    FAN_LINE_MIN, compact, currency, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
     period_axis, place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec, bubble_tip
@@ -93,6 +93,8 @@ class ChartWidget(QWidget):
         #: (rect, kind, name) per clickable mark, and its tooltip
         self._hits: list[tuple[QRectF, str, str]] = []
         self._tips: list[str] = []
+        #: treemap cells that gather several items, with the rows behind them
+        self._detail_hits: list[tuple[QRectF, dict]] = []
         self._cursor: QPointF | None = None
         #: the reading cursor for curve charts: frame and x -> marks
         self._probe: tuple[_Frame, Callable[[float], list[tuple[QPointF, str]]]] | None = None
@@ -118,6 +120,7 @@ class ChartWidget(QWidget):
     def set_spec(self, spec: ChartSpec | None) -> None:
         self._spec = spec
         self._hits, self._tips = [], []
+        self._detail_hits = []
         self._probe = None
         self._zoom = self._drag_from = self._zoom_frame = None
         self.setAccessibleName(
@@ -182,7 +185,16 @@ class ChartWidget(QWidget):
 
     # -- painting -------------------------------------------------------
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt name
+    def _currency(self) -> str | None:
+        """The currency this chart's money is printed in (its spec's)."""
+        return (self._spec.provenance.get("currency")
+                if self._spec is not None else None)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt name
+        with currency(self._currency()):
+            self._paint_event(event)
+
+    def _paint_event(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         palette = active_colour()
@@ -218,6 +230,7 @@ class ChartWidget(QWidget):
                              fm.elidedText(spec.subtitle, Qt.TextElideMode.ElideRight,
                                            self.width() - 2 * PAD))
         self._hits, self._tips = [], []
+        self._detail_hits = []
         self._probe = None
         self._caption_in_body = False
         if compact:
@@ -986,7 +999,7 @@ class ChartWidget(QWidget):
         area_peak = max(float(p.get("area") or 0) for p in points) or 1.0
         fill = QColor(palette["accent"])
         fill.setAlpha(110)
-        labels = []
+        labels: list[tuple[float, float, float, str]] = []
         for point in sorted(points, key=lambda p: -float(p.get("area") or 0)):
             x, y = frame.x(float(point["x"])), frame.y(float(point["y"]))
             radius = 4 + 20 * (float(point.get("area") or 0) / area_peak) ** 0.5
@@ -1292,7 +1305,7 @@ class ChartWidget(QWidget):
         y_low, y_high = (float(v) for v in (spec.provenance.get("y_range") or [0.0, 1.0])[:2])
         if y_high <= y_low:
             y_high = y_low + 1.0
-        if fmt != "percent":
+        if fmt != "percent" and not spec.provenance.get("y_axis_exact"):
             y_low, y_high = nice_range(y_low, y_high, 5)
         y_ticks = nice_ticks(y_low, y_high, 5)
         if fmt == "percent" and y_high >= 1.0:
@@ -1413,6 +1426,9 @@ class ChartWidget(QWidget):
                           f"{row['name']}: {amount}"
                           + (" of " + what if fmt == "percent" else "")
                           + f", mostly {labels.get(cause, cause).lower()}")
+            if row.get("items"):
+                # "96 others" and other gathered cells: right-click lists them
+                self._detail_hits.append((cell, row))
         fm = QFontMetrics(self.font())
         for cell, name in group_labels:
             if cell.height() < 18 or cell.width() < 24:
@@ -1650,17 +1666,32 @@ class ChartWidget(QWidget):
             return self._paint_none(painter, spec, palette, area)
         columns = sorted({int(node.get("column") or 0) for node in nodes})
         fm = painter.fontMetrics()
+        lost_total = next((float(node.get("value") or 0.0) for node in nodes
+                           if node.get("id") == "lost"), 0.0)
+
+        def amount_of(raw: float, node: dict | None = None) -> str:
+            text = (compact(raw) if abs(raw) >= 1e6
+                    else f"{raw:,.0f}" if abs(raw) >= 1000 else f"{raw:,.4g}")
+            ident = str((node or {}).get("id") or "")
+            if (node is not None and lost_total > 0
+                    and (ident.startswith("cause-")
+                         or ident.startswith("hier-")
+                         or ident == "unattributed")):
+                text += f" ({pct(raw / lost_total)})"
+            return text
+
         first_labels = [str(n.get("name") or "") for n in nodes
                         if int(n.get("column") or 0) == columns[0]]
-        last_labels = [f"{n.get('name') or ''} · {float(n.get('value') or 0):,.0f}"
+        last_labels = [f"{n.get('name') or ''} · "
+                       f"{amount_of(float(n.get('value') or 0), n)}"
                        for n in nodes
                        if int(n.get("column") or 0) == columns[-1]]
         left_pad = max(110.0, max((fm.horizontalAdvance(x) for x in first_labels),
                                   default=0) + 18.0)
-        right_pad = max(200.0, max((fm.horizontalAdvance(x) for x in last_labels),
+        right_pad = max(300.0, max((fm.horizontalAdvance(x) for x in last_labels),
                                    default=0) + 60.0)
         left_pad = min(left_pad, area.width() * 0.28)
-        right_pad = min(right_pad, area.width() * 0.50)
+        right_pad = min(right_pad, area.width() * 0.55)
         span = max(1.0, area.width() - left_pad - right_pad)
         col_x = {col: area.left() + left_pad + span * i / max(1, len(columns) - 1)
                  for i, col in enumerate(columns)}
@@ -1720,7 +1751,7 @@ class ChartWidget(QWidget):
                 from raptor.api.insight.attribution import CAUSE_LABELS
                 label = CAUSE_LABELS.get(str(node["id"])[6:], label)
             raw = float(node.get('value') or 0)
-            amount = f"{raw:,.0f}" if abs(raw) >= 1000 else f"{raw:,.4g}"
+            amount = amount_of(raw, node)
             if int(node.get("column") or 0) == 0:
                 painter.drawText(QRectF(x - left_pad + 2, y, left_pad - 8, h),
                                  Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -1742,8 +1773,13 @@ class ChartWidget(QWidget):
                                       int(max(1.0, width))))
                 else:
                     text = f"{label} · {amount}"
+                    # a sliver node at the foot of the column centred its
+                    # one-line label half below the chart: keep it inside
+                    line = float(fm.height())
+                    top = min(max(y + h / 2 - line / 2, area.top()),
+                              area.bottom() - line)
                     painter.drawText(
-                        QRectF(x + 18, y, width, h),
+                        QRectF(x + 18, top, width, line),
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         fm.elidedText(text, Qt.TextElideMode.ElideRight,
                                       int(max(1.0, right_pad - 28))))
@@ -1970,6 +2006,11 @@ class ChartWidget(QWidget):
     # -- interaction ----------------------------------------------------
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt name
+        # the hover reading prints money too
+        with currency(self._currency()):
+            self._mouse_move(event)
+
+    def _mouse_move(self, event) -> None:
         point = event.position()
         if self._probe is not None:
             self._cursor = point
@@ -2040,6 +2081,16 @@ class ChartWidget(QWidget):
         if self._spec is None:
             return
         menu = QMenu(self)
+        point = QPointF(position)
+        details = next((row for rect, row in self._detail_hits
+                        if rect.contains(point)), None)
+        if details is not None and details.get("items"):
+            count = len(details["items"])
+            menu.addAction(
+                f"Show {count} {'item' if count == 1 else 'items'} in "
+                f"“{details.get('name')}”…",
+                lambda row=details: self.show_details(row))
+            menu.addSeparator()
         if self._spec.kind in ("ribbon", "timeline") and self._zoom is not None:
             menu.addAction("Show the whole run", lambda: self.zoom_to(None))
         menu.addAction("Copy image", self.copy_image)
@@ -2048,6 +2099,74 @@ class ChartWidget(QWidget):
         menu.addAction("Save PDF…", self._ask_pdf)
         menu.addAction("Save CSV…", self._ask_csv)
         menu.exec(self.mapToGlobal(position))
+
+    def show_details(self, row: dict) -> None:
+        """A scrollable, sortable table of the items a gathered cell holds."""
+        with currency(self._currency()):
+            self._show_details(row)
+
+    def _show_details(self, row: dict) -> None:
+        from PySide6.QtWidgets import (
+            QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel,
+            QTableWidget, QTableWidgetItem, QVBoxLayout,
+        )
+        items = [dict(item) for item in row.get("items") or []]
+        if not items:
+            return
+
+        class _NumberItem(QTableWidgetItem):
+            """Sort by the stored number, not the formatted text."""
+            def __lt__(self, other):  # noqa: D105 - Qt protocol
+                left = self.data(Qt.ItemDataRole.UserRole)
+                right = other.data(Qt.ItemDataRole.UserRole)
+                if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                    return float(left) < float(right)
+                return super().__lt__(other)
+
+        spec = self._spec
+        fmt = str((spec.provenance if spec else {}).get("format") or "")
+        labels = {**CAUSE_LABELS,
+                  **((spec.provenance.get("group_labels") if spec else None) or {})}
+        dialog = QDialog(self)
+        dialog.setWindowTitle(str(row.get("name") or "Details"))
+        dialog.resize(620, 460)
+        layout = QVBoxLayout(dialog)
+        total = sum(float(item.get("value") or 0.0) for item in items)
+        title = QLabel(
+            f"{len(items)} items in “{row.get('name')}”, {format_value(total, fmt, 4)}"
+            " together. Click a heading to sort.")
+        title.setWordWrap(True)
+        layout.addWidget(title)
+        table = QTableWidget(len(items), 4)
+        table.setHorizontalHeaderLabels(["Name", "Value", "Share", "Cause"])
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSortingEnabled(True)
+        table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch)
+        for i, item in enumerate(items):
+            name = QTableWidgetItem(str(item.get("name") or ""))
+            value = float(item.get("value") or 0.0)
+            value_item = _NumberItem(format_value(value, fmt, 5))
+            value_item.setData(Qt.ItemDataRole.UserRole, value)
+            share = float(item["share"]) if _number(item.get("share")) else None
+            share_item = _NumberItem(
+                format_value(share, "percent", 3) if share is not None else "")
+            share_item.setData(Qt.ItemDataRole.UserRole, share or 0.0)
+            cause = str(item.get("cause") or "")
+            cause_item = QTableWidgetItem(labels.get(cause, cause))
+            table.setItem(i, 0, name)
+            table.setItem(i, 1, value_item)
+            table.setItem(i, 2, share_item)
+            table.setItem(i, 3, cause_item)
+        table.setSortingEnabled(True)
+        table.sortItems(1, Qt.SortOrder.DescendingOrder)
+        layout.addWidget(table, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
 
     def _ask_png(self) -> None:
         if path := ask_chart_path(self, "Save chart", "", "PNG image", ".png"):
@@ -2205,7 +2324,7 @@ def _short(value: float) -> str:
     """A compact number for a log axis or a reading: 0.5, 12, 1.2k."""
     size = abs(value)
     if size >= 1e4:
-        return format_value(value, "money")
+        return compact(value)
     if size >= 100:
         return f"{value:,.0f}"
     return f"{value:.3g}"

@@ -103,6 +103,7 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l analysis
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l below
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l capacity-rule
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-fold
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-min-share
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-page
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l chart-run
@@ -116,10 +117,12 @@ complete -c raptor -n '__fish_seen_subcommand_from explain' -l hierarchy
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l importance
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l jobs
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l list-charts
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l no-delivered
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l progress
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l report
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l report-include
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l runs
+complete -c raptor -n '__fish_seen_subcommand_from explain' -l sankey
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l seed
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l story
 complete -c raptor -n '__fish_seen_subcommand_from explain' -l target

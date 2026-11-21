@@ -18,17 +18,19 @@ the command line and the MCP server.
 """
 from __future__ import annotations
 
+import copy
+import itertools
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QActionGroup, QColor, QFont
+from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QMenu, QPushButton, QSpinBox,
-    QSplitter, QStackedWidget, QToolButton, QTreeWidget, QTreeWidgetItem,
-    QVBoxLayout, QWidget,
+    QComboBox, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
+    QSpinBox, QSplitter, QStackedWidget, QToolButton, QTreeWidget,
+    QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from raptor.api import run_needs
@@ -82,6 +84,8 @@ class ChartsPage(QWidget):
     y_floor_changed = Signal(float)
     #: the target line, a fraction, or None when cleared
     target_changed = Signal(object)
+    #: the capacity-weighted availability target, a fraction or None
+    capacity_target_changed = Signal(object)
     #: "availability" or "capacity": save the recorded plot rows (Raptor's rpt_* file)
     raw_export_requested = Signal(str)
 
@@ -95,6 +99,7 @@ class ChartsPage(QWidget):
         self._inputs: dict[str, Any] = {}
         self._ao_runs: list[dict[str, Any]] = []
         self._cap_runs: list[dict[str, Any]] = []
+        self._cost_runs: list[dict[str, Any]] = []
         self._y_floor = 0.0
         self._wanted = "Run-to-run outcome"
         #: hierarchy id/name for the scope chip, or None for the system
@@ -112,6 +117,13 @@ class ChartsPage(QWidget):
         self._baseline_label: str | None = None
         #: target for capacity-weighted availability (fraction or None)
         self._capacity_target: float | None = None
+        #: group expansion kept while the search box filters the list
+        self._search_folded: dict[str, bool] | None = None
+        #: how the capacity charts' y axis is framed: auto, full, goal,
+        #: probability, exceedance or numeric (see `_capacity_axis_menu`)
+        self._capacity_axis_mode = "auto"
+        self._capacity_axis_value: float | None = None
+        self._capacity_axis_range: tuple[float, float] | None = None
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -119,6 +131,20 @@ class ChartsPage(QWidget):
         split.setChildrenCollapsible(True)
         lay.addWidget(split)
 
+        left = QWidget()
+        left_lay = QVBoxLayout(left)
+        left_lay.setContentsMargins(0, 0, 0, 0)
+        left_lay.setSpacing(SPACING.get("xs", 4))
+        self.search = QLineEdit()
+        self.search.setObjectName("ChartSearch")
+        self.search.setPlaceholderText("Search charts…")
+        self.search.setClearButtonEnabled(True)
+        self.search.setAccessibleName("Search charts")
+        self.search.setToolTip("Filter the chart list by title or group (Esc clears)")
+        self.search.textChanged.connect(self._filter_charts)
+        escape = QShortcut(QKeySequence("Escape"), self.search)
+        escape.activated.connect(self.search.clear)
+        left_lay.addWidget(self.search)
         self.nav = QTreeWidget()
         self.nav.setObjectName("ChartList")
         self.nav.setHeaderHidden(True)
@@ -131,7 +157,8 @@ class ChartsPage(QWidget):
         self.nav.itemClicked.connect(
             lambda item, _col: item.setExpanded(not item.isExpanded())
             if item.childCount() else None)
-        split.addWidget(self.nav)
+        left_lay.addWidget(self.nav, 1)
+        split.addWidget(left)
 
         right = QWidget()
         rlay = QVBoxLayout(right)
@@ -214,6 +241,25 @@ class ChartsPage(QWidget):
         self.layout_box.currentIndexChanged.connect(
             lambda _i: self._show_current())
         bar.addWidget(self.layout_box)
+        self.sankey_box = QComboBox()
+        self.sankey_box.setAccessibleName("Lost capacity Sankey grouping")
+        self.sankey_box.setToolTip(
+            "Group the lost flow by hierarchy and cause, or go straight "
+            "from the lost flow to the causes")
+        self.sankey_box.addItem("Hierarchy → cause", True)
+        self.sankey_box.addItem("Cause only", False)
+        self.sankey_box.currentIndexChanged.connect(
+            lambda _i: self._show_current())
+        bar.addWidget(self.sankey_box)
+        self.sankey_delivered = QToolButton()
+        self.sankey_delivered.setText("Delivered")
+        self.sankey_delivered.setCheckable(True)
+        self.sankey_delivered.setChecked(True)
+        self.sankey_delivered.setToolTip(
+            "Show the delivered branch. Turn it off when the loss is a small "
+            "share of the generated flow, so the lost flow fills the figure")
+        self.sankey_delivered.toggled.connect(lambda _on: self._show_current())
+        bar.addWidget(self.sankey_delivered)
         self.compare_button = QToolButton()
         self.compare_button.setAccessibleName("Compare hierarchies")
         self.compare_button.setText("Compare: top 4")
@@ -259,16 +305,19 @@ class ChartsPage(QWidget):
         self.capacity_target_button = QPushButton("Capacity target: none")
         self.capacity_target_button.setToolTip(
             "A target capacity-weighted availability drawn on the year-by-year "
-            "capacity chart. Visual cue only; the model and run do not change.")
+            "capacity chart. Saved in the model file; the simulation does not "
+            "change.")
         self.capacity_target_button.clicked.connect(self._ask_capacity_target)
+        self.capacity_axis_button = self._capacity_axis_control()
         self.fold_box = QComboBox()
-        for text, share in (("Fold nothing", 0.0), ("Fold items below 1 %", 0.01),
-                            ("Fold items below 2 %", 0.02),
-                            ("Fold items below 5 %", 0.05)):
-            self.fold_box.addItem(text, share)
+        # the same presets `run_chart(fold=...)` and `--chart-fold` take
+        for text, mode in charts.FOLD_PRESETS.items():
+            self.fold_box.addItem(text, mode)
         self.fold_box.setToolTip(
-            "Gather the items below a share of the whole into one \"N others\" "
-            "row or cell, on screen and in what you save; the caption names them")
+            "Gather the tail into one \"N others\" row or cell: keep the top "
+            "10 or 20, keep a quartile, or take the smallest items until they "
+            "are the last 5 % of the total. On screen and in what you save; "
+            "the caption names the folded items")
         self.fold_box.currentIndexChanged.connect(lambda _i: self._show_current())
         for widget in (self.run_label, self.run_box, self.run_of):
             bar.addWidget(widget)
@@ -276,6 +325,7 @@ class ChartsPage(QWidget):
         bar.addWidget(self.fold_box)
         bar.addWidget(self.target_button)
         bar.addWidget(self.capacity_target_button)
+        bar.addWidget(self.capacity_axis_button)
         bar.addWidget(self.floor_button)
         self.export_button = QToolButton()
         self.export_button.setText("Export")
@@ -477,6 +527,16 @@ class ChartsPage(QWidget):
         return charts.hierarchy_treemap(
             attribution, self._scope, depth=nested_depth)
 
+    def _capacity_sankey_spec(self) -> charts.ChartSpec:
+        """The lost-capacity Sankey with the grouping controls applied."""
+        attribution = self._inputs.get("attribution") or {}
+        by_hierarchy = bool(self.sankey_box.currentData())
+        return charts.capacity_sankey(
+            attribution, self._scope,
+            None if self._scope is not None else (self._selected or None),
+            by_hierarchy=by_hierarchy,
+            show_delivered=self.sankey_delivered.isChecked())
+
     def _on_follow_toggled(self, on: bool) -> None:
         self._follow_canvas = bool(on)
         if on:
@@ -512,7 +572,7 @@ class ChartsPage(QWidget):
         self._rebuild()
         self._fallback_after_scope()
 
-    def set_compare(self, refs: list[int | str]) -> None:
+    def set_compare(self, refs: Sequence[int | str]) -> None:
         chosen = []
         for ref in refs:
             try:
@@ -565,8 +625,10 @@ class ChartsPage(QWidget):
                    hierarchy: int | None = None,
                    baseline: list[dict[str, Any]] | None = None,
                    model_hierarchies: bool | None = None,
-                   model_phases: bool | None = None) -> None:
-        """Rebuild the list from whatever this result set has.
+                   model_phases: bool | None = None,
+                   currency: str | None = None) -> None:
+        """Rebuild the list from whatever this result set has, money in
+        `currency` (the model's; "$" when not given).
 
         `drivers` says where the downtime attribution stands: ``ready``
         (given here, or none possible yet), ``pending`` (it can be worked
@@ -578,7 +640,8 @@ class ChartsPage(QWidget):
                         "target": target, "drivers": drivers, "measure": measure,
                         "generated": generated,
                         "model_hierarchies": model_hierarchies,
-                        "model_phases": model_phases}
+                        "model_phases": model_phases,
+                        "currency": currency}
         if self._follow_canvas:
             self._scope = int(hierarchy) if hierarchy else None
         if self._scope is not None and self._scope_row() is None:
@@ -602,6 +665,11 @@ class ChartsPage(QWidget):
         self._time_cache.clear()
         self._rebuild()
 
+    def set_cost_series(self, cost_runs: list[dict[str, Any]] | None) -> None:
+        """The parsed interim cost report (cumulative cost snapshots)."""
+        self._cost_runs = list(cost_runs or [])
+        self._rebuild()
+
     def set_y_floor(self, value: float) -> None:
         """The model's saved axis floor (no signal: loading is not an edit)."""
         self._y_floor = max(0.0, min(0.999999, float(value)))
@@ -613,13 +681,26 @@ class ChartsPage(QWidget):
     def y_floor(self) -> float:
         return self._y_floor
 
-    def set_note(self, text: str) -> None:
-        self.note.setText(text)
-        self.note.setVisible(bool(text))
+    def set_note(self, text: str, *, time_charts_only: bool = False) -> None:
+        """A page note.  `time_charts_only` limits it to the recorded-plot
+        charts: the rows it describes are what those charts draw, and the
+        run-to-run charts (chance of reaching a value, the ladder) use every
+        run regardless."""
+        self._note_text = text
+        self._note_time_only = bool(time_charts_only)
+        self._sync_note()
+
+    def _sync_note(self) -> None:
+        key = self.selected_key() or ""
+        visible = bool(getattr(self, "_note_text", "")) and (
+            not getattr(self, "_note_time_only", False)
+            or key in timecharts.TIME_CHARTS)
+        self.note.setText(getattr(self, "_note_text", ""))
+        self.note.setVisible(visible)
 
     # -- the list -------------------------------------------------------
 
-    def _rebuild(self) -> None:
+    def _rebuild(self) -> None:  # noqa: C901 - one list rebuild
         current = self.selected_key() or self._wanted
         folded = {item.text(0) for item in self._groups() if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
@@ -659,7 +740,44 @@ class ChartsPage(QWidget):
         self.nav.blockSignals(False)
         if chosen is not None:
             self.nav.setCurrentItem(chosen)
+        if self.search.text():
+            self._filter_charts(self.search.text())
         self._show_current()
+
+    def _filter_charts(self, text: str) -> None:
+        """Show only charts whose title, key or group matches the search."""
+        needle = " ".join(text.lower().split())
+        groups = self._groups()
+        if needle and self._search_folded is None:
+            self._search_folded = {group.text(0): group.isExpanded()
+                                   for group in groups}
+        if not needle and self._search_folded is not None:
+            folded, self._search_folded = self._search_folded, None
+            for group in groups:
+                group.setExpanded(folded.get(group.text(0), True))
+        first: QTreeWidgetItem | None = None
+        for group in groups:
+            any_visible = False
+            for index in range(group.childCount()):
+                item = group.child(index)
+                entry = self._entries.get(str(item.data(0, _KEY) or ""))
+                haystack = " ".join((
+                    group.text(0), item.text(0),
+                    entry.key if entry else "", entry.group if entry else "",
+                    entry.missing if entry else "")).lower()
+                visible = not needle or all(part in haystack
+                                            for part in needle.split())
+                item.setHidden(not visible)
+                if visible:
+                    any_visible = True
+                    if first is None:
+                        first = item
+            group.setHidden(not any_visible)
+            if needle and any_visible:
+                group.setExpanded(True)
+        current = self.nav.currentItem()
+        if needle and (current is None or current.isHidden()) and first is not None:
+            self.nav.setCurrentItem(first)
 
     def _item(self, entry: _Entry, muted: QColor) -> QTreeWidgetItem:
         """One chart's row: greyed, with the reason, when it cannot be drawn."""
@@ -741,6 +859,9 @@ class ChartsPage(QWidget):
             lambda: charts.ecdf(scoped_per_run, measure, label=scoped_label,
                                 target=scoped_target, units=units,
                                 higher_is_better=row is None), no_runs)
+        add("reliability-curve", "Reliability over time", "The answer",
+            lambda: charts.reliability_curve(per_run, units=units),
+            no_runs or scope_reason)
         add("availability-ladder", "Availability ladder", "The answer",
             lambda: _with_run_id(charts.availability_ladder(_ladder(per_run), a_target), i),
             no_runs or scope_reason)
@@ -887,6 +1008,15 @@ class ChartsPage(QWidget):
 
             def drivers_missing(_need: str = "") -> str:
                 return reason
+        has_failure_counts = any(
+            isinstance(row.get("num_component_failures"), (int, float))
+            for row in per_run)
+        add("component-failures", "Which components fail most often?",
+            "Why it goes down",
+            lambda: charts.component_failure_pareto(per_run),
+            no_runs or scope_reason or (
+                "" if has_failure_counts else
+                "This result has no per-component failure counts."))
         a = source
         operational = None if row is not None else _operational(per_run)
         for key, title, build, extra in (
@@ -895,7 +1025,8 @@ class ChartsPage(QWidget):
                 ("downtime-waterfall", "Where availability is lost",
                  lambda row=row: charts.downtime_waterfall(
                      a, None if row is not None else operational,
-                     scoped_target), ""),
+                     scoped_target,
+                     ladder=None if row is not None else _ladder(per_run)), ""),
                 ("downtime-treemap", "Downtime treemap",
                  lambda: charts.downtime_treemap(a), ""),
                 ("phase-downtime", "Downtime by phase",
@@ -942,10 +1073,7 @@ class ChartsPage(QWidget):
                 action if not attribution else "", needs=capacity_needs)
         if has_hier:
             add("capacity-sankey", "Lost capacity by hierarchy and cause",
-                "Lost capacity",
-                lambda: charts.capacity_sankey(
-                    attribution or {}, self._scope,
-                    None if self._scope is not None else (self._selected or None)),
+                "Lost capacity", self._capacity_sankey_spec,
                 no_capacity or no_overlap)
 
         ends = [float(row["ending_sim_time"]) for row in per_run
@@ -1001,6 +1129,19 @@ class ChartsPage(QWidget):
         add("cost-treemap", "Cost treemap", "Cost",
             lambda: charts.cost_treemap(cost_rows), no_cost,
             needs=cost_needs)
+        no_cost_runs = ("" if self._cost_runs else
+                        "Needs the interim cost report. "
+                        + run_needs.gui_hint("cost_plot"))
+        for key, title, build in (
+                ("cost-categories", "Cost by category",
+                 lambda: charts.cost_categories(self._cost_runs)),
+                ("cost-cumulative", "Cumulative operating cost over time",
+                 lambda: charts.cost_cumulative(self._cost_runs)),
+                ("cost-annual", "Operating cost per year",
+                 lambda: charts.cost_annual(self._cost_runs))):
+            add(key, title, "Cost", build, no_cost_runs,
+                needs=(() if self._cost_runs else
+                       ("cost_plot",) if has_cost else ("cost", "cost_plot")))
         # the quadrant plots RAW against RRW: only mode "both" has the two
         quadrant = bool(scoped_importance) and (scoped_importance or {}).get("mode") in (None, "both")
         no_quadrant = "" if quadrant else (
@@ -1045,8 +1186,15 @@ class ChartsPage(QWidget):
     # -- showing a chart ------------------------------------------------
 
     def _safe(self, entry: _Entry) -> charts.ChartSpec | None:
+        from raptor.api.insight.axes import currency
         try:
-            return entry.build() if entry.build is not None else None
+            if entry.build is None:
+                return None
+            # captions are written as the chart is built: build in the
+            # model's currency, and record it so the drawing and saves match
+            with currency(self._inputs.get("currency")):
+                spec = entry.build()
+                return charts.with_currency_stamp(spec) if spec is not None else None
         except Exception as exc:  # noqa: BLE001 - one bad chart must not break the tab
             logging.getLogger(__name__).exception("could not build %s", entry.key)
             self._build_errors[entry.key] = str(exc)
@@ -1076,10 +1224,11 @@ class ChartsPage(QWidget):
             self._wanted = str(current.data(0, _KEY))
         self._show_current()
 
-    def _show_current(self) -> None:
+    def _show_current(self) -> None:  # noqa: C901 - one branch per chart shape
         key = self.selected_key()
         entry = self._entries.get(key or "")
         self._sync_controls(entry)
+        self._sync_note()
         if entry is None:
             self.chart.set_spec(None)
             self.stack.setCurrentWidget(self.chart_scroll)
@@ -1089,6 +1238,8 @@ class ChartsPage(QWidget):
             return
         if entry.key == "hierarchy-map":
             spec = self._hierarchy_map_spec()
+        elif entry.key == "capacity-sankey":
+            spec = self._capacity_sankey_spec()
         elif entry.key == "hierarchy-ribbon":
             try:
                 spec = charts.hierarchy_ribbon(
@@ -1108,10 +1259,13 @@ class ChartsPage(QWidget):
                                        "result."), "")
             return
         self.fold_box.setVisible(charts.foldable(spec))
-        if self.fold_share > 0:
-            spec = charts.fold_small(spec, self.fold_share)
+        folding = charts.parse_fold(self.fold_box.currentData())
+        if folding:
+            spec = charts.fold_small(spec, **folding)
         if self._scope_row() is not None:
             spec = hier.annotate(spec, self._scope_meta())
+        if entry.key in ("capacity-through-run", "capacity-band"):
+            spec = self._apply_capacity_axis(spec)
         self.chart.set_spec(spec)
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
@@ -1141,7 +1295,10 @@ class ChartsPage(QWidget):
         self.scope_button.setVisible(has_hier)
         self.follow_button.setVisible(has_hier)
         self.compare_button.setVisible(
-            has_hier and key in charts.MULTI_HIERARCHY_CHARTS)
+            has_hier and key in charts.MULTI_HIERARCHY_CHARTS
+            # Cause only has no hierarchy column to compare
+            and not (key == "capacity-sankey"
+                     and not self.sankey_box.currentData()))
         self.baseline_button.setVisible(has_hier and key == "hierarchy-delta")
         per_run = key in timecharts.PER_RUN_CHARTS or key == "hierarchy-ribbon"
         runs = (int((self._inputs.get("attribution") or {}).get("runs") or 0)
@@ -1156,6 +1313,8 @@ class ChartsPage(QWidget):
         floor = key in ("availability-through-run", "interval-availability",
                         "availability-band")
         self.floor_button.setVisible(floor)
+        self.capacity_axis_button.setVisible(
+            key in ("capacity-through-run", "capacity-band"))
         self.target_button.setVisible(
             key in TARGET_CHARTS and self._scope_row() is None)
         self.capacity_target_button.setVisible(key == "annual-capacity-fan")
@@ -1169,15 +1328,17 @@ class ChartsPage(QWidget):
             has_hier and key in depth_charts
             and hier.max_depth(self._inputs.get("attribution")) > 1)
         self.layout_box.setVisible(has_hier and key == "hierarchy-map")
+        self.sankey_box.setVisible(has_hier and key == "capacity-sankey")
+        self.sankey_delivered.setVisible(has_hier and key == "capacity-sankey")
         self._sync_floor_text()
         self._sync_target_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
 
     @property
-    def fold_share(self) -> float:
-        """The share below which items are folded (0: show every item)."""
-        return float(self.fold_box.currentData() or 0.0)
+    def fold_mode(self) -> str:
+        """The Others control as a `charts.parse_fold` mode ("" = every item)."""
+        return str(self.fold_box.currentData() or "")
 
     @property
     def export_page(self) -> str:
@@ -1195,13 +1356,218 @@ class ChartsPage(QWidget):
             "Axis from: auto" if self._y_floor <= 0
             else f"Axis from: {100 * self._y_floor:.4g} %")
 
+    def _capacity_axis_control(self) -> QToolButton:
+        """The capacity charts' y-axis presets (the axis is visual only)."""
+        button = QToolButton()
+        button.setText("Y axis: auto")
+        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        button.setToolTip(
+            "Frame the capacity y axis: fit the data, show the full-capacity "
+            "goal, zoom near it, keep a probability band of recorded values, "
+            "start at a capacity exceeded for a share of the time, or type a "
+            "numeric range. It changes the drawing only.")
+        menu = QMenu(button)
+        group = QActionGroup(menu)
+        self.capacity_axis_actions: dict[str, QAction] = {}
+        for key, text in (("auto", "Fit the data"),
+                          ("full", "Full capacity (0 to the goal)"),
+                          ("goal", "Proximity to the goal…"),
+                          ("probability", "Probability band…"),
+                          ("exceedance", "Exceedance…"),
+                          ("numeric", "Numeric range…")):
+            action = menu.addAction(text)
+            action.setCheckable(True)
+            action.setChecked(key == "auto")
+            action.triggered.connect(
+                lambda _checked=False, mode=key: self._ask_capacity_axis(mode))
+            group.addAction(action)
+            self.capacity_axis_actions[key] = action
+        button.setMenu(menu)
+        self.capacity_axis_button = button
+        return button
+
+    def _ask_capacity_axis(self, mode: str) -> None:  # noqa: C901 - one prompt per mode
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+
+        value: float | None = None
+        low = high = None
+        if mode == "goal":
+            value, ok = QInputDialog.getDouble(
+                self, "Proximity to goal",
+                "Show from this share of full capacity, in %:", 95.0,
+                0.0, 100.0, 2)
+            if not ok:
+                return
+        elif mode == "probability":
+            value, ok = QInputDialog.getDouble(
+                self, "Probability band",
+                "Show the central share of the recorded capacity, in % "
+                "(90 = the middle 90 %):", 90.0, 1.0, 100.0, 2)
+            if not ok:
+                return
+        elif mode == "exceedance":
+            value, ok = QInputDialog.getDouble(
+                self, "Exceedance",
+                "Start at the capacity exceeded for this share of the time, "
+                "in % (95 = the level reached 95 % of the time):",
+                95.0, 0.0, 100.0, 2)
+            if not ok:
+                return
+        elif mode == "numeric":
+            spec = self.selected_spec()
+            current = self._capacity_axis_range
+            summary = self._capacity_summary(spec)
+            if current is None:
+                current = (float(summary.get("min") or 0.0),
+                           float(summary.get("max") or 1.0))
+            low, ok = QInputDialog.getDouble(
+                self, "Y axis", "Lowest value on the capacity axis:",
+                float(current[0]), -1e15, 1e15, 6)
+            if not ok:
+                return
+            high, ok = QInputDialog.getDouble(
+                self, "Y axis", "Highest value on the capacity axis:",
+                float(current[1]), -1e15, 1e15, 6)
+            if not ok:
+                return
+            if high <= low:
+                QMessageBox.warning(self, "Y axis",
+                                    "The highest value must be above the lowest.")
+                return
+        self.set_capacity_axis(mode, value, low=low, high=high)
+
+    def set_capacity_axis(self, mode: str, value: float | None = None, *,
+                          low: float | None = None,
+                          high: float | None = None) -> None:
+        """Set the capacity y-axis framing (``auto`` clears it)."""
+        self._capacity_axis_mode = mode if mode in self.capacity_axis_actions else "auto"
+        self._capacity_axis_value = value
+        self._capacity_axis_range = ((float(low), float(high))
+                                     if mode == "numeric" and low is not None
+                                     and high is not None else None)
+        for key, action in self.capacity_axis_actions.items():
+            action.setChecked(key == self._capacity_axis_mode)
+        self._sync_capacity_axis_text()
+        self._time_cache.clear()
+        self._show_current()
+
+    def _sync_capacity_axis_text(self) -> None:
+        if not hasattr(self, "capacity_axis_button"):
+            return
+        mode = self._capacity_axis_mode
+        text = {"auto": "Y axis: auto", "full": "Y axis: full capacity",
+                "goal": "Y axis: near the goal",
+                "probability": "Y axis: probability band",
+                "exceedance": "Y axis: exceedance",
+                "numeric": "Y axis: numeric"}.get(mode, "Y axis: auto")
+        self.capacity_axis_button.setText(text)
+
+    @staticmethod
+    def _capacity_key(share: float) -> str:
+        """The `capacity_range` key for a probability (5 % -> ``p05``)."""
+        if share <= 0:
+            return "p00"
+        if share >= 1:
+            return "p100"
+        # snap an interior share to the nearest whole percent the summary
+        # carries (the 0.5 % tail of a 99 % band is p01, not p00)
+        return f"p{max(1, min(99, round(100 * share))):02d}"
+
+    @staticmethod
+    def _capacity_at(summary: dict[str, float], share: float,
+                     fallback: float) -> float:
+        """The capacity at probability `share`, interpolated between the
+        percentiles the summary carries (p00, p01, p05, ... p100).
+
+        A 70 % band needs p15 and p85, which are not stored: looking the key
+        up directly fell back to the min/max and drew the whole range."""
+        points = sorted(
+            (int(key[1:]) / 100.0, float(value)) for key, value in summary.items()
+            if key[:1] == "p" and key[1:].isdigit())
+        if not points:
+            return fallback
+        share = max(0.0, min(1.0, share))
+        for (lo_p, lo_v), (hi_p, hi_v) in itertools.pairwise(points):
+            if lo_p <= share <= hi_p:
+                span = hi_p - lo_p
+                return lo_v if span <= 0 else lo_v + (hi_v - lo_v) * (share - lo_p) / span
+        return points[0][1] if share < points[0][0] else points[-1][1]
+
+    @classmethod
+    def _capacity_summary(cls, spec: charts.ChartSpec | None) -> dict[str, float]:
+        """The capacity samples a y-axis preset can frame a spec with."""
+        summary = dict((spec.provenance.get("capacity_range") if spec else None) or {})
+        if summary:
+            return summary
+        values: list[float] = []
+        for layer in (spec.series if spec else []):
+            if layer.get("role") == "area" and layer.get("hi"):
+                values += [float(v) for v in layer["hi"]]
+            elif layer.get("role") == "line" and layer.get("y"):
+                values += [float(v) for v in layer["y"]]
+        if not values:
+            return {}
+        ordered = sorted(values)
+        def q(share: float) -> float:
+            pos = share * (len(ordered) - 1)
+            lo = int(pos)
+            hi = min(lo + 1, len(ordered) - 1)
+            return ordered[lo] + (ordered[hi] - ordered[lo]) * (pos - lo)
+        return {"min": ordered[0], "max": ordered[-1], "mean": sum(ordered) / len(ordered),
+                "full": ordered[-1],
+                **{cls._capacity_key(share): q(share)
+                   for share in (0.0, 0.01, 0.05, 0.10, 0.25, 0.50,
+                                 0.75, 0.90, 0.95, 0.99, 1.0)}}
+
+    def _apply_capacity_axis(self, spec: charts.ChartSpec) -> charts.ChartSpec:
+        """Frame a capacity chart's y axis without changing its numbers."""
+        mode = self._capacity_axis_mode
+        if mode == "auto":
+            return spec
+        summary = self._capacity_summary(spec)
+        if not summary:
+            return spec
+        full = float(summary.get("full") or summary.get("max") or 0.0)
+        low = float(summary.get("min") or 0.0)
+        high = float(summary.get("max") or full or 1.0)
+        value = self._capacity_axis_value
+        if mode == "full":
+            low, high = 0.0, max(full, high)
+        elif mode == "goal":
+            share = max(0.0, min(1.0, (value if value is not None else 95.0) / 100.0))
+            low = full * share
+            high = max(full * 1.02, high) if full > 0 else high
+        elif mode == "probability":
+            share = max(0.001, min(0.999, (value if value is not None else 90.0) / 100.0))
+            tail = (1.0 - share) / 2.0
+            low = self._capacity_at(summary, tail, low)
+            top = 1.0 - tail
+            high = self._capacity_at(summary, top, high)
+        elif mode == "exceedance":
+            share = max(0.0, min(1.0, (value if value is not None else 95.0) / 100.0))
+            below = 1.0 - share
+            low = self._capacity_at(summary, below, low)
+            high = max(full, high) if share > 0 else high
+        elif mode == "numeric" and self._capacity_axis_range is not None:
+            low, high = self._capacity_axis_range
+        if not (high > low):
+            high = low + max(1.0, abs(low) * 0.01)
+        framed = copy.copy(spec)
+        framed.provenance = dict(spec.provenance)
+        framed.provenance["y_range"] = [max(0.0, low), high]
+        framed.provenance["y_axis_exact"] = mode == "numeric"
+        framed.provenance["capacity_axis"] = {
+            "mode": mode, "value": value, "range": [max(0.0, low), high]}
+        return framed
+
     def _target_control(self) -> QPushButton:
         button = QPushButton("Target: none")
         button.setToolTip(
             "A target availability drawn as a dashed line on these charts and "
             "judged in the Overview's Story (met or missed, and by how many "
-            "runs). It is only a visual cue: it does not change the model or "
-            "the simulation, and it is not saved with the model.")
+            "runs). It is saved in the model file; it does not change the "
+            "simulation.")
         button.clicked.connect(self._ask_target)
         return button
 
@@ -1239,18 +1605,21 @@ class ChartsPage(QWidget):
         value, ok = QInputDialog.getDouble(
             self, "Capacity target",
             "Target capacity-weighted availability, in % (0 = none).\n"
-            "A visual cue only: the model and the simulation do not change.",
+            "Saved in the model; the simulation does not change.",
             round(100 * (self._capacity_target or 0.0), 6), 0.0, 100.0, 6)
         if ok:
-            self.set_capacity_target(value / 100.0 if value > 0 else None)
+            target = value / 100.0 if value > 0 else None
+            if target != self._capacity_target:
+                self.set_capacity_target(target)
+                self.capacity_target_changed.emit(target)
 
     def _ask_target(self) -> None:
         from PySide6.QtWidgets import QInputDialog
         value, ok = QInputDialog.getDouble(
             self, "Target line",
             f"Target {(self._inputs.get('measure') or 'availability').replace('_', ' ')},"
-            " in % (0 = no target).\nA visual cue only: "
-            "the model and the simulation do not change.",
+            " in % (0 = no target).\nSaved in the model; "
+            "the simulation does not change.",
             round(100 * (self.target or 0.0), 6), 0.0, 100.0, 6)
         if not ok:
             return

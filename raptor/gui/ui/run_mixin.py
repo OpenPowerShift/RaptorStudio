@@ -922,6 +922,20 @@ class RunMixin(_Base):
         self._rbd.section("SYSTEM_DATA").rows[0]["graphYmin"] = f"{value:.6f}"
         self._mark_dirty()
 
+    def _on_targets_changed(self, target: float | None,
+                            capacity: float | None) -> None:
+        """The Charts tab's targets are part of the model (saved in .rbds)."""
+        if self._rbd is None:
+            return
+        targets = {}
+        if target is not None:
+            targets["availability"] = float(target)
+        if capacity is not None:
+            targets["capacity"] = float(capacity)
+        if getattr(self._rbd, "targets", None) != targets:
+            self._rbd.targets = targets
+            self._mark_dirty()
+
     def _note_out_of_service(self, report_notes: list[str]) -> None:
         """U27: a result made with elements out of service says so, in the
         notes and the status bar, so it is not taken for the model as built."""

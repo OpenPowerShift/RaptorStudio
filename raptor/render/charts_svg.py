@@ -19,7 +19,7 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    FAN_LINE_MIN, compact, currency, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
     period_axis, place_labels, tick_text,
 )
 from raptor.api.insight import palette as _palette
@@ -1072,7 +1072,7 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
     low, high = (float(v) for v in (spec.provenance.get("y_range") or [0.0, 1.0])[:2])
     if high <= low:
         high = low + 1.0
-    if fmt != "percent":
+    if fmt != "percent" and not spec.provenance.get("y_axis_exact"):
         low, high = nice_range(low, high, 5)
     ticks = nice_ticks(low, high, 5)
     if fmt == "percent" and high >= 1.0:
@@ -1270,7 +1270,7 @@ def _treemap(spec: ChartSpec, area: _Box) -> list[str]:
     def draw(body: _Box) -> tuple[list[str], list[_Unlabelled]]:
         out: list[str] = []
         missing: list[_Unlabelled] = []
-        group_labels: list[tuple[float, float, str]] = []
+        group_labels: list[tuple[float, float, str, float]] = []
         for row in rows:
             x = body.left + float(row["x"]) / width * body.width
             y = body.top + float(row["y"]) / height * body.height
@@ -1401,9 +1401,9 @@ def _delta(spec: ChartSpec, area: _Box) -> list[str]:
         x = frame.x(value)
         colour = DOWN if value > 0 else UP if value < 0 else MUTED
         out.append(_rect(min(zero, x), y, max(1.0, abs(x - zero)), bar_h, colour))
-        sem = row.get("sem")
-        if _number(sem) and float(sem) > 0:
-            lo, hi = frame.x(value - 2 * float(sem)), frame.x(value + 2 * float(sem))
+        sem = float(row["sem"]) if _number(row.get("sem")) else 0.0
+        if sem > 0:
+            lo, hi = frame.x(value - 2 * sem), frame.x(value + 2 * sem)
             mid = y + bar_h / 2
             out.append(_line(lo, mid, hi, mid, INK, width=1.2))
             out.append(_line(lo, mid - 4, lo, mid + 4, INK, width=1.2))
@@ -1472,20 +1472,36 @@ def _heatmap(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
-def _sankey(spec: ChartSpec, area: _Box) -> list[str]:
+def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - one flow layout
     nodes = list(spec.provenance.get("nodes") or [])
     links = spec.series
     if not nodes or not links:
         return []
+    total_lost = next((float(n.get("value") or 0.0) for n in nodes
+                       if n.get("id") == "lost"), 0.0)
+
+    def amount_of(raw: float) -> str:
+        return (compact(raw) if abs(raw) >= 1e6
+                else f"{raw:,.0f}" if abs(raw) >= 1000 else f"{raw:,.4g}")
+
+    def share_of(node: dict, amount: str) -> str:
+        """A loss node's amount, with its share of the lost flow."""
+        ident = str(node.get("id") or "")
+        if total_lost <= 0 or not (ident.startswith(("cause-", "hier-"))
+                                   or ident == "unattributed"):
+            return amount
+        return f"{amount} ({pct(float(node.get('value') or 0.0) / total_lost)})"
+
     columns = sorted({int(node.get("column") or 0) for node in nodes})
     first = [str(n.get("name") or "") for n in nodes
              if int(n.get("column") or 0) == columns[0]]
-    last = [f"{n.get('name') or ''} · {float(n.get('value') or 0):,.0f}"
+    last = [f"{n.get('name') or ''} · "
+            f"{share_of(n, amount_of(float(n.get('value') or 0)))}"
             for n in nodes if int(n.get("column") or 0) == columns[-1]]
     left_pad = min(area.width * 0.28,
                    max(110.0, max((_width(x) for x in first), default=0) + 18))
-    right_pad = min(area.width * 0.42,
-                    max(160.0, max((_width(x) for x in last), default=0) + 22))
+    right_pad = min(area.width * 0.50,
+                    max(300.0, max((_width(x) for x in last), default=0) + 22))
     span = max(1.0, area.width - left_pad - right_pad)
     col_x = {col: area.left + left_pad + span * i / max(1, len(columns) - 1)
              for i, col in enumerate(columns)}
@@ -1533,13 +1549,14 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:
         if str(node.get("id") or "").startswith("cause-"):
             label = CAUSE_LABELS.get(str(node["id"])[6:], label)
         raw = float(node.get('value') or 0)
-        amount = f"{raw:,.0f}" if abs(raw) >= 1000 else f"{raw:,.4g}"
+        amount = share_of(node, amount_of(raw))
         if int(node.get("column") or 0) == 0:
             out.append(_text(x - 6, y + h / 2 + 4,
                              _shrink(label, left_pad - 12), size=10,
                              anchor="end"))
         elif int(node.get("column") or 0) == max(columns):
-            out.append(_text(x + 18, y + h / 2 + 4,
+            # a sliver node at the foot of the column: keep its label inside
+            out.append(_text(x + 18, min(y + h / 2 + 4, area.bottom - 2),
                              _shrink(f"{label} · {amount}", right_pad - 20),
                              size=9))
         else:
@@ -1647,9 +1664,8 @@ def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:
         value = float(row.get("value") or 0.0)
         out.append(_text(x + 8, y + 42, format_value(value, "percent", 3),
                          size=20, weight="600", colour=ACCENT if value else MUTED))
-        sem = row.get("sem")
-        if _number(sem):
-            out.append(_text(x + 8, y + 58, f"± {2 * float(sem) * 100:.2g} pts",
+        if _number(row.get("sem")):
+            out.append(_text(x + 8, y + 58, f"± {2 * float(row['sem']) * 100:.2g} pts",
                              size=9, colour=MUTED))
         detail = (f"{int(row.get('members') or 0)} inside · "
                   f"{int(row.get('starters') or 0)} started")
@@ -1688,7 +1704,7 @@ def _small_multiples(spec: ChartSpec, area: _Box) -> list[str]:
 def _short(value: float) -> str:
     size = abs(value)
     if size >= 1e4:
-        return format_value(value, "money")
+        return compact(value)
     if size >= 100:
         return f"{value:,.0f}"
     return f"{value:.3g}"
@@ -1744,6 +1760,16 @@ def render(spec: ChartSpec, *, width: int = WIDTH, height: int = HEIGHT,
     cell too small for its name is numbered and named in a footnote.
     `id_prefix` makes the pattern ids unique when several charts are inlined
     in one HTML page (the report): repeated ids are invalid there."""
+    # money in the spec's currency (`provenance["currency"]`, else the
+    # caller's), for every tick, bar label and reading
+    with currency(spec.provenance.get("currency")):
+        return _render(spec, width=width, height=height, page=page,
+                       background=background, text_colour=text_colour,
+                       id_prefix=id_prefix)
+
+
+def _render(spec: ChartSpec, *, width: int, height: int, page: str | None,
+            background: str, text_colour: str, id_prefix: str) -> str:
     physical: tuple[str, str] | None = None
     if page is not None:
         if page not in PAGES:

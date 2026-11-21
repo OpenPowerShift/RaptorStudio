@@ -45,7 +45,9 @@ As `.rbds`.
   "comments":       [ {"type": "...", "id": 1, "name": "...",
                        "text": "..."} ],
   "rates": [...], "formulas": {...}, "annotations": [...],
-  "display_unit": "...", "view_transform": {...}, "project_meta": {...}
+  "display_unit": "...", "view_transform": {...}, "project_meta": {...},
+  "targets": {"availability": 0.995, "capacity": 0.98},
+  "currency": "€"
 }
 ```
 
@@ -688,6 +690,37 @@ touching any stored value: an hours-native model can be viewed in years.
 ```json
 "display_unit": "years"
 ```
+
+## Result targets (.rbds only)
+
+`targets` holds the dashed target lines from the Charts tab, as fractions
+between 0 and 1:
+
+```json
+"targets": {"availability": 0.995, "capacity": 0.98}
+```
+
+`availability` is the target for the headline availability (or dependability)
+measure; `capacity` is the capacity-weighted availability target. They are a
+presentation and reporting setting: the simulation never reads them, and a
+file without the key has no targets. Legacy `.rbd` has no representation and
+drops them with a warning.
+
+## Currency (.rbds only)
+
+`currency` is the symbol or code printed in front of money in the cost
+charts, the Story and the report: `"$"`, `"€"`, `"AUD"`, at most 8
+characters.
+
+```json
+"currency": "€"
+```
+
+It only labels the numbers: no cost is converted and the simulation never
+reads it, so changing it does not make a result look out of date. The
+default `"$"` is not written; a file without the key, or with an empty or
+unusable value, shows `$`. Legacy `.rbd` has no representation and drops it
+with a warning.
 
 ## Frozen canvas transform (.rbds only)
 

@@ -402,6 +402,48 @@ def _end(ends: list[float | None] | None, index: int) -> float | None:
     return float(value) if value is not None else None
 
 
+#: Probabilities kept for the capacity y-axis presets (sorted by value).
+_CAPACITY_SHARES = (0.0, 0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99, 1.0)
+
+
+def _weighted_quantile(values: list[float], weights: list[float],
+                       share: float) -> float:
+    """The value at a cumulative weight `share` (0 to 1)."""
+    pairs = sorted(zip(values, weights, strict=True))
+    total = sum(weight for _value, weight in pairs)
+    if total <= 0:
+        ordered = sorted(values)
+        return ordered[min(len(ordered) - 1,
+                           max(0, round(share * (len(ordered) - 1))))] if ordered else 0.0
+    target = share * total
+    seen = 0.0
+    for value, weight in pairs:
+        seen += weight
+        if seen >= target - 1e-12:
+            return value
+    return pairs[-1][0] if pairs else 0.0
+
+
+def _capacity_summary(values: list[float], weights: list[float] | None,
+                      full: float) -> dict[str, float]:
+    """The quantities the y-axis presets read, from every recorded sample."""
+    ordered = [float(v) for v in values]
+    if not ordered:
+        return {"min": 0.0, "max": full, "mean": 0.0, "full": full,
+                **{f"p{int(100 * share):02d}": 0.0
+                   for share in _CAPACITY_SHARES}}
+    weights = weights or [1.0] * len(ordered)
+    total = sum(weights) or 1.0
+    return {
+        "min": min(ordered), "max": max(ordered),
+        "mean": sum(v * w for v, w in zip(ordered, weights, strict=True)) / total,
+        "full": full,
+        **{f"p{int(100 * share):02d}":
+           _weighted_quantile(ordered, weights, share)
+           for share in _CAPACITY_SHARES},
+    }
+
+
 def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
                          units: str = "", generated: float | None = None,
                          ends: list[float | None] | None = None) -> ChartSpec:
@@ -464,12 +506,14 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
                        "t": xs, "y": [min(c, top) for c in cs], "width": 1.2})
     layers.append({"name": full_name, "role": "line", "tone": "ink",
                    "t": [xs[0], xs[-1]], "y": [full, full], "width": 1.2, "dash": True})
+    weights = [max(0.0, t[i + 1] - t[i]) for i in range(len(t) - 1)] + [0.0]
     return _spec(f"Capacity through run {number}",
                  "flow delivered against a fully working system", units, layers,
                  caption=caption, fmt="", y_label="flow",
                  y_range=[0.0, top],
                  provenance={"run": number, "runs": len(cap_runs),
                              "changes": len(t), "full": full,
+                             "capacity_range": _capacity_summary(flow, weights, full),
                              "delivered": flow_time / full_time if full_time else None})
 
 
@@ -501,11 +545,13 @@ def capacity_band(cap_runs: list[dict[str, Any]], *, units: str = "",
     layers.append({"name": full_name, "role": "line", "tone": "ink",
                    "t": [0.0, horizon], "y": [full, full], "width": 1.2,
                    "dash": True})
+    pooled = [float(value) for column in samples for value in column]
     return _spec("Capacity across all runs",
                  "flow at each moment: where the runs agree", units, layers,
                  caption=caption, fmt="", y_label="flow",
                  y_range=[0.0, max(full, max(bands["max"])) or 1.0],
                  provenance={"runs": len(usable), "horizon": horizon, "full": full,
+                             "capacity_range": _capacity_summary(pooled, None, full),
                              "delivered": flow_time / full_time if full_time else None})
 
 

@@ -99,6 +99,188 @@ def test_the_list_offers_every_chart_and_greys_what_the_run_lacks(qapp):
     assert "Cost</b> under Run panel" in page.missing_text.text()
 
 
+def test_the_capacity_axis_presets_frame_the_drawn_range(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.set_series(*_series())
+    page.select("capacity-band")
+    auto = list(page.selected_spec().provenance["y_range"])
+    assert auto[0] == pytest.approx(0.0)
+    page.set_capacity_axis("full")
+    full = page.selected_spec().provenance["y_range"]
+    assert full[0] == pytest.approx(0.0) and full[1] >= 100
+    page.set_capacity_axis("goal", 95)
+    goal = page.selected_spec().provenance["y_range"]
+    assert goal[0] == pytest.approx(95.0) and goal[1] >= 100
+    page.set_capacity_axis("probability", 90)
+    band = page.selected_spec().provenance["y_range"]
+    assert band[0] <= band[1]
+    page.set_capacity_axis("numeric", low=40.0, high=110.0)
+    assert page.selected_spec().provenance["y_range"] == pytest.approx([40.0, 110.0])
+    page.set_capacity_axis("auto")
+    assert page.selected_spec().provenance["y_range"] == pytest.approx(auto)
+    page.select("availability-band")
+    assert not page.capacity_axis_button.isVisibleTo(page)
+
+
+def test_a_probability_band_between_stored_percentiles_is_interpolated():
+    # p15/p85 are not stored; the band used to fall back to the whole range
+    summary = {"min": 0.0, "max": 100.0, "p00": 0.0, "p10": 10.0, "p25": 40.0,
+               "p75": 60.0, "p90": 90.0, "p100": 100.0}
+    assert ChartsPage._capacity_at(summary, 0.15, -1.0) == pytest.approx(20.0)
+    assert ChartsPage._capacity_at(summary, 0.85, -1.0) == pytest.approx(80.0)
+    assert ChartsPage._capacity_at(summary, 0.25, -1.0) == pytest.approx(40.0)
+    assert ChartsPage._capacity_at({}, 0.5, -1.0) == -1.0
+
+
+def test_the_gui_closes_cost_runs_with_the_end_of_run_totals():
+    from pathlib import Path
+    from raptor.gui.ui.results_graphs_mixin import ResultsGraphsMixin
+    legacy = Path(__file__).resolve().parents[2] / "tests" / "golden" / "ReleaseProbe27" / "legacy"
+    cost = (legacy / "rpt_interim_cost_ReleaseProbe27.txt").read_text().splitlines()
+    eor = (legacy / "rpt_end_of_run_ReleaseProbe27.txt").read_text().splitlines()
+    runs = ResultsGraphsMixin._parse_cost(cost, eor)
+    assert runs[0]["t"][-1] == pytest.approx(2400.499665)
+    assert ResultsGraphsMixin._parse_cost(cost)[0]["t"][-1] == 2160.0
+
+
+def test_cost_series_charts_are_listed_and_paint(qapp):
+    from pathlib import Path
+    from raptor.api.insight.cost_series import parse_cost_file
+    root = Path(__file__).resolve().parents[2]
+    cost = parse_cost_file(str(root / "tests" / "golden" / "ReleaseProbe27"
+                                  / "legacy" / "rpt_interim_cost_ReleaseProbe27.txt"))
+    page = ChartsPage()
+    page.resize(900, 500)
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.set_cost_series(cost)
+    titles = page.titles()
+    for title in ("Cost by category", "Cumulative operating cost over time",
+                  "Operating cost per year"):
+        assert title in titles
+        assert page.select(title)
+        assert page.stack.currentIndex() == 0
+        assert not page.chart.grab().toImage().isNull()
+
+
+def test_cost_charts_are_built_in_the_models_currency(qapp):
+    from pathlib import Path
+    from raptor.api.insight.cost_series import parse_cost_file
+    root = Path(__file__).resolve().parents[2]
+    cost = parse_cost_file(str(root / "tests" / "golden" / "ReleaseProbe27"
+                                  / "legacy" / "rpt_interim_cost_ReleaseProbe27.txt"))
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], units="hours", currency="€")
+    page.set_cost_series(cost)
+    assert page.select("Cumulative operating cost over time")
+    spec = page.selected_spec()
+    assert spec is not None and spec.provenance["currency"] == "€"
+    assert "€" in spec.caption and "$" not in spec.caption
+    assert not page.chart.grab().toImage().isNull()      # paints in it too
+
+
+def test_the_row_note_only_applies_to_charts_over_time(qapp):
+    page = ChartsPage()
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.set_series(*_series())
+    page.set_note("all recorded rows", time_charts_only=True)
+    page.select("ecdf")
+    assert not page.note.isVisibleTo(page)
+    page.select("capacity-band")
+    assert page.note.isVisibleTo(page)
+    assert "all recorded rows" in page.note.text()
+
+
+def test_the_lost_capacity_sankey_can_drop_the_hierarchy_and_delivered(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 80.0}, "lost_energy": {"mean": 20.0},
+        "elements": [
+            {"kind": "block", "id": 1, "name": "Pump",
+             "lost_energy": {"mean": 12.0}, "share": {"mean": 0.6},
+             "causes": {"repair": 1.0}, "main_cause": "repair"},
+            {"kind": "block", "id": 2, "name": "Filter",
+             "lost_energy": {"mean": 8.0}, "share": {"mean": 0.4},
+             "causes": {"pm": 1.0}, "main_cause": "pm"}],
+        "causes": {"repair": {"mean": 12.0}, "pm": {"mean": 8.0}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    assert page.select("Lost capacity by hierarchy and cause")
+    assert page.sankey_box.isVisibleTo(page)
+    assert page.sankey_delivered.isVisibleTo(page)
+    nodes = page.selected_spec().provenance["nodes"]
+    assert any(node["id"] == "delivered" for node in nodes)
+    assert any(str(node["id"]).startswith("hier-") for node in nodes)
+    page.sankey_delivered.setChecked(False)
+    nodes = page.selected_spec().provenance["nodes"]
+    assert not any(node["id"] == "delivered" for node in nodes)
+    assert nodes[0]["id"] == "lost"
+    page.sankey_box.setCurrentIndex(page.sankey_box.findData(False))
+    spec = page.selected_spec()
+    assert not any(str(node["id"]).startswith("hier-")
+                   for node in spec.provenance["nodes"])
+    assert any(str(node["id"]).startswith("cause-")
+               for node in spec.provenance["nodes"])
+
+
+def test_a_gathered_treemap_cell_carries_its_members_for_details(qapp):
+    page = ChartsPage()
+    per_run, attribution, _importance = _inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional",
+        "elements": [{"name": f"E{i}", "share": {"mean": 0.2 if i == 0 else 0.8 / 204},
+                      "lost_energy": {"mean": 1.0}}
+                     for i in range(205)]}
+    page.set_inputs(per_run=per_run, attribution=attribution)
+    page.select("Lost capacity treemap")
+    spec = page.selected_spec()
+    group = next(row for row in spec.series if row["name"].endswith("others"))
+    assert len(group["items"]) == 5
+    widget = ChartWidget()
+    widget.resize(900, 500)
+    widget.set_spec(spec)
+    widget.grab()
+    assert any(row.get("items") for _rect, row in widget._detail_hits)
+    from PySide6.QtWidgets import QDialog, QTableWidget
+    seen = {}
+    original = QDialog.exec
+    QDialog.exec = lambda dialog: seen.setdefault(
+        "rows", dialog.findChild(QTableWidget).rowCount())
+    try:
+        widget.show_details(group)
+    finally:
+        QDialog.exec = original
+    assert seen["rows"] == 5
+
+
+def test_the_search_filter_narrows_the_chart_tree_and_clears(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.set_series(*_series())
+
+    def shown():
+        return [page.nav.topLevelItem(i).child(j).text(0)
+                for i in range(page.nav.topLevelItemCount())
+                if not page.nav.topLevelItem(i).isHidden()
+                for j in range(page.nav.topLevelItem(i).childCount())
+                if not page.nav.topLevelItem(i).child(j).isHidden()]
+
+    page.search.setText("capacity")
+    assert "Capacity through a run" in shown()
+    assert "Availability ladder" not in shown()
+    page.search.setText("no such chart")
+    assert shown() == []
+    page.search.clear()
+    assert "Availability ladder" in shown()
+    assert "Capacity through a run" in shown()
+
+
 def test_the_list_is_grouped_by_question(qapp):
     page = ChartsPage()
     per_run, attribution, importance = _deep_hierarchy_inputs()
@@ -298,13 +480,19 @@ def test_the_fold_setting_folds_rankings_on_screen_and_in_saved_files(qapp, tmp_
     page.select("downtime-pareto")
     assert page.fold_box.isVisibleTo(page)
     assert len(page.chart.spec().series) == 8
-    page.fold_box.setCurrentIndex(page.fold_box.findData(0.05))
-    assert page.fold_share == 0.05
+    page.fold_box.setCurrentIndex(page.fold_box.findData("tail:0.05"))
     names = [row["name"] for row in page.chart.spec().series]
-    assert names == ["Element_0", "Element_1", "6 others below 5 %"]
+    assert names == ["Element_0", "Element_1", "Element_2", "Element_3",
+                     "Element_4", "3 others (last 5 % of the total)"]
     path = tmp_path / "folded.svg"
     page.save_svg(str(path))
-    assert "6 others below 5 %" in path.read_text(encoding="utf-8")
+    assert "last 5 % of the total" in path.read_text(encoding="utf-8")
+    page.select("downtime-pareto")
+    page.fold_box.setCurrentIndex(page.fold_box.findData("fraction:0.25"))
+    assert [row["name"] for row in page.chart.spec().series] == [
+        "Element_0", "Element_1", "6 others"]
+    page.fold_box.setCurrentIndex(page.fold_box.findData("tail:0.05"))
+    assert "others (last 5 %" in page.chart.spec().series[-1]["name"]
     page.select("trial-outcome")           # not a ranking: no fold control
     assert not page.fold_box.isVisibleTo(page)
 

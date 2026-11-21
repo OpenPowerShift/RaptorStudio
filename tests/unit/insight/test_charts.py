@@ -49,6 +49,81 @@ def test_the_waterfall_steps_from_one_to_the_operational_value():
     assert spec.marks[0]["value"] == pytest.approx(0.925)
 
 
+def test_component_failures_count_every_block_not_only_downing_ones():
+    per_run = [
+        {"num_component_failures": 10,
+         "criticality": {"1": {"name": "Pump", "failure": 0.8},
+                         "2": {"name": "Valve", "failure": 0.2}}},
+        {"num_component_failures": 20,
+         "criticality": {"1": {"name": "Pump", "failure": 0.5},
+                         "2": {"name": "Valve", "failure": 0.5}}},
+    ]
+    spec = charts.component_failure_pareto(per_run)
+    # Pump: (0.8*10 + 0.5*20)/2 = 9 a run; Valve: (0.2*10 + 0.5*20)/2 = 6
+    assert [(row["name"], row["value"]) for row in spec.series] == [
+        ("Pump", 9.0), ("Valve", 6.0)]
+    assert spec.provenance["format"] == "count"
+    assert "Pump fails most often: 9 failures a run" in spec.caption
+    assert "did not down the system" in spec.subtitle
+    assert charts.component_failure_pareto([]).series == []
+
+
+def test_the_reliability_curve_censors_runs_that_never_failed():
+    per_run = [
+        {"mttff": 10.0, "mttff_censored": False},
+        {"mttff": 20.0, "mttff_censored": False},
+        {"mttff": 50.0, "mttff_censored": True},
+        {"mttff": 50.0, "mttff_censored": True},
+    ]
+    spec = charts.reliability_curve(per_run, units="hours")
+    assert spec.kind == "timeline"
+    assert spec.provenance["failures"] == 2
+    assert spec.provenance["censored"] == 2
+    layer = spec.series[0]
+    # after the first failure (of four at risk) survival is 3/4, then 2/3
+    assert layer["t"][:6] == [0.0, 10.0, 10.0, 20.0, 20.0, 50.0]
+    assert layer["y"][:6] == pytest.approx([1.0, 1.0, 0.75, 0.75, 0.5, 0.5])
+    assert "censored" in spec.caption
+    assert "Reliability is 90 % or less by 10 hours and 50 % or less by 20 hours" in spec.caption
+    # a run still up at its end is censored, not a failure
+    ended = charts.reliability_curve([
+        {"ending_sim_time": 100.0}, {"mttff": 5.0, "mttff_censored": False}])
+    assert ended.provenance["censored"] == 1
+    assert "No run recorded" in charts.reliability_curve([]).caption
+    # runs that all go down at one instant are a scheduled outage
+    planned = charts.reliability_curve(
+        [{"mttff": 52560.0, "mttff_censored": False}] * 4
+        + [{"mttff": 900.0, "mttff_censored": False}], units="hours")
+    assert "4 runs first went down at exactly 52,560 hours" in planned.caption
+    assert "planned maintenance" in planned.subtitle
+
+
+def test_the_waterfall_uses_the_ladder_rungs_so_the_two_agree():
+    from raptor.api.insight import measures
+    per_run = [{"total_time": 100.0, "downtime": 10.0,
+                "red_corrective_time": 6.0, "red_pm_time": 2.0,
+                "red_logistics_time": 1.0, "red_done_time": 1.0,
+                "red_other_time": 0.0,
+                "inherent_availability": 0.94,
+                "achieved_availability": 0.92,
+                "operational_availability": 0.90}]
+    ladder = measures.availability_ladder(per_run)
+    attribution = {"runs": 1, "causes": {"repair": 0.6, "pm": 0.2,
+                                         "logistics": 0.1, "done": 0.1}}
+    spec = charts.downtime_waterfall(attribution, ladder=ladder)
+    assert spec.provenance["basis"] == "ladder"
+    assert [step["name"] for step in spec.series] == [
+        "Hands-on repair", "Planned maintenance",
+        "Logistics, spares and crews", "Not repairable"]
+    assert spec.series[-1]["to"] == pytest.approx(0.90)
+    assert sum(step["value"] for step in spec.series) == pytest.approx(0.10)
+    assert "same Red-time split" in spec.caption
+    # without the ladder the attribution still drives the steps
+    fallback = charts.downtime_waterfall(attribution, 0.90)
+    assert fallback.provenance["basis"] == "attribution"
+    assert [step["name"] for step in fallback.series][0] == "Hands-on repair"
+
+
 def test_the_ladder_drops_a_rung_the_report_did_not_compute():
     ladder = {"inherent": {"value": 0.99}, "achieved": {"value": None},
               "operational": {"value": 0.90}}
@@ -336,7 +411,7 @@ def test_cost_treemap_by_hand():
     # areas are proportional to the values
     area = {n: c["w"] * c["h"] for n, c in cells.items()}
     assert area["Pump"] / area["Seals"] == pytest.approx(4.0)
-    assert "Pump occupies the largest area (400, 80 % of the cost)" in spec.caption
+    assert "Pump occupies the largest area ($400, 80 % of the cost)" in spec.caption
 
 
 def test_lost_capacity_treemap_uses_the_capacity_shares():
@@ -394,6 +469,22 @@ def test_fold_small_gathers_a_ranking_tail_and_names_it():
     assert folded["causes"] == pytest.approx({"repair": 0.5, "wait_spare": 0.5})
     assert "E7" in spec.caption
     assert spec.provenance["folded"] == 6
+
+
+def test_fold_small_can_keep_top_n_or_the_last_share():
+    from raptor.api.insight import charts
+    base = charts.downtime_pareto(_many(20))
+    top = charts.fold_small(base, top=10)
+    assert [row["name"] for row in top.series][:10] == [
+        f"E{i}" for i in range(10)]
+    assert top.series[-1]["name"] == "10 others"
+    assert top.series[-1]["value"] == pytest.approx(10 * 0.1 / 18)
+    tail = charts.fold_small(base, tail_share=0.05)
+    assert tail.series[-1]["name"].startswith("9 others (last 5 %")
+    assert tail.series[-1]["value"] == pytest.approx(0.05)
+    quartile = charts.fold_small(base, fraction=0.25)
+    assert quartile.series[-1]["name"] == "15 others"
+    assert sum(row["value"] for row in quartile.series) == pytest.approx(1.0)
 
 
 def test_fold_small_relays_a_treemap_and_keeps_the_total():
@@ -583,3 +674,17 @@ def test_annual_capacity_fan_draws_the_capacity_target():
     assert any(mark.get("kind") == "target" and mark.get("value") == 0.99
                for mark in spec.marks)
     assert spec.title == "Capacity delivered year by year"
+
+
+def test_parse_fold_is_the_one_reading_of_the_others_presets():
+    assert charts.parse_fold("") == {} and charts.parse_fold(None) == {}
+    assert charts.parse_fold("top:10") == {"top": 10}
+    assert charts.parse_fold("fraction:0.25") == {"fraction": 0.25}
+    assert charts.parse_fold("tail:0.05") == {"tail_share": 0.05}
+    assert charts.parse_fold(0.01) == {"min_share": 0.01}
+    # every GUI preset parses
+    for mode in charts.FOLD_PRESETS.values():
+        charts.parse_fold(mode)
+    for bad in ("top:0", "top:2.5", "tail:5", "fraction:1", "bogus"):
+        with pytest.raises(ValueError):
+            charts.parse_fold(bad)
