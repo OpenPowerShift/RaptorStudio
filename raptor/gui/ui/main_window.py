@@ -3351,7 +3351,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dialog = ProjectHealthDialog(
             self, report, on_locate=self._locate_health_element,
             on_share=self._share_safe_copy)
-        dialog.exec()
+        from raptor.gui.ui.modality import exec_dialog
+        exec_dialog(dialog)
 
     def _locate_health_element(self, ref: str) -> bool:
         kind, _, ident = str(ref).partition(":")
@@ -3371,14 +3372,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.write_back_to_rbd(self._rbd)
         self._diagram_dock.view.write_back_annotations()
         from raptor.gui.ui.project_health_dialog import ShareSafeDialog
-        stem = (Path(self._current_file).stem if self._current_file
-                else "model")
         folder = (Path(self._current_file).parent if self._current_file
                   else Path.cwd())
+        # Do not put the source model's name into the shared filename or
+        # into its meta.file_name.
         dialog = ShareSafeDialog(
-            self, str(folder / (stem + "-shared.rbds")),
+            self, str(folder / "shared-model.rbds"),
             source=self._current_file or "")
-        if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.path:
+        from raptor.gui.ui.modality import exec_dialog
+        if exec_dialog(dialog) != QDialog.DialogCode.Accepted or not dialog.path:
             return
         try:
             dest = dialog.write(self._rbd)

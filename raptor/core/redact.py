@@ -358,6 +358,12 @@ def write_share_copy(rbd: Any, path: str | Path,
     try:
         from raptor.core.fileio.rbds import save_rbds
         save_rbds(copy_rbd, tmp, meta={"file_name": dest.name})
+        try:
+            umask = os.umask(0)
+            os.umask(umask)
+            os.chmod(tmp, 0o666 & ~umask)
+        except OSError:
+            pass
         os.replace(tmp, dest)
     except BaseException:
         try:

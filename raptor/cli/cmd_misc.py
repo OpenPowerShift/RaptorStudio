@@ -132,8 +132,10 @@ def declassify_command(args: Any) -> int:
     try:
         dest, report = write_share_copy(
             rbd, args.output, options, source=args.model)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
     except Exception as exc:  # noqa: BLE001
-        raise CliError(f"could not write {args.output}: {exc}", X.RUNTIME) from exc
+        raise CliError(f"could not write {args.output}: {exc}", X.OUTPUT) from exc
     print(f"wrote {dest}")
     print(report.summary())
     if report.risks:

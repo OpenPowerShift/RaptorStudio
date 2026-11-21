@@ -126,7 +126,8 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
     for key, column in _NAME_COLUMNS.items():
         for row in rows.get(key, []):
             oid = row_int(row.get("ID"), 0)
-            if not str(row.get(column) or "").strip():
+            if str(row.get(column) or "").strip().casefold() in (
+                    "", "none", "unnamed"):
                 singular, kind = {
                     "blocks": ("Block", "block"),
                     "nodes": ("Node", "node"),
