@@ -58,6 +58,18 @@ class ProjectHealthDialog(QDialog):
             item.setData(Qt.ItemDataRole.UserRole, issue.element)
             self._list.addItem(item)
         lay.addWidget(self._list, 1)
+        self._empty = QLabel(
+            "No issues found. The model is ready to run and share; check the "
+            "counts above before sending it outside the project.")
+        self._empty.setObjectName("SectionNote")
+        self._empty.setWordWrap(True)
+        self._empty.setVisible(not self._report.issues)
+        lay.addWidget(self._empty)
+        self._hint = QLabel("")
+        self._hint.setObjectName("SectionNote")
+        self._hint.setWordWrap(True)
+        self._hint.setVisible(False)
+        lay.addWidget(self._hint)
         note = QLabel(
             "Double-click an issue to locate its element. Validation errors "
             "must be fixed before a run; warnings are judgements for the "
@@ -67,6 +79,7 @@ class ProjectHealthDialog(QDialog):
         lay.addWidget(note)
         row = QHBoxLayout()
         self._share = QPushButton("Share-safe copy…")
+        self._share.setEnabled(self._on_share is not None)
         self._share.setToolTip(
             "Write a copy with names, comments and chosen annotations removed")
         self._share.clicked.connect(self._share_clicked)
@@ -92,8 +105,18 @@ class ProjectHealthDialog(QDialog):
 
     def _locate(self) -> None:
         element = self._selected_element()
-        if element and self._on_locate is not None and self._on_locate(element):
+        if not element or self._on_locate is None:
+            return
+        if self._on_locate(element):
             self.accept()
+            return
+        # The dialog used to close whenever a callback ran, even when the
+        # element was no longer on a level the view could reach. Stay open
+        # and say so instead.
+        self._hint.setText(
+            f"Could not locate {element} in the diagram; it may have been "
+            "deleted after the report was made.")
+        self._hint.setVisible(True)
 
     def _share_clicked(self) -> None:
         if self._on_share is not None:
@@ -144,12 +167,16 @@ class ShareSafeDialog(QDialog):
         form.addRow("", self._advisor)
         form.addRow("", self._rates)
         lay.addLayout(form)
-        note = QLabel(
-            "Costs and numerical data are kept. Remove them before sharing "
-            "if the costs themselves are confidential.")
-        note.setObjectName("SectionNote")
-        note.setWordWrap(True)
-        lay.addWidget(note)
+        self._risk = QLabel(
+            "<b>Residual risk:</b> the copy still contains the structure, "
+            "element IDs, links, positions, costs and all numerical data. "
+            "Those can identify a system even without names. Keep names, "
+            "comments, annotations, rate descriptions, project metadata or "
+            "Advisor notes only when you mean to share that prose. Remove "
+            "confidential costs from the source before sharing.")
+        self._risk.setObjectName("SectionNote")
+        self._risk.setWordWrap(True)
+        lay.addWidget(self._risk)
         box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                                | QDialogButtonBox.StandardButton.Cancel)
         box.button(QDialogButtonBox.StandardButton.Ok).setText("Choose file…")

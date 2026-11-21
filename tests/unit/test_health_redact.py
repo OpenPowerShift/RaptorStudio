@@ -105,7 +105,7 @@ def test_declassify_removes_rates_pool_names_and_references():
     assert copy.rates == [] and copy.formulas == {}
     assert report.rates >= 1
     refs = {r.get("SparePoolName") for r in copy.sections["BLOCK_DATA"].rows}
-    assert any(str(ref).startswith("Spare pool ") for ref in refs)
+    assert any(str(ref).startswith("SparePool_") for ref in refs)
 
 
 def test_annotation_anchors_and_unknown_element_keys_do_not_leak(rbd):
@@ -168,3 +168,160 @@ def test_cli_refuses_in_place_declassify_and_keeps_the_source(tmp_path, capsys):
     assert main(["declassify", str(src), str(src)]) != 0
     assert src.read_text() == before
     assert "must not overwrite" in capsys.readouterr().err
+
+
+# -- health summary and counts ------------------------------------------------
+
+def test_health_summary_uses_a_real_singular_for_every_kind():
+    from raptor.api.health import HealthReport
+    assert HealthReport(counts={"hierarchies": 1}).summary() == "1 hierarchy"
+    assert HealthReport(counts={"hierarchies": 3}).summary() == "3 hierarchies"
+    assert HealthReport(counts={"spare_pools": 1}).summary() == "1 spare pool"
+    assert HealthReport(counts={}).summary() == "no elements"
+
+
+def test_health_counts_a_canvas_comment_note_as_a_comment(rbd):
+    rbd.annotations = [{"id": 1, "kind": "text", "parent": 0,
+                        "text": "private reason",
+                        "comment_of": {"type": "block", "id": 1}}]
+    assert health.report(rbd).comments == 1
+
+
+def test_duplicate_block_name_finding_locates_the_first_block(rbd):
+    from raptor.core.fileio.typed import row_int
+    rows = [r for r in rbd.sections["BLOCK_DATA"].rows
+            if row_int(r.get("ID"), 0) > 0]
+    rows[1]["blockName"] = rows[0]["blockName"]
+    report = health.report(rbd)
+    issue = next(i for i in report.issues if "share the name" in i.text())
+    assert issue.element == f"block:{row_int(rows[0].get('ID'), 0)}"
+
+
+def test_health_matches_pool_references_case_insensitively():
+    rbd = load_rbds(str(Path(__file__).resolve().parents[2] /
+                        "new_docs" / "models" / "WaterTreatment.rbds"))
+    block = next(r for r in rbd.sections["BLOCK_DATA"].rows
+                 if str(r.get("SparePoolName") or "").strip()
+                 not in ("", "unnamed"))
+    pool = rbd.sections["SPARE_POOL_DATA"].rows[0]
+    pool["PoolName"] = str(block["SparePoolName"]).upper()
+    report = health.report(rbd)
+    assert not any("is not used by any block" in i.text()
+                   for i in report.issues)
+
+
+def test_health_on_a_real_model_with_pools_and_phases():
+    base = Path(__file__).resolve().parents[2] / "new_docs" / "models"
+    water = health.report(load_rbds(str(base / "WaterTreatment.rbds")))
+    assert water.counts["spare_pools"] == 1
+    assert water.counts["blocks"] >= 1
+    air = health.report(load_rbds(str(base / "AirlinerMission.rbds")))
+    assert air.counts["phases"] == 5
+    assert "phases" in air.summary()
+
+
+# -- declassified copy on real models ----------------------------------------
+
+def test_declassified_real_model_keeps_its_structure_and_counts():
+    rbd = load_rbds(str(Path(__file__).resolve().parents[2] /
+                        "new_docs" / "models" / "WaterTreatment.rbds"))
+    before = health.report(rbd)
+    copy, _report = declassify(rbd)
+    after = health.report(copy)
+    assert after.counts == before.counts
+    assert len(after.errors) == len(before.errors)
+    assert len(after.warnings) == len(before.warnings)
+    from raptor.core.fileio.rbds import render_rbds
+    text = render_rbds(copy)
+    for leaked in ("Intake_Screen", "High_Lift_Pump", "SpareMotors",
+                   "PumpYears", "centrifugal pump set"):
+        assert leaked not in text
+
+
+def test_anonymous_names_obey_the_models_own_name_rules():
+    from raptor.core.input_rules import new_violations
+    rbd = load_rbds(str(Path(__file__).resolve().parents[2] /
+                        "new_docs" / "models" / "WaterTreatment.rbds"))
+    copy, _report = declassify(rbd)
+    # "Block 1" has a space, which RAPTOR's own dialogs refuse; the
+    # declassified copy must not gain warnings merely because it is shared.
+    assert not new_violations(rbd, copy)
+
+
+def test_arrow_anchor_names_at_both_ends_do_not_leak(rbd):
+    from raptor.core.fileio.rbds import render_rbds
+    from raptor.core.fileio.typed import row_int
+    first, second = [r for r in rbd.sections["BLOCK_DATA"].rows
+                     if row_int(r.get("ID"), 0) > 0][:2]
+    rbd.annotations = [{
+        "id": 1, "kind": "arrow", "parent": 0,
+        "anchor": {"from": first["blockName"],
+                   "from_ref": f"block:{row_int(first.get('ID'), 0)}",
+                   "to": second["blockName"],
+                   "to_ref": f"block:{row_int(second.get('ID'), 0)}"}}]
+    copy, _report = declassify(
+        rbd, RedactOptions(annotations="keep", comments=False,
+                           metadata=False, advisor=False, rates=False))
+    anchor = copy.annotations[0]["anchor"]
+    assert anchor.get("from") != first["blockName"]
+    assert anchor.get("to") != second["blockName"]
+    assert anchor["from_ref"] and anchor["to_ref"]
+    text = render_rbds(copy)
+    assert first["blockName"] not in text
+    assert second["blockName"] not in text
+
+
+def test_an_anchor_that_puts_a_name_in_ref_does_not_leak(rbd):
+    from raptor.core.fileio.rbds import render_rbds
+    from raptor.core.fileio.typed import row_int
+    row = next(r for r in rbd.sections["BLOCK_DATA"].rows
+               if row_int(r.get("ID"), 0) > 0)
+    name = row["blockName"]
+    rbd.annotations = [{"id": 1, "kind": "rect", "parent": 0,
+                        "anchor": {"ref": name, "target": name}}]
+    copy, _report = declassify(
+        rbd, RedactOptions(annotations="keep", comments=False,
+                           metadata=False, advisor=False, rates=False))
+    anchor = copy.annotations[0]["anchor"]
+    assert anchor["ref"] != name and anchor["target"] != name
+    assert name not in render_rbds(copy)
+
+
+def test_a_dangling_pool_reference_is_replaced_as_well(rbd):
+    from raptor.core.fileio.rbds import render_rbds
+    from raptor.core.fileio.typed import row_int
+    row = next(r for r in rbd.sections["BLOCK_DATA"].rows
+               if row_int(r.get("ID"), 0) > 0)
+    row["SparePoolName"] = "HiddenShelf"
+    copy, _report = declassify(rbd)
+    text = render_rbds(copy)
+    assert "HiddenShelf" not in text
+    assert "SparePool_unknown" in text
+
+
+def test_residual_risks_name_the_options_that_were_kept(rbd):
+    _copy, kept = declassify(
+        rbd, RedactOptions(names=False, comments=False, annotations="keep",
+                           metadata=False, advisor=False, rates=False))
+    text = " ".join(kept.risks)
+    assert "structure" in text
+    for phrase in ("names are kept", "Comments", "annotations are kept",
+                   "metadata", "Advisor", "Rate names"):
+        assert phrase in text
+    _copy, removed = declassify(rbd)
+    assert len(removed.risks) == 1
+    assert "structure" in removed.risks[0]
+
+
+def test_cli_declassify_prints_the_residual_risk(tmp_path, capsys):
+    from raptor.cli.main import main
+    assert main(["declassify", str(MODEL), str(tmp_path / "share.rbds")]) == 0
+    out = capsys.readouterr().out
+    assert "residual risk:" in out
+    assert "structure" in out
+
+
+def test_cli_health_says_when_there_are_no_issues(capsys):
+    from raptor.cli.main import main
+    assert main(["health", str(MODEL)]) == 0
+    assert "no issues" in capsys.readouterr().out

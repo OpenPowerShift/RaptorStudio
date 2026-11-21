@@ -52,8 +52,9 @@ def add_parser(sub: Any) -> None:
     dd = sub.add_parser(
         "declassify", help="write a share-safe copy with names/notes removed",
         description="Write a declassified .rbds: element names become type "
-                    "labels, and comments, chosen annotations and project "
-                    "metadata can be removed. IDs, links and data are kept.")
+                    "labels, and comments, chosen annotations, project "
+                    "metadata, rate names/formulas and Advisor notes can be "
+                    "removed. IDs, links and data are kept.")
     dd.add_argument("model", metavar="MODEL")
     dd.add_argument("output", metavar="OUTPUT")
     dd.add_argument("--annotations", choices=("keep", "text", "all"),
@@ -107,6 +108,8 @@ def health_command(args: Any) -> int:
                   None)
         return X.INVALID if report.errors else X.OK
     print(report.summary())
+    if not report.issues:
+        print("no issues")
     for issue in report.issues:
         print(f"{issue.severity.upper():<7} {issue.text()}")
     return X.INVALID if report.errors else X.OK
@@ -133,6 +136,10 @@ def declassify_command(args: Any) -> int:
         raise CliError(f"could not write {args.output}: {exc}", X.RUNTIME) from exc
     print(f"wrote {dest}")
     print(report.summary())
+    if report.risks:
+        print("residual risk:")
+        for risk in report.risks:
+            print(f"- {risk}")
     return X.OK
 
 

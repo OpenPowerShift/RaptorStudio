@@ -3387,9 +3387,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                             f"Could not write the copy:\n\n{exc}")
             return
         report = dialog.report
-        msgbox.information(
-            self, "Share-safe Copy",
-            f"Wrote {dest}\n\n{report.summary() if report else ''}")
+        detail = report.summary() if report else ""
+        if report and report.risks:
+            detail += "\n\nResidual risk:\n" + report.risk_summary()
+        msgbox.information(self, "Share-safe Copy",
+                           f"Wrote {dest}\n\n{detail}")
         self._statusbar.showMessage(
             f"Share-safe copy written: {dest}", 8000)
 

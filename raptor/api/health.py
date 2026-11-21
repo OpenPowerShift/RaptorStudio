@@ -23,6 +23,20 @@ _NAME_COLUMNS = {
     "blocks": "blockName", "nodes": "Name", "events": "eventName",
     "hierarchies": "hierarchyName",
 }
+#: Singular labels for `summary()`. `rstrip("s")` turned "hierarchies" into
+#: "hierarchie", which only a one-hierarchy model exposed.
+_SINGULAR = {
+    "blocks": "block", "nodes": "node", "events": "event",
+    "hierarchies": "hierarchy", "links": "link",
+    "spare_pools": "spare pool", "resources": "resource",
+    "triggers": "trigger", "phases": "phase",
+}
+_PLURAL = {
+    "blocks": "blocks", "nodes": "nodes", "events": "events",
+    "hierarchies": "hierarchies", "links": "links",
+    "spare_pools": "spare pools", "resources": "resources",
+    "triggers": "triggers", "phases": "phases",
+}
 
 
 @dataclass(frozen=True)
@@ -54,10 +68,14 @@ class HealthReport:
         return [i for i in self.issues if i.severity == "warning"]
 
     def summary(self) -> str:
-        parts = [f"{n:,} {key.replace('_', ' ').rstrip('s')}"
-                 f"{'' if n == 1 else 's'}"
-                 for key, n in self.counts.items() if n]
-        return " · ".join(parts) or "empty model"
+        parts = []
+        for key, n in self.counts.items():
+            if not n:
+                continue
+            label = (_SINGULAR if n == 1 else _PLURAL).get(
+                key, key.replace("_", " "))
+            parts.append(f"{n:,} {label}")
+        return " · ".join(parts) or "no elements"
 
 
 def load(path: str) -> Any:
@@ -81,12 +99,15 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
         rows[key] = found
         out.counts[key] = len(found)
 
-    out.annotations = len(getattr(rbd, "annotations", None) or [])
+    annotations = list(getattr(rbd, "annotations", None) or [])
+    out.annotations = len(annotations)
     out.text_annotations = sum(
-        1 for a in (getattr(rbd, "annotations", None) or [])
-        if str(a.get("kind") or "") == "text")
+        1 for a in annotations if str(a.get("kind") or "") == "text")
     comments_sec = sections.get("COMMENTS")
-    out.comments = len(comments_sec.rows) if comments_sec is not None else 0
+    # A comment can be a row in the Comments layer or a note drawn on the
+    # canvas; both are free prose, so both count.
+    out.comments = (len(comments_sec.rows) if comments_sec is not None else 0) + \
+        sum(1 for a in annotations if a.get("comment_of") is not None)
     out.formulas = len(getattr(rbd, "formulas", None) or {})
     out.rates = len(getattr(rbd, "rates", None) or [])
 
@@ -94,9 +115,9 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
     try:
         from raptor.api.validate import issues as validate_issues
         for issue in validate_issues(rbd):
-            out.issues.append(HealthIssue(
-                issue.severity, f"{issue.element}: {issue.message}",
-                issue.element))
+            text = f"{issue.element}: {issue.message}" if issue.element \
+                else issue.message
+            out.issues.append(HealthIssue(issue.severity, text, issue.element))
     except Exception as exc:  # noqa: BLE001 - health must not fail
         out.issues.append(HealthIssue(
             "warning", f"validation could not run: {exc}"))
@@ -131,20 +152,24 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
             out.issues.append(HealthIssue(
                 "warning",
                 f"{len(ids)} blocks share the name {display.get(name, name)!r}: "
-                + ", ".join(str(i) for i in ids)))
+                + ", ".join(str(i) for i in ids),
+                f"block:{ids[0]}"))
 
-    used_pools = {str(r.get("SparePoolName") or "").strip()
+    # References are matched case-insensitively, like the dialogs that set
+    # them; a trim-only set reported a used pool as unused when the two
+    # spellings differed in case.
+    used_pools = {str(r.get("SparePoolName") or "").strip().casefold()
                   for r in rows.get("blocks", [])}
     for pool in rows.get("spare_pools", []):
         name = str(pool.get("PoolName") or "").strip()
-        if name and name not in used_pools:
+        if name and name.casefold() not in used_pools:
             out.issues.append(HealthIssue(
                 "info", f"spare pool {name!r} is not used by any block"))
-    used_resources = {str(r.get("Resource1Name") or "").strip()
+    used_resources = {str(r.get("Resource1Name") or "").strip().casefold()
                       for r in rows.get("blocks", [])}
     for resource in rows.get("resources", []):
         name = str(resource.get("PoolName") or "").strip()
-        if name and name not in used_resources:
+        if name and name.casefold() not in used_resources:
             out.issues.append(HealthIssue(
                 "info", f"resource pool {name!r} is not used by any block"))
 
