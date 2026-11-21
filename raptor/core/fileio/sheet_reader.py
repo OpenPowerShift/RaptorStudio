@@ -156,11 +156,13 @@ def _short(text: str, limit: int = 80) -> str:
 
 def _flatten(values: Any) -> list[float]:
     out: list[float] = []
-    stack = list(values) if isinstance(values, (list, tuple)) else [values]
-    while stack:
-        value = stack.pop(0)
+    stack = list(values if isinstance(values, (list, tuple)) else [values])
+    index = 0
+    while index < len(stack):
+        value = stack[index]
+        index += 1
         if isinstance(value, (list, tuple)):
-            stack[0:0] = list(value)
+            stack[index:index] = list(value)
         elif isinstance(value, bool):
             out.append(1.0 if value else 0.0)
         elif isinstance(value, (int, float)):
@@ -277,7 +279,7 @@ class _Formula:
         except FormulaError:
             raise
         except (ArithmeticError, ValueError, TypeError, NameError,
-                RecursionError) as exc:
+                RecursionError, MemoryError) as exc:
             raise FormulaError(
                 f"formula {_short(text)!r} did not evaluate: {exc}") from exc
 
@@ -354,8 +356,11 @@ class _Formula:
                     raise FormulaError(
                         "formula calls a function the import evaluator "
                         "does not support")
-            elif isinstance(node, (ast.Expression, ast.Load, ast.Constant,
-                                   ast.Tuple, ast.List, ast.UnaryOp,
+            elif isinstance(node, ast.Constant):
+                if isinstance(node.value, str) and len(node.value) > 200:
+                    raise FormulaError("a formula string literal is too long")
+                continue
+            elif isinstance(node, (ast.Expression, ast.Load, ast.UnaryOp,
                                    ast.BinOp, ast.Compare, ast.IfExp,
                                    ast.operator, ast.unaryop, ast.cmpop)):
                 continue
@@ -623,7 +628,9 @@ def _xlsx_rows(sheet_data: ET.Element, shared: list[str],
             rows.append(trimmed)
             row_numbers.append(number)
         if len(rows) >= MAX_ROWS:
-            break
+            raise SheetError(
+                f"{filename} has more than {MAX_ROWS:,} rows; split it or "
+                "raise the limit")
     return rows, row_numbers
 
 
@@ -737,7 +744,8 @@ def _read_ods(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
                 cell = _ods_cell(cell_node)
                 room = MAX_COLUMNS - len(row)
                 if room <= 0:
-                    break
+                    raise SheetError(
+                        f"{path.name} has more than {MAX_COLUMNS:,} columns")
                 for _ in range(min(repeat, room)):
                     row.append(cell if repeat == 1 else Cell(
                         raw=cell.raw, formula=cell.formula, cached=cell.cached,
@@ -755,7 +763,9 @@ def _read_ods(path: Path, sheet: str | None) -> Sheet:  # noqa: C901, PLR0912
                                   cached=c.cached, text=c.text, kind=c.kind,
                                   value=c.value, error=c.error) for c in row])
             if len(rows) >= MAX_ROWS:
-                break
+                raise SheetError(
+                    f"{path.name} has more than {MAX_ROWS:,} rows; split it "
+                    "or raise the limit")
     out = Sheet(name=name, rows=rows)
     _resolve_formulas(out)
     return out

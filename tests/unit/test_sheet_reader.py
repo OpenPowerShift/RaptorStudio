@@ -283,3 +283,12 @@ def test_ods_formula_without_a_cache_is_evaluated(tmp_path):
         zf.writestr("content.xml", content)
     sheet = S.read_sheet(path)
     assert sheet.value(1, 1) == pytest.approx(1 / 2400)
+
+
+def test_formula_list_repetition_is_refused_not_allocated():
+    sheet = S.Sheet("calc", rows=[
+        [S.Cell(formula="=[1]*100000000")],
+    ])
+    S._resolve_formulas(sheet)
+    assert sheet.cell(0, 0).error
+    assert "does not support" in sheet.cell(0, 0).error

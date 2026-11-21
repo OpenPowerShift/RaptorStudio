@@ -224,3 +224,17 @@ def test_a_parameter_list_with_no_numbers_is_an_error(rbd):
     ]))
     assert plan.has_errors()
     assert "not a list of numbers" in plan.errors[0].text()
+
+
+def test_duplicate_rows_cannot_combine_a_law_with_invalid_params(rbd):
+    oid, _row = _first_block(rbd)
+    sheet = Sheet("Data", rows=[
+        [Cell(value="id"), Cell(value="Fail Dist"), Cell(value="Fail Param 1"),
+         Cell(value="Fail Param 2")],
+        [Cell(value=oid), Cell(value="Weibull"), Cell(value=2.0),
+         Cell(value=500.0)],
+        [Cell(value=oid), Cell(value=2.0), Cell(value=0.0)],
+    ])
+    plan = I.plan_import(rbd, sheet)
+    assert plan.has_errors()
+    assert any("must be" in p.text() for p in plan.errors)

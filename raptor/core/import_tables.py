@@ -345,7 +345,7 @@ def _plan_headers(plan: ImportPlan, sheet: Sheet) -> bool:
     return True
 
 
-def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:
+def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:  # noqa: C901
     """Validate *sheet* against *rbd* and return the changes it would make."""
     plan = ImportPlan(source=source or sheet.name, sheet=sheet.name)
     if not _plan_headers(plan, sheet):
@@ -377,6 +377,19 @@ def plan_import(rbd: Any, sheet: Sheet, *, source: str = "") -> ImportPlan:
                 "the later row wins", level="warning"))
         targets[oid] = sheet_row
         _plan_row(plan, rows[oid], oid, cells, sheet_row)
+    # A duplicate block row can combine a law from one row with parameters
+    # from another; validate the RESULT, not each row against the old model.
+    if plan.changes and not plan.has_errors():
+        _before, after = row_snapshot(plan, rbd)
+        for oid, row in after.items():
+            for which, prefix in (("F", "failure"), ("R", "repair")):
+                code = _code(row, f"{which}Dist")
+                count = _count(row, f"#{which}Param", code)
+                values = _params(row, which, count)
+                err = validate_distro_params(code, values, prefix)
+                if err is not None:
+                    plan.problems.append(Problem(
+                        0, f"block {oid}: {err}", f"block:{oid}"))
     return plan
 
 
