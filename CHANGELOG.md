@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0](https://github.com/OpenPowerShift/RaptorStudio/compare/v0.11.0...v0.12.0) (2026-11-21)
+
+
+### Features
+
+* **insight:** cost and reliability charts, saved targets and currency ([20ac19e](https://github.com/OpenPowerShift/RaptorStudio/commit/20ac19e9a3f752557591baf2f94af1b4b060829e)), closes [#345](https://github.com/OpenPowerShift/RaptorStudio/issues/345)
+* **insight:** hierarchy visualisation, phase and capacity charts ([c8101b3](https://github.com/OpenPowerShift/RaptorStudio/commit/c8101b33fc849e54913fbf3791b0d28272307f27))
+
+
+### Bug Fixes
+
+* **gui:** capacity axis warning goes through the msgbox seam ([5e71c29](https://github.com/OpenPowerShift/RaptorStudio/commit/5e71c299ea6b80e2c9e16947e6caf6f303bcb33a))
+
 ## [0.11.0](https://github.com/OpenPowerShift/RaptorStudio/compare/v0.10.0...v0.11.0) (2026-11-19)
 
 
