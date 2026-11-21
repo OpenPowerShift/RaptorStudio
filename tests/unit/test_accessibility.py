@@ -324,3 +324,36 @@ def test_a_dark_launch_states_the_theme_action_and_repairs_the_scale(qapp):
                                old["startup/show_start_page"])
         theme.set_dark(old["appearance/dark_mode"])
         theme.set_scale(old["appearance/ui_scale"])
+
+
+def test_saved_appearance_reaches_the_first_window(qapp):
+    from PySide6.QtGui import QPalette
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    old = {k: settings.get(k) for k in (
+        "appearance/dark_mode", "appearance/high_contrast",
+        "appearance/ui_scale")}
+    settings.set_value("startup/show_start_page", False)
+    settings.set_value("appearance/dark_mode", True)
+    settings.set_value("appearance/high_contrast", True)
+    settings.set_value("appearance/ui_scale", 150)
+    try:
+        w = MainWindow()
+        try:
+            w.show()
+            qapp.processEvents()
+            assert w.palette().color(QPalette.ColorRole.Window).name() == "#000000"
+            assert "#000000" in w.styleSheet()
+            assert D.ThemeManager.instance().scale == 150
+        finally:
+            w._dirty = False
+            w.close()
+    finally:
+        for key, value in old.items():
+            if value is None:
+                settings.remove(key)
+            else:
+                settings.set_value(key, value)
+        D.ThemeManager.instance().set_scale(100)
+        D.ThemeManager.instance().set_high_contrast(False)
+        D.ThemeManager.instance().set_dark(False)

@@ -122,8 +122,11 @@ def config_path() -> Path:
 
 
 def config_command(args: Any) -> int:  # noqa: C901
+    from PySide6.QtCore import QCoreApplication, QSettings
+    QCoreApplication.setOrganizationName("OpenPowerShift")
+    QCoreApplication.setApplicationName("RAPTOR Studio")
     if args.action == "path":
-        print(config_path())
+        print(QSettings().fileName())
         return X.OK
     from raptor.gui.ui import settings
     if args.action == "list":

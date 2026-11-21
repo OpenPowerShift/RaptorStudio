@@ -673,8 +673,8 @@ def show_preferences(win):
     _pref_row(
         app_form, "Interface scale:", scale,
         "Enlarges text, spacing and controls together for a high-DPI or "
-        "low-vision display. 100% is the design size; takes effect when "
-        "you press OK.", "app",
+        "low-vision display. 100% is the design size; takes effect after "
+        "you restart RAPTOR Studio.", "app",
         reset=lambda w: w.setCurrentIndex(max(0, w.findData(100))),
         builtins=("100%",))
 

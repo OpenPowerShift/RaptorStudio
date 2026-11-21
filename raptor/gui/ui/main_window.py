@@ -364,6 +364,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         theme.set_high_contrast(
             settings.get_bool("appearance/high_contrast", False))
         theme.set_dark(settings.get_bool("appearance/dark_mode"))
+        # The window's own stylesheet outranks the application sheet, so it
+        # must be rebuilt AFTER the saved dark/contrast/scale is applied.
+        self.setStyleSheet(global_stylesheet())
 
         self._setup_ribbon()
         self._setup_central()
