@@ -300,3 +300,19 @@ def test_the_dialog_caps_a_huge_member_list(win):
     text = dlg._members.toPlainText()
     assert "… and 5 more" in text
     assert dlg._members_label.text().startswith("Members (205")
+
+
+def test_typing_tags_then_ok_keeps_them(win):
+    from raptor.core import groups as G
+    from raptor.gui.ui.groups_dialog import GroupsDialog
+    view = win._diagram_dock.view
+    rbd = view._rbd_ref
+    bid = next(i for i in view.blocks if i > 0)
+    ref = G.element_ref("block", bid)
+    dialog = GroupsDialog(win, rbd, [ref])
+    dialog._new_group()
+    dialog._tags_edit.setText("duty, rotating")
+    dialog._tags_edit.textEdited.emit("duty, rotating")
+    dialog.accept()
+    tags, _groups = dialog.result_data()
+    assert tags[ref] == ["duty", "rotating"]

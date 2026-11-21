@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QUndoCommand
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
-    QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -53,6 +53,7 @@ class GroupsDialog(QDialog):
         self._selected = list(selected_refs)
         self._name_map: dict[str, str] | None = None
         self._current_row = -1
+        self._tags_dirty = False
         self._loading = False
         self._build()
         self._refresh_list()
@@ -164,6 +165,8 @@ class GroupsDialog(QDialog):
             f"{G.TAG_MAX} characters each). Applying replaces every tag on "
             "them; an empty box removes their tags.")
         self._tags_edit.returnPressed.connect(self._apply_tags)
+        self._tags_edit.textEdited.connect(
+            lambda _text: setattr(self, "_tags_dirty", True))
         self._tags_button = QPushButton("Apply to selection")
         self._tags_button.setToolTip(
             "Replace the tags on every selected element with this list; "
@@ -369,10 +372,12 @@ class GroupsDialog(QDialog):
             return
         self._sync_current()
         name = self._groups[row]["name"]
-        if QMessageBox.question(
+        from raptor.gui.ui.dialogs import question_box
+        if not question_box(
                 self, "Delete Group",
                 f"Delete the group “{name}”?\n\nThe elements and their tags "
-                "are not changed.") != QMessageBox.StandardButton.Yes:
+                "are not changed.", yes_text="Delete group",
+                no_text="Keep group"):
             return
         del self._groups[row]
         self._refresh_list()
@@ -428,6 +433,7 @@ class GroupsDialog(QDialog):
                 self._tags[ref] = list(values)
             else:
                 self._tags.pop(ref, None)
+        self._tags_dirty = False
         self._update_selection_controls()
         if 0 <= self._current_row < len(self._groups):
             self._show_members(self._groups[self._current_row])
@@ -437,11 +443,14 @@ class GroupsDialog(QDialog):
         """Refuse duplicate names before closing: the core looks a group up
         by name, so two “Pumps” would make the selector ambiguous."""
         self._sync_current()
+        if self._selected and self._tags_dirty:
+            self._apply_tags()
         seen: set[str] = set()
         for group in self._groups:
             key = group["name"].casefold()
             if key in seen:
-                QMessageBox.warning(
+                from raptor.gui.ui import msgbox
+                msgbox.warning(
                     self, "Duplicate Group Name",
                     f"There is more than one group called “{group['name']}”. "
                     "Give each group a unique name.")

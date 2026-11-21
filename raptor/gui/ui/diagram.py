@@ -794,9 +794,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # re-populates them); traversal within a model keeps them
         self._last_result_visuals = None
         self._last_hier_dsi: dict | None = None
-        # A group view belongs to the previous model's element ids.
-        self._group_view = None
-        self._group_hiers: set[str] = set()
+        # A group view belongs to one model's element ids, but an
+        # in-model reload (Quick Add, paste data, library apply) must keep
+        # the Explorer filter and the canvas in step.
+        if rbd is not getattr(self, "_group_model", None):
+            self._group_view = None
+            self._group_hiers = set()
+            self._group_model = rbd
         self._live_state_cache = None
         self._hier_boundary_cache = None
         self._link_file_ids_cache = None
@@ -3044,6 +3048,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         return (kind == "hier"
                 and f"hier:{oid}" in getattr(self, "_group_hiers", ()))
 
+    @staticmethod
+    def _base_opacity(item) -> float:
+        return 0.45 if getattr(item, "_oos_state", None) == "cut" else 1.0
+
     def _apply_group_view(self) -> None:
         """Repaint opacity for the active group view and focus mode."""
         if getattr(self, "_focus_mode", False):
@@ -3059,7 +3067,9 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                             ("hier", getattr(self, "_hier_items", {}))):
             for oid, item in items.items():
                 try:
-                    item.setOpacity(1.0 if self._group_keeps(kind, oid) else 0.25)
+                    base = self._base_opacity(item)
+                    item.setOpacity(base if self._group_keeps(kind, oid)
+                                    else min(base, 0.25))
                 except RuntimeError:
                     continue
 
@@ -3088,7 +3098,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 try:
                     keep = self._group_keeps(kind, oid) and (
                         not self._focus_mode or item in chosen)
-                    item.setOpacity(1.0 if keep else 0.25)
+                    base = self._base_opacity(item)
+                    item.setOpacity(base if keep else min(base, 0.25))
                 except RuntimeError:
                     continue
 
