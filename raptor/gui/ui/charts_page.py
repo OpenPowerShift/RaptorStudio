@@ -1388,7 +1388,9 @@ class ChartsPage(QWidget):
         return button
 
     def _ask_capacity_axis(self, mode: str) -> None:  # noqa: C901 - one prompt per mode
-        from PySide6.QtWidgets import QInputDialog, QMessageBox
+        from PySide6.QtWidgets import QInputDialog
+
+        from raptor.gui.ui import msgbox
 
         value: float | None = None
         low = high = None
@@ -1432,8 +1434,8 @@ class ChartsPage(QWidget):
             if not ok:
                 return
             if high <= low:
-                QMessageBox.warning(self, "Y axis",
-                                    "The highest value must be above the lowest.")
+                msgbox.warning(self, "Y axis",
+                               "The highest value must be above the lowest.")
                 return
         self.set_capacity_axis(mode, value, low=low, high=high)
 
