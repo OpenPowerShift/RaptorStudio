@@ -374,6 +374,9 @@ class FileIoMixin(_Base):
         v.apply_view_options(getattr(rbd, "view", None) or {})
         self._sync_link_routing_combo()
         v.load_rbd(rbd)
+        apply_limit = getattr(self, "_apply_undo_limit", None)
+        if apply_limit is not None:
+            apply_limit()
         self._sync_block_label_controls()
         # The canvas rebuild is the one long block the indicator can be
         # repainted after: without a yield it stays as the first frame

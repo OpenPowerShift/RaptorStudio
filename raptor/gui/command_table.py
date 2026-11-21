@@ -1316,6 +1316,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         checked=True),
     CommandSpec(
+        id="view.undo_history",
+        attr="_undo_history_action",
+        text="Model History",
+        icon="history_clock_icon:text",
+        tooltip=(
+            "Browse the model's undo steps and jump to any point; the "
+            "maximum number kept is set in Preferences"),
+        handler="_show_undo_history",
+        enabled_when="model_open"),
+    CommandSpec(
         id="view.theme",
         attr="_theme_action",
         text="Dark Theme",
@@ -1643,6 +1653,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
                         Btn("view.advisor_toggle"),
+                        Btn("view.undo_history"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),

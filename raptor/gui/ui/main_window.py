@@ -3341,6 +3341,20 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui import dialogs
         dialogs.edit_block_defaults(self)
 
+    def _show_undo_history(self):
+        """View ▸ Panels ▸ Model History: a modeless undo browser."""
+        dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is None:
+            from raptor.gui.ui.undo_history_dialog import UndoHistoryDialog
+            dialog = UndoHistoryDialog(self, self._undo_stack)
+            dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            dialog.finished.connect(
+                lambda _result: setattr(self, "_undo_history_dialog", None))
+            self._undo_history_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs
         dialogs.on_mass_edit(self)

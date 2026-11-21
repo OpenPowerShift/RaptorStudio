@@ -70,6 +70,7 @@ class RibbonBuilders(_Base):
         stack that the Undo / Redo actions wrap, and the run / step /
         export flags the other groups read."""
         self._undo_stack = QUndoStack(self)
+        self._apply_undo_limit()
         # Analyses live in the Run panel now; keep the dict present so
         # every sync path can treat the ribbon mirror as optional.
         self._analysis_actions: dict[str, QAction] = {}
@@ -100,6 +101,22 @@ class RibbonBuilders(_Base):
         self._fev_status_text = None
 
 
+
+    def _apply_undo_limit(self) -> None:
+        """Apply the user's maximum undo steps to the model history."""
+        from raptor.gui.ui import settings as _settings
+        try:
+            limit = int(_settings.get_int("editing/undo_limit", 200))
+        except (TypeError, ValueError):
+            limit = 200
+        limit = max(0, limit)
+        # Qt only accepts a new limit on an empty stack. Keep it pending
+        # until the next model load clears the history.
+        if self._undo_stack.count() == 0:
+            self._undo_stack.setUndoLimit(limit)
+            self._pending_undo_limit = 0
+        else:
+            self._pending_undo_limit = limit
 
     def _build_goto_combo(self, group) -> None:
         """Model > Hierarchy: jump straight to a hierarchy by name."""
