@@ -89,6 +89,10 @@ class RuleGatedStack:
 
     def _on_stack_moved(self, _index: int) -> None:
         self._moves += 1
+        # A history jump moves the index once per replayed command but
+        # must refresh once, at its end (`DiagramView.end_history_jump`).
+        if getattr(self._view, "_history_jump", False):
+            return
         if not self._depth:
             self.flush_signals()
 

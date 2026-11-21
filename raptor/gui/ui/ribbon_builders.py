@@ -103,20 +103,21 @@ class RibbonBuilders(_Base):
 
 
     def _apply_undo_limit(self) -> None:
-        """Apply the user's maximum undo steps to the model history."""
+        """Apply the user's maximum undo steps to the model history.
+
+        Qt refuses a new limit on a non-empty stack, so a change made
+        mid-session waits for the next model: `_apply_loaded_model` clears
+        the history before calling this, and the wait is what Preferences
+        says happens.
+        """
         from raptor.gui.ui import settings as _settings
         try:
             limit = int(_settings.get_int("editing/undo_limit", 200))
         except (TypeError, ValueError):
             limit = 200
         limit = max(0, limit)
-        # Qt only accepts a new limit on an empty stack. Keep it pending
-        # until the next model load clears the history.
         if self._undo_stack.count() == 0:
             self._undo_stack.setUndoLimit(limit)
-            self._pending_undo_limit = 0
-        else:
-            self._pending_undo_limit = limit
 
     def _build_goto_combo(self, group) -> None:
         """Model > Hierarchy: jump straight to a hierarchy by name."""

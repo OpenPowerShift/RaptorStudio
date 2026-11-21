@@ -3344,15 +3344,23 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _jump_history(self, index: int) -> bool:
         """Move the model to a history step atomically.
 
-        Level switches are deferred to one rebuild at the end; results are
-        discarded before the jump (never midway through it), and a run or
-        step session refuses the jump.
+        One level rebuild and one refresh for the whole jump, not one per
+        replayed command; results are discarded before the jump (never
+        midway through it), and a run or step session refuses the jump.
+        Returns False when the jump was refused or failed, so the browser
+        can say why.
         """
-        if getattr(self, "_run_in_progress", False) or \
-                getattr(self, "_step_session", None) is not None:
+        if self._rbd is None:
+            self._statusbar.showMessage(
+                "Open or create a model before using history", 4000)
+            return False
+        if self._run_or_step_active():
             self._statusbar.showMessage(
                 "Stop the run before jumping through history", 4000)
             return False
+        target = max(0, min(int(index), self._undo_stack.count()))
+        if target == self._undo_stack.index():
+            return True                  # already there: nothing moved
         if self._results.has_results():
             from raptor.gui.ui.dialogs import question_box
             if not question_box(
@@ -3366,7 +3374,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         view = self._diagram_dock.view
         view.begin_history_jump()
         try:
-            self._undo_stack.setIndex(index)
+            self._undo_stack.setIndex(target)
+        except Exception as exc:  # noqa: BLE001 - a failed replay must not
+            # leave the canvas in jump mode (no rebuilds, no level switch).
+            self._statusbar.showMessage(f"History jump failed: {exc}", 6000)
+            return False
         finally:
             view.end_history_jump()
         self._statusbar.showMessage(
@@ -3376,7 +3388,16 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
     def _show_undo_history(self):
         """View ▸ Panels ▸ Model History: a modeless undo browser."""
+        if self._rbd is None:
+            self._statusbar.showMessage(
+                "Open or create a model before using history", 4000)
+            return
         dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is not None:
+            try:
+                dialog.isVisible()       # raises if Qt deleted the object
+            except RuntimeError:
+                dialog = None            # the only way this can go stale
         if dialog is None:
             from raptor.gui.ui.undo_history_dialog import UndoHistoryDialog
             dialog = UndoHistoryDialog(
@@ -3388,6 +3409,17 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _close_undo_history(self) -> None:
+        """Close the Model History panel: the model it lists is gone."""
+        dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is None:
+            return
+        try:
+            dialog.close()
+        except RuntimeError:             # already deleted by Qt
+            pass
+        self._undo_history_dialog = None
 
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs

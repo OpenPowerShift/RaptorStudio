@@ -712,7 +712,8 @@ def show_preferences(win):
         work_form, "History steps:", undo_limit,
         "Maximum undo/redo steps kept. This is a count, not a byte "
         "budget: one step can hold a large edit's old and new values. "
-        "0 = unlimited. A change applies when the next model is loaded.", "app",
+        "0 = unlimited. A change applies when the current model is "
+        "closed or the next is loaded.", "app",
         reset=lambda w: w.setValue(200), builtins=("200",))
 
     save_before_run = QComboBox()

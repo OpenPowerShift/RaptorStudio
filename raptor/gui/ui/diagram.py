@@ -3010,6 +3010,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "defDepStateIdle")
 
     def begin_history_jump(self) -> None:
+        """Replay a run of commands as one step.
+
+        While the flag is set `_set_level` records the level the replay
+        needs instead of rebuilding per command, and `_ViewCmd._done`
+        leaves its refresh signal for `end_history_jump` to emit once.
+        """
         self._history_jump = True
         self._history_jump_level = None
 
@@ -3018,7 +3024,15 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         level = self._history_jump_level
         self._history_jump_level = None
         if level is not None and level != self._current_parent:
-            self._set_level(level)
+            # The jump can undo the hierarchy itself, or a level that no
+            # longer exists; the home level always does.
+            self._set_level(level if level in self.hiers else 0)
+        # One model_changed for the whole jump: the listeners refresh the
+        # Inspector, tables and validity once, not once per replayed step.
+        stack = getattr(self, "_stack", None)
+        flush = getattr(stack, "flush_signals", None)
+        if flush is not None:
+            flush()
 
     def set_focus_mode(self, enabled: bool) -> None:
         """Dim everything not selected; keep the topology visible."""
