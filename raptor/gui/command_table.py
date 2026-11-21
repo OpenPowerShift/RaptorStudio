@@ -1654,7 +1654,6 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
                         Btn("view.advisor_toggle"),
-                        Btn("view.undo_history"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),

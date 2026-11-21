@@ -309,7 +309,6 @@ class UndoHistoryDialog(QDialog):
             self._set_busy(False)
         if not ok and not self._refusal:
             self._refusal = "The jump was refused."
-        self._shown_index = stack.index()
         self._refresh()
 
     def _set_busy(self, busy: bool) -> None:

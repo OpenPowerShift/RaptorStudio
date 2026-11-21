@@ -250,3 +250,24 @@ def test_a_replayed_command_defers_its_refresh_during_a_jump(qapp):
     view._history_jump = False
     cmd._done()
     assert view.model_changed.emitted == 1
+
+
+def test_a_jump_to_the_saved_state_clears_dirty(qapp):
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    settings.set_value("startup/show_start_page", False)
+    w = MainWindow()
+    try:
+        from raptor.core.fileio.rbd import load_rbd
+        w._load_into_app(load_rbd("tests/golden/TwoBlockRedundancy/input.rbd"),
+                         "tests/golden/TwoBlockRedundancy/input.rbd")
+        for text in ("one", "two", "three"):
+            w._undo_stack.push(QUndoCommand(text))
+        w._undo_stack.setClean()
+        w._undo_stack.push(QUndoCommand("four"))
+        w._dirty = True
+        assert w._jump_history(3)          # back to the clean index
+        assert not w._dirty
+    finally:
+        w._dirty = False
+        w.close()

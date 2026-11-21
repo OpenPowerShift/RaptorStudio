@@ -3381,6 +3381,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             return False
         finally:
             view.end_history_jump()
+            # model_changed arrives after cleanChanged during a jump; resync
+            # the dirty marker from the stack itself.
+            self._dirty = not self._undo_stack.isClean()
+            self._update_title()
         self._statusbar.showMessage(
             f"History: step {self._undo_stack.index()} of "
             f"{self._undo_stack.count()}", 4000)
