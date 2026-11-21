@@ -4,6 +4,8 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QLabel, QWidget
 
+from raptor.gui.resources.design_tokens import px
+
 
 class KeyTipBadge(QLabel):
     """A letter drawn over `target`, as a child of `window` so it floats
@@ -24,7 +26,8 @@ class KeyTipBadge(QLabel):
         self.setStyleSheet(
             "QLabel#KeyTipBadge { background: #1f2933; color: #ffffff;"
             " border: 1px solid #f5c542; border-radius: 3px;"
-            " font-weight: 700; font-size: 11px; padding: 0px 4px; }")
+            f" font-weight: 700; font-size: {px(11)}px;"
+            f" padding: 0px {px(4)}px; }}")
         self.adjustSize()
         self.setMinimumWidth(self.height())
         self.adjustSize()

@@ -355,7 +355,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # built: the ribbon's geometry constants scale with the UI.
         settings.ensure_migrated()
         theme = ThemeManager.instance()
-        theme.set_scale(settings.get_int("appearance/ui_scale", 100))
+        saved_scale = settings.get_int("appearance/ui_scale", 100)
+        theme.set_scale(saved_scale)
+        if theme.scale != saved_scale:
+            # A hand-edited or older out-of-range value: keep the file in
+            # step with what was actually applied.
+            settings.set_value("appearance/ui_scale", theme.scale)
         theme.set_high_contrast(
             settings.get_bool("appearance/high_contrast", False))
         theme.set_dark(settings.get_bool("appearance/dark_mode"))
@@ -437,7 +442,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._tooltip_keeper.install(QApplication.instance())
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
-        # Appearance was applied before the ribbon was built.
+        # Appearance was applied before the ribbon was built. Seed the one
+        # piece of state that `_on_theme_changed` normally mirrors: the
+        # View menu action, or a dark-mode launch left it unchecked and
+        # labelled "Dark Theme" while the window was already dark.
+        self._theme_action.blockSignals(True)
+        self._theme_action.setChecked(theme.is_dark)
+        self._theme_action.setText(
+            "Light Theme" if theme.is_dark else "Dark Theme")
+        self._theme_action.blockSignals(False)
 
     @property
     def _step_session(self):

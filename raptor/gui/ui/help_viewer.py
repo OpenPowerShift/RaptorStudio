@@ -736,14 +736,52 @@ if WEBENGINE_OK:
   ].forEach(k => v.removeProperty(k));
 })();
 """
+        #: High contrast is a separate override on top of either theme: the
+        #: manual's own CSS was written for normal contrast and its greys
+        #: stay too soft for a reader who chose black/white chrome.
+        _HIGH_CONTRAST_JS = {
+            True: """
+(function(){
+  const v = document.documentElement.style;
+  const set = (k, val) => v.setProperty(k, val);
+  set('--color-text', '#ffffff');
+  set('--color-background', '#000000');
+  set('--color-link', '#66b2ff');
+  set('--color-heading', '#ffffff');
+  set('--color-border', '#ffffff');
+  set('--color-code-bg', '#111111');
+  set('--color-code-text', '#ffffff');
+  set('--color-table-stripe', '#1a1a1a');
+  set('--color-admonition-bg', '#111111');
+})();
+""",
+            False: """
+(function(){
+  const v = document.documentElement.style;
+  const set = (k, val) => v.setProperty(k, val);
+  set('--color-text', '#000000');
+  set('--color-background', '#ffffff');
+  set('--color-link', '#004a99');
+  set('--color-heading', '#000000');
+  set('--color-border', '#000000');
+  set('--color-code-bg', '#f2f2f2');
+  set('--color-code-text', '#000000');
+  set('--color-table-stripe', '#e6e6e6');
+  set('--color-admonition-bg', '#f2f2f2');
+})();
+""",
+        }
 
         def refresh_theme(self, dark: bool) -> None:
-            """Follow the app's light/dark toggle and interface scale."""
+            """Follow the app's light/dark toggle, high contrast and scale."""
             from raptor.gui.resources.design_tokens import ThemeManager
-            scale = ThemeManager.instance().scale
-            self._view.setZoomFactor(max(1.0, min(2.0, scale / 100.0)))
-            self._view.page().runJavaScript(
-                self._DARK_VARS_JS if dark else self._LIGHT_VARS_JS)
+            manager = ThemeManager.instance()
+            self._view.setZoomFactor(
+                max(1.0, min(2.0, manager.scale / 100.0)))
+            script = self._DARK_VARS_JS if dark else self._LIGHT_VARS_JS
+            if manager.high_contrast:
+                script += self._HIGH_CONTRAST_JS[dark]
+            self._view.page().runJavaScript(script)
 
 
 def _resolve_doc(name: str) -> Path | None:

@@ -145,14 +145,17 @@ def config_command(args: Any) -> int:  # noqa: C901
         low = v.lower()
         v = True if low == "true" else False if low == "false" else v
         if args.key == "appearance/ui_scale":
+            from raptor.gui.resources.scale import SCALE_MAX, SCALE_MIN
             try:
                 v = int(v)
             except (TypeError, ValueError):
-                raise CliError("appearance/ui_scale must be 100..200",
-                               X.USAGE) from None
-            if not 100 <= v <= 200:
-                raise CliError("appearance/ui_scale must be 100..200",
-                               X.USAGE)
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE) from None
+            if not SCALE_MIN <= v <= SCALE_MAX:
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE)
         settings.set_value(args.key, v)
     elif args.action == "unset":
         settings.remove(args.key)

@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.api.advisor.finding import Finding
-from raptor.gui.resources.design_tokens import active_colour
+from raptor.gui.resources.design_tokens import active_colour, px
 
 #: How many findings are shown before "Show n more".
 TOP = 5
@@ -82,7 +82,8 @@ class FindingCard(QFrame):
         self.glyph.setAccessibleName(LEVEL_WORD[finding.severity])
         self.glyph.setToolTip(LEVEL_WORD[finding.severity])
         self.glyph.setStyleSheet(
-            f"color: {colour[_COLOUR_KEY[finding.severity]]}; font-size: 14px;")
+            f"color: {colour[_COLOUR_KEY[finding.severity]]}; "
+            f"font-size: {px(14)}px;")
         self.glyph.setAlignment(Qt.AlignmentFlag.AlignTop)
         outer.addWidget(self.glyph)
 
@@ -102,7 +103,7 @@ class FindingCard(QFrame):
         self.tag.setToolTip(BASIS_TIP.get(finding.basis, ""))
         self.tag.setStyleSheet(
             f"color: {colour['muted']}; border: 1px solid {colour['border']};"
-            " border-radius: 3px; padding: 0 4px; font-size: 11px;")
+            f" border-radius: 3px; padding: 0 4px; font-size: {px(11)}px;")
         head.addWidget(self.tag, 0, Qt.AlignmentFlag.AlignTop)
         body.addLayout(head)
 

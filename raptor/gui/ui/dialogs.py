@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
+from raptor.gui.resources.scale import SCALE_STEPS, normalise_scale
 from raptor.gui.ui.diagram_commands import apply_row_edits
 from raptor.gui.ui.main_window import _TERMINATION_CHOICES
 
@@ -657,10 +658,17 @@ def show_preferences(win):
         "the cause fills' dark variants. The View menu has the same switch.",
         "app")
     scale = QComboBox()
-    for percent in (100, 125, 150, 175, 200):
+    saved_scale = normalise_scale(
+        _settings.get_int("appearance/ui_scale", 100))
+    for percent in SCALE_STEPS:
         scale.addItem(f"{percent}%", percent)
-    scale.setCurrentIndex(max(0, scale.findData(
-        _settings.get_int("appearance/ui_scale", 100))))
+    index = scale.findData(saved_scale)
+    if index < 0:
+        # The CLI accepts any whole percent in 100..200. Show that value
+        # rather than snapping the user's choice back to 100%.
+        scale.addItem(f"{saved_scale}% (custom)", saved_scale)
+        index = scale.count() - 1
+    scale.setCurrentIndex(index)
     scale.setToolTip("Scales text, spacing and control sizes")
     _pref_row(
         app_form, "Interface scale:", scale,

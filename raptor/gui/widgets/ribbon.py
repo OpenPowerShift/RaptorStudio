@@ -27,7 +27,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from raptor.gui.resources.design_tokens import active_colour, RIBBON, SPACING, TYPE
+from raptor.gui.resources.design_tokens import (
+    active_colour, RIBBON, SPACING, TYPE, px)
 
 #: Sizes a ribbon control can take. "large": icon over label, full
 #: height. "small": icon beside label, one of three in a column. "icon":
@@ -682,16 +683,16 @@ class Ribbon(QWidget):
         self.tab_bar.setStyleSheet(f"""
             QTabBar::tab {{
                 font-family: {TYPE['family']};
-                font-size: {TYPE['body']}px;
-                padding: {SPACING['xs']}px {SPACING['md']}px;
+                font-size: {px(TYPE['body'])}px;
+                padding: {px(SPACING['xs'])}px {px(SPACING['md'])}px;
                 border: none;
-                border-bottom: 2px solid transparent;
+                border-bottom: {px(2)}px solid transparent;
                 color: {c['muted']};
                 background: transparent;
             }}
             QTabBar::tab:selected {{
                 color: {c['accent']};
-                border-bottom: 2px solid {c['accent']};
+                border-bottom: {px(2)}px solid {c['accent']};
                 font-weight: 600;
             }}
             QTabBar::tab:hover:!selected {{

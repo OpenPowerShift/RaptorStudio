@@ -6,11 +6,16 @@ high-DPI screens, and by people with low vision.
 ## Interface scale
 
 **Preferences ▸ Appearance ▸ Interface scale** sets 100%, 125%, 150%, 175%
-or 200%. It scales the application font, the design stylesheet's px lengths
-and the ribbon/widget geometry constants together: text, padding, borders,
-ribbon heights and control sizes. The choice is saved per user and applies
-on the next launch. Canvas labels are drawing-scale, not UI text; use the
-canvas zoom for them.
+or 200%. It scales the application font, every fixed font size in the
+panel stylesheets, the design stylesheet's px lengths and the ribbon
+geometry together: text, padding, borders, ribbon heights and control
+sizes. The choice is saved per user and applies on the next launch.
+Canvas labels are drawing-scale, not UI text; use the canvas zoom for
+them.
+
+The list is a set of convenient steps, not a limit: `raptor config`
+accepts any whole percentage from 100 to 200, and Preferences then shows
+that value as a custom step.
 
 From a script or a managed install:
 
@@ -21,21 +26,28 @@ raptor config set appearance/ui_scale 150
 ## High contrast
 
 **Preferences ▸ Appearance ▸ Contrast** switches to black/white surfaces,
-black/white text, strong borders and a darker accent. Simulation-state
-colours stay as they are: they are data, not chrome, and their names
-(Green/Yellow/Red, Running/Repairing, …) are part of the model's meaning.
+black/white text, strong borders and a high-contrast accent. Simulation-
+state colours stay semantic — Green/Yellow/Red, Running/Repairing, … are
+part of the model's meaning — but take a shade that stays legible on pure
+white or black, rather than the pale Appendix D fill.
 
 ```sh
 raptor config set appearance/high_contrast true
 ```
+
+High contrast applies immediately. It also reaches the Help window, which
+otherwise keeps its own page stylesheet.
 
 ## Keyboard and focus
 
 - Every ribbon command is in **command search** (Ctrl+Shift+P) and has a
   key tip on its tab. Key tips use stable page keys, not translated labels.
 - Dialogs use standard Tab/Shift+Tab order and Enter/Escape.
-- Focused text fields, combo boxes, spin boxes, tables and buttons draw a
-  2 px accent ring, including on dark and high-contrast themes.
+- Focused text fields, combo boxes, spin boxes, tables, text panes,
+  buttons, check boxes, radio buttons, sliders and scroll bars draw an
+  accent ring, including on dark and high-contrast themes. A default
+  (accent-filled) button rings in the text colour so the ring stays
+  visible.
 - The canvas supports keyboard nudge, select-all, copy/paste, zoom and
   hierarchy navigation; see **Help ▸ Keyboard Shortcuts**.
 
