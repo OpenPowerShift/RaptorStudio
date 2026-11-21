@@ -40,6 +40,11 @@ RIBBON = {
     "group_title_height": 16,
 }
 
+#: Base geometry: mutated in place when the interface scale changes, so
+#: every module that imported the dict sees the new values.
+BASE_RIBBON = dict(RIBBON)
+BASE_ICON = dict(ICON)
+
 DOCK = {
     "min_width": 260, "default_left": 320, "default_right": 360, "default_bottom": 260,
 }
@@ -171,6 +176,8 @@ class ThemeManager:
         #: whether the token palette and stylesheet have been put on the
         #: application yet: a first `set_dark(False)` must still apply them
         self._applied = False
+        #: The platform font at first use, so repeated scaling never compounds.
+        self._base_font: QFont | None = None
 
     @classmethod
     def instance(cls) -> ThemeManager:
@@ -191,10 +198,11 @@ class ThemeManager:
         return self._high_contrast
 
     def set_scale(self, percent: int | float) -> None:
-        value = max(75, min(200, int(percent or 100)))
+        value = max(100, min(200, int(percent or 100)))
         if value == self._scale:
             return
         self._scale = value
+        _scale_geometry(value)
         self._apply()
         self._fire()
 
@@ -230,7 +238,17 @@ class ThemeManager:
                 "group_header": "#1A1A1A",
             },
         }["dark" if self._dark else "light"]
-        return {**base, **high}
+        states = {
+            "light": {"operating": "#006400", "degraded": "#6B6000",
+                      "overstressed": "#006400", "maintenance": "#8A4B00",
+                      "failed": "#8B0000", "idle": "#5B2F1A",
+                      "standby": "#000080"},
+            "dark": {"operating": "#66FF66", "degraded": "#FFFF66",
+                     "overstressed": "#66FF66", "maintenance": "#FFC966",
+                     "failed": "#FF7777", "idle": "#D9A066",
+                     "standby": "#99CCFF"},
+        }["dark" if self._dark else "light"]
+        return {**base, **high, **states}
 
     @property
     def COLOUR(self) -> dict:
@@ -291,9 +309,14 @@ class ThemeManager:
         # Setting an application-wide QPalette derived from the same tokens
         # makes every unstyled widget follow the active theme too.
         app.setPalette(_build_palette(self.colour))
-        font = QFont()
-        font.setFamilies([part.strip() for part in TYPE["family"].split(",")])
-        font.setPixelSize(max(9, round(TYPE["body"] * self._scale / 100)))
+        if self._base_font is None:
+            self._base_font = QFont(app.font())
+        font = QFont(self._base_font)
+        factor = self._scale / 100.0
+        if font.pointSizeF() > 0:
+            font.setPointSizeF(max(6.0, font.pointSizeF() * factor))
+        else:
+            font.setPixelSize(max(9, round(font.pixelSize() * factor)))
         app.setFont(font)
         app.setStyleSheet(global_stylesheet())
         self._applied = True
@@ -382,6 +405,20 @@ def _rgba(hex_colour: str, alpha: float) -> str:
     h = hex_colour.lstrip("#")
     r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
     return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def px(value: int | float) -> int:
+    """A design px length at the current interface scale."""
+    return max(1, round(float(value) * ThemeManager.instance().scale / 100))
+
+
+def _scale_geometry(percent: int) -> None:
+    """Scale the widget geometry constants in place (100 keeps them exact)."""
+    factor = percent / 100.0
+    for base, target in ((BASE_RIBBON, RIBBON), (BASE_ICON, ICON)):
+        for key, value in base.items():
+            if isinstance(value, int):
+                target[key] = max(1, round(value * factor))
 
 
 def global_stylesheet() -> str:
@@ -1063,7 +1100,12 @@ def _indicator_rules(c: dict) -> str:
     QPlainTextEdit:focus, QTextEdit:focus, QAbstractItemView:focus {{
         border: 2px solid {c['accent']};
     }}
-    QPushButton:focus, QToolButton:focus {{
+    QPushButton:focus, QToolButton:focus, QCheckBox:focus,
+    QRadioButton:focus {{
         border: 2px solid {c['accent']};
+    }}
+    QCheckBox, QRadioButton {{
+        border: 2px solid transparent;
+        padding: 1px;
     }}
     """

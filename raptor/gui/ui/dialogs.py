@@ -1003,12 +1003,11 @@ def show_preferences(win):
     palette_key = str(palette_box.currentData() or _palette.DEFAULT)
     palette_changed = _settings.get("appearance/chart_palette", _palette.DEFAULT) != palette_key
     _settings.set_value("appearance/chart_palette", palette_key)
+    old_scale = _settings.get_int("appearance/ui_scale", 100)
     _settings.set_value("appearance/ui_scale", scale.currentData())
     _settings.set_value("appearance/high_contrast", contrast.isChecked())
     from raptor.gui.resources.design_tokens import ThemeManager
-    theme = ThemeManager.instance()
-    theme.set_scale(int(scale.currentData()))
-    theme.set_high_contrast(contrast.isChecked())
+    ThemeManager.instance().set_high_contrast(contrast.isChecked())
     _palette.set_active(palette_key)
     if palette_changed:
         results = getattr(win, "_results", None)
@@ -1047,7 +1046,12 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
-    win._statusbar.showMessage("Preferences saved")
+    if int(scale.currentData()) != old_scale:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to apply the "
+            "interface scale", 8000)
+    else:
+        win._statusbar.showMessage("Preferences saved")
 
 
 

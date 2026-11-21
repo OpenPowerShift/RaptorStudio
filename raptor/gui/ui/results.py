@@ -50,7 +50,9 @@ from raptor.api.tables import parse_final_sections
 from raptor.core.engine import weak_metric
 from raptor.gui.ui.event_log_model import HEADERS, EventLogModel
 from raptor.gui.ui.table_filter_bar import attach_if_large
-from raptor.gui.resources.design_tokens import ThemeManager, SPACING, TYPE, active_colour
+from raptor.gui.resources.design_tokens import (
+    ThemeManager, SPACING, TYPE, active_colour, px,
+)
 from raptor.gui.ui.results_pages_mixin import ResultsPagesMixin
 from raptor.gui.ui.results_graphs_mixin import ResultsGraphsMixin
 from raptor.gui.ui.results_raw_mixin import ResultsRawMixin
@@ -2255,7 +2257,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # summary in main_window.py: an unscoped background
             # declaration on a widget also paints the tooltip window
             # shown for it -- black tip box in light theme).
-            lbl.setStyleSheet(f"color: {text_colour}; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {text_colour}; font-size: {px(11)}px;")
 
     def _parse_final_sections(self, lines: list[str]):
         """-> [(section_title, [column_names], [(label, [values])])] for the
@@ -2544,13 +2546,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self.setStyleSheet(f"""
             QWidget {{ background: {c['surface']}; }}
             QLabel#ResultsPlaceholder {{
-                color: {c['muted']}; font-size: {TYPE['body']}px; background: transparent;
+                color: {c['muted']}; font-size: {px(TYPE['body'])}px; background: transparent;
             }}
             QLabel#SummarySentence {{
-                color: {c['text']}; font-size: {TYPE['body']}px; background: transparent;
+                color: {c['text']}; font-size: {px(TYPE['body'])}px; background: transparent;
             }}
             QLabel#GYRLabel {{
-                color: {c['muted']}; font-size: {TYPE['caption']}px; background: transparent;
+                color: {c['muted']}; font-size: {px(TYPE['caption'])}px; background: transparent;
             }}
             QFrame#MetricCard {{
                 background: {c['canvas']};
@@ -2558,17 +2560,17 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 border-radius: 8px;
             }}
             QLabel#MetricTitle {{
-                color: {c['muted']}; font-size: {TYPE['caption']}px;
+                color: {c['muted']}; font-size: {px(TYPE['caption'])}px;
                 font-weight: 600; background: transparent;
             }}
             QLabel#MetricValue {{
-                color: {c['text']}; font-size: 22px; font-weight: 700; background: transparent;
+                color: {c['text']}; font-size: {px(22)}px; font-weight: 700; background: transparent;
             }}
             QLabel#MetricRange {{
-                color: {c['muted']}; font-size: 10px; background: transparent;
+                color: {c['muted']}; font-size: {px(10)}px; background: transparent;
             }}
             QLabel#MetricCaption {{
-                color: {c['muted']}; font-size: 11px; background: transparent;
+                color: {c['muted']}; font-size: {px(11)}px; background: transparent;
             }}
             QTreeWidget {{
                 background: {c['surface']}; color: {c['text']};
@@ -2580,16 +2582,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 border-radius: 8px;
             }}
             QLabel#SectionTitle {{
-                color: {c['text']}; font-size: {TYPE['label']}px;
+                color: {c['text']}; font-size: {px(TYPE['label'])}px;
                 font-weight: 700; background: transparent;
             }}
             QLabel#TableTitle {{
-                color: {c['text']}; font-size: {TYPE['body'] + 2}px;
+                color: {c['text']}; font-size: {px(TYPE['body'] + 2)}px;
                 font-weight: 600; background: transparent;
                 padding-top: 6px;
             }}
             QLabel#SectionNote {{
-                color: {c['muted']}; font-size: 11px; background: transparent;
+                color: {c['muted']}; font-size: {px(11)}px; background: transparent;
             }}
             QTableWidget {{
                 background: {c['surface']}; color: {c['text']};
@@ -2604,7 +2606,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             QPushButton {{
                 background: {c['canvas']}; color: {c['text']};
                 border: 1px solid {c['border']}; border-radius: 4px;
-                padding: 3px 10px; font-size: 11px;
+                padding: {px(3)}px {px(10)}px; font-size: {px(11)}px;
             }}
             QPushButton:hover {{
                 border-color: {c['accent']}; color: {c['accent']};

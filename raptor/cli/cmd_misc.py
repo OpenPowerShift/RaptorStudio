@@ -121,7 +121,7 @@ def config_path() -> Path:
     return Path(base) / "raptor-studio" / "config.toml"
 
 
-def config_command(args: Any) -> int:
+def config_command(args: Any) -> int:  # noqa: C901
     if args.action == "path":
         print(config_path())
         return X.OK
@@ -144,6 +144,15 @@ def config_command(args: Any) -> int:
         v: Any = args.value
         low = v.lower()
         v = True if low == "true" else False if low == "false" else v
+        if args.key == "appearance/ui_scale":
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise CliError("appearance/ui_scale must be 100..200",
+                               X.USAGE) from None
+            if not 100 <= v <= 200:
+                raise CliError("appearance/ui_scale must be 100..200",
+                               X.USAGE)
         settings.set_value(args.key, v)
     elif args.action == "unset":
         settings.remove(args.key)

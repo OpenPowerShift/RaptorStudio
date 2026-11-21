@@ -738,7 +738,10 @@ if WEBENGINE_OK:
 """
 
         def refresh_theme(self, dark: bool) -> None:
-            """Follow the app's light/dark toggle (see _DARK_VARS_JS)."""
+            """Follow the app's light/dark toggle and interface scale."""
+            from raptor.gui.resources.design_tokens import ThemeManager
+            scale = ThemeManager.instance().scale
+            self._view.setZoomFactor(max(1.0, min(2.0, scale / 100.0)))
             self._view.page().runJavaScript(
                 self._DARK_VARS_JS if dark else self._LIGHT_VARS_JS)
 
