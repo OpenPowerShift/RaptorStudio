@@ -367,11 +367,22 @@ class BackgroundRunMixin(_Base):
                             state["stage"] = ("downtime drivers", p.done,
                                              p.total)
 
+                        class _BatchStop:
+                            """Stop *and Pause* land during the replay.
+
+                            `stop_check` is the same check the runs use: it
+                            blocks while the run is paused and returns True
+                            once Stop is pressed.
+                            """
+
+                            def is_set(inner) -> bool:
+                                return stop_check()
+
                         attribution = attribute_batch(
                             bg_model, logs, start_stats=start,
                             capacity_lines=streams.get("capacity"),
                             units=units, progress=drivers_progress,
-                            abort=stop_ev)
+                            abort=_BatchStop())
                     except Cancelled:
                         attribution = None
                     except Exception as exc:      # noqa: BLE001

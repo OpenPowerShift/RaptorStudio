@@ -34,6 +34,8 @@ EMPTY_TEXT = ("See what causes the downtime: which elements start the outages, a
 NO_OUTAGE_TEXT = "No system outage occurred in {runs:,} runs, so there is no downtime to explain."
 NO_OUTAGE_CAPACITY_TEXT = ("The system never went Red in {runs:,} runs, but some demand was "
                           "still not delivered: the capacity loss is below.")
+CANCELLED_TEXT = ("Working out the downtime drivers was cancelled. Open this tab "
+                  "again to work them out from the event log this run recorded.")
 TOP_ELEMENTS = 8
 ROW_H = 22
 ANATOMY_H = 260
@@ -560,6 +562,17 @@ class DriversPage(QWidget):
                 f"± 2 standard errors".replace("  ", " "))
         else:
             self.footer.setText("")
+
+    def set_unavailable(self, text: str) -> None:
+        """No attribution, for a reason other than a missing event log.
+
+        The "turn the event log on" prompt is right only when the log is
+        missing; after a cancelled pass the log exists and the user needs
+        the real reason instead.
+        """
+        self.set_attribution(None)
+        self.turn_on.setVisible(False)
+        self.caption.setText(text)
 
     def set_highlight(self, kind: str, element_id: int) -> None:
         """Mark one element row as selected on the canvas."""

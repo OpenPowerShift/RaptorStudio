@@ -29,6 +29,7 @@ import weakref
 
 from raptor.api import run_needs
 from raptor.api.presentation import probability_text
+from raptor.gui.ui.drivers_page import CANCELLED_TEXT
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
@@ -181,7 +182,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
-        #: An attribution computed by the run (or restored from an archive)
+        #: An attribution computed by the run (worker or synchronous path)
         #: before the pages were populated; applied instead of replaying.
         self._precomputed_attribution: dict | None = None
         self._period_summary: dict | None = None
@@ -1346,6 +1347,18 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         page = getattr(self, "_drivers_page", None)
         return page.attribution() if page is not None else None
 
+    def _clear_drivers(self) -> None:
+        """Forget the drivers on screen (no log, deferred, or failed).
+
+        Clears the outage timeline and the period summary too: the Story
+        and the Charts read all three, and a new result set must never be
+        shown with the previous one's drivers.
+        """
+        self._outages = None
+        self._period_summary = None
+        self._drivers_page.set_attribution(None)
+        self._drivers_page.set_periods(None)
+
     def _refresh_drivers(self) -> None:
         """Work out what caused the downtime from this result set's event logs."""
         self._drivers_stale = False
@@ -1353,15 +1366,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._period_summary = None
         ready = self._precomputed_attribution
         if ready is not None:
+            # Worked out by the run itself: apply it, never replay.
             self._precomputed_attribution = None
-            self._apply_attribution(dict(ready))
+            self._apply_attribution(ready)
             return
         logs = [log for log in (self._event_logs or []) if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
-            self._drivers_page.set_attribution(None)
-            self._drivers_page.set_periods(None)
+            self._clear_drivers()
             return
         from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
         experiment = (self._manifest or {}).get("experiment") or {}
         total_lines = sum(len(log) for log in logs)
         big = total_lines > self.DRIVERS_EAGER_LINES
@@ -1380,14 +1394,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             progress.show()
             QApplication.processEvents()
 
-        class _Cancelled(Exception):
-            pass
-
         def show(p) -> None:
             if progress is None:
                 return
             if progress.wasCanceled():
-                raise _Cancelled()
+                raise Cancelled()
             if p.total:
                 progress.setMaximum(int(p.total))
             progress.setValue(int(p.done))
@@ -1404,16 +1415,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 rbd, logs, start_stats=start,
                 capacity_lines=getattr(self, "_cap_lines", None),
                 units=getattr(self, "_units", ""), progress=show)
-        except _Cancelled:
-            # Cancelling the extra pass must not lose the results.
-            self._drivers_page.set_attribution(None)
+        except Cancelled:
+            # Cancelling the extra pass must not lose the results. Say so
+            # instead of showing the "turn the event log on" prompt: the
+            # log is there, this pass was declined.
+            self._outages = None
+            self._period_summary = None
+            self._drivers_page.set_unavailable(CANCELLED_TEXT)
             self._drivers_page.set_periods(None)
             self._drivers_stale = True
             return
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
-            self._drivers_page.set_attribution(None)
+            self._clear_drivers()
             return
         finally:
             if progress is not None:
@@ -1422,8 +1437,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if big:
                 QApplication.restoreOverrideCursor()
         if attribution is None:
-            self._drivers_page.set_attribution(None)
-            self._drivers_page.set_periods(None)
+            self._clear_drivers()
             return
         self._apply_attribution(attribution)
 
@@ -1469,6 +1483,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if showing or lines <= self.DRIVERS_EAGER_LINES:
             self._refresh_drivers()
         else:
+            # Deferred: drop the previous run's drivers now, so the Story
+            # and the Charts cannot read them for this result set.
+            self._clear_drivers()
             self._drivers_stale = True
 
     @property
@@ -1537,7 +1554,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._event_logs = []
         self._drivers_stale = False
         self._precomputed_attribution = None
-        self._drivers_page.set_attribution(None)
+        self._clear_drivers()
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1607,8 +1624,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
-        #: Worked out once by the run (or restored with the results). The
-        #: Drivers page applies it rather than replaying the event log.
+        #: Worked out once by the run. The Drivers page applies it rather
+        #: than replaying the event log.
         self._precomputed_attribution = (
             dict(attribution) if attribution else None)
         # The run on screen until now becomes "the run before" -- unless

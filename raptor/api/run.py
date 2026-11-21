@@ -738,9 +738,7 @@ def run(
             "what drives the downtime.")
         attribution = False
     if attribution:
-        from raptor.api.insight.attribution import (
-            attribute_logs, model_hierarchies, model_phases,
-        )
+        from raptor.api.insight.attribution import attribute_batch
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         from raptor.api.progress import Cancelled
@@ -748,11 +746,15 @@ def run(
             capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
                                            capacity_rule, abort=abort,
                                            progress=insight_progress)
-            attributed = attribute_logs(
+            # The same end-of-run pass the GUI's worker and its synchronous
+            # path use, so the capacity split, phases, hierarchies and unit
+            # label cannot differ between the surfaces.
+            attributed = attribute_batch(
+                sim_rbd,
                 [log if isinstance(log, list) else [log] for log in event_logs],
-                float(experiment.get("start_stats") or 0.0), abort=abort,
-                progress=insight_progress, with_outages=True, capacity=capacity_runs,
-                phases=model_phases(sim_rbd), hierarchies=model_hierarchies(sim_rbd))
+                start_stats=float(experiment.get("start_stats") or 0.0),
+                capacity=capacity_runs, units=model_units(sim_rbd),
+                abort=abort, progress=insight_progress)
         except Cancelled:
             # stopped during the replay: the simulated runs are still kept
             attributed = None
@@ -762,7 +764,6 @@ def run(
                 "again with fewer runs, or a longer limit, to see what drives "
                 "the downtime.")
     if attribution and attributed is not None:
-        attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
         outages = attributed.pop("outages", None)
