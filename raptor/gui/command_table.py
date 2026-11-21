@@ -78,6 +78,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+N",
         enabled_when="not_running"),
     CommandSpec(
+        id="file.history",
+        attr="_history_action",
+        text="Version History…",
+        icon="history_clock_icon:text",
+        tooltip=(
+            "Browse versions saved automatically on save; open one as a "
+            "copy or restore it to the file"),
+        handler="_open_history_dialog",
+        enabled_when="has_file"),
+    CommandSpec(
         id="file.close_file",
         shortcut="Ctrl+W",
         attr="_close_file_action",
@@ -1497,7 +1507,8 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save",
-              "file.save_as", "file.close_file", "file.quit", "home.diff")),
+              "file.save_as", "file.history", "file.close_file",
+              "file.quit", "home.diff")),
     # Other tools' files opened as a new model: one tile per format, so a
     # new importer is one more id here.
     ("Import", ("file.import_awb",)),

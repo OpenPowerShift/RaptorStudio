@@ -41,6 +41,23 @@ def add_parser(sub: Any) -> None:
     d.add_argument("-f", "--format", choices=("text", "json"), default="text")
     d.set_defaults(func=doctor_command)
 
+    h = sub.add_parser(
+        "history", help="list, snapshot or restore saved versions of a model",
+        description="Version history kept by the desktop application on save. "
+                    "Snapshots live in the user's private state folder, not "
+                    "beside the model.")
+    h.add_argument("model", metavar="MODEL")
+    h.add_argument("--snapshot", action="store_true",
+                   help="record the file as it is now")
+    h.add_argument("--restore", metavar="SNAPSHOT",
+                   help="write this snapshot to --output (or --force over MODEL)")
+    h.add_argument("-o", "--output", metavar="PATH",
+                   help="destination for --restore")
+    h.add_argument("--force", action="store_true",
+                   help="allow --restore to overwrite MODEL")
+    h.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    h.set_defaults(func=history_command)
+
     r = sub.add_parser(
         "register-file-types",
         help="open .rbds and .rbd files with RAPTOR Studio (this user only)",
@@ -56,6 +73,47 @@ def add_parser(sub: Any) -> None:
     r.add_argument("--dry-run", action="store_true",
                    help="list the changes without making them")
     r.set_defaults(func=register_file_types_command)
+
+
+def history_command(args: Any) -> int:
+    from raptor.api import history
+    model = Path(args.model)
+    if args.snapshot:
+        if not model.is_file():
+            raise CliError(f"file not found: {model}", X.USAGE)
+        shot = history.record(model, reason="manual")
+        if shot is None:
+            print("nothing to record: the file is identical to the latest version")
+        else:
+            print(f"recorded {shot.id} ({shot.size_text()})")
+        return X.OK
+    if args.restore:
+        if not args.output and not args.force:
+            raise CliError("--restore needs -o/--output, or --force to "
+                           "overwrite the model", X.USAGE)
+        try:
+            target = history.restore(model, args.restore,
+                                     args.output or model)
+        except FileNotFoundError as exc:
+            raise CliError(str(exc), X.USAGE) from exc
+        print(f"restored {target}")
+        return X.OK
+    shots = history.snapshots(model)
+    if args.format == "json":
+        emit_json({"schema": "raptor-history/1", "model": str(model),
+                   "snapshots": [
+                       {"id": s.id, "created": s.created, "reason": s.reason,
+                        "label": s.label, "bytes": s.bytes, "sha256": s.sha256}
+                       for s in shots]}, None)
+        return X.OK
+    if not shots:
+        print(f"no saved versions of {model}")
+        return X.OK
+    for shot in shots:
+        label = f"  {shot.label}" if shot.label else ""
+        print(f"{shot.id}  {shot.time_text()}  {shot.reason:<8} "
+              f"{shot.size_text():>9}{label}")
+    return X.OK
 
 
 def register_file_types_command(args: Any) -> int:
