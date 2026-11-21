@@ -790,7 +790,8 @@ class FileIoMixin(_Base):
             try:
                 # Keep the state being replaced, even if it was never saved
                 # through History (an external change or an old file).
-                history.record(self._current_file, reason="before restore")
+                if Path(self._current_file).is_file():
+                    history.record(self._current_file, reason="before restore")
                 history.restore(self._current_file, snapshot.id)
                 restored = self._open_model_any(self._current_file)
                 self._load_into_app(restored, self._current_file)

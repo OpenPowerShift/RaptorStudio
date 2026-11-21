@@ -209,3 +209,18 @@ def test_index_entries_cannot_point_outside_the_history_folder(tmp_path):
                                  id="escape", stored="../outside.rbds"))
     index.write_text(json.dumps(doc), encoding="utf-8")
     assert [s.id for s in store.snapshots(path)] == [shot.id]
+
+
+def test_recovered_index_survives_repeated_lists_and_a_new_record(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path)
+    path.write_text("model-v2", encoding="utf-8")
+    second = store.record(path)
+    store._index_path(path).write_text("not json", encoding="utf-8")
+    assert {s.id for s in store.snapshots(path)} == {first.id, second.id}
+    assert {s.id for s in store.snapshots(path)} == {first.id, second.id}
+    path.write_text("model-v3", encoding="utf-8")
+    store.record(path)
+    ids = {s.id for s in store.snapshots(path)}
+    assert {first.id, second.id} <= ids

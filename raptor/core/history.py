@@ -195,7 +195,7 @@ class HistoryStore:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            raw = {}
+            raw = {"version": INDEX_VERSION, "file": str(file), "snapshots": []}
         except (OSError, ValueError):
             # Keep the damaged index for diagnosis; rebuild what the file
             # names can tell us so snapshots are not lost.
@@ -207,8 +207,8 @@ class HistoryStore:
                 pass
             raw = self._rebuild_index(file)
         if not isinstance(raw, dict) or not isinstance(raw.get("snapshots"), list):
-            raw = {"version": INDEX_VERSION, "file": str(file), "snapshots": []}
-        raw["snapshots"] = [entry for entry in raw["snapshots"]
+            raw = self._rebuild_index(file)
+        raw["snapshots"] = [entry for entry in raw.get("snapshots", [])
                             if self._safe_stored(entry)]
         return raw
 
@@ -254,6 +254,12 @@ class HistoryStore:
         """Newest first."""
         folder = self._folder(file)
         doc = self._read_index(file)
+        if not doc.get("snapshots") and any(folder.glob("*.rb*")):
+            doc = self._rebuild_index(file)
+            try:
+                self._write_index(file, doc)     # persist the recovery
+            except OSError:
+                pass
         out: list[Snapshot] = []
         for entry in doc.get("snapshots", []):
             if not isinstance(entry, dict):
@@ -441,14 +447,14 @@ class HistoryStore:
                     kept.append(entry)
             if removed is None:
                 return False
+            doc["snapshots"] = kept
+            self._write_index(file, doc)
             name = str(removed.get("stored") or "")
             if name:
                 try:
                     (self._folder(file) / name).unlink()
                 except OSError:
                     pass
-            doc["snapshots"] = kept
-            self._write_index(file, doc)
             return True
 
 

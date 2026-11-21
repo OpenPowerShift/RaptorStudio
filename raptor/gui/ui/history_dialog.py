@@ -1,6 +1,7 @@
 """Version History: browse, preview, open, restore or delete snapshots."""
 from __future__ import annotations
 
+import html
 from pathlib import Path
 from typing import Any
 
@@ -172,7 +173,7 @@ class HistoryDialog(QDialog):
         self._details.setText(
             f"<b>{shot.time_text()}</b> · {shot.reason} · {shot.size_text()}"
             + (" · <i>current version</i>" if current else "")
-            + (f"<br>{shot.label}" if shot.label else ""))
+            + (f"<br>{html.escape(shot.label)}" if shot.label else ""))
         try:
             with open(shot.path, encoding="utf-8", errors="replace") as f:
                 text = f.read(200_000)
