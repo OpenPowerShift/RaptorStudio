@@ -740,25 +740,42 @@ class FileIoMixin(_Base):
                 "model — Save As to keep it", 10000)
             return
         if dialog.action == "restore":
+            if self._refuse_during_run("restore a version"):
+                return
+            if getattr(self._rbd, "protected_file", False):
+                msgbox.warning(
+                    self, "Protected File",
+                    "This model is marked as overwrite-protected: it cannot "
+                    "be restored. Save a copy instead.")
+                return
             from raptor.gui.ui.dialogs import question_box
+            # Ask about the unsaved work FIRST: saving it must not write
+            # the model a second later overwrites.
+            if not self._confirm_discard_unsaved(closing=True):
+                return
             if not question_box(
                     self, "Restore Version",
                     f"Replace {Path(self._current_file).name} with the version "
-                    f"from {snapshot.time_text()}?\n\nThis cannot be undone "
-                    "by Undo; older versions stay in History.",
+                    f"from {snapshot.time_text()}?\n\nThe current file is "
+                    "recorded in History first, so this is reversible.",
                     yes_text="Restore version", no_text="Cancel"):
                 return
-            if not self._confirm_discard_unsaved(closing=True):
-                return
             try:
+                # Keep the state being replaced, even if it was never saved
+                # through History (an external change or an old file).
+                history.record(self._current_file, reason="before restore")
                 history.restore(self._current_file, snapshot.id)
+                restored = self._open_model_any(self._current_file)
+                self._load_into_app(restored, self._current_file)
+                self._undo_stack.setClean()
+                self._dirty = False
+                self._record_history(self._current_file, reason="restored")
             except Exception as exc:  # noqa: BLE001
                 msgbox.critical(self, "Restore Failed",
                                 f"Could not restore the version:\n\n{exc}")
                 return
             self._statusbar.showMessage(
-                f"Restored version from {snapshot.time_text()}", 6000)
-            self._open_path(self._current_file)
+                f"Restored version from {snapshot.time_text()}", 8000)
 
     def _save_file(self):
         if self._rbd is None:

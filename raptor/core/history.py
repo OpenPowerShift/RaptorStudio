@@ -17,6 +17,7 @@ import json
 import os
 import tempfile
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +30,26 @@ DEFAULT_KEEP = 30
 #: ... and never let one file's history exceed this many bytes.
 DEFAULT_MAX_BYTES = 50 * 1024 * 1024
 INDEX_VERSION = 1
+
+
+@contextmanager
+def _file_lock(path: Path):
+    """Best-effort inter-process lock beside the index."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a+", encoding="utf-8") as handle:
+        try:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        except (ImportError, OSError):
+            pass
+        try:
+            yield
+        finally:
+            try:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except (ImportError, OSError):
+                pass
 
 
 class HistoryError(Exception):
@@ -62,7 +83,13 @@ class Snapshot:
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
+    # Write through a symlink rather than replacing the link itself.
+    path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        previous = path.stat()
+    except OSError:
+        previous = None
     fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".part",
                                dir=str(path.parent))
     try:
@@ -70,7 +97,24 @@ def _atomic_write(path: Path, data: bytes) -> None:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
+        if previous is not None:
+            try:
+                os.chmod(tmp, previous.st_mode)
+            except OSError:
+                pass
+            try:
+                os.chown(tmp, previous.st_uid, previous.st_gid)
+            except (AttributeError, OSError):
+                pass
         os.replace(tmp, path)
+        try:
+            dir_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass
     except BaseException:
         try:
             os.unlink(tmp)
@@ -107,11 +151,40 @@ class HistoryStore:
         path = self._index_path(file)
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except FileNotFoundError:
             raw = {}
+        except (OSError, ValueError):
+            # Keep the damaged index for diagnosis; rebuild what the file
+            # names can tell us so snapshots are not lost.
+            try:
+                os.replace(path, path.with_name(
+                    path.name + ".corrupt-" + str(int(os.stat(path).st_mtime))))
+            except OSError:
+                pass
+            raw = self._rebuild_index(file)
         if not isinstance(raw, dict) or not isinstance(raw.get("snapshots"), list):
             raw = {"version": INDEX_VERSION, "file": str(file), "snapshots": []}
         return raw
+
+    def _rebuild_index(self, file: str | Path) -> dict[str, Any]:
+        entries = []
+        folder = self._folder(file)
+        for path in sorted(folder.glob("*.rb*")):
+            if path.suffix not in (".rbds", ".rbd"):
+                continue
+            sid = path.stem
+            stamp = sid.split("-", 1)[0]
+            try:
+                created = f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T" \
+                          f"{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}"
+            except Exception:  # noqa: BLE001
+                created = ""
+            entries.append({"id": sid, "file": str(file), "created": created,
+                            "reason": "recovered", "label": "",
+                            "bytes": path.stat().st_size, "sha256": "",
+                            "stored": path.name})
+        return {"version": INDEX_VERSION, "file": str(file),
+                "snapshots": entries}
 
     def _write_index(self, file: str | Path, doc: dict[str, Any]) -> None:
         _atomic_write(self._index_path(file),
@@ -160,7 +233,7 @@ class HistoryStore:
         except OSError as exc:
             raise HistoryError(f"cannot read {path}: {exc}") from exc
         digest = hashlib.sha256(payload).hexdigest()
-        with self._lock:
+        with self._lock, _file_lock(self._folder(path) / "index.lock"):
             existing = self.snapshots(path)
             if existing and existing[0].sha256 == digest:
                 return None
@@ -227,8 +300,14 @@ class HistoryStore:
     def restore(self, snapshot: Snapshot, target: str | Path | None = None
                 ) -> Path:
         """Write the snapshot over `target` (default: its original file)."""
+        payload = self.read(snapshot)
+        if snapshot.sha256 and hashlib.sha256(payload).hexdigest() \
+                != snapshot.sha256:
+            raise HistoryError(
+                f"snapshot {snapshot.id} is damaged (checksum mismatch); "
+                "the target was not changed")
         destination = Path(target) if target is not None else Path(snapshot.file)
-        _atomic_write(destination, self.read(snapshot))
+        _atomic_write(destination, payload)
         return destination
 
     def discard(self, file: str | Path, snapshot_id: str) -> bool:

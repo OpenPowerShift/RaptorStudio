@@ -75,7 +75,7 @@ def add_parser(sub: Any) -> None:
     r.set_defaults(func=register_file_types_command)
 
 
-def history_command(args: Any) -> int:
+def history_command(args: Any) -> int:  # noqa: C901
     from raptor.api import history
     model = Path(args.model)
     if args.snapshot:
@@ -91,6 +91,9 @@ def history_command(args: Any) -> int:
         if not args.output and not args.force:
             raise CliError("--restore needs -o/--output, or --force to "
                            "overwrite the model", X.USAGE)
+        if args.output and Path(args.output).exists() and not args.force:
+            raise CliError(f"{args.output} exists; add --force to overwrite",
+                           X.USAGE)
         try:
             target = history.restore(model, args.restore,
                                      args.output or model)
@@ -98,6 +101,8 @@ def history_command(args: Any) -> int:
             raise CliError(str(exc), X.USAGE) from exc
         print(f"restored {target}")
         return X.OK
+    if not model.is_file():
+        raise CliError(f"file not found: {model}", X.USAGE)
     shots = history.snapshots(model)
     if args.format == "json":
         emit_json({"schema": "raptor-history/1", "model": str(model),

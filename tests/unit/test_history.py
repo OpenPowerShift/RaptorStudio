@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from raptor.core.history import HistoryStore
 
 
@@ -96,3 +98,41 @@ def test_the_cli_lists_snapshots_and_restores_a_copy(tmp_path, monkeypatch, caps
                  "-o", str(copy)]) == 0
     assert copy.read_text() == "model-v1"
     assert "restored" in capsys.readouterr().out
+
+
+def test_restore_checks_the_checksum_and_leaves_the_target_alone(tmp_path):
+    from raptor.core.history import HistoryError
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path)
+    shot.path.write_bytes(b"corrupt")
+    before = path.read_text()
+    with pytest.raises(HistoryError, match="checksum"):
+        store.restore(shot)
+    assert path.read_text() == before
+
+
+def test_restore_preserves_mode_and_writes_through_a_symlink(tmp_path):
+    real = _model(tmp_path)
+    real.chmod(0o664)
+    link = tmp_path / "link.rbds"
+    link.symlink_to(real)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(real)
+    real.write_text("new", encoding="utf-8")
+    store.restore(shot, link)
+    assert link.is_symlink()
+    assert real.read_text() == "model-v1"
+    assert (real.stat().st_mode & 0o777) == 0o664
+
+
+def test_a_corrupt_index_is_recovered_from_snapshot_files(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path)
+    path.write_text("model-v2", encoding="utf-8")
+    second = store.record(path)
+    store._index_path(path).write_text("not json", encoding="utf-8")
+    shots = store.snapshots(path)
+    assert {s.id for s in shots} == {first.id, second.id}
+    assert all(s.reason == "recovered" for s in shots)
