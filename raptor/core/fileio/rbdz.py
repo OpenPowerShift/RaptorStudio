@@ -66,6 +66,8 @@ DEFAULT_COMPRESSION = "balanced"
 MAX_ENTRIES = 10_000
 #: Refuse an archive whose declared uncompressed size is above this.
 MAX_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024
+#: The model itself is held in RAM; keep it under the API's model cap.
+MAX_MODEL_BYTES = 64 * 1024 * 1024
 #: The manifest is small metadata; a huge one is malformed, not a plan.
 MAX_MANIFEST_BYTES = 8 * 1024 * 1024
 #: Files smaller than this are cheaper to deflate (and stay readable by

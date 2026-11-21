@@ -609,7 +609,19 @@ class FileIoMixin(_Base):
             from raptor.core.fileio.rbdz import write_archive
             rbd = req(self._rbd)
             rbd.file_name = Path(path).with_suffix(".rbds").name
-            sources = self._results.archive_payload()
+            sources = self._results.archive_payload() or {}
+            # Preserve entries from the opened archive that the dock does
+            # not regenerate (ids, data files, future entries).
+            old_files = getattr(self, "_archive_files", None) or {}
+            for name, source in old_files.items():
+                sources.setdefault(name, source)
+            if not sources and getattr(self, "_archive_had_results", False):
+                msgbox.warning(
+                    self, "Archive Results Not Replaced",
+                    "This archive's saved results could not be restored, so "
+                    "saving here would discard them. Use Save As to a new "
+                    "file, or re-open the archive to recover them.")
+                return False
             created = datetime.now().isoformat(timespec="seconds")
             manifest: dict[str, Any] = {
                 "model": {"file_name": Path(path).name},
@@ -760,6 +772,8 @@ class FileIoMixin(_Base):
         """Drop the extracted result files of a previously opened `.rbdz`."""
         temp = getattr(self, "_archive_temp", None)
         self._archive_temp = None
+        self._archive_files = {}
+        self._archive_had_results = False
         if temp is not None:
             try:
                 temp.cleanup()
@@ -800,6 +814,8 @@ class FileIoMixin(_Base):
             except (OSError, ValueError):
                 summary = {}
         self._archive_temp = temp
+        self._archive_files = dict(files)
+        self._archive_had_results = True
         shown = self._results.set_archive_results(
             files, summary if isinstance(summary, dict) else {}, rbd=self._rbd)
         if shown:
