@@ -623,7 +623,7 @@
     </message>
     <message>
       <source>Share of downtime</source>
-      <translation>Participação no tempo de inatividade</translation>
+      <translation>Parcela da inatividade</translation>
     </message>
     <message>
       <source>Lost capacity</source>
@@ -854,7 +854,7 @@
     </message>
     <message>
       <source>Both modes with the current settings in one workbook; the other mode is worked out first if it has not been</source>
-      <translation>Ambos os modos com as configurações atuais em uma pasta de trabalho; o outro modo é calculado primeiro se ainda não tiver sido</translation>
+      <translation>Ambos os modos com as configurações atuais em uma pasta de trabalho; o outro modo é calculado primeiro se ainda não tiver sido calculado</translation>
     </message>
     <message>
       <source>Settings</source>
@@ -906,7 +906,7 @@
     </message>
     <message>
       <source>Comma-separated percentages. B10 is the time by which 10 % of systems have failed.</source>
-      <translation>Percentuais separados por vírgula. B10 é o tempo até 10 % dos sistemas falharem.</translation>
+      <translation>Percentuais separados por vírgula. B10 é o tempo em que 10 % dos sistemas já falharam.</translation>
     </message>
     <message>
       <source>Importance measures</source>
@@ -914,7 +914,7 @@
     </message>
     <message>
       <source>Exact Birnbaum, RAW, RRW, Fussell–Vesely and criticality for every element.</source>
-      <translation>Birnbaum exato, RAW, RRW, Fussell–Vesely e criticalidade para cada elemento.</translation>
+      <translation>Birnbaum exato, RAW, RRW, Fussell–Vesely e criticidade para cada elemento.</translation>
     </message>
     <message>
       <source>Equation</source>
@@ -990,7 +990,7 @@
     </message>
     <message>
       <source>A dependent element is normally refused. Choose whether every dependency is up (analyse the dependent element's own law as independent) or down (remove it from the success path).</source>
-      <translation>Um elemento dependente normalmente é recusado. Escolha se toda dependência está ativa (analisa a lei própria do elemento dependente como independente) ou inativa (remove o elemento do caminho de sucesso).</translation>
+      <translation>Um elemento dependente normalmente é recusado. Escolha se toda dependência está ativa (analisar a lei própria do elemento dependente como independente) ou inativa (remove o elemento do caminho de sucesso).</translation>
     </message>
     <message>
       <source>Treat as up</source>
@@ -1006,7 +1006,7 @@
     </message>
     <message>
       <source>Analyse the whole model, or one hierarchy on its own. The hierarchy's In node is treated as the system Start and its Out node as the End, so its input is assumed always available; everything outside the hierarchy is left out.</source>
-      <translation>Analisar o modelo inteiro ou uma hierarquia isoladamente. O nó de entrada da hierarquia é tratado como o Start do sistema e o nó de saída como o End, então sua entrada é presumida sempre disponível; tudo fora da hierarquia fica de fora.</translation>
+      <translation>Analisar o modelo inteiro ou uma hierarquia isoladamente. O nó de entrada da hierarquia é tratado como o Start do sistema e o nó de saída como o End, então sua entrada é presumida sempre disponível; tudo o que está fora da hierarquia é omitido.</translation>
     </message>
     <message>
       <source>Maximum elements</source>
@@ -1474,7 +1474,7 @@
     </message>
     <message>
       <source>Filter the chart list by title or group (Esc clears)</source>
-      <translation>Filtrar a lista de gráficos por título ou grupo (Esc limpa)</translation>
+      <translation>Filtrar a lista de gráficos por título ou grupo (Esc limpa o filtro)</translation>
     </message>
     <message>
       <source>Scope: System</source>
@@ -1482,15 +1482,15 @@
     </message>
     <message>
       <source>Show the charts for the whole system or for one hierarchy. It follows the canvas unless you pick a scope here.</source>
-      <translation>Mostrar os gráficos do sistema inteiro ou de uma hierarquia. Segue a tela, a menos que você escolha um escopo aqui.</translation>
+      <translation>Mostrar os gráficos do sistema inteiro ou de uma hierarquia. Segue o diagrama, a menos que você escolha um escopo aqui.</translation>
     </message>
     <message>
       <source>Follow canvas</source>
-      <translation>Seguir a tela</translation>
+      <translation>Seguir o diagrama</translation>
     </message>
     <message>
       <source>When on, drilling into a hierarchy on the canvas changes the chart scope too</source>
-      <translation>Quando ativado, aprofundar-se em uma hierarquia na tela também altera o escopo dos gráficos</translation>
+      <translation>Quando ativado, aprofundar-se em uma hierarquia no diagrama também altera o escopo dos gráficos</translation>
     </message>
     <message>
       <source>Hierarchy depth</source>
@@ -1498,7 +1498,7 @@
     </message>
     <message>
       <source>Depth: ranking charts show one level; the treemap and sunburst grow this many levels.  All levels shows the whole tree.</source>
-      <translation>Profundidade: os gráficos de ranking mostram um nível; o mapa de árvore e o sunburst crescem esta quantidade de níveis.  Todos os níveis mostra a árvore inteira.</translation>
+      <translation>Profundidade: os gráficos de ranking mostram um nível; o mapa de árvore e o sunburst se expandem por esta quantidade de níveis.  A opção Todos os níveis mostra a árvore inteira.</translation>
     </message>
     <message>
       <source>Nested hierarchy layout</source>
@@ -1566,7 +1566,7 @@
     </message>
     <message>
       <source>Set current as baseline</source>
-      <translation>Definir atual como referência</translation>
+      <translation>Definir o atual como referência</translation>
     </message>
     <message>
       <source>Clear baseline</source>
@@ -1590,7 +1590,7 @@
     </message>
     <message>
       <source>A target capacity-weighted availability drawn on the year-by-year capacity chart. Saved in the model file; the simulation does not change.</source>
-      <translation>Uma disponibilidade ponderada por capacidade, desenhada no gráfico de capacidade ano a ano. Salva no arquivo do modelo; a simulação não muda.</translation>
+      <translation>Uma meta de disponibilidade ponderada por capacidade, desenhada no gráfico de capacidade ano a ano. Salva no arquivo do modelo; a simulação não muda.</translation>
     </message>
     <message>
       <source>Gather the tail into one "N others" row or cell: keep the top 10 or 20, keep a quartile, or take the smallest items until they are the last 5 % of the total. On screen and in what you save; the caption names the folded items</source>
@@ -1638,7 +1638,7 @@
     </message>
     <message>
       <source>A target availability drawn as a dashed line on these charts and judged in the Overview's Story (met or missed, and by how many runs). It is saved in the model file; it does not change the simulation.</source>
-      <translation>Uma disponibilidade meta desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
+      <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
     </message>
     <message>
       <source>Y axis</source>
@@ -1678,7 +1678,7 @@
     </message>
     <message>
       <source>Sparing</source>
-      <translation>Sobressalentes</translation>
+      <translation>Provisão de sobressalentes</translation>
     </message>
     <message>
       <source>Preventive Maintenance</source>
@@ -1710,7 +1710,7 @@
     </message>
     <message>
       <source>Save the currently visible table (the model's own INPUT data — Blocks/Costs/Nodes/Events/Spare Pools/Resources/Triggers/Phases) as a .csv — this grid had no export path before</source>
-      <translation>Salvar a tabela visível no momento (os dados de ENTRADA do próprio modelo — Blocos/Custos/Nós/Eventos/Pools de sobressalentes/Recursos/Gatilhos/Fases) como .csv — esta grade não tinha caminho de exportação</translation>
+      <translation>Salvar a tabela visível no momento (os dados de ENTRADA do próprio modelo — Blocos/Custos/Nós/Eventos/Pools de sobressalentes/Recursos/Gatilhos/Fases) como .csv — esta tabela não tinha caminho de exportação antes</translation>
     </message>
     <message>
       <source>Export Tables…</source>
@@ -1750,7 +1750,7 @@
     </message>
     <message>
       <source>Paste Here (at pointer)</source>
-      <translation>Colar aqui (no ponteiro)</translation>
+      <translation>Colar aqui (na posição do ponteiro)</translation>
     </message>
     <message>
       <source>Select All</source>
@@ -1854,7 +1854,7 @@
     </message>
     <message>
       <source>Cut hierarchy</source>
-      <translation>Cortar hierarquia</translation>
+      <translation>Recortar hierarquia</translation>
     </message>
     <message>
       <source>Copy hierarchy</source>
@@ -1986,7 +1986,7 @@
     </message>
     <message>
       <source>Which starting point a new model's experiment is seeded from</source>
-      <translation>De qual ponto de partida o experimento de um novo modelo é semeado</translation>
+      <translation>De qual ponto de partida o experimento de um novo modelo é inicializado</translation>
     </message>
     <message>
       <source>Starting experiment:</source>
@@ -1994,7 +1994,7 @@
     </message>
     <message>
       <source>Seeds a new model's run settings: trial count, run length, analyses and recording. You can change any of it afterwards in the Run panel.</source>
-      <translation>Semeia as configurações de execução de um novo modelo: número de ensaios, duração, análises e gravação. Você pode alterar tudo depois no Painel de execução.</translation>
+      <translation>Inicializa as configurações de execução de um novo modelo: número de ensaios, duração, análises e gravação. Você pode alterar tudo depois no Painel de execução.</translation>
     </message>
     <message>
       <source>New models</source>
@@ -2006,7 +2006,7 @@
     </message>
     <message>
       <source>The window and canvas colours; charts follow the same theme</source>
-      <translation>As cores da janela e da tela; os gráficos seguem o mesmo tema</translation>
+      <translation>As cores da janela e do diagrama; os gráficos seguem o mesmo tema</translation>
     </message>
     <message>
       <source>Theme:</source>
@@ -2166,7 +2166,7 @@
     </message>
     <message>
       <source>Give each new block its own random streams</source>
-      <translation>Dar a cada novo bloco seus próprios fluxos aleatórios</translation>
+      <translation>Atribuir a cada novo bloco os seus próprios fluxos aleatórios</translation>
     </message>
     <message>
       <source>New blocks:</source>
@@ -2218,7 +2218,7 @@
     </message>
     <message>
       <source>Exponential entered as:</source>
-      <translation>Exponencial inserida como:</translation>
+      <translation>Exponencial digitada como:</translation>
     </message>
     <message>
       <source>How you TYPE exponential distributions. Values are always stored as a mean, whichever you pick here — this only changes the entry form.</source>
@@ -2226,7 +2226,7 @@
     </message>
     <message>
       <source>Mean + StDev</source>
-      <translation>Média + Desvio padrão</translation>
+      <translation>Média + desvio padrão</translation>
     </message>
     <message>
       <source>Mu + Sigma (normal space)</source>
@@ -2238,11 +2238,11 @@
     </message>
     <message>
       <source>Lognormal entered as:</source>
-      <translation>Lognormal inserida como:</translation>
+      <translation>Lognormal digitada como:</translation>
     </message>
     <message>
       <source>How you TYPE lognormal distributions. Always stored canonically as mean + standard deviation.</source>
-      <translation>Como você DIGITA distribuições lognormais. Sempre armazenadas canonicamente como média + desvio padrão.</translation>
+      <translation>Como você DIGITA distribuições lognormais. Sempre armazenadas de forma canônica como média + desvio padrão.</translation>
     </message>
     <message>
       <source> digits</source>
@@ -2358,7 +2358,7 @@
     </message>
     <message>
       <source>Sparing:</source>
-      <translation>Sobressalentes:</translation>
+      <translation>Provisão de sobressalentes:</translation>
     </message>
     <message>
       <source>(none)</source>
@@ -2374,7 +2374,7 @@
     </message>
     <message>
       <source>Required good paths (k):</source>
-      <translation>Caminhos bons necessários (k):</translation>
+      <translation>Caminhos válidos necessários (k):</translation>
     </message>
     <message>
       <source>Dependency</source>
@@ -2398,11 +2398,11 @@
     </message>
     <message>
       <source>Dependency isn't simulated for hierarchies (no engine support -- HIERARCHY_DATA has no field to persist it in). Use the Phasing tab above to mark selected hierarchies phased.</source>
-      <translation>A dependência não é simulada para hierarquias (sem suporte do mecanismo — HIERARCHY_DATA não tem campo para persistí-la). Use a aba Faseamento acima para marcar as hierarquias selecionadas como faseadas.</translation>
+      <translation>A dependência não é simulada para hierarquias (sem suporte do motor — HIERARCHY_DATA não tem campo para persistí-la). Use a aba Faseamento acima para marcar as hierarquias selecionadas como faseadas.</translation>
     </message>
     <message>
       <source>Only TICKED fields change, on every selected element (editing a field ticks it). Undoable in this session.</source>
-      <translation>Somente os campos MARCADOS mudam, em cada elemento selecionado (editar um campo o marca). Desfazível nesta sessão.</translation>
+      <translation>Somente os campos MARCADOS mudam, em cada elemento selecionado (editar um campo o marca). Pode ser desfeito nesta sessão.</translation>
     </message>
     <message>
       <source>Paste</source>
@@ -2454,7 +2454,7 @@
     </message>
     <message>
       <source>Antithetic variates for this stream (paired draws). Stored as a negative stream number.</source>
-      <translation>Variáveis antitéticas para este fluxo (amostras emparelhadas). Armazenado como um número de fluxo negativo.</translation>
+      <translation>Variáveis antitéticas para este fluxo (amostras emparelhadas). Armazenadas como um número de fluxo negativo.</translation>
     </message>
     <message>
       <source>Invalid thresholds</source>
@@ -2462,7 +2462,7 @@
     </message>
     <message>
       <source>Green/Yellow threshold must be in 0.01..1.0 and the Yellow/Red threshold must be lower than it.</source>
-      <translation>O limite Verde/Amarelo deve estar em 0,01..1,0 e o limite Amarelo/Vermelho deve ser menor que ele.</translation>
+      <translation>O limite Verde/Amarelo deve estar entre 0,01 e 1,0 e o limite Amarelo/Vermelho deve ser menor que ele.</translation>
     </message>
     <message>
       <source>Import a block library (Data ▸ Import Library) to start from one of its blocks.</source>
@@ -2470,7 +2470,7 @@
     </message>
     <message>
       <source>Fill the failure and repair distributions from a block of the imported library. Default returns to the factory settings.</source>
-      <translation>Preenche as distribuições de falha e reparo a partir de um bloco da biblioteca importada. Padrão retorna às configurações de fábrica.</translation>
+      <translation>Preencha as distribuições de falha e reparo a partir de um bloco da biblioteca importada. O padrão restaura as configurações de fábrica.</translation>
     </message>
     <message>
       <source>Mass Edit: select at least two elements first</source>
@@ -2514,7 +2514,7 @@
     </message>
     <message>
       <source>Copy the clipboard block's data onto the selected blocks. Name, position, links and dependency are never changed.</source>
-      <translation>Copia os dados do bloco da área de transferência para os blocos selecionados. Nome, posição, vínculos e dependência nunca são alterados.</translation>
+      <translation>Copie os dados do bloco da área de transferência para os blocos selecionados. Nome, posição, vínculos e dependência nunca são alterados.</translation>
     </message>
     <message>
       <source>Nothing was added.</source>
@@ -2586,7 +2586,7 @@
     </message>
     <message>
       <source>That one is only in the other model</source>
-      <translation>Aquele existe somente no outro modelo</translation>
+      <translation>Esse item só existe no outro modelo</translation>
     </message>
     <message>
       <source>Maximise</source>
@@ -2594,11 +2594,11 @@
     </message>
     <message>
       <source>Show the Results full screen in their own window</source>
-      <translation>Mostrar os Resultados em tela cheia em sua própria janela</translation>
+      <translation>Mostrar os resultados em tela cheia em sua própria janela</translation>
     </message>
     <message>
       <source>Maximise the Results</source>
-      <translation>Maximizar os Resultados</translation>
+      <translation>Maximizar os resultados</translation>
     </message>
     <message>
       <source>Float</source>
@@ -2886,7 +2886,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>New model created — click Add Block, then the canvas, to build your diagram</source>
-      <translation>Novo modelo criado — clique em Adicionar bloco e depois no diagrama para construir seu diagrama</translation>
+      <translation>Novo modelo criado — clique em Adicionar bloco e depois no diagrama para começar a montá-lo</translation>
     </message>
     <message>
       <source>RAPTOR Studio</source>
@@ -3082,7 +3082,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Marks this hierarchy as phased -- shown hatched on the canvas. A hierarchy has no per-phase values of its own; this flags that its CONTENTS change between phases.</source>
-      <translation>Marca esta hierarquia como faseada -- mostrada hachurada no diagrama. Uma hierarquia não tem valores por fase próprios; isto indica que seu CONTEÚDO muda entre fases.</translation>
+      <translation>Marca esta hierarquia como faseada -- exibida hachurada no diagrama. Uma hierarquia não tem valores próprios por fase; isto indica que seu CONTEÚDO muda entre fases.</translation>
     </message>
     <message>
       <source>Apply costs</source>
@@ -3106,7 +3106,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Ignore start failures</source>
-      <translation>Ignorar falhas de inicialização</translation>
+      <translation>Ignorar falhas de partida</translation>
     </message>
     <message>
       <source>Ignore negative-value warning</source>
@@ -3126,7 +3126,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Antithetic variates for this stream (paired draws); stored as a negative stream number.</source>
-      <translation>Variáveis antitéticas para este fluxo (amostras emparelhadas); armazenado como um número de fluxo negativo.</translation>
+      <translation>Variáveis antitéticas para este fluxo (amostras emparelhadas); armazenadas como um número de fluxo negativo.</translation>
     </message>
     <message>
       <source> px</source>
@@ -3138,7 +3138,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Stop following the target; the annotation stays where it is</source>
-      <translation>Para de seguir o alvo; a anotação permanece onde está</translation>
+      <translation>Deixe de seguir o alvo; a anotação permanece onde está</translation>
     </message>
     <message>
       <source>#RRGGBB</source>
@@ -3186,7 +3186,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Put the annotation back at its anchored location (undoes where you dragged it)</source>
-      <translation>Devolve a anotação à sua posição ancorada (desfaz para onde você a arrastou)</translation>
+      <translation>Devolva a anotação à sua posição ancorada (desfaz o arraste)</translation>
     </message>
     <message>
       <source>None</source>
@@ -3218,7 +3218,7 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>How hard the block works, as a share of its rated duty; it sets how fast the block uses up its life in calendar time. 1 = working all the time (the default). 0.3 = working 30% of the time, so each life lasts 1/0.3 = 3.3 times as long. 1.5 = run 50% harder than rated. It multiplies any phase stress, and the standby stress while the block is in standby.</source>
-      <translation>Com que intensidade o bloco trabalha, como parcela de seu ciclo nominal; define com que rapidez o bloco consome sua vida em tempo de calendário. 1 = trabalhando o tempo todo (o padrão). 0,3 = trabalhando 30% do tempo, então cada vida dura 1/0,3 = 3,3 vezes mais. 1,5 = trabalhar 50% mais que o nominal. Multiplica qualquer estresse de fase e o estresse de espera enquanto o bloco está em espera.</translation>
+      <translation>Com que intensidade o bloco trabalha, como parcela de seu regime nominal; define com que rapidez o bloco consome sua vida em tempo de calendário. 1 = trabalhando o tempo todo (o padrão). 0,3 = trabalhando 30% do tempo, então cada vida dura 1/0,3 = 3,3 vezes mais. 1,5 = trabalhar 50% acima do nominal. Multiplica qualquer estresse de fase e o estresse de espera enquanto o bloco está em espera.</translation>
     </message>
     <message>
       <source>Off — repair as good as new</source>
@@ -3322,7 +3322,7 @@ Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
     </message>
     <message>
       <source>Always add Done cost at run end</source>
-      <translation>Sempre adicionar custo Done no fim da execução</translation>
+      <translation>Sempre adicionar custo Done ao final da execução</translation>
     </message>
     <message>
       <source>How old the block already is at time 0, for a block partway through its life. Its first life is drawn given it has survived to this age, so a worn block fails sooner. It also counts as age already used when a restoration factor applies. 0 = new.</source>
@@ -3356,7 +3356,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>The mean life (in the model's time units) the change stops at: growth never goes above it and decay never below it.</source>
-      <translation>A vida média (nas unidades de tempo do modelo) em que a mudança para: o crescimento nunca fica acima dela e o decaimento nunca abaixo.</translation>
+      <translation>A vida média (nas unidades de tempo do modelo) em que a mudança cessa: o crescimento nunca fica acima dela e o decaimento nunca abaixo.</translation>
     </message>
     <message>
       <source>Only used when the block performs Preventive Maintenance -- enable 'This block performs Preventive Maintenance' on the PM tab first.</source>
@@ -3364,7 +3364,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>k-out-of-n: this node needs at least k of its n input paths working for it to count as up (k=1 is a simple OR, k=n is a simple AND).</source>
-      <translation>k-de-n: este nó precisa de pelo menos k de seus n caminhos de entrada funcionando para contar como ativo (k=1 é um OR simples, k=n é um AND simples).</translation>
+      <translation>k-de-n: este nó precisa de pelo menos k de seus n caminhos de entrada funcionando para contar como ativo (k=1 é um OU simples, k=n é um E simples).</translation>
     </message>
     <message>
       <source>Unrestricted flow</source>
@@ -3380,7 +3380,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>The first checkbox, which engages the remainder of the tab.</source>
-      <translation>O primeiro botão de seleção, que ativa o restante da aba.</translation>
+      <translation>A primeira caixa de seleção, que ativa o restante da aba.</translation>
     </message>
     <message>
       <source>Return alternates to standby once the primary is repaired</source>
@@ -3416,15 +3416,15 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Locally dependent: tied to this element's own downstream node. When that node's path goes down, this element is pulled into Idle (paused, failure clock stops) and resumes when the path is up again.</source>
-      <translation>Dependente local: vinculado ao próprio nó a jusante deste elemento. Quando o caminho desse nó cai, este elemento é levado a Ocioso (pausado, o relógio de falha para) e retoma quando o caminho volta a funcionar.</translation>
+      <translation>Dependente local: vinculado ao nó a jusante do próprio elemento. Quando o caminho desse nó cai, este elemento é levado ao estado Idle (pausado, o relógio de falha é interrompido) e retoma quando o caminho volta a funcionar.</translation>
     </message>
     <message>
       <source>System dependent: tied to the whole model's up/down status (across every hierarchy). Down system = Idle here; up system = resume.</source>
-      <translation>Dependente do sistema: vinculado ao status ativo/inativo do modelo inteiro (em todas as hierarquias). Sistema inativo = Ocioso aqui; sistema ativo = retomar.</translation>
+      <translation>Dependente do sistema: vinculado ao estado ativo/inativo do modelo inteiro (em todas as hierarquias). Sistema inativo = estado Idle aqui; sistema ativo = retoma.</translation>
     </message>
     <message>
       <source>Dependent on one named element (master): when THAT element goes down this element idles -- not failed, just paused, its own failure clock stops -- and it picks up where it left off when the master comes back.</source>
-      <translation>Dependente de um elemento nomeado (mestre): quando ESSE elemento cai, este elemento fica ocioso -- não falha, apenas pausa, seu relógio de falha para -- e continua de onde parou quando o mestre volta.</translation>
+      <translation>Dependente de um elemento nomeado (mestre): quando ESSE elemento cai, este elemento fica ocioso -- não falha, apenas pausa, e o relógio de falha dele é interrompido -- e continua de onde parou quando o mestre volta.</translation>
     </message>
     <message>
       <source>No incoming links</source>
@@ -3448,7 +3448,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Markdown supported: **bold**, *italic*, lists, links and headings are rendered on linked canvas annotations.</source>
-      <translation>Markdown compatível: **negrito**, *itálico*, listas, links e títulos são renderizados em anotações vinculadas no diagrama.</translation>
+      <translation>Markdown compatível: **negrito**, *itálico*, listas, links e cabeçalhos são renderizados em anotações vinculadas no diagrama.</translation>
     </message>
     <message>
       <source>Create a Markdown text annotation on the canvas from this comment, next to the element</source>
@@ -3500,11 +3500,11 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Give it the whole pool</source>
-      <translation>Dar o pool inteiro</translation>
+      <translation>Atribuir o pool inteiro</translation>
     </message>
     <message>
       <source>Share by the fraction of users inside</source>
-      <translation>Compartilhar pela fração de usuários dentro</translation>
+      <translation>Compartilhar pela fração de usuários internos</translation>
     </message>
     <message>
       <source>Keep the random streams</source>
@@ -3512,7 +3512,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Give shared draws their own streams</source>
-      <translation>Dar fluxos próprios às amostras compartilhadas</translation>
+      <translation>Atribuir fluxos próprios às amostras compartilhadas</translation>
     </message>
     <message>
       <source>Open the extract in this window after saving</source>
@@ -3684,7 +3684,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Which run's events are listed. The run being stepped is the last one; earlier runs stay here to read.</source>
-      <translation>Quais eventos de execução estão listados. A execução em passo a passo é a última; execuções anteriores permanecem aqui para leitura.</translation>
+      <translation>De qual execução os eventos estão listados. A execução que está sendo avançada passo a passo é a última; as execuções anteriores permanecem aqui para leitura.</translation>
     </message>
     <message>
       <source>Live log position</source>
@@ -3696,11 +3696,11 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Fine Move Up</source>
-      <translation>Mover finamente para cima</translation>
+      <translation>Mover levemente para cima</translation>
     </message>
     <message>
       <source>Fine-nudge the canvas selection by a tenth of a snap step; with nothing selected, ascend one hierarchy level</source>
-      <translation>Ajusta finamente a seleção da tela em um décimo de passo de encaixe; sem nada selecionado, sobe um nível de hierarquia</translation>
+      <translation>Ajusta a seleção no diagrama em um décimo de um passo de encaixe; sem nada selecionado, sobe um nível de hierarquia</translation>
     </message>
     <message>
       <source>Key tips on — press a letter, or Alt again to hide</source>
@@ -3812,7 +3812,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>An animated run is in progress. Stop it (Simulate &gt; Stop, or Esc), then close.</source>
-      <translation>Uma execução animada está em andamento. Pare-a (Simular &gt; Parar, ou Esc) e feche.</translation>
+      <translation>Uma execução animada está em andamento. Interrompa-a (Simular &gt; Parar ou Esc) e feche.</translation>
     </message>
     <message>
       <source>A simulation is running in the background. Stop it and close? Its results so far are not kept.</source>
@@ -3820,7 +3820,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Model errors require fixing before simulation can occur — see the ✗ badge (Model tab)</source>
-      <translation>Erros no modelo precisam ser corrigidos antes que a simulação possa ocorrer — veja o selo ✗ (aba Modelo)</translation>
+      <translation>Erros no modelo precisam ser corrigidos antes de simular — veja o ícone ✗ (aba Modelo)</translation>
     </message>
     <message>
       <source>Escape — stop requested</source>
@@ -3872,7 +3872,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Choose an overlay first: Spread applies to Weak Links or Cost</source>
-      <translation>Escolha primeiro uma sobreposição: Dispersão se aplica a Elos fracos ou Custo</translation>
+      <translation>Escolha primeiro uma sobreposição: a Dispersão se aplica a Elos fracos ou Custo</translation>
     </message>
     <message>
       <source>Focus keeps the elements whose share is at least this fraction of the largest; the rest are dimmed. The topology stays.</source>
@@ -3892,7 +3892,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Spares is a flag (any exhausted time is Red), not a quartile band; there is nothing to spread</source>
-      <translation>Sobressalentes é um sinalizador (qualquer tempo esgotado é Vermelho), não uma faixa de quartil; não há nada a dispersar</translation>
+      <translation>Sobressalentes é um indicador (qualquer tempo esgotado é Vermelho), não uma faixa de quartil; não há nada a dispersar</translation>
     </message>
     <message>
       <source>Importance bands are already relative to the largest value in this run (Red &gt;= 2/3, Yellow &gt;= 1/3); a quartile split would not add information</source>
@@ -3904,15 +3904,15 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Importance colouring off</source>
-      <translation>Coloração de Importância desativada</translation>
+      <translation>Coloração de importância desativada</translation>
     </message>
     <message>
       <source>No importance measures in this run. Switch on Run ▸ Analysis ▸ Importance measures and run again — it costs one extra batch per block (two for Both).</source>
-      <translation>Não há medidas de importância nesta execução. Ative Executar ▸ Análise ▸ Medidas de importância e execute novamente — custa um lote extra por bloco (dois para Ambos).</translation>
+      <translation>Não há medidas de importância nesta execução. Ative Painel de execução ▸ Análise ▸ Medidas de importância e execute novamente — custa um lote extra por bloco (dois para Ambos).</translation>
     </message>
     <message>
       <source>Capacity colouring off</source>
-      <translation>Coloração de Capacidade desativada</translation>
+      <translation>Coloração de capacidade desativada</translation>
     </message>
     <message>
       <source>No capacity data — enable Capacity in the Run panel's Analysis section and run again</source>
@@ -3924,7 +3924,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Cost colouring off</source>
-      <translation>Coloração de Custo desativada</translation>
+      <translation>Coloração de custo desativada</translation>
     </message>
     <message>
       <source>No cost data — enable Cost Analysis in Project Settings and run again</source>
@@ -3932,11 +3932,11 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>Spares colouring off</source>
-      <translation>Coloração de Sobressalentes desativada</translation>
+      <translation>Coloração de sobressalentes desativada</translation>
     </message>
     <message>
       <source>No weak-link data — enable Weak Link in the Run panel's Analysis section and run again (Spares reads the same per-block state-time data)</source>
-      <translation>Sem dados de elo fraco — ative Elo fraco na seção Análise do Painel de execução e execute novamente (Sobressalentes lê os mesmos dados de tempo por estado de cada bloco)</translation>
+      <translation>Sem dados de elo fraco — ative Elo fraco na seção Análise do Painel de execução e execute novamente (a aba Sobressalentes usa os mesmos dados de tempo por estado de cada bloco)</translation>
     </message>
     <message>
       <source>Advisor findings off</source>
@@ -3996,7 +3996,7 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     </message>
     <message>
       <source>No elements to phase.</source>
-      <translation>Nenhum elemento para faseamento.</translation>
+      <translation>Nenhum elemento para aplicar faseamento.</translation>
     </message>
     <message>
       <source>Invalid phase value</source>
@@ -4308,7 +4308,7 @@ Nós de fronteira de fluxo total mostram uso/capacidade N/D.</translation>
 Enable Capacity in the Run panel's Analysis section, give Start a Flow Generated value, and run again.</source>
       <translation>Sem análise de capacidade neste modelo.
 
-Ative Capacidade na seção Análise do Painel de execução, dê ao Start um valor de Fluxo gerado e execute novamente.</translation>
+Ative Capacidade na seção Análise do Painel de execução, atribua ao nó Start um valor de Fluxo gerado e execute novamente.</translation>
     </message>
     <message>
       <source>No Weak Link analysis in this model.
@@ -4316,7 +4316,7 @@ Ative Capacidade na seção Análise do Painel de execução, dê ao Start um va
 Weak Link Analysis is turned on in the Run panel's Analysis section — enable it and rerun to see per-element availability/dependability here.</source>
       <translation>Sem análise de Elo fraco neste modelo.
 
-A Análise de Elo fraco é ativada na seção Análise do Painel de execução — ative-a e execute novamente para ver aqui a disponibilidade/confiabilidade por elemento.</translation>
+A Análise de Elo fraco é ativada na seção Análise do Painel de execução — ative-a e execute novamente para ver aqui a disponibilidade/dependabilidade por elemento.</translation>
     </message>
     <message>
       <source>Node state breakdown — % of total time in each state, averaged across runs.</source>
@@ -4356,7 +4356,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Data files: Key Parameters, Ending Simulation Times, Availability Plot Data (per-trial data already computed for this run, just never written to disk in these formats)</source>
-      <translation>Arquivos de dados: Parâmetros-chave, Instantes de término da simulação, Dados do gráfico de disponibilidade (dados por ensaio já calculados para esta execução, apenas nunca gravados em disco nestes formatos)</translation>
+      <translation>Arquivos de dados: Parâmetros-chave, Instantes de término da simulação, Dados do gráfico de disponibilidade (dados por ensaio já calculados para esta execução, mas nunca gravados em disco nestes formatos)</translation>
     </message>
     <message>
       <source>Interim Cost</source>
@@ -4436,7 +4436,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Advance the number of events set in Step Settings (stops early at the breakpoint)</source>
-      <translation>Avança o número de eventos definido em Configurações de passo (para cedo no ponto de interrupção)</translation>
+      <translation>Avança a quantidade de eventos definida em Configurações de passo (para antes no ponto de interrupção)</translation>
     </message>
     <message>
       <source>Step to next change</source>
@@ -4444,7 +4444,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Step to the next change (F10): run on until an instant in which something changed state has been analysed, then pause (Step itself advances one calendar entry)</source>
-      <translation>Passo até a próxima mudança (F10): executa até que seja analisado um instante em que algo mudou de estado e então pausa (o próprio Passo avança uma entrada de calendário)</translation>
+      <translation>Passo até a próxima mudança (F10): executa até que seja analisado um instante em que algo mudou de estado e então pausa (o próprio Passo avança uma entrada do calendário)</translation>
     </message>
     <message>
       <source>Other ways to advance: to the next change, several events at once, or run to a target time</source>
@@ -4456,7 +4456,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>How many events More Steps ▸ Multi advances</source>
-      <translation>Quantos eventos Mais passos ▸ Múltiplos avança</translation>
+      <translation>Quantos eventos o item Mais passos ▸ Múltiplos avança</translation>
     </message>
     <message>
       <source>Events per multi-step</source>
@@ -4480,7 +4480,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Stop stepping when the chosen block fails (enters Repairing)</source>
-      <translation>Parar o passo a passo quando o bloco escolhido falhar (entra em Reparo)</translation>
+      <translation>Parar o passo a passo quando o bloco escolhido falhar (entra em Repairing)</translation>
     </message>
     <message>
       <source>Pause when block fails</source>
@@ -4528,7 +4528,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Maximum number of series elements per band (elements one after another; parallel branches share a position). 0 = fit Raptor's canvas width.</source>
-      <translation>Número máximo de elementos em série por faixa (elementos um após o outro; ramos paralelos compartilham uma posição). 0 = ajustar à largura da tela do Raptor.</translation>
+      <translation>Número máximo de elementos em série por faixa (elementos um após o outro; ramos paralelos compartilham uma posição). 0 = ajustar à largura do diagrama do Raptor.</translation>
     </message>
     <message>
       <source>Auto Layout spacing</source>
@@ -4544,7 +4544,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Where above/below labels go when the flow is top-to-bottom: Auto (right for TB, left for BT), Left or Right.</source>
-      <translation>Onde ficam os rótulos acima/abaixo quando o fluxo é de cima para baixo: Automático (direita para CB, esquerda para BC), Esquerda ou Direita.</translation>
+      <translation>Onde ficam os rótulos acima/abaixo quando o fluxo é de cima para baixo: Automático (direita para fluxo de cima para baixo, esquerda para fluxo de baixo para cima), Esquerda ou Direita.</translation>
     </message>
     <message>
       <source>Block labels</source>
@@ -4572,7 +4572,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Dependability</source>
-      <translation>Confiabilidade operacional</translation>
+      <translation>Dependabilidade</translation>
     </message>
     <message>
       <source>Reliability</source>
@@ -4584,7 +4584,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Which metric the Weak Link bands use: dependability excludes standby/PM/dependency time</source>
-      <translation>Qual métrica as faixas de Elo fraco usam: a confiabilidade operacional exclui tempo de espera/MP/dependência</translation>
+      <translation>Qual métrica as faixas de Elo fraco usam: a dependabilidade exclui tempo de espera/MP/dependência</translation>
     </message>
     <message>
       <source>Green/Yellow threshold</source>
@@ -4708,7 +4708,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Run cancelled — fix the model problems listed, or Run Anyway</source>
-      <translation>Execução cancelada — corrija os problemas do modelo listados, ou Execute assim mesmo</translation>
+      <translation>Execução cancelada — corrija os problemas do modelo listados, ou use Executar assim mesmo</translation>
     </message>
     <message>
       <source>Left Failure Effects View to start the run</source>
@@ -4752,7 +4752,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Model scope (the whole model or one hierarchy) and the cores a full-speed run uses</source>
-      <translation>Escopo do modelo (o modelo inteiro ou uma hierarquia) e os núcleos que uma execução em velocidade máxima usa</translation>
+      <translation>Escopo do modelo (o modelo inteiro ou uma hierarquia) e os núcleos usados por uma execução em velocidade máxima</translation>
     </message>
     <message>
       <source>Cores:</source>
@@ -4760,7 +4760,7 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     </message>
     <message>
       <source>Seed number</source>
-      <translation>Número semente</translation>
+      <translation>Número da semente</translation>
     </message>
     <message>
       <source>Block random streams</source>
@@ -4870,7 +4870,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Average percent of time fully working / degraded / fully down, across completed runs</source>
-      <translation>Percentual médio de tempo funcionando plenamente / degradado / totalmente inativo, entre as execuções concluídas</translation>
+      <translation>Percentual médio do tempo plenamente funcional / degradado / totalmente inativo, entre as execuções concluídas</translation>
     </message>
     <message>
       <source>Step Failed</source>
@@ -4878,7 +4878,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Jump Failed</source>
-      <translation>Falha no salto</translation>
+      <translation>Falha ao saltar</translation>
     </message>
     <message>
       <source>Stepped run restarted — t = 0</source>
@@ -4986,7 +4986,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Click an issue to locate the element (when named).</source>
-      <translation>Clique em um problema para localizar o elemento (quando nomeado).</translation>
+      <translation>Clique em um problema para localizar o elemento (quando tiver nome).</translation>
     </message>
     <message>
       <source>Checking the model…</source>
@@ -5050,7 +5050,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Open, save, print, export and recent files (Alt, then E)</source>
-      <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois A)</translation>
+      <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois F)</translation>
     </message>
     <message>
       <source>Add models to compare</source>

@@ -135,3 +135,39 @@ catalogue entry for a numerus message needs `<numerusform>` children.
   domain. The `pt_BR` glossary uses *sobressalentes* for spares,
   *ciclo de trabalho* for duty cycle, and keeps acronyms such as MTBDE,
   BDD and RBD unchanged.
+
+## pt_BR glossary and reviewer notes
+
+`tools/locale_pt_BR.json` is the translation memory; one English source
+string has one translation there. The `.ts` keeps a separate entry per Qt
+context, so a context may be overridden by hand when the same English word
+needs different Portuguese (for example *Run* the button vs *run* the
+data row). Regeneration preserves those overrides.
+
+| English | pt_BR | Note |
+| --- | --- | --- |
+| block / node / event / hierarchy | bloco / nó / evento / hierarquia | fixed domain nouns |
+| run (noun) / to run | execução / executar | the results table's *Run* column is a noun; the catalogue has one entry, so it reads *Executar* |
+| trial | ensaio | Monte Carlo replication, not *teste* |
+| failure / repair | falha / reparo | the FEV command is *Reparar*; the engine state *Repairing* stays English |
+| spare / sparing / spare pool | sobressalente / provisão de sobressalentes / pool de sobressalentes | *pool* is kept as the usual industry loanword |
+| downtime | tempo de inatividade | the *down times* data file lists *instantes de inatividade* |
+| dependability | dependabilidade | ABNT NBR 5462 term; distinct from *confiabilidade* (reliability) |
+| PM | MP | *manutenção preventiva*; the acronym is kept |
+| availability / target | disponibilidade / meta | |
+| duty cycle | ciclo de trabalho | *rated duty* is *regime nominal* |
+| canvas | diagrama | *tela* only for the screen (*na tela*, *tela cheia*) |
+| model / template | modelo / modelo | ambiguous in English too; *modelo de bloco* and *modelos da biblioteca* disambiguate |
+| stream (random) | fluxo | capacity *flow* is also *fluxo*; prefer *fluxo aleatório* when space allows |
+
+Engine state names (`Running`, `Repairing`, `Idle`, `Done`) and the
+`Start`/`End` node names stay English because the results, FEV and data
+tables show them verbatim. Ribbon key tips are fixed letters in
+`raptor/gui/key_tips.py` and are not translated; the File button is `F`,
+so its tooltip says *Alt e depois F* even though the English source still
+says *then E*.
+
+Known untranslated strings outside the catalogue: the theme action
+alternates between the catalogued *Dark Theme* and the runtime-composed
+*Light Theme*, which has no entry, and status messages built from
+f-strings keep their English fixed parts (see *Remaining gaps*).
