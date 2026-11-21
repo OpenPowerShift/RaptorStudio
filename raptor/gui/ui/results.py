@@ -1370,7 +1370,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._precomputed_attribution = None
             self._apply_attribution(ready)
             return
-        logs = [log for log in (self._event_logs or []) if log]
+        raw_logs = list(self._event_logs or [])
+        logs = [log for log in raw_logs if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
             self._clear_drivers()
             return
@@ -1412,7 +1413,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             start = float(experiment.get("start_stats") or 0.0)
             rbd = getattr(self, "_rbd", None)
             attribution = attribute_batch(
-                rbd, logs, start_stats=start,
+                # Pass the unfiltered logs: capacity tracks are paired by
+                # run position, so filtering empty logs here shifts them.
+                rbd, raw_logs, start_stats=start,
                 capacity_lines=getattr(self, "_cap_lines", None),
                 units=getattr(self, "_units", ""), progress=show)
         except Cancelled:
