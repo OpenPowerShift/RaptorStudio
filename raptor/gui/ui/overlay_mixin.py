@@ -3,6 +3,7 @@ share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
+from raptor.gui.resources.design_tokens import scaled as _scaled
 from raptor.api.insight.axes import pct
 
 from typing import TYPE_CHECKING, Any
@@ -346,7 +347,7 @@ class OverlayMixin(_Base):
         label.setStyleSheet("QLabel { color: #EAF2FB; padding: 0 4px; }")
         slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(0, 100)
-        slider.setFixedWidth(90)
+        slider.setFixedWidth(_scaled(90))
         slider.setValue(round(100 * self._diagram_dock.view._focus_threshold))
         slider.setToolTip("Focus keeps the elements whose share is at least this "
                           "fraction of the largest; the rest are dimmed. "

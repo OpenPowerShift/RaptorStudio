@@ -25,7 +25,8 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.command_table import BACKSTAGE, BACKSTAGE_ACTIONS
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import TYPE, active_colour
+from raptor.gui.resources.design_tokens import (
+    TYPE, active_colour, scaled as _scaled)
 
 if TYPE_CHECKING:
     from raptor.gui.ui.main_window import MainWindow
@@ -82,7 +83,7 @@ class Backstage(QWidget):
         nav.setObjectName("BackstageNav")
         # 280, not 210: "Import Availability Workbench…" was cut to
         # "Import Availability Wor..."
-        nav.setFixedWidth(280)
+        nav.setFixedWidth(_scaled(280))
         nl = QVBoxLayout(nav)
         nl.setContentsMargins(0, 12, 0, 12)
         nl.setSpacing(2)
@@ -211,7 +212,7 @@ class Backstage(QWidget):
         teaches. `example` None is the Blank model card."""
         card = QPushButton()
         card.setObjectName("BackstageCard")
-        card.setFixedSize(CARD_W + 2, CARD_H + 66)
+        card.setFixedSize(_scaled(CARD_W + 2), _scaled(CARD_H + 66))
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.setAccessibleName(title)
         card.setToolTip(f"{title}: {idea}")
@@ -220,7 +221,7 @@ class Backstage(QWidget):
         col.setSpacing(2)
         pic = QLabel()
         pic.setObjectName("BackstageCardPicture")
-        pic.setFixedSize(CARD_W, CARD_H)
+        pic.setFixedSize(_scaled(CARD_W), _scaled(CARD_H))
         pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col.addWidget(pic)
         name = QLabel(title)

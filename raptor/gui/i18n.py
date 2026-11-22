@@ -486,6 +486,8 @@ def exec_translated(dialog):
     box). Returns the dialog's `exec()` code.
     """
     translate_widgets(dialog)
+    if not dialog.accessibleName() and dialog.windowTitle():
+        dialog.setAccessibleName(dialog.windowTitle())
     return dialog.exec()
 
 

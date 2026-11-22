@@ -272,6 +272,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
+        # Assistive technology has no way to read a painted scene; name it
+        # and point at the text views that list the same elements.
+        self.setAccessibleName("Reliability block diagram")
+        self.setAccessibleDescription(
+            "Interactive diagram of the model. The Model Explorer and Data "
+            "Tables list the same elements, links and values as text.")
         self._focus_mode = False
         #: While a history jump replays commands, level switches are
         #: recorded and applied once at the end, not rebuilt per step.

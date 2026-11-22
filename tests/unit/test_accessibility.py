@@ -357,3 +357,43 @@ def test_saved_appearance_reaches_the_first_window(qapp):
         D.ThemeManager.instance().set_scale(100)
         D.ThemeManager.instance().set_high_contrast(False)
         D.ThemeManager.instance().set_dark(False)
+
+
+def test_literal_widget_sizes_follow_the_interface_scale(qapp):
+    """The few hard-coded widths (combos, cards, chips) grow with the font."""
+    theme = D.ThemeManager.instance()
+    old = theme.scale
+    try:
+        theme.set_scale(100)
+        assert D.scaled(90) == 90 and D.scaled(280) == 280
+        theme.set_scale(150)
+        assert D.scaled(90) == 135 and D.scaled(280) == 420
+        theme.set_scale(200)
+        assert D.scaled(84) == 168
+    finally:
+        theme.set_scale(old)
+
+
+def test_a_dialog_gets_the_accessible_name_screen_readers_announce(qapp):
+    from PySide6.QtWidgets import QDialog
+    from raptor.gui.ui import modality
+    dlg = QDialog()
+    dlg.setWindowTitle("Component Groups and Tags")
+    original = QDialog.exec
+    QDialog.exec = lambda self: 0          # do not open a window
+    try:
+        modality.exec_dialog(dlg)
+    finally:
+        QDialog.exec = original
+    assert dlg.accessibleName() == "Component Groups and Tags"
+
+
+def test_the_diagram_canvas_has_a_text_alternative(qapp):
+    from raptor.gui.ui.diagram import DiagramView
+    view = DiagramView()
+    try:
+        assert view.accessibleName()
+        assert "Model Explorer" in view.accessibleDescription()
+    finally:
+        view.deleteLater()
+        qapp.processEvents()

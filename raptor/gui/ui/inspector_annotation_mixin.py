@@ -20,6 +20,7 @@ from raptor.core.annotations import ANNO_DEFAULT_LOCATION
 
 from raptor.gui.resources.design_tokens import (
     SPACING, active_colour,
+    scaled as _scaled,
 )
 
 if TYPE_CHECKING:
@@ -368,21 +369,21 @@ class InspectorAnnotationMixin(_Base):
         from PySide6.QtGui import QColor
         state = {"current": current}
         btn = QPushButton()
-        btn.setFixedWidth(28)
+        btn.setFixedWidth(_scaled(28))
         btn.setToolTip(f"Pick a {label.lower()} colour")
         # Paste-able hex field: without it the swatch button would be the
         # only way to change the colour, and being a QPushButton its hex
         # text couldn't be clicked into or pasted over. Typing/pasting
         # here updates the swatch directly, without the QColorDialog.
         hex_edit = QLineEdit()
-        hex_edit.setFixedWidth(80)
+        hex_edit.setFixedWidth(_scaled(80))
         hex_edit.setPlaceholderText("#RRGGBB")
         none_btn = None
         if allow_none:
             none_btn = QToolButton()
             none_btn.setText("None")
             none_btn.setCheckable(True)
-            none_btn.setFixedWidth(46)
+            none_btn.setFixedWidth(_scaled(46))
             none_btn.setToolTip(
                 f"Draw no {label.lower()} at all (stores null)")
 
@@ -525,17 +526,17 @@ class InspectorAnnotationMixin(_Base):
         bold = QToolButton()
         bold.setText("B")
         bold.setCheckable(True)
-        bold.setFixedWidth(30)
+        bold.setFixedWidth(_scaled(30))
         bold.setToolTip("Bold")
         italic = QToolButton()
         italic.setText("I")
         italic.setCheckable(True)
-        italic.setFixedWidth(30)
+        italic.setFixedWidth(_scaled(30))
         italic.setToolTip("Italic")
         size = QSpinBox()
         size.setRange(4, 96)
         size.setSuffix(" pt")
-        size.setFixedWidth(64)
+        size.setFixedWidth(_scaled(64))
         size.setToolTip("Text size in points")
 
         def _sync():

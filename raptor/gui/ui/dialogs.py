@@ -4,26 +4,25 @@ Each function takes the MainWindow instance (`win`) and builds/opens
 one dialog. MainWindow keeps thin delegating methods so existing
 wiring and tests keep working."""
 from __future__ import annotations
-from raptor.gui.ui.modality import exec_dialog
-
-from raptor.gui.ui.qtcompat import req
-
-from raptor.gui.ui import msgbox
 
 import json
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtWidgets import (
     QDialog, QFormLayout, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QComboBox, QSpinBox, QDoubleSpinBox,
     QGroupBox, QWidget, QListWidget, QAbstractItemView, QTabWidget, QMessageBox, QScrollArea, QFrame,
 )
+from raptor.gui.resources.design_tokens import scaled as _scaled
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
 from raptor.gui.resources.scale import SCALE_STEPS, normalise_scale
 from raptor.gui.ui.diagram_commands import apply_row_edits
 from raptor.gui.ui.main_window import _TERMINATION_CHOICES
+from raptor.gui.ui.modality import exec_dialog
+from raptor.gui.ui.qtcompat import req
+from raptor.gui.ui import msgbox
 
 
 def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
@@ -342,7 +341,7 @@ def _pref_row(form, label, widget, why, scope, reset=None, builtins=()):
     if reset is not None:
         btn = QPushButton("Reset")
         btn.setToolTip(f"Restore the default ({', '.join(builtins) or 'default'})")
-        btn.setFixedWidth(56)
+        btn.setFixedWidth(_scaled(56))
         btn.clicked.connect(lambda _=False, w=widget, r=reset: r(w))
         lay.addWidget(btn)
     form.addRow(label, box)
@@ -369,7 +368,7 @@ class _SectionPages(QWidget):
         self._nav = QListWidget()
         self._nav.setObjectName("PreferencesSections")
         self._nav.setAccessibleName("Preference sections")
-        self._nav.setFixedWidth(150)
+        self._nav.setFixedWidth(_scaled(150))
         self._nav.currentRowChanged.connect(self._jump)
         # clicking the entry that is already selected must still jump (the row did not change)
         self._nav.itemClicked.connect(lambda item: self._jump(self._nav.row(item)))

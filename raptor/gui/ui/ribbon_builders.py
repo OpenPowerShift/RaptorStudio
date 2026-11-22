@@ -23,7 +23,8 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import RIBBON, ThemeManager, active_colour
+from raptor.gui.resources.design_tokens import (
+    RIBBON, ThemeManager, active_colour, scaled as _scaled)
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
 from raptor.gui.widgets.tidy_spin import TidySpinBox
 
@@ -130,7 +131,7 @@ class RibbonBuilders(_Base):
         # list, implying that is where you are.
         self._goto_combo.setPlaceholderText("Go to hierarchy…")
         self._goto_combo.setAccessibleName("Go to hierarchy")
-        self._goto_combo.setFixedWidth(110)
+        self._goto_combo.setFixedWidth(_scaled(110))
         self._goto_combo.setFixedHeight(RIBBON["small_height"] - 2)
         self._goto_combo.setEnabled(False)
         self._goto_combo.currentIndexChanged.connect(self._on_goto_hier)
@@ -222,7 +223,7 @@ class RibbonBuilders(_Base):
         self._run_count_spin.setRange(1, 1_000_000)
         self._run_count_spin.setValue(1)
         self._run_count_spin.setGroupSeparatorShown(True)
-        self._run_count_spin.setFixedWidth(84)
+        self._run_count_spin.setFixedWidth(_scaled(84))
         self._run_count_spin.setAccessibleName("Trials")
         self._run_count_spin.setToolTip(
             "Trials the next run will use. Edit them in the Run panel "
@@ -245,7 +246,7 @@ class RibbonBuilders(_Base):
         self._cores_spin.setRange(1, cores.available())
         self._cores_spin.setValue(cores.chosen())
         self._cores_spin.setSuffix(f" of {cores.available()}")
-        self._cores_spin.setFixedWidth(84)
+        self._cores_spin.setFixedWidth(_scaled(84))
         self._cores_spin.setAccessibleName("Cores for full-speed runs")
         # Cores is edited in the Run panel; this ribbon box is a
         # read-only readout.
@@ -582,7 +583,7 @@ class RibbonBuilders(_Base):
         self._link_routing_combo.setToolTip(
             "How links are drawn: straight, angled (short stubs, then a "
             "straight run) or right-angle. No block is ever moved.")
-        self._link_routing_combo.setFixedWidth(118)
+        self._link_routing_combo.setFixedWidth(_scaled(118))
         self._link_routing_combo.setIconSize(QSize(20, 20))
         self._refresh_link_routing_icons()
         self._link_routing_combo.currentIndexChanged.connect(
@@ -644,7 +645,7 @@ class RibbonBuilders(_Base):
         current = str(app_settings.get("layout/direction", "LR"))
         self._layout_direction_combo.setCurrentIndex(
             max(self._layout_direction_combo.findData(current), 0))
-        self._layout_direction_combo.setFixedWidth(132)
+        self._layout_direction_combo.setFixedWidth(_scaled(132))
         self._layout_direction_combo.currentIndexChanged.connect(
             lambda _i: app_settings.set_value(
                 "layout/direction",
@@ -660,7 +661,7 @@ class RibbonBuilders(_Base):
         self._layout_columns_spin.setSpecialValueText("Auto")
         self._layout_columns_spin.setValue(int(
             app_settings.get("layout/max_columns", 0) or 0))
-        self._layout_columns_spin.setFixedWidth(72)
+        self._layout_columns_spin.setFixedWidth(_scaled(72))
         self._layout_columns_spin.valueChanged.connect(
             lambda value: app_settings.set_value("layout/max_columns",
                                                  int(value)))
@@ -680,7 +681,7 @@ class RibbonBuilders(_Base):
         self._layout_spacing_spin.setDecimals(2)
         self._layout_spacing_spin.setValue(float(
             app_settings.get("layout/spacing", 1.0) or 1.0))
-        self._layout_spacing_spin.setFixedWidth(72)
+        self._layout_spacing_spin.setFixedWidth(_scaled(72))
         self._layout_spacing_spin.valueChanged.connect(
             lambda value: app_settings.set_value("layout/spacing",
                                                  float(value)))
@@ -699,7 +700,7 @@ class RibbonBuilders(_Base):
         current_side = str(app_settings.get("layout/label_side", "auto"))
         self._layout_label_side_combo.setCurrentIndex(max(
             self._layout_label_side_combo.findData(current_side), 0))
-        self._layout_label_side_combo.setFixedWidth(86)
+        self._layout_label_side_combo.setFixedWidth(_scaled(86))
         self._layout_label_side_combo.currentIndexChanged.connect(
             lambda _i: app_settings.set_value(
                 "layout/label_side",
@@ -725,7 +726,7 @@ class RibbonBuilders(_Base):
             "What the small lines under each block name show: the mean, "
             "the mean and standard deviation, the failure/repair rate, "
             "or nothing")
-        self._block_label_combo.setFixedWidth(118)
+        self._block_label_combo.setFixedWidth(_scaled(118))
         self._block_label_combo.currentIndexChanged.connect(
             lambda _i: self._on_block_label_mode_changed())
 
@@ -735,7 +736,7 @@ class RibbonBuilders(_Base):
             "Which phase's law the block labels describe. 'Model' shows "
             "the model's own unphased data; a phase shows that phase's "
             "stress-adjusted failure time, or that the block is cut.")
-        self._block_phase_combo.setFixedWidth(190)
+        self._block_phase_combo.setFixedWidth(_scaled(190))
         self._block_phase_combo.currentIndexChanged.connect(
             lambda _i: self._on_block_label_phase_changed())
 
@@ -808,7 +809,7 @@ class RibbonBuilders(_Base):
         self._weak_type_combo.currentIndexChanged.connect(
             lambda _i: self._on_weak_type_changed(
                 self._weak_type_combo.currentData() or ""))
-        self._weak_type_combo.setFixedWidth(118)
+        self._weak_type_combo.setFixedWidth(_scaled(118))
         self._gy_spin = QDoubleSpinBox()
         # Six decimals: a highly available model's blocks differ in the
         # fourth (0.99968 vs 0.99961), which three could not set apart.
@@ -855,7 +856,7 @@ class RibbonBuilders(_Base):
                              ("Green ≥", self._gy_spin),
                              ("Red <", self._yr_spin)):
             if widget is not self._weak_type_combo:
-                widget.setFixedWidth(118)
+                widget.setFixedWidth(_scaled(118))
             group.add_widget(_labeled_box(text, widget, label_width=48))
 
     def _init_find_box(self) -> None:

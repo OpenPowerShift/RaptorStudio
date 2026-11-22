@@ -34,13 +34,23 @@ def win():
     from raptor.gui.ui import settings
     from raptor.gui.ui.main_window import MainWindow
     QApplication.instance() or QApplication([])
+    # The start page is a user preference another test may have turned
+    # off; this file asserts it opens, so it owns the setting.
+    old_start = settings.get("startup/show_start_page", None)
+    settings.remove("startup/show_start_page")
     settings.set_value("files/recent", [MODEL])
     w = MainWindow()
     w.resize(1400, 900)
     w.show()
-    yield w
-    w._dirty = False
-    w.close()
+    try:
+        yield w
+    finally:
+        w._dirty = False
+        w.close()
+        if old_start is None:
+            settings.remove("startup/show_start_page")
+        else:
+            settings.set_value("startup/show_start_page", old_start)
 
 
 def test_start_up_opens_on_the_home_page(win):

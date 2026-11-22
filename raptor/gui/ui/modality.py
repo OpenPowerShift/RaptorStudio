@@ -18,5 +18,9 @@ def exec_dialog(dlg: QDialog) -> int:
     # builder does not have to remember: the source stays English, the
     # widget tree is walked once for the active catalogue.
     i18n.translate_widgets(dlg)
+    if not dlg.accessibleName() and dlg.windowTitle():
+        # A screen reader announces the dialog by this name; its title is
+        # the best one it has and is already translated above.
+        dlg.setAccessibleName(dlg.windowTitle())
     dlg.setWindowModality(Qt.WindowModality.WindowModal)
     return dlg.exec()
