@@ -166,6 +166,15 @@ class FileIoMixin(_Base):
         self._bump_model_revision()      # no model: nothing to reuse
         self._rbd = None
         self._current_file = None
+        # The history goes with the model: its commands hold rows that no
+        # longer exist, so the browser must not offer a jump into them.
+        self._undo_stack.clear()
+        apply_limit = getattr(self, "_apply_undo_limit", None)
+        if apply_limit is not None:
+            apply_limit()
+        close_history = getattr(self, "_close_undo_history", None)
+        if close_history is not None:
+            close_history()
         self._dirty = False
         self._results.clear()
         self._results.forget_previous_run()
@@ -321,7 +330,11 @@ class FileIoMixin(_Base):
         # .rbd; new models and .rbds files default to .rbds.
         self._opened_legacy_format = bool(path) and \
             not str(path).lower().endswith(".rbds")
-        self._undo_stack.setClean()
+        # The history belongs to the previous model: its commands hold
+        # that model's blocks and rows, and jumping to one after an Open
+        # would write them into this model. Clearing also makes the
+        # configured cap apply (Qt only takes a limit on an empty stack).
+        self._undo_stack.clear()
         self._dirty = False
         # units chip
         cap_on = False
@@ -375,6 +388,9 @@ class FileIoMixin(_Base):
         v.apply_view_options(getattr(rbd, "view", None) or {})
         self._sync_link_routing_combo()
         v.load_rbd(rbd)
+        apply_limit = getattr(self, "_apply_undo_limit", None)
+        if apply_limit is not None:
+            apply_limit()
         self._sync_block_label_controls()
         # The canvas rebuild is the one long block the indicator can be
         # repainted after: without a yield it stays as the first frame

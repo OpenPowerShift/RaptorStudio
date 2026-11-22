@@ -112,6 +112,9 @@ class NavigationMixin(_Base):
         self._set_level(0)
 
     def _set_level(self, parent_id: int):
+        if getattr(self, "_history_jump", False):
+            self._history_jump_level = parent_id
+            return
         # A Comment draft belongs to an element on the level being left;
         # flush it before the scene (and Inspector) is rebuilt.
         self.level_about_to_change.emit()

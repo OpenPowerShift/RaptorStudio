@@ -85,12 +85,21 @@ class _ViewCmd(QUndoCommand):
             return
         if level and level not in getattr(v, "hiers", {}):
             return                       # not there (yet): act where we are
+        if getattr(v, "_history_jump", False):
+            v._history_jump_level = level
+            return
         v._set_level(level)
 
     def _done(self):
         if self._v._loading:
             return
         pending = getattr(self._v, "_pending_signals", None)
+        # A history jump replays many commands: one refresh at the end
+        # instead of one per step (as for a macro, below).
+        if getattr(self._v, "_history_jump", False) and pending is not None:
+            if self.changed_signal not in pending:
+                pending.append(self.changed_signal)
+            return
         if getattr(self, "_in_macro", False) and pending is not None:
             # One step of a macro (a multi-row Data Tables edit, its undo):
             # the stack emits the signal once when the macro is done

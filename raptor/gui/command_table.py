@@ -1326,6 +1326,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         checked=True),
     CommandSpec(
+        id="view.undo_history",
+        shortcut="Ctrl+Shift+H",
+        attr="_undo_history_action",
+        text="Model History",
+        icon="history_clock_icon:text",
+        tooltip=(
+            "Browse the model's retained undo steps and jump to one "
+            "(Ctrl+Shift+H); the maximum number kept is set in Preferences"),
+        handler="_show_undo_history",
+        enabled_when="model_open"),
+    CommandSpec(
         id="view.theme",
         attr="_theme_action",
         text="Dark Theme",

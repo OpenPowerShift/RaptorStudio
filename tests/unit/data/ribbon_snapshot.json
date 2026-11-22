@@ -1691,6 +1691,18 @@
    "text": "Undo",
    "tooltip": "Undo the last edit (Ctrl+Z)"
   },
+  "_undo_history_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+H"
+   ],
+   "text": "Model History",
+   "tooltip": "Browse the model's retained undo steps and jump to one (Ctrl+Shift+H); the maximum number kept is set in Preferences\n\nUnavailable: open or create a model first"
+  },
   "_validate_action": {
    "checkable": false,
    "checked": false,
@@ -1951,6 +1963,7 @@
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": false,
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -2121,6 +2134,7 @@
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": true,
    "_validate_action": true,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -2291,6 +2305,7 @@
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": false,
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -3136,6 +3151,11 @@
        "kind": "action",
        "large": false,
        "text": "Advisor"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Model History"
       },
       {
        "kind": "action",

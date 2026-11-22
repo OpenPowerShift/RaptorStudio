@@ -84,6 +84,9 @@ DEFAULTS: dict[str, Any] = {
     # files/
     "files/autosave": False,
     "files/autosave_min": 5,
+    # Maximum undo steps kept for the model; 0 means no limit. A cap keeps
+    # a long session on a large model from growing memory without bound.
+    "editing/undo_limit": 200,
     # "never" | "ask" | "always": whether to save (or prompt to save)
     # unsaved changes before a run starts, since the results otherwise
     # silently reflect a different model than what is on disk.

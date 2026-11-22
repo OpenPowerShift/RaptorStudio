@@ -702,6 +702,20 @@ def show_preferences(win):
         "is on.", "app",
         reset=lambda w: w.setValue(5), builtins=("5",))
 
+    undo_limit = QSpinBox()
+    undo_limit.setRange(0, 10_000)
+    undo_limit.setSpecialValueText("Unlimited")
+    undo_limit.setValue(int(_settings.get_int("editing/undo_limit", 200)))
+    undo_limit.setToolTip(
+        "How many editing steps Undo/Redo keeps for the model")
+    _pref_row(
+        work_form, "History steps:", undo_limit,
+        "Maximum undo/redo steps kept. This is a count, not a byte "
+        "budget: one step can hold a large edit's old and new values. "
+        "0 = unlimited. A change applies when the current model is "
+        "closed or the next is loaded.", "app",
+        reset=lambda w: w.setValue(200), builtins=("200",))
+
     save_before_run = QComboBox()
     save_before_run.addItem("Don't save automatically", "never")
     save_before_run.addItem("Ask before running", "ask")
@@ -940,6 +954,10 @@ def show_preferences(win):
     _settings.set_value("experiments/last_used", prof.currentData())
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())
+    _settings.set_value("editing/undo_limit", undo_limit.value())
+    apply_limit = getattr(win, "_apply_undo_limit", None)
+    if apply_limit is not None:
+        apply_limit()
     _settings.set_value("files/save_before_run", save_before_run.currentData())
     if ask_again_btn.isChecked():
         _ask_again.ask_all_again()
