@@ -111,7 +111,6 @@ MESSAGE_BOXES = {"warning": (1, 2), "critical": (1, 2),
 #: Calls whose argument at each position is a list/tuple of UI strings.
 #: (positions, because `add_table` takes a title then the headers).
 SEQUENCE_HELPERS: dict[str, tuple[int, ...]] = {
-    "header_labels": (0,),
     "setHorizontalHeaderLabels": (0,),
     "_make_table": (0,),
     "add_table": (0, 1),
@@ -435,6 +434,38 @@ def _counts(tree: ET.ElementTree) -> tuple[int, int]:
     return done, total
 
 
+def _lrelease() -> str | None:
+    """The Qt compiler shipped with PySide, on PATH or beside the venv."""
+    import shutil
+    found = shutil.which("pyside6-lrelease")
+    if found:
+        return found
+    sibling = Path(sys.executable).with_name("pyside6-lrelease")
+    return str(sibling) if sibling.is_file() else None
+
+
+def _qm_is_current(ts_path: Path) -> bool:
+    """A typo or a translator's edit must not ship as an un-compiled `.qm`."""
+    qm_path = ts_path.with_suffix(".qm")
+    if not qm_path.is_file():
+        return False
+    lrelease = _lrelease()
+    if lrelease is None:
+        # No compiler installed: the .ts is still checked, and the build
+        # step is where a missing .qm shows up.
+        return True
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        candidate = Path(tmp) / qm_path.name
+        done = subprocess.run(
+            [lrelease, str(ts_path), "-qm", str(candidate)],
+            capture_output=True, text=True)
+        if done.returncode != 0:
+            return False
+        return candidate.read_bytes() == qm_path.read_bytes()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
@@ -454,10 +485,15 @@ def main(argv: list[str] | None = None) -> int:
         path.write_text(text, encoding="utf-8")
         print(f"wrote {path}")
         return 0
-    if path.is_file() and path.read_text(encoding="utf-8") == text:
-        return 0
-    print(f"{path} is stale; run with --write", file=sys.stderr)
-    return 1
+    if not (path.is_file() and path.read_text(encoding="utf-8") == text):
+        print(f"{path} is stale; run with --write", file=sys.stderr)
+        return 1
+    if not _qm_is_current(path):
+        print(f"{path.with_suffix('.qm')} is stale; compile it with "
+              "pyside6-lrelease (see docs/LOCALISATION.md)",
+              file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

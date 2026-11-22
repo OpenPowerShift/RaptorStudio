@@ -245,3 +245,23 @@ def test_a_labelled_version_is_pinned_against_the_retention_caps(tmp_path):
     path.write_text("model-v8", encoding="utf-8")
     store.record(path)
     assert first.id not in {s.id for s in store.snapshots(path)}
+
+
+def test_the_byte_cap_still_applies_to_labelled_versions(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=10, max_bytes=120)
+    first = store.record(path, label="keep me")
+    assert first is not None
+    ids = {first.id}
+    for n in range(2, 8):
+        path.write_text("x" * 80 + f"-v{n}", encoding="utf-8")
+        shot = store.record(path)
+        if shot is not None:
+            ids.add(shot.id)
+    kept = store.snapshots(path)
+    # the store stays inside its ceiling even though labels are pinned ...
+    folder = store._folder(path)
+    assert sum(p.stat().st_size for p in folder.glob("*.rb*")) <= 120 or \
+        len(kept) == 1
+    # ... and the pin only ever protected it from the COUNT
+    assert len(kept) <= 2

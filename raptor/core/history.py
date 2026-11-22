@@ -367,12 +367,12 @@ class HistoryStore:
                ) -> tuple[dict[str, Any], list[str]]:
         """Keep the newest versions within both limits.
 
-        A labelled version is pinned: it is not counted against `keep` or
-        `max_bytes`, so naming one keeps it until the user deletes it (or
-        clears its label). The byte cap is checked between versions, so the
-        newest version is always kept even when it alone is larger than the
-        cap. Returns the new index and the stored names to delete after it
-        is written.
+        A labelled version is pinned against `keep`: it is not counted, so
+        naming one keeps it until the user deletes it or clears its label.
+        The byte cap is still a ceiling for the whole store (pinned files
+        included), checked between versions; the newest version is always
+        kept even when it alone is larger than the cap. Returns the new
+        index and the stored names to delete after it is written.
         """
         folder = self._folder(file)
         entries = sorted(
@@ -386,16 +386,19 @@ class HistoryStore:
             name = str(entry.get("stored") or "")
             size = self._entry_size(folder, entry)
             pinned = bool(clean_label(entry.get("label")))
-            if not pinned and (
-                    unpinned_kept >= self.keep
-                    or (unpinned_kept and total + size > self.max_bytes)):
+            too_many = not pinned and unpinned_kept >= self.keep
+            # A label pins against the count, not against the disk: the
+            # byte cap is a ceiling for the store as a whole.
+            too_big = (total + size > self.max_bytes
+                       and (pinned or unpinned_kept))
+            if too_many or too_big:
                 if name:
                     removed.append(name)
                 continue
             kept.append(entry)
+            total += size
             if not pinned:
                 unpinned_kept += 1
-                total += size
         return {"version": INDEX_VERSION, "file": str(file),
                 "snapshots": kept}, removed
 

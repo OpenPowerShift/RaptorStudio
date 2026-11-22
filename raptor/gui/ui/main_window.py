@@ -454,8 +454,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # labelled "Dark Theme" while the window was already dark.
         self._theme_action.blockSignals(True)
         self._theme_action.setChecked(theme.is_dark)
-        self._theme_action.setText(
-            "Light Theme" if theme.is_dark else "Dark Theme")
+        if theme.is_dark:
+            self._theme_action.setText("Light Theme")
+        else:
+            self._theme_action.setText("Dark Theme")
         self._theme_action.blockSignals(False)
         # The whole window tree exists now (ribbon, docks, run panel, results
         # and inspector): translate its English literals once. Data-driven
@@ -2348,7 +2350,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _on_theme_changed(self, dark: bool):
         self._theme_action.blockSignals(True)
         self._theme_action.setChecked(dark)
-        self._theme_action.setText("Light Theme" if dark else "Dark Theme")
+        if dark:
+            self._theme_action.setText("Light Theme")
+        else:
+            self._theme_action.setText("Dark Theme")
         self._theme_action.blockSignals(False)
         self.setStyleSheet(global_stylesheet())
         c = active_colour()

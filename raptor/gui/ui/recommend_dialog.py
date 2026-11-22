@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.ui.analysis_dialog import study_seed
 
@@ -185,7 +184,7 @@ class RecommendDialog(QDialog):
 
     def _build_table(self) -> QTableWidget:
         table = QTableWidget(0, len(COLUMNS))
-        table.setHorizontalHeaderLabels(i18n.header_labels(COLUMNS))
+        table.setHorizontalHeaderLabels(COLUMNS)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)

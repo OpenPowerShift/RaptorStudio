@@ -56,8 +56,10 @@ unreadable store, `6` a destination that could not be written.
 Snapshots are content-deduplicated: saving an unchanged file adds nothing.
 The default retention is 30 versions or 50 MB per file, whichever is reached
 first; the oldest versions beyond that are deleted. Labelled versions are
-pinned and do not count against either cap, so "save this one" survives
-later pruning; clear the label to let it age out. The size cap is checked
+pinned against the version count, so "save this one" survives later
+pruning; the size cap still applies to the store as a whole, so a pinned
+version can be removed once the folder reaches the limit. Clear the label
+to let it count and age out normally. The size cap is checked
 between versions, so one model larger than the cap is still kept. The index
 is updated before pruned files are removed: a crash in between leaves an
 unreferenced snapshot (recoverable) rather than an index entry whose file is

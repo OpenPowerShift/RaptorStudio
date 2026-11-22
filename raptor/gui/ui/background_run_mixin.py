@@ -715,7 +715,9 @@ class BackgroundRunMixin(_Base):
                                 f"The background run failed:\n\n{err}")
                 self._statusbar.showMessage("Run failed")
                 return
-            stopped = state["stop_ev"].is_set()
+            # The engine records whether it actually cut the batch short;
+            # `stop_ev` is also set by a Stop pressed after the last run.
+            stopped = bool((state.get("run_metadata") or {}).get("stopped"))
             importance = state.get("importance")
             if stopped:
                 requested = int((state.get("progress") or (0, 0))[1] or 0)
@@ -863,8 +865,13 @@ class BackgroundRunMixin(_Base):
             if getattr(self, "_sync_stop", False) or \
                     getattr(self, "_run_in_progress", False):
                 self._sync_stop = True
-                self._statusbar.showMessage("Stop requested — finishing "
-                                            "the current run…", 6000)
+                bar = getattr(self, "_run_progress", None)
+                end_of_run = bool(bar is not None and bar.maximum() > 0
+                                  and bar.value() >= bar.maximum())
+                self._statusbar.showMessage(
+                    "Stop requested — cancelling the end-of-run passes…"
+                    if end_of_run else
+                    "Stop requested — finishing the current run…", 6000)
             return
         event = req(bg_state).get("resume_ev")
         if event is not None:

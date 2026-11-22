@@ -17,7 +17,6 @@ from bisect import bisect_left
 from collections.abc import Callable
 from typing import Any, cast
 
-from raptor.gui import i18n
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
@@ -768,7 +767,7 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
     def _make_table(headers: list[str], tips: dict[str, str] | None = None,
                     wide_cols: dict[str, int] | None = None) -> _DataTable:
         t = _DataTable(0, len(headers))
-        t.setHorizontalHeaderLabels(i18n.header_labels(headers))
+        t.setHorizontalHeaderLabels(headers)
         t.verticalHeader().setVisible(False)
         t.setAlternatingRowColors(True)
         t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)

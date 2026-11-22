@@ -444,8 +444,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         lay.addWidget(self._story_page)
 
         self._runs_table = QTreeWidget()
-        self._runs_table.setHeaderLabels(["Run", "Availability", "MTBDE", "MDT",
-                                          "System Failures"])
+        self._runs_table.setHeaderLabels([
+            i18n.tr("Run", "Results"), "Availability", "MTBDE", "MDT",
+            "System Failures"])
         self._runs_table.setRootIsDecorated(False)
         self._runs_table.setUniformRowHeights(True)
         self._header_tooltips(self._runs_table)
@@ -726,7 +727,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     def _make_table(self, headers: list[str], rows: list[list[Any]],
                     first_col_label: str = "Measure") -> QTableWidget:
         table = _FitTable(len(rows), len(headers))
-        table.setHorizontalHeaderLabels(i18n.header_labels(headers))
+        table.setHorizontalHeaderLabels(headers)
         bold = QFont()
         bold.setBold(True)
         for c, _h in enumerate(headers):
@@ -1671,6 +1672,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             return
         self._apply_attribution(attribution)
 
+    def note_drivers_cancelled(self) -> None:
+        """Say the drivers pass was cancelled, not that the log is missing."""
+        self._outages = None
+        self._period_summary = None
+        self._drivers_page.set_unavailable(CANCELLED_TEXT)
+        self._drivers_page.set_periods(None)
+        self._drivers_stale = True
+
     def _apply_attribution(self, attribution: dict) -> None:
         """Put a finished attribution (computed or supplied by the run) on
         every surface that reads it."""
@@ -2111,7 +2120,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             return
         bits = []
         if m.get("trials"):
-            bits.append(f"{m['trials']:,} trial(s)")
+            trials = int(m["trials"])
+            if trials == 1:
+                bits.append(i18n.tr("{n:,} trial").format(n=trials))
+            else:
+                bits.append(i18n.tr("{n:,} trials").format(n=trials))
         if m.get("termination_type"):
             cond = m.get("term_condition")
             bits.append(f"stop: {m['termination_type']}"

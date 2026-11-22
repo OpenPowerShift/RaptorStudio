@@ -42,7 +42,6 @@ from raptor.core.analytical.errors import BddTooLarge
 from raptor.core.analytical.limits import max_bdd_nodes_allowed, memory_text
 from raptor.core.analytical.errors import AnalyticalError
 from raptor.core.analytical.network import MAX_VARIABLES
-from raptor.gui import i18n
 from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import msgbox
 from raptor.gui.resources.design_tokens import (
@@ -1750,7 +1749,7 @@ class AnalyticDialog(QDialog):
         table.clear()
         table.setColumnCount(len(headers))
         table.setRowCount(len(components))
-        table.setHorizontalHeaderLabels(i18n.header_labels(headers))
+        table.setHorizontalHeaderLabels(headers)
         for column, header in enumerate(headers):
             head = table.horizontalHeaderItem(column)
             if head is not None and header in _MEASURE_HELP:
@@ -1830,7 +1829,7 @@ class AnalyticDialog(QDialog):
         table = self._curve_table
         table.setColumnCount(2)
         table.setHorizontalHeaderLabels(
-            i18n.header_labels(["Time", "Reliability"]))
+            ["Time", "Reliability"])
         table.setRowCount(len(points))
         for row, point in enumerate(points):
             table.setItem(row, 0, _NumItem(point["time"]))

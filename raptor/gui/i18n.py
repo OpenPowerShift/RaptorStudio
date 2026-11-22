@@ -208,6 +208,7 @@ def install(app: QApplication | None = None,  # noqa: C901
         # application claiming it is translated.
         chosen = "en"
     _CURRENT = chosen
+    _TRANSLATED_WINDOWS.clear()
     app.setProperty("raptorLocale", chosen)
     _install_focus_hook(app)
     return chosen
@@ -256,18 +257,6 @@ def qt_plural(context: str, singular: str, plural: str, n: int) -> str:
     # the caller. The TS entry uses <numerusform> children.
     del plural
     return QCoreApplication.translate(context, singular, None, n)
-
-
-def header_labels(labels) -> list[str]:
-    """Translate table/tree header labels as they are set.
-
-    Header data lives in the item model, and this PySide build cannot
-    marshal ``headerDataChanged`` (Qt.Orientation) to Python, so a change
-    made after the window's first pass cannot be noticed. Translating at
-    the point of setting keeps every table, including one repopulated
-    after a run, in the chosen language.
-    """
-    return [tr(str(label)) for label in labels]
 
 
 # ---------------------------------------------------------------------------
@@ -331,42 +320,40 @@ def _translate_headers(view: QAbstractItemView) -> None:  # noqa: C901
     model = view.model()
     if model is None:
         return
-    originals = _originals(model)
-    written = _written(model)
-
-    def count_of(kind: str, orientation: Qt.Orientation) -> int:
-        """Rows/columns, whichever overload this model exposes."""
-        method = model.columnCount if kind == "col" else model.rowCount
+    # On the view, not the model: a QTableWidget hands back a fresh Python
+    # wrapper for its model on every call, so attributes set there are lost
+    # and the English source could never be restored.
+    originals = _originals(view)
+    written = _written(view)
+    try:
         try:
-            return int(method())
+            count = int(model.columnCount())
         except TypeError:
             # A model subclass whose override takes a parent index.
-            return int(method(QModelIndex()))
-
-    for orientation, tag in ((Qt.Orientation.Horizontal, "col"),
-                             (Qt.Orientation.Vertical, "row")):
+            count = int(model.columnCount(QModelIndex()))
+    except (TypeError, RuntimeError):
+        return
+    # Horizontal only: a vertical header is a row label here (a block's
+    # name, a sheet row), i.e. data, and translating it would corrupt the
+    # value the page reads back.
+    for section in range(count):
         try:
-            count = count_of(tag, orientation)
-        except (TypeError, RuntimeError):
+            text = model.headerData(section, Qt.Orientation.Horizontal)
+        except (RuntimeError, AttributeError):
+            return
+        if not isinstance(text, str) or not text:
             continue
-        for section in range(count):
-            try:
-                text = model.headerData(section, orientation)
-            except (RuntimeError, AttributeError):
-                return
-            if not isinstance(text, str) or not text:
-                continue
-            key = f"{tag}:{section}"
-            source = originals.get(key)
-            if source is None or (key in written and text != written[key]):
-                source = text
-                originals[key] = text
-            target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
-                      if _CURRENT != "en" else source)
-            if target and target != text:
-                model.setHeaderData(section, orientation, target)
-                text = target
-            written[key] = text
+        key = f"col:{section}"
+        source = originals.get(key)
+        if source is None or (key in written and text != written[key]):
+            source = text
+            originals[key] = text
+        target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
+                  if _CURRENT != "en" else source)
+        if target and target != text:
+            model.setHeaderData(section, Qt.Orientation.Horizontal, target)
+            text = target
+        written[key] = text
 
 
 def _translate_combo(box: QComboBox) -> None:
@@ -408,7 +395,7 @@ def _translate_tab_items(tabs: QTabWidget, originals: dict) -> None:
             tabs.setTabText(index, target)
 
 
-def translate_widgets(root: QWidget) -> None:  # noqa: C901 - one flat pass
+def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat pass
     """Translate the English text in *root*'s widget tree, in place.
 
     Idempotent: the English source is kept on each object, so calling it
@@ -425,6 +412,8 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901 - one flat pass
     try:
         widgets = [root, *root.findChildren(QWidget)]
         for widget in widgets:
+            if widget.property("raptor_ignore_i18n"):
+                continue
             _translate_property(widget, "windowTitle", widget.windowTitle,
                                 widget.setWindowTitle,
                                 context=WIDGET_CONTEXT)

@@ -152,3 +152,76 @@ def test_unknown_version_is_an_error(workspace):
     result = restore_version(_open(workspace), "nope", "x.rbds")
     assert result.is_error
     assert "no version" in _text(result)
+
+
+def test_read_only_refuses_the_share_safe_copy(workspace):
+    from raptor.mcp import context
+    from raptor.mcp.tools_project import share_safe_copy
+    mid = _open(workspace)
+    args = context.parsed_args()
+    args.read_only = True
+    try:
+        result = share_safe_copy(mid, "out/shared")
+    finally:
+        args.read_only = False
+    assert result.is_error
+    assert "read-only" in _text(result)
+    assert not (workspace / "out" / "shared.rbds").exists()
+
+
+def test_an_unchanged_snapshot_keeps_the_documented_shape(workspace):
+    from raptor.mcp.tools_project import snapshot_version
+    mid = _open(workspace)
+    first = _sc(snapshot_version(mid, label="one"))
+    again = _sc(snapshot_version(mid, label="two"))
+    assert set(first) == set(again) == {"created", "file", "version"}
+    assert again["created"] is False
+    assert again["version"]["snapshot_id"] == first["version"]["snapshot_id"]
+    assert again["version"]["label"] == "two"
+    assert not again["file"].startswith("/")
+
+
+def test_share_safe_copy_refuses_to_overwrite_its_source(workspace):
+    from raptor.mcp import context
+    from raptor.mcp.tools_project import share_safe_copy
+    # an .rbds source in the workspace, so the copy's name can collide
+    from raptor.core.fileio.model_file import load_model_file
+    from raptor.core.fileio.rbds import save_rbds
+    source = workspace / "same.rbds"
+    save_rbds(load_model_file(GOLDEN / "TwoBlockRedundancy" / "input.rbd"),
+              source, meta={"file_name": source.name})
+    mid = context.workspace().open_model(source)["model_id"]
+    before = source.read_bytes()
+    result = share_safe_copy(mid, "same.rbds")
+    assert result.is_error
+    assert "must not overwrite" in _text(result)
+    assert source.read_bytes() == before
+
+
+def test_restore_version_refuses_the_open_models_file(workspace):
+    from raptor.mcp import context
+    from raptor.mcp.tools_project import restore_version, snapshot_version
+    mid = _open(workspace)
+    version = _sc(snapshot_version(mid))["version"]["snapshot_id"]
+    handle = context.workspace().get(mid)
+    source = Path(handle.source)
+    before = source.read_bytes()
+    result = restore_version(mid, version, source.name)
+    assert result.is_error
+    assert "refused" in _text(result)
+    assert source.read_bytes() == before
+
+
+def test_restore_refuses_an_existing_target_unless_forced(workspace):
+    from raptor.mcp.tools_project import restore_version, snapshot_version
+    mid = _open(workspace)
+    version = _sc(snapshot_version(mid))["version"]["snapshot_id"]
+    out = workspace / "copy.rbds"
+    out.write_bytes(b"already here")
+    result = restore_version(mid, version, "copy.rbds")
+    assert result.is_error
+    assert "already exists" in _text(result)
+    assert out.read_bytes() == b"already here"
+    forced = restore_version(mid, version, "copy.rbds", force=True)
+    assert not forced.is_error
+    assert out.read_bytes() != b"already here"

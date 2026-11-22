@@ -815,16 +815,21 @@ file name, so a cached image can never be stale.
 - `share_safe_copy` writes a copy with the identifying prose removed and the
   numbers intact, so it still simulates the same system. Every flag names one
   kind (`names`, `comments`, `annotations`, `metadata`, `advisor`, `rates`)
-  and defaults to removing it. Read `residual_risk`: the structure, ids,
-  links, positions and costs remain and can identify a system without names.
-  The workspace model and its source file are never changed.
+  and defaults to removing it. `annotations="text"` also clears the
+  captions of shapes and arrows (the shapes stay); `metadata` clears the
+  title block, targets, display unit and currency too. Read
+  `residual_risk`: the structure, ids, links, positions and costs remain
+  and can identify a system without names. The workspace model and its
+  source file are never changed.
 - `list_versions` reads the versions kept for the model's file; the desktop
   application records one automatically on each save, in the user's private
   application folder. `snapshot_version` records one on demand (an unchanged
   file re-labels the newest entry instead of duplicating it),
   `label_version` names one, and `restore_version` writes one to a new path
-  inside the workspace after checking its checksum. Versions are tied to the
-  file's location, so a model that was never saved has none.
+  inside the workspace after checking its checksum; it refuses an existing
+  file unless `force=true`, and refuses the open model's own file. Versions
+  are tied to the file the model was opened from, so a model that was never
+  saved has none.
 
 <a id="large-models"></a>
 

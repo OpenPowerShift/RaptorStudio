@@ -38,7 +38,9 @@ Options:
   carries is still anonymised when names are removed.
 - **Annotations**: remove all, remove text annotations only, or keep them.
   Text annotations are the notes drawn on the canvas; shapes and arrows are
-  the graphic layer. Every anchor name is rewritten to the anonymous label,
+  the graphic layer. "Text only" removes the notes and clears the captions
+  of shapes and arrows, but keeps the shapes themselves. Every anchor name
+  is rewritten to the anonymous label,
   or dropped when the anchor still carries its element ID: this covers notes,
   shapes and both ends of an arrow, so no old name is carried by the drawing.
 - **Clear project metadata** (print title block, display unit, targets,

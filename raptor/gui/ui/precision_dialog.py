@@ -84,7 +84,7 @@ class PrecisionDialog(AnalysisDialog):
 
     def build_result_area(self) -> QWidget:
         self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(i18n.header_labels(COLUMNS))
+        self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)

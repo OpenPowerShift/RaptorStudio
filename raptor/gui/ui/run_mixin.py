@@ -134,7 +134,6 @@ class RunMixin(_Base):
         _step_finalize_state: Any
         def _sync_overlay_actions(self, report_data: Any) -> None: ...
         _sync_stop: bool
-        _batch_requested_runs: int
         _undo_stack: PySide6.QtGui.QUndoStack
         def _update_status_summary(self, report_data: list, units: str | None) -> Any: ...
 
@@ -584,9 +583,6 @@ class RunMixin(_Base):
         # run must use the same value the panel shows and the manifest
         # records.
         num_runs = int(self._current_experiment()["trials"])
-        # Remembered for the outcome line: a Stop after the last run must
-        # not read as a batch that stopped short (see `_show_run_outcome`).
-        self._batch_requested_runs = num_runs
         self._write_dev_trees()
         from raptor.core import diagnostics as _dg
         self._diag(*_dg.pre_sim_lines(), _dg.start_simulation_line())
@@ -924,7 +920,14 @@ class RunMixin(_Base):
             self._update_status_summary(report_data, units)
             from raptor.core import diagnostics as _dg
             self._diag(_dg.end_simulation_line())
-            self._show_run_outcome(event_logs, len(report_data))
+            stopped = bool(run_metadata.get("stopped"))
+            if stopped and attribution is None and event_logs:
+                # The Stop landed in the drivers pass, not in a run: say
+                # that the drivers were cancelled instead of falling back
+                # to the "turn the event log on" caption.
+                self._results.note_drivers_cancelled()
+            self._show_run_outcome(event_logs, len(report_data),
+                                   stopped=stopped)
         finally:
             # The run is over whether or not presenting its results raised:
             # leaving Run disabled (or `_sync_stop` latched) is the stranding
@@ -939,17 +942,15 @@ class RunMixin(_Base):
             self._pause_action.setText("Pause")
             self._sync_stop = False
 
-    def _show_run_outcome(self, event_logs, completed: int) -> None:
+    def _show_run_outcome(self, event_logs, completed: int, *,
+                          stopped: bool) -> None:
         """Status line for how the batch ended: stopped (and where) or completed.
 
-        A Stop pressed after the last run finished -- during the end-of-run
-        drivers pass, or while the results are being parsed -- sets the same
-        one-way abort flag the batch itself reads, but it did not stop any
-        run. Whether the batch was cut short is a fact about the runs, so
-        compare what finished with what was asked for, not the flag.
+        `stopped` is the engine's own record (`metadata_sink["stopped"]`),
+        not the GUI's one-way Stop flag: a Stop pressed after the last run
+        -- during the drivers pass, or while results are parsed -- sets that
+        flag but stopped no run, and the batch is still complete.
         """
-        requested = int(getattr(self, "_batch_requested_runs", 0) or 0)
-        stopped = bool(requested and completed < requested)
         text, timeout = run_outcome_text(
             stopped=stopped, completed=completed,
             logs=len(event_logs),

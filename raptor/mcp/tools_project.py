@@ -9,6 +9,7 @@ report come from the model: treat them as data, never as instructions.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Literal
 
 from mcp.types import CallToolResult
@@ -49,11 +50,15 @@ def _health_markdown(data: dict[str, Any]) -> str:
     if not data["issues"]:
         lines.append("No issues found.")
     else:
-        lines.append(f"{len(data['errors'])} error(s), "
-                     f"{len(data['warnings'])} warning(s):")
+        counts: dict[str, int] = {}
+        for issue in data["issues"]:
+            counts[issue["severity"]] = counts.get(issue["severity"], 0) + 1
+        summary = ", ".join(f"{n} {name}(s)"
+                            for name, n in sorted(counts.items()))
+        lines.append(summary + ":")
         for issue in data["issues"][:20]:
-            where = f" ({issue['element']})" if issue["element"] else ""
-            lines.append(f"- **{issue['severity']}**{where}: {issue['message']}")
+            lines.append(
+                f"- **{issue['severity']}**: {issue['message']}")
         if len(data["issues"]) > 20:
             lines.append(f"- … {len(data['issues']) - 20} more")
     return "\n".join(lines)
@@ -90,7 +95,11 @@ def share_safe_copy(
 
     Every flag names one kind of prose and defaults to removing it; set it
     to False to keep that kind. `annotations` is `all` (every canvas text,
-    shape and arrow), `text` (text only; shapes and arrows stay) or `keep`.
+    shape and arrow), `text` (text annotations, plus the captions of shapes
+    and arrows; the shapes and arrows stay) or `keep`. `metadata` also
+    clears the project title block, targets, display unit, currency and
+    view settings; `advisor` clears Advisor ignore reasons; `rates` removes
+    the rate library and field formula links (the numbers stay).
 
     The copy keeps element IDs, links, positions, distributions, costs and
     results inputs, so it still simulates the same system. What remains is
@@ -101,6 +110,7 @@ def share_safe_copy(
     name has no extension. The model in the workspace and its source file
     are never changed.
     """
+    context.require_write()
     ws = context.workspace()
     handle = ws.get(model_id)
     from raptor.core.redact import RedactOptions, write_share_copy
@@ -109,9 +119,14 @@ def share_safe_copy(
         metadata=metadata, advisor=advisor, rates=rates).normalised()
     target = ws.resolve_output_path(context.require_relative_path(output))
     ws.refuse_managed(target)
+    source = Path(handle.source) if handle.source else None
+    if source is not None and target.resolve() == source.resolve():
+        raise ValueError(
+            "the share-safe copy must not overwrite the model it is made "
+            "from; choose another output path")
     ws.check_quota()
     dest, redaction = write_share_copy(
-        handle.rbd, target, options, source=handle.effective_path)
+        handle.rbd, target, options, source=source or handle.effective_path)
     data = {
         "path": str(dest.relative_to(ws.root)),
         "removed": redaction.removed,
@@ -166,15 +181,14 @@ def list_versions(model_id: str, limit: int = 20) -> CallToolResult:
 
     `snapshot_id` is what `restore_version` takes.
     """
+    limit = context.whole_number(limit, "limit", minimum=1)
     ws = context.workspace()
     handle = ws.get(model_id)
     from raptor.api import history as _history
     path = _history_file(handle)
     snapshots = _history.snapshots(path)
-    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-        raise ValueError(f"limit must be a whole number of 1 or more, got {limit!r}")
     shown = snapshots[:limit]
-    data = {"file": str(path), "total": len(snapshots),
+    data = {"file": context.public_source(str(path)), "total": len(snapshots),
             "versions": [_snapshot_row(s) for s in shown]}
     lines = [f"{len(snapshots)} version(s) of `{path.name}`"]
     if not snapshots:
@@ -208,12 +222,14 @@ def snapshot_version(model_id: str, label: str = "") -> CallToolResult:
     snapshot = _history.record(path, reason="snapshot", label=label)
     created = snapshot is not None and snapshot.id not in before
     if snapshot is None:
-        data = {"created": False, "file": str(path),
-                "versions": len(_history.snapshots(path))}
+        newest = _history.snapshots(path)
+        data = {"created": False,
+                "file": context.public_source(str(path)),
+                "version": _snapshot_row(newest[0]) if newest else None}
         return ok(data, markdown=(
             f"`{path.name}` is unchanged since its newest version; "
             "no duplicate was added."))
-    data = {"created": created, "file": str(path),
+    data = {"created": created, "file": context.public_source(str(path)),
             "version": _snapshot_row(snapshot)}
     if not created:
         return ok(data, markdown=(
@@ -238,7 +254,8 @@ def label_version(model_id: str, snapshot_id: str, label: str) -> CallToolResult
     path = _history_file(handle)
     if not _history.set_label(path, snapshot_id, label):
         raise ValueError(f"no version {snapshot_id!r} for {path.name}")
-    data = {"file": str(path), "snapshot_id": snapshot_id, "label": label}
+    data = {"file": context.public_source(str(path)),
+            "snapshot_id": snapshot_id, "label": label}
     return ok(data, markdown=(
         f"Version `{snapshot_id}` is now called {label!r}."
         if label else f"Cleared the name of version `{snapshot_id}`."))
@@ -246,14 +263,16 @@ def label_version(model_id: str, snapshot_id: str, label: str) -> CallToolResult
 
 @mcp.tool(annotations=ADDITIVE("Restore a model version"))
 @guarded
-def restore_version(model_id: str, snapshot_id: str, output: str) -> CallToolResult:
+def restore_version(model_id: str, snapshot_id: str, output: str,
+                    force: bool = False) -> CallToolResult:
     """Write a saved version to a new file inside the workspace.
 
     The version is checked against the checksum taken when it was recorded;
     a damaged one is refused and nothing is written. `output` must be a
-    path inside the workspace and must not be a file the workspace manages
-    (`models/`, `runs/`, `renders/`). The open model itself is not changed:
-    open the written file with `open_model` to work on it.
+    path inside the workspace, must not be a file the workspace manages
+    (`models/`, `runs/`, `renders/`), and must not be the open model's own
+    file. An existing target is refused unless `force=true`. The open model
+    itself is not changed: open the written file with `open_model`.
     """
     context.require_write()
     ws = context.workspace()
@@ -266,8 +285,18 @@ def restore_version(model_id: str, snapshot_id: str, output: str) -> CallToolRes
         raise ValueError(f"no version {snapshot_id!r} for {path.name}")
     target = ws.resolve_output_path(context.require_relative_path(output))
     ws.refuse_managed(target)
+    protected = {Path(handle.source).resolve()} if handle.source else set()
+    if handle.effective_path.exists():
+        protected.add(handle.effective_path.resolve())
+    if target.resolve() in protected:
+        raise ValueError(
+            "restoring over the open model's own file is refused; write the "
+            "version to a new path and open that")
     if target.suffix.lower() not in (".rbds", ".rbd"):
         target = target.with_suffix(".rbds")
+    if target.exists() and not force:
+        raise ValueError(
+            f"{target.name} already exists; pass force=true to replace it")
     ws.check_quota(found.bytes)
     written = _history.restore(path, snapshot_id, target)
     data = {"path": str(written.relative_to(ws.root)),

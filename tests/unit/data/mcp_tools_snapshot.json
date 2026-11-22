@@ -1009,6 +1009,7 @@
  },
  "restore_version": {
   "params": [
+   "force",
    "model_id",
    "output",
    "snapshot_id"

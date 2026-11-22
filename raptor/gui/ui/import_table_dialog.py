@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
-from raptor.gui import i18n
 from raptor.core import import_tables as I
 
 
@@ -109,8 +108,8 @@ class ImportTableDialog(QDialog):
     def _build_changes(self, lay: QVBoxLayout,
                        changes: list[I.Change]) -> None:
         self._table = QTableWidget(len(changes), 6)
-        self._table.setHorizontalHeaderLabels(i18n.header_labels(
-            ["Row", "Element", "Field", "Current", "Imported", "Formula"]))
+        self._table.setHorizontalHeaderLabels(
+            ["Row", "Element", "Field", "Current", "Imported", "Formula"])
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)

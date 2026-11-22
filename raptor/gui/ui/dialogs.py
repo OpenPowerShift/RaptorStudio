@@ -1092,11 +1092,20 @@ def show_preferences(win):
             win._mark_dirty()
             win._refresh_inspector()
     _settings.set_value("appearance/language", str(language.currentData()))
-    if (int(scale.currentData()) != old_scale
-            or str(language.currentData()) != current_language):
+    scale_changed = int(scale.currentData()) != old_scale
+    language_changed = str(language.currentData()) != current_language
+    if scale_changed and language_changed:
         win._statusbar.showMessage(
             "Preferences saved — restart RAPTOR Studio to apply the "
-            "interface scale/language", 8000)
+            "interface scale and language", 8000)
+    elif language_changed:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to change language",
+            8000)
+    elif scale_changed:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to apply the "
+            "interface scale", 8000)
     else:
         win._statusbar.showMessage("Preferences saved")
 

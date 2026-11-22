@@ -2139,7 +2139,7 @@ class ChartWidget(QWidget):
         layout.addWidget(title)
         table = QTableWidget(len(items), 4)
         table.setHorizontalHeaderLabels(
-            i18n.header_labels(["Name", "Value", "Share", "Cause"]))
+            ["Name", "Value", "Share", "Cause"])
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSortingEnabled(True)

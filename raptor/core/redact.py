@@ -324,8 +324,8 @@ def _residual_risks(opts: RedactOptions) -> list[str]:
     if opts.annotations == "keep":
         risks.append("All annotations are kept, including their text.")
     elif opts.annotations == "text":
-        risks.append("Shape and arrow annotations are kept; their positions "
-                     "still describe the diagram.")
+        risks.append("Shape and arrow annotations are kept without their "
+                     "captions; their positions still describe the diagram.")
     if not opts.metadata:
         risks.append("Project metadata and unknown extension keys are kept.")
     if not opts.advisor:

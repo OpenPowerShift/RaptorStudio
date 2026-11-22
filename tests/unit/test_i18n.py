@@ -286,6 +286,12 @@ def test_table_headers_and_accessible_names_translate(qapp, pt):
     assert table.accessibleName() == "Registro de eventos ao vivo"
     assert table.accessibleDescription() == (
         "Execução mostrada no registro ao vivo")
+    # The header pass owns the source, so English comes back on a switch.
+    i18n.install(qapp, "en")
+    i18n.translate_widgets(table)
+    assert table.horizontalHeaderItem(0).text() == "Name"
+    assert table.horizontalHeaderItem(1).text() == "Block"
+    i18n.install(qapp, "pt_BR")
 
 
 def test_a_widget_added_after_the_first_pass_is_translated_by_the_next(
@@ -328,3 +334,14 @@ def test_every_report_column_header_the_gui_builds_has_a_translation():
     missing = sorted(label for label in labels
                      if not catalogue.get(label, "").strip())
     assert not missing, f"report headers without a translation: {missing}"
+
+
+def test_model_data_in_a_combo_is_never_translated(qapp, pt):
+    """A block called "Run" must keep its name in a model-data combo."""
+    from PySide6.QtWidgets import QComboBox
+    combo = QComboBox()
+    combo.setProperty("raptor_ignore_i18n", True)
+    combo.addItems(["Run", "Total", "Idle"])
+    i18n.translate_widgets(combo)
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "Run", "Total", "Idle"]

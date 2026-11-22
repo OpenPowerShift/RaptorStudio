@@ -1321,6 +1321,10 @@
   <context>
     <name>Gui</name>
     <message>
+      <source>RAPTOR Studio hit an unexpected error {details}. Your model may not be saved. This has been written to the log; consider saving to a new file.</source>
+      <translation>O RAPTOR Studio encontrou um erro inesperado {details}. Seu modelo pode não ter sido salvo. O erro foi gravado no log; considere salvar em um novo arquivo.</translation>
+    </message>
+    <message>
       <source>Unexpected Error</source>
       <translation>Erro inesperado</translation>
     </message>
@@ -1689,6 +1693,14 @@
       <translation>Cancelando…</translation>
     </message>
     <message>
+      <source>Time</source>
+      <translation>Tempo</translation>
+    </message>
+    <message>
+      <source>Reliability</source>
+      <translation>Confiabilidade</translation>
+    </message>
+    <message>
       <source>elements</source>
       <translation>elementos</translation>
     </message>
@@ -1711,14 +1723,6 @@
     <message>
       <source>Cancelled</source>
       <translation>Cancelado</translation>
-    </message>
-    <message>
-      <source>Time</source>
-      <translation>Tempo</translation>
-    </message>
-    <message>
-      <source>Reliability</source>
-      <translation>Confiabilidade</translation>
     </message>
     <message>
       <source>Workbook not written.</source>
@@ -1815,10 +1819,6 @@
     <message>
       <source>WARNING: run stopped at the t=10,000,000 safety bound — termination condition never met</source>
       <translation>AVISO: a execução parou no limite de segurança t=10.000.000 — a condição de término nunca foi satisfeita</translation>
-    </message>
-    <message>
-      <source>Stop requested — finishing the current run…</source>
-      <translation>Parada solicitada — finalizando a execução atual…</translation>
     </message>
     <message>
       <source>Animation is off — the run goes at full speed. Turn Animate on to set an animation speed.</source>
@@ -2065,10 +2065,6 @@
       <translation>Salvar CSV…</translation>
     </message>
     <message>
-      <source>Show the whole run</source>
-      <translation>Mostrar a execução inteira</translation>
-    </message>
-    <message>
       <source>Name</source>
       <translation>Nome</translation>
     </message>
@@ -2083,6 +2079,10 @@
     <message>
       <source>Cause</source>
       <translation>Causa</translation>
+    </message>
+    <message>
+      <source>Show the whole run</source>
+      <translation>Mostrar a execução inteira</translation>
     </message>
     <message>
       <source>Search charts…</source>
@@ -2462,7 +2462,7 @@
     </message>
     <message>
       <source>Sparing Type</source>
-      <translation>Tipo de reserva</translation>
+      <translation>Tipo de provisão</translation>
     </message>
     <message>
       <source>Pool Name</source>
@@ -2675,6 +2675,10 @@
     <message>
       <source>Drag to pan the diagram, click to jump, wheel to scroll</source>
       <translation>Arraste para panoramizar o diagrama, clique para saltar, use a roda para rolar</translation>
+    </message>
+    <message>
+      <source>No model open.</source>
+      <translation>Nenhum modelo aberto.</translation>
     </message>
     <message>
       <source>Arrow — drag either end to adjust, right-click for colour/line style</source>
@@ -3389,12 +3393,8 @@
       <translation>Seções de preferências</translation>
     </message>
     <message>
-      <source>Preferences saved — restart RAPTOR Studio to apply the interface scale/language</source>
-      <translation>Preferências salvas — reinicie o RAPTOR Studio para aplicar a escala/idioma da interface</translation>
-    </message>
-    <message>
-      <source>Preferences saved</source>
-      <translation>Preferências salvas</translation>
+      <source>Preferences saved — restart RAPTOR Studio to apply the interface scale and language</source>
+      <translation>Preferências salvas — reinicie o RAPTOR Studio para aplicar a escala e o idioma da interface</translation>
     </message>
     <message>
       <source>antithetic</source>
@@ -3471,6 +3471,18 @@
     <message>
       <source>Single-Point Failures</source>
       <translation>Falhas de ponto único</translation>
+    </message>
+    <message>
+      <source>Preferences saved — restart RAPTOR Studio to change language</source>
+      <translation>Preferências salvas — reinicie o RAPTOR Studio para alterar o idioma</translation>
+    </message>
+    <message>
+      <source>Preferences saved — restart RAPTOR Studio to apply the interface scale</source>
+      <translation>Preferências salvas — reinicie o RAPTOR Studio para aplicar a escala da interface</translation>
+    </message>
+    <message>
+      <source>Preferences saved</source>
+      <translation>Preferências salvas</translation>
     </message>
     <message>
       <source>Differences</source>
@@ -3997,6 +4009,22 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Falha ao restaurar</translation>
     </message>
     <message>
+      <source>Saved archive: {name} (model only — run the model to include results)</source>
+      <translation>Arquivo salvo: {name} (somente o modelo — execute o modelo para incluir resultados)</translation>
+    </message>
+    <message>
+      <source>Saved: {name}</source>
+      <translation>Salvo: {name}</translation>
+    </message>
+    <message>
+      <source>Saved archive: {name} ({runs:,} run of results included)</source>
+      <translation>Arquivo salvo: {name} ({runs:,} execução de resultados incluída)</translation>
+    </message>
+    <message>
+      <source>Saved archive: {name} ({runs:,} runs of results included)</source>
+      <translation>Arquivo salvo: {name} ({runs:,} execuções de resultados incluídas)</translation>
+    </message>
+    <message>
       <source>Select one or more elements first, then Zoom to Selection</source>
       <translation>Selecione um ou mais elementos primeiro e depois use Zoom na seleção</translation>
     </message>
@@ -4221,10 +4249,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Aplicar importação</translation>
     </message>
     <message>
-      <source>No field in this sheet would change a block.</source>
-      <translation>Nenhum campo desta planilha alteraria um bloco.</translation>
-    </message>
-    <message>
       <source>Row</source>
       <translation>Linha</translation>
     </message>
@@ -4243,6 +4267,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Formula</source>
       <translation>Fórmula</translation>
+    </message>
+    <message>
+      <source>No field in this sheet would change a block.</source>
+      <translation>Nenhum campo desta planilha alteraria um bloco.</translation>
     </message>
     <message>
       <source>The spreadsheet formula behind the imported value</source>
@@ -5003,6 +5031,14 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Processando resultados…</translation>
     </message>
     <message>
+      <source>Light Theme</source>
+      <translation>Tema claro</translation>
+    </message>
+    <message>
+      <source>Dark Theme</source>
+      <translation>Tema escuro</translation>
+    </message>
+    <message>
       <source>Select blocks and copy a block first</source>
       <translation>Selecione blocos e copie um bloco primeiro</translation>
     </message>
@@ -5219,6 +5255,22 @@ Continuar?</translation>
       <translation>Fluxos aleatórios separados</translation>
     </message>
     <message>
+      <source>Phase</source>
+      <translation>Fase</translation>
+    </message>
+    <message>
+      <source>Mission</source>
+      <translation>Missão</translation>
+    </message>
+    <message>
+      <source>Dist</source>
+      <translation>Dist</translation>
+    </message>
+    <message>
+      <source>Params</source>
+      <translation>Parâmetros</translation>
+    </message>
+    <message>
       <source>Phases (duration &amp; mission)</source>
       <translation>Fases (duração e missão)</translation>
     </message>
@@ -5249,22 +5301,6 @@ Continuar?</translation>
     <message>
       <source>Value the palette stamps (stress multiplier, probability, or k)</source>
       <translation>Valor que a paleta aplica (multiplicador de estresse, probabilidade ou k)</translation>
-    </message>
-    <message>
-      <source>Phase</source>
-      <translation>Fase</translation>
-    </message>
-    <message>
-      <source>Mission</source>
-      <translation>Missão</translation>
-    </message>
-    <message>
-      <source>Dist</source>
-      <translation>Dist</translation>
-    </message>
-    <message>
-      <source>Params</source>
-      <translation>Parâmetros</translation>
     </message>
     <message>
       <source>Assign</source>
@@ -5625,6 +5661,14 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
     <message>
       <source>No events to show for this run.</source>
       <translation>Nenhum evento a mostrar nesta execução.</translation>
+    </message>
+    <message>
+      <source>{n:,} trial</source>
+      <translation>{n:,} ensaio</translation>
+    </message>
+    <message>
+      <source>{n:,} trials</source>
+      <translation>{n:,} ensaios</translation>
     </message>
     <message>
       <source>Lowest and highest value observed across the individual runs.</source>
@@ -6602,7 +6646,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Custom sparing</source>
-      <translation>Reserva personalizada</translation>
+      <translation>Provisão personalizada</translation>
     </message>
     <message>
       <source>Event</source>
@@ -6722,7 +6766,7 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Sparing cost</source>
-      <translation>Custo de reserva</translation>
+      <translation>Custo de provisão</translation>
     </message>
     <message>
       <source>Summary</source>
@@ -7027,6 +7071,13 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Save Diagram as PNG</source>
       <translation>Salvar diagrama como PNG</translation>
+    </message>
+  </context>
+  <context>
+    <name>Results</name>
+    <message>
+      <source>Run</source>
+      <translation>Execução</translation>
     </message>
   </context>
   <context>

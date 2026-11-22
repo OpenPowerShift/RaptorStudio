@@ -152,22 +152,16 @@ def test_run_anyway_goes_ahead_after_the_unsupported_features_dialog(
 
 def test_a_stop_after_the_last_run_still_reports_completion(win):
     """Stop during the post-batch passes aborts them, not the batch."""
-    win._batch_requested_runs = 2
-    win._sync_stop = True
+    win._sync_stop = True                  # the one-way GUI flag is set ...
     try:
-        win._show_run_outcome([["a", "b"], ["c"]], 2)
+        win._show_run_outcome([["a", "b"], ["c"]], 2, stopped=False)
     finally:
         win._sync_stop = False
     assert _status(win).startswith("Completed 2 run(s) successfully")
 
 
 def test_a_batch_cut_short_still_reports_the_stop(win):
-    win._batch_requested_runs = 5
-    win._sync_stop = True
-    try:
-        win._show_run_outcome([["a"], ["b"]], 2)
-    finally:
-        win._sync_stop = False
+    win._show_run_outcome([["a"], ["b"]], 2, stopped=True)
     assert _status(win).startswith("Stopped after 2 run(s)")
 
 

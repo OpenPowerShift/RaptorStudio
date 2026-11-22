@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QPushButton, QSplitter, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
@@ -83,6 +82,9 @@ class WhatIfDialog(AnalysisDialog):
         changes and the add/remove buttons."""
         from raptor.gui.ui.element_picker import ScopeBox, searchable
         self._block = searchable(QComboBox())
+        # The entries are the model's own block names: never translate them
+        # (a block called "Run" must stay "Run" for the look-up below).
+        self._block.setProperty("raptor_ignore_i18n", True)
         self._block.setMinimumWidth(180)
         self._block.setToolTip("The block the preset changes: type part of a "
                                "name to find it")
@@ -120,7 +122,7 @@ class WhatIfDialog(AnalysisDialog):
 
         self.scenarios = QTableWidget(0, 2)
         self.scenarios.setHorizontalHeaderLabels(
-            i18n.header_labels(("Scenario", "Changes (separate with ;)")))
+            ("Scenario", "Changes (separate with ;)"))
         for column, tip in enumerate(SCENARIO_TIPS):
             if (heading := self.scenarios.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)
@@ -221,7 +223,7 @@ class WhatIfDialog(AnalysisDialog):
     def build_result_area(self) -> QWidget:
         self.table = QTableWidget(0, len(RESULT_COLUMNS))
         self.table.setHorizontalHeaderLabels(
-            i18n.header_labels(RESULT_COLUMNS))
+            RESULT_COLUMNS)
         for column, tip in enumerate(RESULT_TIPS):
             if (heading := self.table.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)

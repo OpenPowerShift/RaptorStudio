@@ -434,7 +434,7 @@ class ResultsPagesMixin(_Base):
             headers = ["Name", "Colour", kind, "Min", "Max",
                        "StdDev", "SEM"]
             table.setColumnCount(len(headers))
-            table.setHorizontalHeaderLabels(i18n.header_labels(headers))
+            table.setHorizontalHeaderLabels(headers)
             # This table abbreviates further than STAT_COLUMN_TOOLTIPS's
             # own keys (Min/Max/StdDev vs. Minimum/Maximum/St.Dev).
             _short_stat = {"Min": "Minimum", "Max": "Maximum",
@@ -593,8 +593,8 @@ class ResultsPagesMixin(_Base):
                            for name in rows
                            if allowed is None or name in allowed})
             pct_table = _ReadOnlyTable(len(names), 1 + len(states))
-            pct_table.setHorizontalHeaderLabels(i18n.header_labels(
-                ["Name"] + [f"% {s.capitalize()}" for s in states]))
+            pct_table.setHorizontalHeaderLabels(
+                ["Name"] + [f"% {s.capitalize()}" for s in states])
             for ci, s in enumerate(states, start=1):
                 h_item = pct_table.horizontalHeaderItem(ci)
                 if h_item is not None:

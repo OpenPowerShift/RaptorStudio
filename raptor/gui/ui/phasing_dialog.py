@@ -23,7 +23,6 @@ Capability parity with the Raptor 7 dialog, in one modern surface:
   plain macro-abort and the canvas hatching/status stay in sync.
 """
 from __future__ import annotations
-from raptor.gui import i18n
 from raptor.gui.ui.modality import exec_dialog
 
 from raptor.gui.ui.qtcompat import req
@@ -176,8 +175,8 @@ class PhasingDialog(QDialog):
 
         # ---- Define panel (left) --------------------------------
         self._define = QTableWidget(len(self._phases), 4)
-        self._define.setHorizontalHeaderLabels(i18n.header_labels(
-            ["Phase", "Mission", "Dist", "Params"]))
+        self._define.setHorizontalHeaderLabels(
+            ["Phase", "Mission", "Dist", "Params"])
         self._define.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Interactive)
         self._define.horizontalHeader().setStretchLastSection(True)
@@ -397,7 +396,7 @@ class PhasingDialog(QDialog):
             (p.get("PhaseName") or f"P{i + 1:03d}")
             for i, p in enumerate(self._phases)] or ["P001"]
         t = QTableWidget(len(ids), len(headers))
-        t.setHorizontalHeaderLabels(i18n.header_labels(headers))
+        t.setHorizontalHeaderLabels(headers)
         t.verticalHeader().setVisible(False)
         t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         t.blockSignals(True)   # populate without per-cell parse echoes

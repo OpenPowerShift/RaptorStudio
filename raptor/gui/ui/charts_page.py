@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.api import run_needs
 from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
@@ -287,7 +288,7 @@ class ChartsPage(QWidget):
         self.clear_baseline_action.setEnabled(False)
         self.baseline_button.setMenu(self.baseline_menu)
         bar.addWidget(self.baseline_button)
-        self.run_label = QLabel("Run")
+        self.run_label = QLabel(i18n.tr("Run", "Results"))
         self.run_box = QSpinBox()
         self.run_box.setMinimum(1)
         self.run_box.setAccelerated(True)

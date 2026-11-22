@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from raptor.gui import i18n
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
@@ -966,14 +967,19 @@ class FileIoMixin(_Base):
         """The status-bar text after a successful save, and how long to show it."""
         name = Path(path).name
         if not str(path).lower().endswith(".rbdz"):
-            return f"Saved: {name}", 4000
+            return i18n.tr("Saved: {name}").format(name=name), 4000
         runs = self._results.run_count()
+        if runs == 1:
+            return i18n.tr(
+                "Saved archive: {name} ({runs:,} run of results included)"
+            ).format(name=name, runs=runs), 8000
         if runs:
-            plural = "" if runs == 1 else "s"
-            return (f"Saved archive: {name} "
-                    f"({runs:,} run{plural} of results included)", 8000)
-        return (f"Saved archive: {name} "
-                "(model only — run the model to include results)", 8000)
+            return i18n.tr(
+                "Saved archive: {name} ({runs:,} runs of results included)"
+            ).format(name=name, runs=runs), 8000
+        return i18n.tr(
+            "Saved archive: {name} (model only — run the model to include "
+            "results)").format(name=name), 8000
 
     def _save_file(self):
         if self._rbd is None:

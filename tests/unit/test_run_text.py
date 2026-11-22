@@ -15,3 +15,10 @@ def test_a_stop_between_runs_reports_how_many_finished():
 def test_a_stop_mid_run_says_the_partial_log_was_kept_and_lingers():
     text, timeout = run_outcome_text(stopped=True, completed=2, logs=3, event_log_lines=9)
     assert text.startswith("Stopped — partial event log kept") and timeout == 10000
+
+
+def test_a_stop_before_any_run_says_there_are_no_results():
+    text, timeout = run_outcome_text(stopped=True, completed=0, logs=0,
+                                     event_log_lines=0)
+    assert text == "Stopped before any run completed — no results"
+    assert timeout == 10000

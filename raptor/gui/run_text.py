@@ -14,6 +14,8 @@ def run_outcome_text(*, stopped: bool, completed: int, logs: int,
         # State success explicitly so a finished run is never mistaken for an aborted one.
         return (f"Completed {logs} run(s) successfully, "
                 f"{event_log_lines} event-log lines"), 0
+    if completed == 0:
+        return "Stopped before any run completed — no results", 10000
     if completed < logs:
         return ("Stopped — partial event log kept for the interrupted "
                 f"run, {event_log_lines} event-log lines"), 10000

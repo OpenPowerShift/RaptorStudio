@@ -6675,14 +6675,16 @@ Write a saved version to a new file inside the workspace.
 
 The version is checked against the checksum taken when it was recorded;
 a damaged one is refused and nothing is written. `output` must be a
-path inside the workspace and must not be a file the workspace manages
-(`models/`, `runs/`, `renders/`). The open model itself is not changed:
-open the written file with `open_model` to work on it.
+path inside the workspace, must not be a file the workspace manages
+(`models/`, `runs/`, `renders/`), and must not be the open model's own
+file. An existing target is refused unless `force=true`. The open model
+itself is not changed: open the written file with `open_model`.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `force` | boolean | no | `false` | — |
 | `model_id` | string | yes | — | — |
 | `output` | string | yes | — | — |
 | `snapshot_id` | string | yes | — | — |
@@ -6690,7 +6692,7 @@ open the written file with `open_model` to work on it.
 Parameter notes:
 
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `output` — `output` must be a path inside the workspace and must not be a file the workspace manages (`models/`, `runs/`, `renders/`).
+- `output` — `output` must be a path inside the workspace, must not be a file the workspace manages (`models/`, `runs/`, `renders/`), and must not be the open model's own file.
 
 **Returns**
 
@@ -6717,7 +6719,11 @@ Write a copy with the identifying prose removed, data intact.
 
 Every flag names one kind of prose and defaults to removing it; set it
 to False to keep that kind. `annotations` is `all` (every canvas text,
-shape and arrow), `text` (text only; shapes and arrows stay) or `keep`.
+shape and arrow), `text` (text annotations, plus the captions of shapes
+and arrows; the shapes and arrows stay) or `keep`. `metadata` also
+clears the project title block, targets, display unit, currency and
+view settings; `advisor` clears Advisor ignore reasons; `rates` removes
+the rate library and field formula links (the numbers stay).
 
 The copy keeps element IDs, links, positions, distributions, costs and
 results inputs, so it still simulates the same system. What remains is
@@ -6743,9 +6749,12 @@ are never changed.
 
 Parameter notes:
 
-- `annotations` — `annotations` is `all` (every canvas text, shape and arrow), `text` (text only; shapes and arrows stay) or `keep`.
+- `advisor` — `metadata` also clears the project title block, targets, display unit, currency and view settings; `advisor` clears Advisor ignore reasons; `rates` removes the rate library and field formula links (the numbers stay).
+- `annotations` — `annotations` is `all` (every canvas text, shape and arrow), `text` (text annotations, plus the captions of shapes and arrows; the shapes and arrows stay) or `keep`.
+- `metadata` — `metadata` also clears the project title block, targets, display unit, currency and view settings; `advisor` clears Advisor ignore reasons; `rates` removes the rate library and field formula links (the numbers stay).
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 - `output` — `output` is a path inside the workspace; `.rbds` is appended when the name has no extension.
+- `rates` — `metadata` also clears the project title block, targets, display unit, currency and view settings; `advisor` clears Advisor ignore reasons; `rates` removes the rate library and field formula links (the numbers stay).
 
 **Returns**
 
