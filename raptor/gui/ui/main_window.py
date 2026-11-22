@@ -3514,6 +3514,54 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                            f"Wrote {dest}\n\n{detail}")
         self._statusbar.showMessage(
             f"Share-safe copy written: {dest}", 8000)
+    def _import_data_table(self):
+        """Data ▸ Import Table: validate an .xlsx/.ods sheet and apply it
+        as one undoable step."""
+        if self._rbd is None:
+            return
+        if self._refuse_during_run("import a data table"):
+            return
+        from raptor.gui.ui import filedialogs as fdg
+        path, _filter = fdg.getOpenFileName(
+            self, "Import Data Table", "",
+            "Spreadsheets (*.xlsx *.ods);;All files (*)")
+        if not path:
+            return
+        from raptor.core.fileio.sheet_reader import SheetError, read_sheet
+        from raptor.core.import_tables import plan_import, row_snapshot
+        try:
+            sheet = read_sheet(path)
+        except (SheetError, OSError) as exc:
+            msgbox.critical(
+                self, "Import Failed",
+                f"Could not read {Path(path).name}:\n\n{exc}")
+            return
+        plan = plan_import(self._rbd, sheet, source=path)
+        if not plan.changes and not plan.problems:
+            msgbox.information(
+                self, "Import Data Table",
+                f"{Path(path).name}: nothing to change — the model already "
+                "matches the sheet.")
+            return
+        from raptor.gui.ui.import_table_dialog import (
+            ImportTableCommand, ImportTableDialog,
+        )
+        dialog = ImportTableDialog(self, plan)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before, after = row_snapshot(plan, self._rbd)
+        if before == after:
+            return
+        view = self._diagram_dock.view
+        self._undo_stack.push(ImportTableCommand(
+            view, self._rbd, before, after,
+            f"Import data table: {Path(path).name}"))
+        changed = sum(1 for oid, row in after.items()
+                      for column, value in row.items()
+                      if before[oid].get(column) != value)
+        self._statusbar.showMessage(
+            f"Imported {changed} change(s) on {len(before)} block(s) from "
+            f"{Path(path).name} — Ctrl+Z to undo", 8000)
 
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs

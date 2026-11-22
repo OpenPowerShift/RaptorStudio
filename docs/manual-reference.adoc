@@ -134,6 +134,7 @@ current value).
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
 |Groups / Tags… |Component groups and tags — named, coloured views over the model. They may span hierarchies and never change the simulation |
+|Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
 |Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
 |===
 
@@ -329,7 +330,6 @@ current value).
 |Run Panel |Show the Run panel — trials, termination, analyses and recording for the next run |
 |Live Log |Show the Live Log — the stepped simulation's event list, tabbed beside the Inspector |
 |Advisor |Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it |
-|Model History |Browse the model's retained undo steps and jump to one (Ctrl+Shift+H); the maximum number kept is set in Preferences |Ctrl+Shift+H
 |Data Tables |Show the Data Tables panel — every block/node in an editable grid (Ctrl+Shift+D) |Ctrl+Shift+D
 |Reset Layout |Put every panel back where it starts: docked, open and full size. The saved layout is forgotten too |
 |===
@@ -385,7 +385,7 @@ documentation.
 |New |Create a new blank model (Ctrl+N) |Ctrl+N
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
 |Save |Save (Ctrl+S) |Ctrl+S
-|Save As |Save to a new .rbds or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
+|Save As |Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
 |Version History… |Browse versions saved automatically on save; open one as a copy or restore it to the file |
 |Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
 |Quit |Quit RAPTOR Studio (Ctrl+Q) |Ctrl+Q

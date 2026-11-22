@@ -836,6 +836,15 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.level_changed.emit(0)
         log.debug("load_rbd: done")
 
+    def refresh_from_model(self) -> None:
+        """Rebuild the current level from the model rows after a bulk edit
+        that changed the `RbdFile` directly (an imported table).
+
+        The undo stack is not touched: the caller's own command already
+        records the before/after state.
+        """
+        self._rebuild_scene()
+        self.model_changed.emit()
 
     _LOCATE = {"block": ("BLOCK_DATA", "ParentId", "_block_items"),
                "node": ("NODE_DATA", "parent", "_node_items"),

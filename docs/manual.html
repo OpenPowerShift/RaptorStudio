@@ -24,6 +24,7 @@
 </li>
 <li><a href="#block-defaults">Block Defaults</a></li>
 <li><a href="#mass-edit">Mass Edit</a></li>
+<li><a href="#spreadsheet-import">Import a data table from a spreadsheet</a></li>
 <li><a href="#experience">Estimate from experience: a law with no data</a></li>
 <li><a href="#part-library">Part Library: part types and assemblies</a></li>
 <li><a href="#_building_on_the_canvas">Building on the canvas</a>
@@ -523,6 +524,34 @@ use it on a single kind of thing you genuinely want identically named.</p>
 </div>
 <div class="paragraph">
 <p>Leave the text blank to keep all names. The whole edit is one undo step.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="spreadsheet-import">Import a data table from a spreadsheet</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Data ▸ Import Table…</strong> reads the active sheet of an Excel (<code>.xlsx</code>) or
+OpenDocument (<code>.ods</code>) workbook and changes failure/repair parameters, PM
+settings or stock on the blocks it names. The first row with content is the
+header: <code>id</code> or <code>name</code> identifies the block, and the other columns name the
+fields (<code>Fail Param 1</code>, <code>Repair Distribution</code>, <code>PM Frequency</code>, <code>Stock</code>, …).
+Case, spaces and a bracketed or parenthetical unit are ignored.</p>
+</div>
+<div class="paragraph">
+<p>Formula cells use the value the spreadsheet calculated. When a workbook was
+written by a script and has no calculated value cached, a small safe
+arithmetic evaluator computes it from numbers, cell references, arithmetic
+and common functions; anything else is an error rather than a zero. A cell
+that shows <code>#DIV/0!</code> or <code>#N/A</code> is reported, never imported as blank.</p>
+</div>
+<div class="paragraph">
+<p>Nothing is written until you press <strong>Apply import</strong>. The review dialog lists
+each row, element, field, current value, imported value and the formula
+behind it, with every error or warning; errors block the whole import.
+Applying changes only the affected block rows, so <strong>Ctrl+Z</strong> restores the
+whole import in one step. See <code>docs/SPREADSHEET_IMPORT.md</code> for the column
+names and validation rules.</p>
 </div>
 </div>
 </div>
@@ -3485,6 +3514,11 @@ current value).</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mass Edit…</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import Table…</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook&#8217;s calculated value</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>

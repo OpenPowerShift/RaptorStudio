@@ -256,6 +256,29 @@ apply. Each tab has a *Rename* row with three modes:
 
 Leave the text blank to keep all names. The whole edit is one undo step.
 
+[[spreadsheet-import]]
+== Import a data table from a spreadsheet
+
+*Data ▸ Import Table…* reads the active sheet of an Excel (`.xlsx`) or
+OpenDocument (`.ods`) workbook and changes failure/repair parameters, PM
+settings or stock on the blocks it names. The first row with content is the
+header: `id` or `name` identifies the block, and the other columns name the
+fields (`Fail Param 1`, `Repair Distribution`, `PM Frequency`, `Stock`, …).
+Case, spaces and a bracketed or parenthetical unit are ignored.
+
+Formula cells use the value the spreadsheet calculated. When a workbook was
+written by a script and has no calculated value cached, a small safe
+arithmetic evaluator computes it from numbers, cell references, arithmetic
+and common functions; anything else is an error rather than a zero. A cell
+that shows `#DIV/0!` or `#N/A` is reported, never imported as blank.
+
+Nothing is written until you press *Apply import*. The review dialog lists
+each row, element, field, current value, imported value and the formula
+behind it, with every error or warning; errors block the whole import.
+Applying changes only the affected block rows, so *Ctrl+Z* restores the
+whole import in one step. See `docs/SPREADSHEET_IMPORT.md` for the column
+names and validation rules.
+
 [[experience]]
 == Estimate from experience: a law with no data
 
