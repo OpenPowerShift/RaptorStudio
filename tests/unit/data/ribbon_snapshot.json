@@ -871,6 +871,16 @@
    "text": "Up",
    "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
   },
+  "_history_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Version History\u2026",
+   "tooltip": "Browse versions saved automatically on save; open one as a copy or restore it to the file\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
+  },
   "_import_awb_action": {
    "checkable": false,
    "checked": false,
@@ -1864,6 +1874,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": false,
    "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,
@@ -2033,6 +2044,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": true,
    "_import_awb_action": true,
    "_import_library_action": true,
    "_import_rbd_action": true,
@@ -2202,6 +2214,7 @@
    "_guide_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": false,
    "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,

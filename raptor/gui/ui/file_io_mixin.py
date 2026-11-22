@@ -72,6 +72,7 @@ class FileIoMixin(_Base):
         _loading_model: bool
         def _migrate_report_stream_settings(self) -> None: ...
         def _open_path(self, path: str) -> Any: ...
+        def _spawn_window(self) -> Any: ...
         _opened_legacy_format: bool
         def _populate_breakpoints(self) -> Any: ...
         def _push_hierarchy_options(self) -> Any: ...
@@ -587,6 +588,7 @@ class FileIoMixin(_Base):
             # same for the legacy format.)
             rbd = req(self._rbd)
             rbd.file_name = Path(path).name
+            self._record_history(path, reason="save")
             return True
         n_ann = len(getattr(self._rbd, "annotations", []) or [])
         if n_ann:
@@ -682,6 +684,7 @@ class FileIoMixin(_Base):
                 "Reopening the .rbd gives the defaults. Save as .rbds to "
                 "keep them.")
         save_rbd(req(self._rbd), path)
+        self._record_history(path, reason="save")
         # The layout is exported as it is (the same note the CLI and MCP
         # export give): say so when Raptor 7 would draw it overlapping, or
         # could not show it at all.
@@ -693,11 +696,114 @@ class FileIoMixin(_Base):
                            + crowded)
         return True
 
+    def _record_history(self, path: str, *, reason: str = "save",
+                        label: str = "") -> None:
+        """Record a version of *path*; history must never fail a save."""
+        try:
+            from raptor.api import history
+            history.record(path, reason=reason, label=label)
+        except Exception:       # noqa: BLE001 - a save already succeeded
+            import logging
+            logging.getLogger(__name__).exception("could not record history")
+
+    def _history_changed_on_disk(self, path: str) -> bool:
+        """True when the file no longer matches its newest recorded version.
+
+        Another program (or a previous session with history switched off)
+        can change the file while this window still shows the old model.
+        Restoring would throw that change away, so the caller warns first
+        even though the replaced bytes are recorded.
+        """
+        from raptor.api import history
+        from raptor.core.history import file_digest
+        shots = history.snapshots(path)
+        if not shots or not shots[0].sha256:
+            return False
+        disk = file_digest(path)
+        return bool(disk) and disk != shots[0].sha256
+
     def _open_model_any(self, path: str):
         """Read .rbds or legacy .rbd by extension: the loader the CLI and MCP
         server use too, with the same schema check and messages."""
         from raptor.core.fileio.model_file import load_model_file
         return load_model_file(path)
+
+    def _open_history_dialog(self):
+        """File ▸ Version History: browse or restore saved versions."""
+        if not self._current_file:
+            return
+        from PySide6.QtWidgets import QDialog
+        from raptor.gui.ui.history_dialog import HistoryDialog
+        from raptor.api import history
+        dialog = HistoryDialog(self, self._current_file)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        snapshot = dialog.snapshot
+        if snapshot is None:
+            return
+        if dialog.action == "open":
+            try:
+                rbd = self._open_model_any(str(snapshot.path))
+            except Exception as exc:  # noqa: BLE001 - show the snapshot file
+                msgbox.critical(
+                    self, "Open Version Failed",
+                    f"Could not open {snapshot.time_text()}:\n\n{exc}")
+                return
+            target = self._spawn_window()
+            target._load_into_app(rbd, None)
+            target._statusbar.showMessage(
+                f"Opened version from {snapshot.time_text()} as an unsaved "
+                "model — Save As to keep it", 10000)
+            return
+        if dialog.action == "restore":
+            if self._refuse_during_run("restore a version"):
+                return
+            if getattr(self._rbd, "protected_file", False):
+                msgbox.warning(
+                    self, "Protected File",
+                    "This model is marked as overwrite-protected: it cannot "
+                    "be restored. Save a copy instead.")
+                return
+            from raptor.gui.ui.dialogs import question_box
+            # Ask about the unsaved work FIRST: saving it must not write
+            # the model a second later overwrites.
+            if not self._confirm_discard_unsaved(closing=True):
+                return
+            if self._history_changed_on_disk(self._current_file):
+                if not question_box(
+                        self, "File Changed Outside RAPTOR Studio",
+                        f"{Path(self._current_file).name} is different on "
+                        "disk from the newest version in History: another "
+                        "program, or an earlier session, changed it.\n\n"
+                        "Restoring replaces those changes. A copy of the "
+                        "file as it is now is recorded in History first, so "
+                        "you can recover them from this list.\n\nContinue?",
+                        yes_text="Continue", no_text="Cancel"):
+                    return
+            if not question_box(
+                    self, "Restore Version",
+                    f"Replace {Path(self._current_file).name} with the version "
+                    f"from {snapshot.time_text()}?\n\nThe current file is "
+                    "recorded in History first, so this is reversible.",
+                    yes_text="Restore version", no_text="Cancel"):
+                return
+            try:
+                # Keep the state being replaced, even if it was never saved
+                # through History (an external change or an old file).
+                if Path(self._current_file).is_file():
+                    history.record(self._current_file, reason="before restore")
+                history.restore(self._current_file, snapshot.id)
+                restored = self._open_model_any(self._current_file)
+                self._load_into_app(restored, self._current_file)
+                self._undo_stack.setClean()
+                self._dirty = False
+                self._record_history(self._current_file, reason="restored")
+            except Exception as exc:  # noqa: BLE001
+                msgbox.critical(self, "Restore Failed",
+                                f"Could not restore the version:\n\n{exc}")
+                return
+            self._statusbar.showMessage(
+                f"Restored version from {snapshot.time_text()}", 8000)
 
     def _save_file(self):
         if self._rbd is None:

@@ -383,6 +383,7 @@ documentation.
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
 |Save |Save (Ctrl+S) |Ctrl+S
 |Save As |Save to a new .rbds or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
+|Version History… |Browse versions saved automatically on save; open one as a copy or restore it to the file |
 |Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
 |Quit |Quit RAPTOR Studio (Ctrl+Q) |Ctrl+Q
 |Differences… |What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run. |

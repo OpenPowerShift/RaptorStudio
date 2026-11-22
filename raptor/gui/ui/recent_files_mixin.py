@@ -195,4 +195,9 @@ class RecentFilesMixin(_Base):
                 self, "Open Failed", f"Could not open {path}:\n\n{e}")
             return
         self._load_into_app(rbd, path)
+        # A file opened before this feature (or changed outside the app)
+        # gets its first version without waiting for the next save.
+        record = getattr(self, "_record_history", None)
+        if record is not None:
+            record(path, reason="opened")
         self._remember_recent(path)
