@@ -1,0 +1,20 @@
+.TH "RAPTOR-IMPORT-TABLE" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-import\-table \- import failure/repair, PM or stock values from a spreadsheet
+.SH SYNOPSIS
+\fBraptor import\-table\fR [\-h] [\-\-sheet NAME] [\-\-in\-place] [\-f {text,json}] MODEL SHEET
+.SH DESCRIPTION
+Read an .xlsx or .ods sheet and change the failure and repair parameters, PM settings or stock of the blocks it names. The sheet's formula cells use the workbook's calculated value. Every row is validated first and the whole import is refused if any row has an error; the model file changes only with \-\-in\-place.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-sheet\fR \fINAME\fR
+worksheet to read (default: active/first)
+.TP
+\fB\-\-in\-place\fR
+write the changes to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH SEE ALSO
+\fBraptor\fR(1)

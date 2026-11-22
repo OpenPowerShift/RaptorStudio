@@ -190,6 +190,11 @@ complete -c raptor -n '__fish_seen_subcommand_from history' -l label
 complete -c raptor -n '__fish_seen_subcommand_from history' -l output
 complete -c raptor -n '__fish_seen_subcommand_from history' -l restore
 complete -c raptor -n '__fish_seen_subcommand_from history' -l snapshot
+complete -c raptor -n '__fish_use_subcommand' -a import-table
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l format
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l help
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l in-place
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l sheet
 complete -c raptor -n '__fish_use_subcommand' -a info
 complete -c raptor -n '__fish_seen_subcommand_from info' -l element
 complete -c raptor -n '__fish_seen_subcommand_from info' -l format

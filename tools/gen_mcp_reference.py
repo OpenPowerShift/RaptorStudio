@@ -189,6 +189,9 @@ TOOL_CATEGORY: dict[str, str] = {
     "update_group": "build-edit",
     "delete_group": "build-edit",
     "tag_elements": "build-edit",
+    # Spreadsheet import
+    "preview_table_import": "build-edit",
+    "import_table_data": "build-edit",
 }
 
 #: A short, valid argument object for every tool.  ``<model_id>`` and
@@ -319,6 +322,10 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "tag_elements": {"model_id": "<model_id>",
                      "elements": ["Block:3", "Block:4"],
                      "tags": ["rotating"], "mode": "add"},
+    "preview_table_import": {"model_id": "<model_id>",
+                             "path": "imports/blocks.xlsx"},
+    "import_table_data": {"model_id": "<model_id>",
+                          "path": "imports/blocks.xlsx"},
     "extract_hierarchy": {"model_id": "<model_id>",
                           "hierarchy": "Cooling loop", "report_only": True},
     "validate_model": {"model_id": "<model_id>"},
@@ -600,6 +607,13 @@ def _parameters(schema: dict[str, Any],
 #: output schema.  The catalogue must still give a reader the return summary,
 #: so keep these next to the examples and check them in the docs test.
 RETURN_NOTES: dict[str, str] = {
+    "preview_table_import": "`{source, sheet, summary, applied, changes: "
+                            "[{row, ref, id, name, field, old, new, "
+                            "formula}], problems: [{row, level, message, "
+                            "ref}], blocked}`.",
+    "import_table_data": "The same object with `applied` true and only "
+                         "the changes that were written; an error in any "
+                         "row refuses the whole import.",
     "list_groups": "`{groups: [{id, name, colour, description, tag, "
                    "explicit_members, members}], count, tags}`.",
     "create_group": "`{group, members}` for the stored group.",

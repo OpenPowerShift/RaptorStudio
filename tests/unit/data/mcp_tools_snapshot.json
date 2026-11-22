@@ -676,6 +676,17 @@
    "path"
   ]
  },
+ "import_table_data": {
+  "params": [
+   "model_id",
+   "path",
+   "sheet"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
  "insert_assembly": {
   "params": [
    "library_path",
@@ -892,6 +903,17 @@
  "ping": {
   "params": [],
   "required": []
+ },
+ "preview_table_import": {
+  "params": [
+   "model_id",
+   "path",
+   "sheet"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
  },
  "project_health": {
   "params": [

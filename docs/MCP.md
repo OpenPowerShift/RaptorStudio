@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **107 tools** in 9 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **106**.
+- **109 tools** in 9 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **108**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -457,6 +457,19 @@ right/center); an arrow uses `from_`/`to`. Anchored notes move with
 returns the deleted annotation id and its kind.
 
 <a id="validate-simulate"></a>
+
+### Import a spreadsheet table
+
+- `preview_table_import` reads an `.xlsx` or `.ods` sheet from the
+  workspace (or an `--allow-read` directory) and reports every change it
+  would make, its formula and any blocking problem. Headers name the block
+  and the fields; formula cells use the workbook's calculated value.
+- `import_table_data` applies the same plan and saves the model. A plan
+  with an error is refused, never partly applied; the returned changes are
+  the ones written, and `undo_last_edit` is the way back.
+- The same importer is `raptor import-table MODEL SHEET` (dry run) with
+  `--in-place` to write, and **Data ▸ Import Table…** in the application,
+  where the whole import is one undo step.
 
 ### Groups and tags
 
