@@ -266,6 +266,103 @@ def _rd_base_dict(rd: RunReportData) -> dict[str, object]:
     }
 
 
+def _jsonable(value: Any) -> Any:
+    """Dataclass/dict/list to plain JSON types (int keys become strings)."""
+    import dataclasses
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return dataclasses.asdict(value)
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def archive_detail(rd: RunReportData) -> dict[str, Any]:
+    """The structured per-run detail an `.rbdz` result set carries.
+
+    The Capacity, Cost and Weak Link pages read objects, not the report
+    text: per-node means, cost rows and per-block state times. The flat
+    per-run row (`_rd_to_dict`) keeps the headline figures, so this is the
+    extra that lets reopening an archive show those pages as the run did.
+    Everything is plain JSON; keys of per-element maps are strings.
+    """
+    out: dict[str, Any] = {}
+    cap = getattr(rd, "capacity", None)
+    if cap is not None:
+        out["capacity"] = {
+            "units_produced": float(cap.units_produced),
+            "ave_lost_flow": float(cap.ave_lost_flow),
+            "flow_generated": int(cap.flow_generated),
+            "system_node_id": int(cap.system_node_id),
+            "nodes": _jsonable(cap.nodes),
+        }
+    cost = getattr(rd, "cost", None)
+    if cost is not None:
+        out["cost"] = _jsonable(cost)
+    for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
+                "hier_dsi"):
+        value = getattr(rd, key, None)
+        if value:
+            out[key] = _jsonable(value)
+    return out
+
+
+def restore_archive_detail(row: dict[str, Any]) -> dict[str, Any]:
+    """`archive_detail` back into the attribute objects the pages read.
+
+    Returns a dict of the run fields that were stored (`capacity`, `cost`,
+    the weak-link maps). Their nested dicts become attribute objects, and
+    element-keyed maps get their integer ids back (JSON only has string
+    keys). Absent detail yields an empty dict, so an archive written by an
+    older build keeps working.
+    """
+    from types import SimpleNamespace
+
+    def ns(value: Any) -> Any:
+        if isinstance(value, dict):
+            return SimpleNamespace(**{k: ns(v) for k, v in value.items()})
+        if isinstance(value, list):
+            return [ns(item) for item in value]
+        return value
+
+    def by_int(mapping: Any) -> dict[int, Any]:
+        return {int(k): ns(v) for k, v in (mapping or {}).items()}
+
+    out: dict[str, Any] = {}
+    cap = row.get("capacity")
+    if isinstance(cap, dict):
+        nodes = cap.get("nodes") or {}
+        out["capacity"] = SimpleNamespace(
+            units_produced=cap.get("units_produced"),
+            ave_lost_flow=cap.get("ave_lost_flow"),
+            flow_generated=cap.get("flow_generated"),
+            system_node_id=cap.get("system_node_id"),
+            nodes={int(k): ns(v) for k, v in nodes.items()})
+    cost = row.get("cost")
+    if isinstance(cost, dict):
+        out["cost"] = SimpleNamespace(
+            system_down_cost=cost.get("system_down_cost"),
+            system_lost_flow_cost=cost.get("system_lost_flow_cost"),
+            grand_total=cost.get("grand_total"),
+            red_cost_configured=cost.get("red_cost_configured", True),
+            blocks=by_int(cost.get("blocks")),
+            events=by_int(cost.get("events")),
+            hiers=by_int(cost.get("hiers")),
+            spare_pools={k: ns(v) for k, v in
+                         (cost.get("spare_pools") or {}).items()},
+            resources={k: ns(v) for k, v in
+                       (cost.get("resources") or {}).items()})
+    for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
+                "hier_dsi"):
+        # The weak-link maps are read with `.get(...)`; they stay dicts,
+        # only their integer element keys come back.
+        if isinstance(row.get(key), dict):
+            out[key] = {int(k): dict(v) if isinstance(v, dict) else v
+                        for k, v in row[key].items()}
+    return out
+
+
 def model_units(rbd: RbdFile) -> str:
     """The model's time units ('hours', 'miles', ...), or ''.
 

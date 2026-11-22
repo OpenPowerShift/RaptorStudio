@@ -116,7 +116,12 @@ Opening an `.rbdz` restores the model and then feeds the result entries to
 the Results dock:
 
 - `per_run.json` rebuilds the per-run figures the Overview cards and the
-  status summary read;
+  status summary read, plus an `archive_detail` block (results schema
+  version 2) holding the per-node capacity means, the cost rows and the
+  weak-link state times, so the Capacity, Cost and Weak Link pages open as
+  the run left them rather than saying the analysis is absent. An archive
+  written by an older build simply has no detail and falls back to the
+  flat figures;
 - `final_results.txt` / `end_of_run.txt` rebuild the tables and raw views;
 - `events.txt` is split at `Begin_Run_n` rows into one log per run;
 - plot and cost entries are extracted to a temporary folder and read

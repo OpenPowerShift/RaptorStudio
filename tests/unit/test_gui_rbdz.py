@@ -121,3 +121,54 @@ def test_save_message_says_what_the_archive_contains(qapp, two_runs):
     empty = ResultsDock()
     _Host._results = empty
     assert "model only" in FileIoMixin._save_message(_Host(), "plant.rbdz")[0]
+
+
+@pytest.fixture(scope="module")
+def analysed_runs(qapp):
+    """A run with capacity, cost and weak-link data to archive."""
+    rbd = load_rbd(os.path.join(REPO, "tests/golden/Capacity3/input.rbd"))
+    rbd.sections["SYSTEM_DATA"].rows[0]["weakAnalysis"] = "TRUE"
+    report_data: list = []
+    caps: list = []
+    logs, eor, fin = run_simulation_with_reports(
+        rbd, num_runs=2, date="fixed", report_sink=report_data,
+        capacity_sink=caps)
+    live = ResultsDock()
+    live.set_results(logs, eor, fin, report_data=report_data, units="hours",
+                     cap_lines=caps, rbd=rbd)
+    return rbd, live
+
+
+def test_an_archive_restores_the_structured_analyses(
+        qapp, analysed_runs, tmp_path):
+    """Capacity, Cost and Weak Link read objects, not report text; the
+    archive carries them so reopening shows the pages, not a 'no analysis'
+    note."""
+    from PySide6.QtWidgets import QTableWidget
+    rbd, live = analysed_runs
+    first = live._report_data[0]
+    assert first.capacity is not None, "fixture has no capacity analysis"
+    assert first.cost is not None, "fixture has no cost analysis"
+    assert first.weak_stats, "fixture has no weak-link analysis"
+
+    payload = live.archive_payload()
+    assert payload is not None
+    archive = tmp_path / "analysed.rbdz"
+    rbdz.write_archive(archive, "model placeholder", results=payload)
+    files, _ = rbdz.extract_results(archive, tmp_path / "extracted")
+    summary = json.loads(files["summary.json"].read_text())
+
+    saved = ResultsDock()
+    assert saved.set_archive_results(files, summary, rbd=rbd)
+    restored = saved._report_data[0]
+    assert restored.capacity is not None
+    assert restored.capacity.nodes[restored.capacity.system_node_id].ave_flow \
+        == first.capacity.nodes[first.capacity.system_node_id].ave_flow
+    assert restored.cost is not None
+    assert restored.cost.grand_total == first.cost.grand_total
+    assert restored.weak_stats
+    assert restored.weak_nodes
+    # the pages build their tables instead of the explanatory note
+    assert saved._build_capacity_page().findChildren(QTableWidget)
+    assert saved._build_cost_page().findChildren(QTableWidget)
+    assert saved._build_weak_page().findChildren(QTableWidget)

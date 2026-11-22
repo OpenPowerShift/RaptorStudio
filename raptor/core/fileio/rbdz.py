@@ -48,7 +48,7 @@ FORMAT_ID = "raptor-studio-archive"
 #: ``results/summary.json``'s own format id (not the archive's).
 RESULTS_FORMAT_ID = "raptor-studio-results"
 VERSION = 1
-RESULTS_VERSION = 1
+RESULTS_VERSION = 2
 
 MODEL_NAME = "model.rbds"
 MANIFEST_NAME = "manifest.json"

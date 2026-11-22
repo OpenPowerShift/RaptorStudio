@@ -1387,8 +1387,18 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 sources[key] = value
         run_rows = [rd for rd in self._report_data if rd is not None]
         if run_rows:
-            sources["per_run.json"] = json.dumps(
-                [_rd_to_dict(rd) for rd in run_rows])
+            from raptor.api.run import archive_detail, _rd_to_dict
+            rows = []
+            for rd in run_rows:
+                row = _rd_to_dict(rd)
+                # The Capacity, Cost and Weak Link pages read objects that
+                # the flat figures do not carry; store them so reopening
+                # the archive shows the pages as the run did.
+                detail = archive_detail(rd)
+                if detail:
+                    row["archive_detail"] = detail
+                rows.append(row)
+            sources["per_run.json"] = json.dumps(rows)
         attribution = (self._drivers_page.attribution()
                        if hasattr(self, "_drivers_page") else None)
         if attribution:
@@ -1501,6 +1511,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 "missions_attempted": row.get("missions_attempted") or 0,
             }
             values.update(row)
+            from raptor.api.run import restore_archive_detail
+            for key, value in restore_archive_detail(
+                    row.get("archive_detail") or {}).items():
+                values[key] = value
             runs.append(SimpleNamespace(**values))
 
         event_text = lines("events.txt")
