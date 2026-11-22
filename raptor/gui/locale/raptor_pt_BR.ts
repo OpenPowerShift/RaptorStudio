@@ -190,8 +190,8 @@
       <translation>Salvar como</translation>
     </message>
     <message>
-      <source>Save to a new .rbds or .rbd file (Ctrl+Shift+S)</source>
-      <translation>Salvar em um novo arquivo .rbds ou .rbd (Ctrl+Shift+S)</translation>
+      <source>Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S)</source>
+      <translation>Salvar em um novo arquivo .rbds, .rbdz (modelo + resultados salvos) ou .rbd (Ctrl+Shift+S)</translation>
     </message>
     <message>
       <source>Import Availability Workbench…</source>
@@ -208,6 +208,14 @@
     <message>
       <source>Create a new blank model (Ctrl+N)</source>
       <translation>Criar um novo modelo em branco (Ctrl+N)</translation>
+    </message>
+    <message>
+      <source>Version History…</source>
+      <translation>Histórico de versões…</translation>
+    </message>
+    <message>
+      <source>Browse versions saved automatically on save; open one as a copy or restore it to the file</source>
+      <translation>Navegue pelas versões salvas automaticamente ao salvar; abra uma como cópia ou restaure-a no arquivo</translation>
     </message>
     <message>
       <source>Close</source>
@@ -248,6 +256,14 @@
     <message>
       <source>Save the printable report (diagram + results + weak link) as a PDF file</source>
       <translation>Salvar o relatório para impressão (diagrama + resultados + elo fraco) como um arquivo PDF</translation>
+    </message>
+    <message>
+      <source>Share-safe Copy…</source>
+      <translation>Cópia segura para compartilhamento…</translation>
+    </message>
+    <message>
+      <source>Write a copy with element names, comments and chosen annotations removed; IDs, links and data are kept</source>
+      <translation>Gravar uma cópia sem nomes de elementos, comentários e anotações escolhidas; ids, vínculos e dados são mantidos</translation>
     </message>
     <message>
       <source>Export to Availability Workbench…</source>
@@ -440,6 +456,14 @@
     <message>
       <source>Project Settings — simulation-wide configuration for this model</source>
       <translation>Configurações do projeto — configuração de toda a simulação para este modelo</translation>
+    </message>
+    <message>
+      <source>Project Health</source>
+      <translation>Saúde do projeto</translation>
+    </message>
+    <message>
+      <source>Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings</source>
+      <translation>Estatísticas do projeto e problemas de organização: elementos sem nome, nomes duplicados, pools não utilizados e constatações de validação</translation>
     </message>
     <message>
       <source>Issues</source>
@@ -712,6 +736,22 @@
     <message>
       <source>Apply a failure/repair distribution to all selected elements at once (select 2+ elements)</source>
       <translation>Aplicar uma distribuição de falha/reparo a todos os elementos selecionados de uma vez (selecione 2+ elementos)</translation>
+    </message>
+    <message>
+      <source>Groups / Tags…</source>
+      <translation>Grupos / Etiquetas…</translation>
+    </message>
+    <message>
+      <source>Component groups and tags — named, coloured views over the model. They may span hierarchies and never change the simulation</source>
+      <translation>Grupos e etiquetas de componentes — visões nomeadas e coloridas sobre o modelo. Podem abranger hierarquias e nunca alteram a simulação</translation>
+    </message>
+    <message>
+      <source>Import Table…</source>
+      <translation>Importar tabela…</translation>
+    </message>
+    <message>
+      <source>Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value</source>
+      <translation>Importar parâmetros de falha/reparo, configurações de MP ou estoque de uma planilha do Excel (.xlsx) ou OpenDocument (.ods). Os valores são validados primeiro e aplicados como um único passo de desfazer; células com fórmula usam o valor calculado da pasta de trabalho</translation>
     </message>
     <message>
       <source>Phases…</source>
@@ -1148,6 +1188,14 @@
     <message>
       <source>Show the Data Tables panel — every block/node in an editable grid</source>
       <translation>Mostrar o painel Tabelas de dados — cada bloco/nó em uma grade editável</translation>
+    </message>
+    <message>
+      <source>Model History</source>
+      <translation>Histórico do modelo</translation>
+    </message>
+    <message>
+      <source>Browse the model's retained undo steps and jump to one (Ctrl+Shift+H); the maximum number kept is set in Preferences</source>
+      <translation>Navegue pelos passos de desfazer mantidos do modelo e vá até um deles (Ctrl+Shift+H); o número máximo mantido é definido nas Preferências</translation>
     </message>
     <message>
       <source>Dark Theme</source>
@@ -2561,6 +2609,34 @@
       <translation>Alterna o aplicativo inteiro, inclusive as superfícies dos gráficos e as variantes escuras dos preenchimentos de causa. O menu Exibir tem o mesmo interruptor.</translation>
     </message>
     <message>
+      <source>Scales text, spacing and control sizes</source>
+      <translation>Dimensiona texto, espaçamento e tamanhos dos controles</translation>
+    </message>
+    <message>
+      <source>Interface scale:</source>
+      <translation>Escala da interface:</translation>
+    </message>
+    <message>
+      <source>Enlarges text, spacing and controls together for a high-DPI or low-vision display. 100% is the design size; takes effect after you restart RAPTOR Studio.</source>
+      <translation>Amplia texto, espaçamento e controles em conjunto para telas de alto DPI ou baixa visão. 100% é o tamanho de projeto; passa a valer após reiniciar o RAPTOR Studio.</translation>
+    </message>
+    <message>
+      <source>High-contrast colours</source>
+      <translation>Cores de alto contraste</translation>
+    </message>
+    <message>
+      <source>Black/white surfaces, stronger borders and text, visible focus rings</source>
+      <translation>Superfícies em preto e branco, bordas e texto mais fortes, anéis de foco visíveis</translation>
+    </message>
+    <message>
+      <source>Contrast:</source>
+      <translation>Contraste:</translation>
+    </message>
+    <message>
+      <source>Keeps the semantic state colours but makes the window, text, borders and focus rings high contrast. Useful in bright rooms or for low vision.</source>
+      <translation>Mantém as cores semânticas de estado, mas torna a janela, o texto, as bordas e os anéis de foco de alto contraste. Útil em ambientes claros ou para baixa visão.</translation>
+    </message>
+    <message>
       <source>System language</source>
       <translation>Idioma do sistema</translation>
     </message>
@@ -2615,6 +2691,18 @@
     <message>
       <source>Minutes between recovery copies. Only active while auto-save is on.</source>
       <translation>Minutos entre cópias de recuperação. Ativo somente enquanto o salvamento automático está ligado.</translation>
+    </message>
+    <message>
+      <source>How many editing steps Undo/Redo keeps for the model</source>
+      <translation>Quantos passos de edição Desfazer/Refazer mantém para o modelo</translation>
+    </message>
+    <message>
+      <source>History steps:</source>
+      <translation>Passos do histórico:</translation>
+    </message>
+    <message>
+      <source>Maximum undo/redo steps kept. This is a count, not a byte budget: one step can hold a large edit's old and new values. 0 = unlimited. A change applies when the current model is closed or the next is loaded.</source>
+      <translation>Número máximo de passos de desfazer/refazer mantidos. É uma contagem, não um limite em bytes: um passo pode conter os valores antigos e novos de uma edição grande. 0 = ilimitado. Uma alteração vale quando o modelo atual é fechado ou o próximo é carregado.</translation>
     </message>
     <message>
       <source>Don't save automatically</source>
@@ -2985,8 +3073,8 @@
       <translation>Seções de preferências</translation>
     </message>
     <message>
-      <source>Preferences saved — restart RAPTOR Studio to change language</source>
-      <translation>Preferências salvas — reinicie o RAPTOR Studio para alterar o idioma</translation>
+      <source>Preferences saved — restart RAPTOR Studio to apply the interface scale/language</source>
+      <translation>Preferências salvas — reinicie o RAPTOR Studio para aplicar a escala/idioma da interface</translation>
     </message>
     <message>
       <source>Preferences saved</source>
@@ -3257,6 +3345,18 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Lei</translation>
     </message>
     <message>
+      <source>Show only the elements in a component group or tag</source>
+      <translation>Mostrar somente os elementos de um grupo ou etiqueta de componente</translation>
+    </message>
+    <message>
+      <source>Filter by group or tag</source>
+      <translation>Filtrar por grupo ou etiqueta</translation>
+    </message>
+    <message>
+      <source>All elements</source>
+      <translation>Todos os elementos</translation>
+    </message>
+    <message>
       <source>Save Reduced RAPTOR Model</source>
       <translation>Salvar modelo RAPTOR reduzido</translation>
     </message>
@@ -3453,12 +3553,12 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Salvar arquivo RBD como</translation>
     </message>
     <message>
-      <source>All RAPTOR models (*.rbds *.rbd);;RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)</source>
-      <translation>Todos os modelos RAPTOR (*.rbds *.rbd);;Modelos do RAPTOR Studio (*.rbds);;RAPTOR clássico (*.rbd)</translation>
+      <source>All RAPTOR models (*.rbds *.rbdz *.rbd);;RAPTOR Studio models (*.rbds);;RAPTOR Studio archives (*.rbdz);;Classic RAPTOR (*.rbd)</source>
+      <translation>Todos os modelos RAPTOR (*.rbds *.rbdz *.rbd);;Modelos do RAPTOR Studio (*.rbds);;Arquivos do RAPTOR Studio (*.rbdz);;RAPTOR clássico (*.rbd)</translation>
     </message>
     <message>
-      <source>RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)</source>
-      <translation>Modelos do RAPTOR Studio (*.rbds);;RAPTOR clássico (*.rbd)</translation>
+      <source>RAPTOR Studio models (*.rbds);;RAPTOR Studio archives (*.rbdz);;Classic RAPTOR (*.rbd)</source>
+      <translation>Modelos do RAPTOR Studio (*.rbds);;Arquivos do RAPTOR Studio (*.rbdz);;RAPTOR clássico (*.rbd)</translation>
     </message>
     <message>
       <source>Protected File</source>
@@ -3471,6 +3571,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Annotations not supported in the .rbd format</source>
       <translation>Anotações não suportadas no formato .rbd</translation>
+    </message>
+    <message>
+      <source>Groups and tags not supported in the .rbd format</source>
+      <translation>Grupos e etiquetas não são suportados no formato .rbd</translation>
     </message>
     <message>
       <source>Display unit not supported in the .rbd format</source>
@@ -3521,8 +3625,28 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Falha na importação</translation>
     </message>
     <message>
+      <source>Archive Results Not Replaced</source>
+      <translation>Resultados do arquivo não substituídos</translation>
+    </message>
+    <message>
+      <source>This archive's saved results could not be restored, so saving here would discard them. Use Save As to a new file, or re-open the archive to recover them.</source>
+      <translation>Os resultados salvos deste arquivo não puderam ser restaurados, então salvar aqui os descartaria. Use Salvar como para um novo arquivo ou reabra o arquivo para recuperá-los.</translation>
+    </message>
+    <message>
       <source>Formulas not supported in the .rbd format</source>
       <translation>Fórmulas não suportadas no formato .rbd</translation>
+    </message>
+    <message>
+      <source>This model is marked as overwrite-protected: it cannot be restored. Save a copy instead.</source>
+      <translation>Este modelo está marcado como protegido contra sobrescrita: ele não pode ser restaurado. Salve uma cópia em vez disso.</translation>
+    </message>
+    <message>
+      <source>Restore Version</source>
+      <translation>Restaurar versão</translation>
+    </message>
+    <message>
+      <source>Saved Results Not Read</source>
+      <translation>Resultados salvos não lidos</translation>
     </message>
     <message>
       <source>Save cancelled</source>
@@ -3533,12 +3657,132 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Falha ao salvar</translation>
     </message>
     <message>
+      <source>Open Version Failed</source>
+      <translation>Falha ao abrir versão</translation>
+    </message>
+    <message>
+      <source>File Changed Outside RAPTOR Studio</source>
+      <translation>Arquivo alterado fora do RAPTOR Studio</translation>
+    </message>
+    <message>
+      <source>Restore Failed</source>
+      <translation>Falha ao restaurar</translation>
+    </message>
+    <message>
       <source>Select one or more elements first, then Zoom to Selection</source>
       <translation>Selecione um ou mais elementos primeiro e depois use Zoom na seleção</translation>
     </message>
     <message>
       <source>Select a hierarchy oval first, then Zoom to Hierarchy</source>
       <translation>Selecione primeiro uma elipse de hierarquia e depois use Zoom na hierarquia</translation>
+    </message>
+    <message>
+      <source>Component Groups and Tags</source>
+      <translation>Grupos e etiquetas de componentes</translation>
+    </message>
+    <message>
+      <source>Groups are saved views over the model: they may span hierarchies and do not change the simulation. A group can hold an explicit list, every element carrying a tag, or both.</source>
+      <translation>Grupos são visões salvas sobre o modelo: podem abranger hierarquias e não alteram a simulação. Um grupo pode conter uma lista explícita, todos os elementos que carregam uma etiqueta, ou ambos.</translation>
+    </message>
+    <message>
+      <source>Groups</source>
+      <translation>Grupos</translation>
+    </message>
+    <message>
+      <source>Saved views. Selecting one edits its name, colour, members and tag query.</source>
+      <translation>Visões salvas. Selecionar uma edita seu nome, cor, membros e consulta de etiqueta.</translation>
+    </message>
+    <message>
+      <source>Create a group from the current canvas selection, or an empty group to fill later</source>
+      <translation>Criar um grupo a partir da seleção atual do diagrama, ou um grupo vazio para preencher depois</translation>
+    </message>
+    <message>
+      <source>Delete</source>
+      <translation>Excluir</translation>
+    </message>
+    <message>
+      <source>Delete the selected group; the elements and their tags are kept</source>
+      <translation>Excluir o grupo selecionado; os elementos e suas etiquetas são mantidos</translation>
+    </message>
+    <message>
+      <source>Group name</source>
+      <translation>Nome do grupo</translation>
+    </message>
+    <message>
+      <source>Group colour</source>
+      <translation>Cor do grupo</translation>
+    </message>
+    <message>
+      <source>Group tag query</source>
+      <translation>Consulta de etiqueta do grupo</translation>
+    </message>
+    <message>
+      <source>e.g. rotating — include every element with this tag</source>
+      <translation>ex.: rotativo — incluir todos os elementos com esta etiqueta</translation>
+    </message>
+    <message>
+      <source>Also include every element carrying this tag, including ones tagged later. Leave blank for an explicit member list only.</source>
+      <translation>Incluir também todos os elementos que carregam esta etiqueta, inclusive os etiquetados depois. Deixe em branco para usar apenas uma lista explícita de membros.</translation>
+    </message>
+    <message>
+      <source>Group description</source>
+      <translation>Descrição do grupo</translation>
+    </message>
+    <message>
+      <source>Optional note, shown in the selector's tooltip</source>
+      <translation>Nota opcional, exibida na dica do seletor</translation>
+    </message>
+    <message>
+      <source>Members</source>
+      <translation>Membros</translation>
+    </message>
+    <message>
+      <source>Group members</source>
+      <translation>Membros do grupo</translation>
+    </message>
+    <message>
+      <source>Add selection</source>
+      <translation>Adicionar seleção</translation>
+    </message>
+    <message>
+      <source>Add the elements selected on the canvas to this group's list</source>
+      <translation>Adicionar os elementos selecionados no diagrama à lista deste grupo</translation>
+    </message>
+    <message>
+      <source>Remove selection</source>
+      <translation>Remover seleção</translation>
+    </message>
+    <message>
+      <source>Remove the selected elements from this group's list. Elements included by the tag query stay in the view.</source>
+      <translation>Remover os elementos selecionados da lista deste grupo. Os elementos incluídos pela consulta de etiqueta permanecem na visão.</translation>
+    </message>
+    <message>
+      <source>Tags for the selected elements</source>
+      <translation>Etiquetas dos elementos selecionados</translation>
+    </message>
+    <message>
+      <source>Comma-separated tags</source>
+      <translation>Etiquetas separadas por vírgula</translation>
+    </message>
+    <message>
+      <source>Apply to selection</source>
+      <translation>Aplicar à seleção</translation>
+    </message>
+    <message>
+      <source>Replace the tags on every selected element with this list; leave the box empty to remove their tags</source>
+      <translation>Substituir as etiquetas de todos os elementos selecionados por esta lista; deixe a caixa vazia para remover as etiquetas</translation>
+    </message>
+    <message>
+      <source>Select elements on the canvas to add them to a group or edit their tags.</source>
+      <translation>Selecione elementos no diagrama para adicioná-los a um grupo ou editar suas etiquetas.</translation>
+    </message>
+    <message>
+      <source>Delete Group</source>
+      <translation>Excluir grupo</translation>
+    </message>
+    <message>
+      <source>Duplicate Group Name</source>
+      <translation>Nome de grupo duplicado</translation>
     </message>
     <message>
       <source>KEYBOARD_SHORTCUTS.md not found</source>
@@ -3575,6 +3819,86 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Find:</source>
       <translation>Localizar:</translation>
+    </message>
+    <message>
+      <source>Versions are written automatically when you save. They live in your private application folder, not beside the model.</source>
+      <translation>As versões são gravadas automaticamente ao salvar. Elas ficam na sua pasta privada do aplicativo, não ao lado do modelo.</translation>
+    </message>
+    <message>
+      <source>Select a version.</source>
+      <translation>Selecione uma versão.</translation>
+    </message>
+    <message>
+      <source>Open as copy</source>
+      <translation>Abrir como cópia</translation>
+    </message>
+    <message>
+      <source>Open this version in a new window as an unsaved model</source>
+      <translation>Abrir esta versão em uma nova janela como um modelo não salvo</translation>
+    </message>
+    <message>
+      <source>Restore to file</source>
+      <translation>Restaurar no arquivo</translation>
+    </message>
+    <message>
+      <source>Write this version over the model file (asks first)</source>
+      <translation>Gravar esta versão sobre o arquivo do modelo (pergunta antes)</translation>
+    </message>
+    <message>
+      <source>Label…</source>
+      <translation>Rótulo…</translation>
+    </message>
+    <message>
+      <source>Name this version to find it again</source>
+      <translation>Nomear esta versão para encontrá-la depois</translation>
+    </message>
+    <message>
+      <source>Save version now…</source>
+      <translation>Salvar versão agora…</translation>
+    </message>
+    <message>
+      <source>Record the file as it is now, without waiting for the next save</source>
+      <translation>Registrar o arquivo como está agora, sem esperar o próximo salvamento</translation>
+    </message>
+    <message>
+      <source>Delete version</source>
+      <translation>Excluir versão</translation>
+    </message>
+    <message>
+      <source>The model file is missing; there is nothing to record</source>
+      <translation>O arquivo do modelo está ausente; não há nada para registrar</translation>
+    </message>
+    <message>
+      <source>The newest version already matches the file; no duplicate was added.</source>
+      <translation>A versão mais recente já corresponde ao arquivo; nenhuma duplicata foi adicionada.</translation>
+    </message>
+    <message>
+      <source>Label updated.</source>
+      <translation>Rótulo atualizado.</translation>
+    </message>
+    <message>
+      <source>Delete Version</source>
+      <translation>Excluir versão</translation>
+    </message>
+    <message>
+      <source>No versions and no model file: the file has been moved or deleted. History is tied to the file's location.</source>
+      <translation>Sem versões e sem arquivo do modelo: o arquivo foi movido ou excluído. O histórico está vinculado ao local do arquivo.</translation>
+    </message>
+    <message>
+      <source>No versions yet. Versions are recorded when you save; use &lt;b&gt;Save version now…&lt;/b&gt; to record one immediately.</source>
+      <translation>Nenhuma versão ainda. As versões são registradas ao salvar; use &lt;b&gt;Salvar versão agora…&lt;/b&gt; para registrar uma imediatamente.</translation>
+    </message>
+    <message>
+      <source>Apply import</source>
+      <translation>Aplicar importação</translation>
+    </message>
+    <message>
+      <source>No field in this sheet would change a block.</source>
+      <translation>Nenhum campo desta planilha alteraria um bloco.</translation>
+    </message>
+    <message>
+      <source>The spreadsheet formula behind the imported value</source>
+      <translation>A fórmula da planilha por trás do valor importado</translation>
     </message>
     <message>
       <source>No selection</source>
@@ -4167,10 +4491,6 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Abra ou crie um modelo para usar a biblioteca.</translation>
     </message>
     <message>
-      <source>Apply to selection</source>
-      <translation>Aplicar à seleção</translation>
-    </message>
-    <message>
       <source>Choose an entry in the library first.</source>
       <translation>Escolha primeiro uma entrada na biblioteca.</translation>
     </message>
@@ -4303,6 +4623,18 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Configurações do projeto abertas no Inspetor</translation>
     </message>
     <message>
+      <source>Share-safe Copy</source>
+      <translation>Cópia segura para compartilhamento</translation>
+    </message>
+    <message>
+      <source>Import Data Table</source>
+      <translation>Importar tabela de dados</translation>
+    </message>
+    <message>
+      <source>Spreadsheets (*.xlsx *.ods);;All files (*)</source>
+      <translation>Planilhas (*.xlsx *.ods);;Todos os arquivos (*)</translation>
+    </message>
+    <message>
       <source>Import RBD as Hierarchy</source>
       <translation>Importar RBD como hierarquia</translation>
     </message>
@@ -4343,6 +4675,14 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Preferências ▸ Funcionamento ▸ Alterações não salvas antes de executar reverte isso</translation>
     </message>
     <message>
+      <source>Open or create a model before using history</source>
+      <translation>Abra ou crie um modelo antes de usar o histórico</translation>
+    </message>
+    <message>
+      <source>Stop the run before jumping through history</source>
+      <translation>Pare a execução antes de navegar pelo histórico</translation>
+    </message>
+    <message>
       <source>Select an annotation first — the z-order commands only apply to canvas annotations</source>
       <translation>Selecione primeiro uma anotação — os comandos de ordem Z se aplicam somente a anotações do diagrama</translation>
     </message>
@@ -4373,6 +4713,22 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Early-terminate results discarded — model changed</source>
       <translation>Resultados de encerramento antecipado descartados — modelo alterado</translation>
+    </message>
+    <message>
+      <source>Jump Through History</source>
+      <translation>Navegar pelo histórico</translation>
+    </message>
+    <message>
+      <source>Changing the model history discards the results on screen, because they describe the model as it was before these edits.
+
+Continue?</source>
+      <translation>Alterar o histórico do modelo descarta os resultados na tela, porque eles descrevem o modelo como era antes dessas edições.
+
+Continuar?</translation>
+    </message>
+    <message>
+      <source>Share-safe Copy Failed</source>
+      <translation>Falha na cópia segura para compartilhamento</translation>
     </message>
     <message>
       <source>Collapse: select at least one block, node, or event first</source>
@@ -4551,10 +4907,6 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Adicionar</translation>
     </message>
     <message>
-      <source>Delete</source>
-      <translation>Excluir</translation>
-    </message>
-    <message>
       <source>(no entries — press Add)</source>
       <translation>(sem entradas — pressione Adicionar)</translation>
     </message>
@@ -4609,6 +4961,78 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Pages across:</source>
       <translation>Páginas na horizontal:</translation>
+    </message>
+    <message>
+      <source>Project Health</source>
+      <translation>Saúde do projeto</translation>
+    </message>
+    <message>
+      <source>No issues found. The model is ready to run and share; check the counts above before sending it outside the project.</source>
+      <translation>Nenhum problema encontrado. O modelo está pronto para executar e compartilhar; confira as contagens acima antes de enviá-lo para fora do projeto.</translation>
+    </message>
+    <message>
+      <source>Double-click an issue to locate its element. Validation errors must be fixed before a run; warnings are judgements for the reviewer.</source>
+      <translation>Clique duas vezes em um problema para localizar seu elemento. Os erros de validação precisam ser corrigidos antes de uma execução; os avisos são julgamentos para o revisor.</translation>
+    </message>
+    <message>
+      <source>Share-safe copy…</source>
+      <translation>Cópia segura para compartilhamento…</translation>
+    </message>
+    <message>
+      <source>Write a copy with names, comments and chosen annotations removed</source>
+      <translation>Gravar uma cópia sem nomes, comentários e anotações escolhidas</translation>
+    </message>
+    <message>
+      <source>Locate</source>
+      <translation>Localizar</translation>
+    </message>
+    <message>
+      <source>A share-safe copy keeps the model's IDs, links, distributions and results inputs, but removes the labels and notes that describe what the system is. The original file is not changed.</source>
+      <translation>Uma cópia segura para compartilhamento mantém os ids, vínculos, distribuições e entradas de resultados do modelo, mas remove os rótulos e as notas que descrevem o que o sistema é. O arquivo original não é alterado.</translation>
+    </message>
+    <message>
+      <source>Replace element and hierarchy names</source>
+      <translation>Substituir nomes de elementos e hierarquias</translation>
+    </message>
+    <message>
+      <source>Remove element comments</source>
+      <translation>Remover comentários dos elementos</translation>
+    </message>
+    <message>
+      <source>Remove all annotations</source>
+      <translation>Remover todas as anotações</translation>
+    </message>
+    <message>
+      <source>Remove text annotations only</source>
+      <translation>Remover somente anotações de texto</translation>
+    </message>
+    <message>
+      <source>Keep annotations</source>
+      <translation>Manter anotações</translation>
+    </message>
+    <message>
+      <source>Clear project metadata and preferences</source>
+      <translation>Limpar metadados e preferências do projeto</translation>
+    </message>
+    <message>
+      <source>Clear Advisor notes</source>
+      <translation>Limpar notas do Advisor</translation>
+    </message>
+    <message>
+      <source>Remove rate names, descriptions and formulas</source>
+      <translation>Remover nomes, descrições e fórmulas de taxas</translation>
+    </message>
+    <message>
+      <source>&lt;b&gt;Residual risk:&lt;/b&gt; the copy still contains the structure, element IDs, links, positions, costs and all numerical data. Those can identify a system even without names. Keep names, comments, annotations, rate descriptions, project metadata or Advisor notes only when you mean to share that prose. Remove confidential costs from the source before sharing.</source>
+      <translation>&lt;b&gt;Risco residual:&lt;/b&gt; a cópia ainda contém a estrutura, os ids dos elementos, vínculos, posições, custos e todos os dados numéricos. Isso pode identificar um sistema mesmo sem nomes. Mantenha nomes, comentários, anotações, descrições de taxas, metadados do projeto ou notas do Advisor apenas quando quiser compartilhar esse texto. Remova os custos confidenciais da origem antes de compartilhar.</translation>
+    </message>
+    <message>
+      <source>Choose file…</source>
+      <translation>Escolher arquivo…</translation>
+    </message>
+    <message>
+      <source>RAPTOR Studio model (*.rbds)</source>
+      <translation>Modelo do RAPTOR Studio (*.rbds)</translation>
     </message>
     <message>
       <source>Repeat the selected block, or add a copy or a part type…</source>
@@ -4777,6 +5201,14 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
     <message>
       <source>Filter:</source>
       <translation>Filtro:</translation>
+    </message>
+    <message>
+      <source>Working out what caused the downtime…</source>
+      <translation>Determinando o que causou o tempo de inatividade…</translation>
+    </message>
+    <message>
+      <source>Downtime drivers</source>
+      <translation>Responsáveis pelo tempo de inatividade</translation>
     </message>
     <message>
       <source>No run manifest — settings for this result set were not recorded.</source>
@@ -5519,6 +5951,46 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>This input's swing cannot be told from noise at this run count; run more trials before applying either end</source>
       <translation>A variação desta entrada não pode ser distinguida do ruído com esta contagem de ensaios; execute mais ensaios antes de aplicar qualquer extremo</translation>
+    </message>
+    <message>
+      <source>Model History</source>
+      <translation>Histórico do modelo</translation>
+    </message>
+    <message>
+      <source>Model history steps</source>
+      <translation>Passos do histórico do modelo</translation>
+    </message>
+    <message>
+      <source>Select a step, then press Go to step to move the model there</source>
+      <translation>Selecione um passo e pressione Ir para o passo para mover o modelo até ele</translation>
+    </message>
+    <message>
+      <source>Undo</source>
+      <translation>Desfazer</translation>
+    </message>
+    <message>
+      <source>Move the model back one step (Ctrl+Z)</source>
+      <translation>Mover o modelo um passo para trás (Ctrl+Z)</translation>
+    </message>
+    <message>
+      <source>Redo</source>
+      <translation>Refazer</translation>
+    </message>
+    <message>
+      <source>Move the model forward one step (Ctrl+Y)</source>
+      <translation>Mover o modelo um passo para frente (Ctrl+Y)</translation>
+    </message>
+    <message>
+      <source>Go to step</source>
+      <translation>Ir para o passo</translation>
+    </message>
+    <message>
+      <source>Move the model to just after the selected step (Enter)</source>
+      <translation>Mover o modelo para logo após o passo selecionado (Enter)</translation>
+    </message>
+    <message>
+      <source>Ctrl+Z / Ctrl+Y step one (Ctrl+Shift+Z redoes); Ctrl+Home / Ctrl+End jump to an end. The step list belongs to the model that is open.</source>
+      <translation>Ctrl+Z / Ctrl+Y avançam um passo (Ctrl+Shift+Z refaz); Ctrl+Home / Ctrl+End vão para uma extremidade. A lista de passos pertence ao modelo aberto.</translation>
     </message>
     <message>
       <source>Click an issue to locate the element (when named).</source>

@@ -340,7 +340,7 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901 - one flat pass
     a widget happens to display.
     """
     global _TRANSLATING
-    if root is None or _TRANSLATING:
+    if root is None or _TRANSLATING or not isinstance(root, QWidget):
         return
     _TRANSLATING = True
     try:
