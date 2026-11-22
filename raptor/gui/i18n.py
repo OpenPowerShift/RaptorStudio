@@ -467,6 +467,17 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
         _TRANSLATING = False
 
 
+def name_dialog(dialog) -> None:
+    """Give a dialog the accessible name a screen reader announces.
+
+    Its title is the one translated name it already has; a stand-in passed
+    by a test or an embedder (no QWidget) is left alone.
+    """
+    if (hasattr(dialog, "setAccessibleName")
+            and not dialog.accessibleName() and dialog.windowTitle()):
+        dialog.setAccessibleName(dialog.windowTitle())
+
+
 def exec_translated(dialog):
     """Translate a dialog's tree, then run it modally.
 
@@ -475,11 +486,7 @@ def exec_translated(dialog):
     box). Returns the dialog's `exec()` code.
     """
     translate_widgets(dialog)
-    # Dialogs built by the app are QWidgets; a few tests (and embedders)
-    # pass a stand-in with only the methods they use.
-    if (hasattr(dialog, "setAccessibleName")
-            and not dialog.accessibleName() and dialog.windowTitle()):
-        dialog.setAccessibleName(dialog.windowTitle())
+    name_dialog(dialog)
     return dialog.exec()
 
 

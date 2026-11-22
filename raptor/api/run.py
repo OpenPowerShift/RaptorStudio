@@ -270,9 +270,13 @@ def _jsonable(value: Any) -> Any:
     """Dataclass/dict/list to plain JSON types (int keys become strings)."""
     import dataclasses
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return dataclasses.asdict(value)
+        return _jsonable(dataclasses.asdict(value))
     if isinstance(value, dict):
         return {str(key): _jsonable(item) for key, item in value.items()}
+    if hasattr(value, "__dict__") and not isinstance(value, type):
+        # A reopened archive's rows are SimpleNamespaces; re-saving them
+        # must not fail on the way back to JSON.
+        return _jsonable(vars(value))
     if isinstance(value, (list, tuple)):
         return [_jsonable(item) for item in value]
     return value
@@ -288,7 +292,7 @@ def archive_detail(rd: RunReportData) -> dict[str, Any]:
     Everything is plain JSON; keys of per-element maps are strings.
     """
     out: dict[str, Any] = {}
-    cap = getattr(rd, "capacity", None)
+    cap = rd.capacity
     if cap is not None:
         out["capacity"] = {
             "units_produced": float(cap.units_produced),
@@ -297,9 +301,8 @@ def archive_detail(rd: RunReportData) -> dict[str, Any]:
             "system_node_id": int(cap.system_node_id),
             "nodes": _jsonable(cap.nodes),
         }
-    cost = getattr(rd, "cost", None)
-    if cost is not None:
-        out["cost"] = _jsonable(cost)
+    if rd.cost is not None:
+        out["cost"] = _jsonable(rd.cost)
     for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
                 "hier_dsi"):
         value = getattr(rd, key, None)
@@ -327,32 +330,38 @@ def restore_archive_detail(row: dict[str, Any]) -> dict[str, Any]:
         return value
 
     def by_int(mapping: Any) -> dict[int, Any]:
-        return {int(k): ns(v) for k, v in (mapping or {}).items()}
+        if not isinstance(mapping, dict):
+            return {}
+        out: dict[int, Any] = {}
+        for key, value in mapping.items():
+            try:
+                out[int(key)] = ns(value)
+            except (TypeError, ValueError):
+                continue            # a hand-edited or corrupt archive
+        return out
 
     out: dict[str, Any] = {}
     cap = row.get("capacity")
     if isinstance(cap, dict):
-        nodes = cap.get("nodes") or {}
         out["capacity"] = SimpleNamespace(
             units_produced=cap.get("units_produced"),
             ave_lost_flow=cap.get("ave_lost_flow"),
             flow_generated=cap.get("flow_generated"),
             system_node_id=cap.get("system_node_id"),
-            nodes={int(k): ns(v) for k, v in nodes.items()})
+            nodes=by_int(cap.get("nodes")))
     cost = row.get("cost")
     if isinstance(cost, dict):
-        out["cost"] = SimpleNamespace(
-            system_down_cost=cost.get("system_down_cost"),
-            system_lost_flow_cost=cost.get("system_lost_flow_cost"),
-            grand_total=cost.get("grand_total"),
-            red_cost_configured=cost.get("red_cost_configured", True),
-            blocks=by_int(cost.get("blocks")),
-            events=by_int(cost.get("events")),
-            hiers=by_int(cost.get("hiers")),
-            spare_pools={k: ns(v) for k, v in
-                         (cost.get("spare_pools") or {}).items()},
-            resources={k: ns(v) for k, v in
-                       (cost.get("resources") or {}).items()})
+        # Rebuild every stored field, not a hand-written subset: a field
+        # added to `CostRunReport` is archived by the writer above and must
+        # come back without a second edit here.
+        fields = dict(cost)
+        for key in ("blocks", "events", "hiers"):
+            if key in fields:
+                fields[key] = by_int(fields[key])
+        for key in ("spare_pools", "resources"):
+            if isinstance(fields.get(key), dict):
+                fields[key] = {k: ns(v) for k, v in fields[key].items()}
+        out["cost"] = SimpleNamespace(**fields)
     for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
                 "hier_dsi"):
         # The weak-link maps are read with `.get(...)`; they stay dicts,

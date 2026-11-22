@@ -2649,12 +2649,8 @@
       <translation>Fase da missão</translation>
     </message>
     <message>
-      <source>Reliability block diagram</source>
-      <translation>Diagrama de blocos de confiabilidade</translation>
-    </message>
-    <message>
-      <source>Interactive diagram of the model. The Model Explorer and Data Tables list the same elements, links and values as text.</source>
-      <translation>Diagrama interativo do modelo. O Explorador de modelo e as Tabelas de dados listam os mesmos elementos, vínculos e valores como texto.</translation>
+      <source>Reliability block diagram: the Model Explorer and Data Tables list its elements, links and values as text</source>
+      <translation>Diagrama de blocos de confiabilidade: o Explorador de modelo e as Tabelas de dados listam seus elementos, vínculos e valores como texto</translation>
     </message>
     <message>
       <source>Paste Here (at pointer)</source>
@@ -2679,6 +2675,10 @@
     <message>
       <source>No model open.</source>
       <translation>Nenhum modelo aberto.</translation>
+    </message>
+    <message>
+      <source>Blocks: {blocks}. Nodes: {nodes}. Events: {events}. Selected: {n}.</source>
+      <translation>Blocos: {blocks}. Nós: {nodes}. Eventos: {events}. Selecionados: {n}.</translation>
     </message>
     <message>
       <source>Arrow — drag either end to adjust, right-click for colour/line style</source>
@@ -5659,6 +5659,10 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
       <translation>Execute a simulação para ver o resumo.</translation>
     </message>
     <message>
+      <source>The archive carries the model and run settings it was made with.</source>
+      <translation>O arquivo carrega o modelo e as configurações de execução com que foi feito.</translation>
+    </message>
+    <message>
       <source>No events to show for this run.</source>
       <translation>Nenhum evento a mostrar nesta execução.</translation>
     </message>
@@ -5751,36 +5755,12 @@ Nós de fronteira de fluxo total mostram uso/capacidade N/D.</translation>
       <translation>Estimado por re-simulação: o modelo é executado uma vez com cada bloco incapaz de falhar e outra com ele inativo. São estimativas de Monte Carlo, não derivadas analíticas -- o erro padrão indica quanto da classificação é ruído de amostragem. Definições e equações: Ajuda ▸ Fórmulas.</translation>
     </message>
     <message>
-      <source>No capacity analysis in this model.
-
-Enable Capacity in the Run panel's Analysis section, give Start a Flow Generated value, and run again.</source>
-      <translation>Sem análise de capacidade neste modelo.
-
-Ative Capacidade na seção Análise do Painel de execução, atribua ao nó Start um valor de Fluxo gerado e execute novamente.</translation>
-    </message>
-    <message>
-      <source>No Weak Link analysis in this model.
-
-Weak Link Analysis is turned on in the Run panel's Analysis section — enable it and rerun to see per-element availability/dependability here.</source>
-      <translation>Sem análise de Elo fraco neste modelo.
-
-A Análise de Elo fraco é ativada na seção Análise do Painel de execução — ative-a e execute novamente para ver aqui a disponibilidade/dependabilidade por elemento.</translation>
-    </message>
-    <message>
       <source>Node state breakdown — % of total time in each state, averaged across runs.</source>
       <translation>Detalhamento dos estados dos nós — % do tempo total em cada estado, com média entre as execuções.</translation>
     </message>
     <message>
       <source>Node state breakdown</source>
       <translation>Composição dos estados dos nós</translation>
-    </message>
-    <message>
-      <source>No cost analysis in this model.
-
-Cost is simulated when Cost is enabled in the Run panel's Analysis section (and blocks define costs).</source>
-      <translation>Sem análise de custo neste modelo.
-
-O Custo é simulado quando Custo está ativado na seção Análise do Painel de execução (e os blocos definem custos).</translation>
     </message>
     <message>
       <source>Pools</source>
@@ -5829,6 +5809,42 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     <message>
       <source>Measured on:</source>
       <translation>Medido em:</translation>
+    </message>
+    <message>
+      <source>No capacity analysis in this model.
+
+Enable Capacity in the Run panel's Analysis section, give Start a Flow Generated value, and run again.</source>
+      <translation>Sem análise de capacidade neste modelo.
+
+Ative Capacidade na seção Análise do Painel de execução, atribua ao nó Start um valor de Fluxo gerado e execute novamente.</translation>
+    </message>
+    <message>
+      <source>No Weak Link analysis in this model.
+
+Weak Link Analysis is turned on in the Run panel's Analysis section — enable it and rerun to see per-element availability/dependability here.</source>
+      <translation>Sem análise de Elo fraco neste modelo.
+
+A Análise de Elo fraco é ativada na seção Análise do Painel de execução — ative-a e execute novamente para ver aqui a disponibilidade/dependabilidade por elemento.</translation>
+    </message>
+    <message>
+      <source>No cost analysis in this model.
+
+Cost is simulated when Cost is enabled in the Run panel's Analysis section (and blocks define costs).</source>
+      <translation>Sem análise de custo neste modelo.
+
+O Custo é simulado quando Custo está ativado na seção Análise do Painel de execução (e os blocos definem custos).</translation>
+    </message>
+    <message>
+      <source>This saved result set has no Capacity detail — it was written by an older build. Run the model again to see this page.</source>
+      <translation>Este conjunto de resultados salvo não tem detalhes de capacidade — foi gravado por uma versão anterior. Execute o modelo novamente para ver esta página.</translation>
+    </message>
+    <message>
+      <source>This saved result set has no Weak Link detail — it was written by an older build. Run the model again to see this page.</source>
+      <translation>Este conjunto de resultados salvo não tem detalhes de elo fraco — foi gravado por uma versão anterior. Execute o modelo novamente para ver esta página.</translation>
+    </message>
+    <message>
+      <source>This saved result set has no Cost detail — it was written by an older build. Run the model again to see this page.</source>
+      <translation>Este conjunto de resultados salvo não tem detalhes de custo — foi gravado por uma versão anterior. Execute o modelo novamente para ver esta página.</translation>
     </message>
     <message>
       <source>Blocks ({count}) -- life-cycle costs</source>

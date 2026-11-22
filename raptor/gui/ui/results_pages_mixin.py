@@ -113,10 +113,16 @@ class ResultsPagesMixin(_Base):
 
         caps = [d.capacity for d in self._report_data if d.capacity is not None]
         if not caps:
-            msg = QLabel(
-                "No capacity analysis in this model.\n\n"
-                "Enable Capacity in the Run panel's Analysis section, "
-                "give Start a Flow Generated value, and run again.")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Capacity detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No capacity analysis in this model.\n\n"
+                    "Enable Capacity in the Run panel's Analysis section, "
+                    "give Start a Flow Generated value, and run again.")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)
@@ -369,11 +375,17 @@ class ResultsPagesMixin(_Base):
             v.setContentsMargins(SPACING["md"], SPACING["md"],
                                  SPACING["md"], SPACING["md"])
             v.setSpacing(SPACING["sm"])
-            msg = QLabel(
-                "No Weak Link analysis in this model.\n\n"
-                "Weak Link Analysis is turned on in the Run panel's "
-                "Analysis section — enable it and rerun to see "
-                "per-element availability/dependability here.")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Weak Link detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No Weak Link analysis in this model.\n\n"
+                    "Weak Link Analysis is turned on in the Run panel's "
+                    "Analysis section — enable it and rerun to see "
+                    "per-element availability/dependability here.")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)
@@ -865,10 +877,16 @@ class ResultsPagesMixin(_Base):
 
         costs = [d.cost for d in self._report_data if d.cost is not None]
         if not costs:
-            msg = QLabel(
-                "No cost analysis in this model.\n\n"
-                "Cost is simulated when Cost is enabled in the Run panel's "
-                "Analysis section (and blocks define costs).")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Cost detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No cost analysis in this model.\n\n"
+                    "Cost is simulated when Cost is enabled in the Run "
+                    "panel's Analysis section (and blocks define costs).")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)

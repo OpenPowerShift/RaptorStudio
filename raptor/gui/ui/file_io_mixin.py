@@ -954,6 +954,11 @@ class FileIoMixin(_Base):
         if shown:
             self._results_show_action.setEnabled(True)
             self._results_float_action.setEnabled(True)
+            # The archive carries the structured analyses too, so the
+            # canvas overlays and hierarchy status are available exactly
+            # as after a live run.
+            self._sync_overlay_actions(self._results._report_data)
+            self._apply_hier_status(self._results._report_data)
             runs = summary.get("num_runs") if isinstance(summary, dict) else None
             self._statusbar.showMessage(
                 f"Opened saved results from {Path(path).name}"

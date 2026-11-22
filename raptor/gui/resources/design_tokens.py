@@ -471,16 +471,6 @@ def px(value: int | float) -> int:
     return max(1, round(float(value) * ThemeManager.instance().scale / 100))
 
 
-def scaled(value: float) -> int:
-    """A pixel length at the current interface scale (100% is exact).
-
-    For the few places that must set a literal width or height -- a combo
-    box sized for its longest entry, a card, a text field -- so they grow
-    with the font instead of clipping a translated or enlarged label.
-    """
-    return max(1, round(value * ThemeManager.instance().scale / 100.0))
-
-
 def _scale_geometry(percent: int) -> None:
     """Scale the widget geometry constants in place (100 keeps them exact)."""
     factor = percent / 100.0

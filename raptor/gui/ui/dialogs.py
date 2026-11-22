@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QPushButton, QCheckBox, QComboBox, QSpinBox, QDoubleSpinBox,
     QGroupBox, QWidget, QListWidget, QAbstractItemView, QTabWidget, QMessageBox, QScrollArea, QFrame,
 )
-from raptor.gui.resources.design_tokens import scaled as _scaled
+from raptor.gui.resources.design_tokens import px as _scaled
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
 from raptor.gui.resources.scale import SCALE_STEPS, normalise_scale

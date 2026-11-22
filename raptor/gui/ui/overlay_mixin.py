@@ -3,7 +3,7 @@ share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
-from raptor.gui.resources.design_tokens import scaled as _scaled
+from raptor.gui.resources.design_tokens import px as _scaled
 from raptor.api.insight.axes import pct
 
 from typing import TYPE_CHECKING, Any

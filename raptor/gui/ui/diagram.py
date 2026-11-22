@@ -274,10 +274,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
         # Assistive technology has no way to read a painted scene; name it
         # and point at the text views that list the same elements.
-        self.setAccessibleName("Reliability block diagram")
-        self.setAccessibleDescription(
-            "Interactive diagram of the model. The Model Explorer and Data "
-            "Tables list the same elements, links and values as text.")
+        self.setAccessibleName(
+            "Reliability block diagram: the Model Explorer and Data Tables "
+            "list its elements, links and values as text")
+        self._accessible_counts: tuple[int, int, int] | None = None
         self._focus_mode = False
         #: While a history jump replays commands, level switches are
         #: recorded and applied once at the end, not rebuilt per step.
@@ -365,6 +365,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         #: (the engine numbers links 1..N). Same lifetime as the map above.
         self._link_file_ids_cache: list[int] | None = None
         self.model_changed.connect(self._invalidate_live_caches)
+        self.model_changed.connect(self._refresh_accessible_counts)
         #: Canvas tool mode: "select" | "add_block" | "add_node" | "add_event" | "connect".
         self._tool_mode = "select"
         #: Add-tool hover-on-link state. The link is held only while it is
@@ -594,40 +595,65 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         if fixed_other_level:
             self.model_changed.emit()
 
+    def _refresh_accessible_counts(self) -> None:
+        """Recount the model for the canvas description (structural edits)."""
+        self._accessible_counts = None
+        self._refresh_accessible_summary()
+
     def _refresh_accessible_summary(self, selected: int | None = None) -> None:
         """Describe the canvas for assistive technology, in numbers.
 
         A painted scene has no per-item text a screen reader can read; the
         description says what the diagram holds and how much is selected,
         and points at the Model Explorer / Data Tables for the elements
-        themselves.
+        themselves. The counts are cached: `_on_selection_changed` fires
+        once per item during a rubber-band drag, and walking three sections
+        each time would be wasted work.
         """
+        from raptor.gui import i18n
         rbd = getattr(self, "_rbd_ref", None)
         if rbd is None:
-            self.setAccessibleDescription("No model open.")
+            self.setAccessibleDescription(i18n.tr("No model open."))
             return
+        if self._accessible_counts is None:
+            level = getattr(self, "_current_parent", 0)
 
-        def count(section: str) -> int:
-            sec = rbd.sections.get(section)
-            if sec is None:
-                return 0
-            return sum(1 for row in sec.rows
-                       if str(row.get("ID", "")).strip() not in ("", "0"))
+            def count(section: str, parent_col: str) -> int:
+                sec = rbd.sections.get(section)
+                if sec is None:
+                    return 0
+                total = 0
+                for row in sec.rows:
+                    if str(row.get("ID", "")).strip() in ("", "0"):
+                        continue
+                    parent = str(row.get(parent_col, "0")).strip() or "0"
+                    if (level == 0 and parent in ("", "0")) or \
+                            (level != 0 and parent == str(level)):
+                        total += 1
+                return total
 
+            self._accessible_counts = (
+                count("BLOCK_DATA", "ParentId"),
+                count("NODE_DATA", "parent"),
+                count("EVENT_DATA", "parent"))
+        blocks, nodes, events = self._accessible_counts
         if selected is None:
             try:
                 selected = len(self._scene.selectedItems())
             except RuntimeError:
                 selected = 0
-        parts = [
-            f"Diagram with {count('BLOCK_DATA')} blocks, "
-            f"{count('NODE_DATA')} nodes and {count('EVENT_DATA')} events",
-            f"{selected} element(s) selected." if selected
-            else "Nothing selected.",
-            "The Model Explorer and Data Tables list the same elements, "
-            "links and values as text.",
-        ]
-        self.setAccessibleDescription(" ".join(parts))
+        try:
+            # Counts only: the pointer to the text views lives in the
+            # accessible name, so an arrow-key nudge does not re-speak it.
+            self.setAccessibleDescription(i18n.tr(
+                "Blocks: {blocks}. Nodes: {nodes}. Events: {events}. "
+                "Selected: {n}.").format(
+                    blocks=blocks, nodes=nodes, events=events, n=selected))
+            from PySide6.QtGui import QAccessible, QAccessibleEvent
+            QAccessible.updateAccessibility(QAccessibleEvent(
+                self, QAccessible.Event.DescriptionChanged))
+        except RuntimeError:
+            pass                # the view is being torn down
 
     def _on_selection_changed(self):
         try:
@@ -638,7 +664,9 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             # selection changes on dead items. Non-fatal; ignore.
             return
         self._refresh_anchor_leader()
-        self._refresh_accessible_summary(len(items))
+        if len(items) != getattr(self, "_accessible_selected", -1):
+            self._accessible_selected = len(items)
+            self._refresh_accessible_summary(len(items))
         if self._focus_mode:
             self._apply_focus(items)
         if not items:
@@ -817,7 +845,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         used = {int(a.get("id", 0)) for a in self.annotations}
         self._anno_seq = (max(used) + 1) if used else 1
         self._rbd_ref = rbd   # kept so element creation can clone real rows
-        self._refresh_accessible_summary()
+        self._accessible_counts = None
         self._model_token = clipboard_payload.new_model_token()
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
@@ -876,6 +904,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         log.debug("load_rbd: %d hierarchies parsed, entering _rebuild_scene",
                   len(self.hiers))
         self._rebuild_scene()
+        self._refresh_accessible_summary()
         self.level_changed.emit(0)
         log.debug("load_rbd: done")
 

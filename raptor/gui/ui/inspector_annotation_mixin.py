@@ -20,7 +20,7 @@ from raptor.core.annotations import ANNO_DEFAULT_LOCATION
 
 from raptor.gui.resources.design_tokens import (
     SPACING, active_colour,
-    scaled as _scaled,
+    px as _scaled,
 )
 
 if TYPE_CHECKING:

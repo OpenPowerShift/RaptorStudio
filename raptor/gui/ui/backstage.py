@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 from raptor.gui.command_table import BACKSTAGE, BACKSTAGE_ACTIONS
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
-    TYPE, active_colour, scaled as _scaled)
+    TYPE, active_colour, px as _scaled)
 
 if TYPE_CHECKING:
     from raptor.gui.ui.main_window import MainWindow

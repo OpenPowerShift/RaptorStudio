@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
-    RIBBON, ThemeManager, active_colour, scaled as _scaled)
+    RIBBON, ThemeManager, active_colour, px as _scaled)
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
 from raptor.gui.widgets.tidy_spin import TidySpinBox
 
@@ -857,7 +857,7 @@ class RibbonBuilders(_Base):
                              ("Red <", self._yr_spin)):
             if widget is not self._weak_type_combo:
                 widget.setFixedWidth(_scaled(118))
-            group.add_widget(_labeled_box(text, widget, label_width=48))
+            group.add_widget(_labeled_box(text, widget, label_width=_scaled(48)))
 
     def _init_find_box(self) -> None:
         """The Find box. Not on the ribbon: _setup_docks re-parents it into the Explorer."""

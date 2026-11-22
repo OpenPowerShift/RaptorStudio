@@ -101,3 +101,15 @@ def test_a_run_without_the_analyses_stores_nothing_extra():
 def test_an_older_archive_row_without_detail_restores_nothing():
     assert restore_archive_detail({}) == {}
     assert restore_archive_detail({"availability": 0.99}) == {}
+
+
+def test_a_hand_edited_detail_is_ignored_not_fatal():
+    junk = {
+        "capacity": {"nodes": {"pump": {}}, "system_node_id": 1},
+        "cost": {"blocks": ["nope"], "spare_pools": "nope"},
+        "weak_stats": "nope",
+    }
+    back = restore_archive_detail(junk)
+    assert back["capacity"].nodes == {}
+    assert back["cost"].blocks == {}
+    assert "weak_stats" not in back

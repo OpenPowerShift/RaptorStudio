@@ -172,3 +172,9 @@ def test_an_archive_restores_the_structured_analyses(
     assert saved._build_capacity_page().findChildren(QTableWidget)
     assert saved._build_cost_page().findChildren(QTableWidget)
     assert saved._build_weak_page().findChildren(QTableWidget)
+    # the weak-link denominator survives, so Reliability is not 100%
+    assert restored.missions_attempted == first.missions_attempted
+    # Save As after opening must be able to serialise the restored objects
+    again = saved.archive_payload()
+    assert again is not None
+

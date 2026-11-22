@@ -379,7 +379,8 @@ class AnalyticDialog(QDialog):
         self._watch.timeout.connect(self._check_model)
         self.setWindowTitle("Analytical Analysis")
         self.setModal(False)
-        self.resize(900, 720)
+        from raptor.gui.ui.modality import fit_dialog
+        fit_dialog(self, 900, 720)
         self._build()
         ThemeManager.instance().on_changed(self._on_theme_changed)
         self._restyle()

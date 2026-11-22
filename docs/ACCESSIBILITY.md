@@ -7,11 +7,14 @@ high-DPI screens, and by people with low vision.
 
 **Preferences ▸ Appearance ▸ Interface scale** sets 100%, 125%, 150%, 175%
 or 200%. It scales the application font, every fixed font size in the
-panel stylesheets, the design stylesheet's px lengths and the ribbon
-geometry together: text, padding, borders, ribbon heights and control
-sizes. The choice is saved per user and applies on the next launch.
-Canvas labels are drawing-scale, not UI text; use the canvas zoom for
-them.
+panel stylesheets, the design stylesheet's px lengths, the ribbon
+geometry and the literal widths of combo boxes, cards and text fields
+together. Analysis and Analytical dialogs also follow the scale and are
+clamped to the available screen, so their buttons stay reachable on a
+small display. A few maximum widths and table column caps remain literal;
+text there elides rather than growing the window. The choice is saved per
+user and applies on the next launch. Canvas labels are drawing-scale, not
+UI text; use the canvas zoom for them.
 
 The list is a set of convenient steps, not a limit: `raptor config`
 accepts any whole percentage from 100 to 200, and Preferences then shows

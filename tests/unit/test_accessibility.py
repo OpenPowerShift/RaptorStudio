@@ -365,11 +365,11 @@ def test_literal_widget_sizes_follow_the_interface_scale(qapp):
     old = theme.scale
     try:
         theme.set_scale(100)
-        assert D.scaled(90) == 90 and D.scaled(280) == 280
+        assert D.px(90) == 90 and D.px(280) == 280
         theme.set_scale(150)
-        assert D.scaled(90) == 135 and D.scaled(280) == 420
+        assert D.px(90) == 135 and D.px(280) == 420
         theme.set_scale(200)
-        assert D.scaled(84) == 168
+        assert D.px(84) == 168
     finally:
         theme.set_scale(old)
 
@@ -392,8 +392,8 @@ def test_the_diagram_canvas_has_a_text_alternative(qapp):
     from raptor.gui.ui.diagram import DiagramView
     view = DiagramView()
     try:
-        assert view.accessibleName()
-        assert "Model Explorer" in view.accessibleDescription()
+        assert "Model Explorer" in view.accessibleName()
+        assert "Data Tables" in view.accessibleName()
     finally:
         view.deleteLater()
         qapp.processEvents()
@@ -408,8 +408,8 @@ def test_the_canvas_description_states_what_the_diagram_holds(qapp):
         view.load_rbd(load_rbd(
             "tests/golden/TwoBlockRedundancy/input.rbd"))
         text = view.accessibleDescription()
-        assert "2 blocks" in text and "nodes" in text
-        assert "Nothing selected" in text
+        assert "Blocks: 2" in text and "Nodes:" in text
+        assert "Selected: 0" in text
     finally:
         view.deleteLater()
         QApplication.processEvents()

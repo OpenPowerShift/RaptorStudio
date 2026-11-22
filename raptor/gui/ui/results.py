@@ -1388,7 +1388,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 sources[key] = value
         run_rows = [rd for rd in self._report_data if rd is not None]
         if run_rows:
-            from raptor.api.run import archive_detail, _rd_to_dict
+            from raptor.api.run import archive_detail
             rows = []
             for rd in run_rows:
                 row = _rd_to_dict(rd)
@@ -1398,6 +1398,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 detail = archive_detail(rd)
                 if detail:
                     row["archive_detail"] = detail
+                # Scalars the pages read directly; `_rd_to_dict` keeps the
+                # headline figures, these are the weak-link denominators.
+                row["missions_attempted"] = int(
+                    getattr(rd, "missions_attempted", 0) or 0)
+                for key in ("mission_green_percent", "mission_yellow_percent",
+                            "mission_red_percent"):
+                    row[key] = getattr(rd, key, None)
                 rows.append(row)
             sources["per_run.json"] = json.dumps(rows)
         attribution = (self._drivers_page.attribution()
@@ -1432,7 +1439,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def set_archive_results(self, files: dict[str, Any],
                             summary: dict[str, Any] | None = None,
-                            rbd=None) -> bool:
+                            rbd=None, source_name: str = "") -> bool:
         """Put an `.rbdz` archive's saved result set on screen.
 
         `files` maps archive entry names to extracted paths (or text).
@@ -1443,6 +1450,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """
         from types import SimpleNamespace
         from raptor.core.fileio.rbdz import ArchivedLines
+        from raptor.api.run import restore_archive_detail
 
         def source(name: str) -> Any:
             value = files.get(name)
@@ -1491,6 +1499,14 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         run_rows = load_json("per_run.json", [])
         if not isinstance(run_rows, list):
             run_rows = []
+        from raptor.core.fileio.rbdz import RESULTS_VERSION
+        try:
+            results_version = int(summary.get("version") or 1)
+        except (TypeError, ValueError):
+            results_version = 1
+        # Detail arrived in results schema 2; a shape from a newer build
+        # than this one is not guessed at.
+        detail_ok = 2 <= results_version <= RESULTS_VERSION
         has_phases = bool(summary.get("has_phases"))
         runs = []
         for index, row in enumerate(run_rows):
@@ -1511,11 +1527,12 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 "ending_sim_time": row.get("ending_sim_time") or 0.0,
                 "missions_attempted": row.get("missions_attempted") or 0,
             }
-            values.update(row)
-            from raptor.api.run import restore_archive_detail
-            for key, value in restore_archive_detail(
-                    row.get("archive_detail") or {}).items():
-                values[key] = value
+            values.update({k: v for k, v in row.items()
+                           if k != "archive_detail"})
+            if detail_ok:
+                for key, value in restore_archive_detail(
+                        row.get("archive_detail") or {}).items():
+                    values[key] = value
             runs.append(SimpleNamespace(**values))
 
         event_text = lines("events.txt")
@@ -1559,6 +1576,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             importance=None, rbd=rbd, attribution=attribution,
             run_at=run_at)
         self._source_file_name = str(summary.get("model_name") or "")
+        self._archive_source = source_name or self._source_file_name
+        self._refresh_scope_banner()
         return bool(runs or event_logs)
 
     # ---- Drivers (downtime attribution) -----------------------------------
@@ -1789,6 +1808,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._manifest = None
         self._rbd = None
         self._period_summary = None
+        self._archive_source = ""
         self._outages = None
         self._chart_hierarchy = 0
         if hasattr(self, "_story_page"):
@@ -1867,6 +1887,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # count, run length, which analyses ran) does not retroactively
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
+        self._archive_source = ""
         self._manifest = dict(manifest) if manifest else None
         #: An attribution that travels with the results (a run that worked it
         #: out up front, or an `.rbdz` that stored it) replaces the replay.
@@ -2063,15 +2084,28 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def _refresh_scope_banner(self) -> None:
         """State, in the dock itself, when the numbers are an isolated
-        hierarchy run rather than whole-model results."""
+        hierarchy run or a saved result set rather than a live run."""
         banner = getattr(self, "_scope_banner", None)
         if banner is None:
             return
         iso = (getattr(self, "_manifest", None) or {}).get("isolation")
+        archive = getattr(self, "_archive_source", "")
         if not iso:
-            banner.clear()
-            banner.setToolTip("")
-            banner.setVisible(False)
+            if archive:
+                from html import escape
+                banner.setText(
+                    f"<b>Saved results from "
+                    f"{escape(str(archive))}.</b> Read-only snapshot: edits "
+                    "to the model do not update these numbers. Save As a new "
+                    ".rbdz to attach a new run.")
+                banner.setToolTip(
+                    "The archive carries the model and run settings it was "
+                    "made with.")
+                banner.setVisible(True)
+            else:
+                banner.clear()
+                banner.setToolTip("")
+                banner.setVisible(False)
             return
         from html import escape
         name = escape(str(iso.get("hierarchy") or "hierarchy"))
