@@ -224,7 +224,7 @@ def presentation_labels() -> list[str]:
     return sorted(v for v in values if _ui_string(v))
 
 
-def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:
+def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:  # noqa: C901, PLR0912
     """`(widget-context sources, {explicit context: sources})`."""
     gui: dict[str, None] = {}
     other: dict[str, dict[str, None]] = {}
@@ -254,6 +254,30 @@ def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:
     return list(gui), {name: list(values) for name, values in other.items()}
 
 
+def _called_name(node: ast.Call) -> str | None:
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _header_constant_names(tree: ast.AST) -> set[str]:
+    """Names (``COLUMNS``, ``self._HEADERS``) passed to a header setter."""
+    wanted: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and node.args
+                and _called_name(node) in SEQUENCE_HELPERS):
+            continue
+        arg = node.args[0]
+        if isinstance(arg, ast.Name):
+            wanted.add(arg.id)
+        elif isinstance(arg, ast.Attribute):
+            wanted.add(arg.attr)
+    return wanted
+
+
 def _header_constants(tree: ast.AST) -> list[list[str]]:
     """String lists that are handed to a header setter by name.
 
@@ -261,26 +285,7 @@ def _header_constants(tree: ast.AST) -> list[list[str]]:
     name their list, so the English labels are the literals in its
     assignment (usually a module or class constant).
     """
-    wanted: set[str] = set()
-    for node in ast.walk(tree):
-        if (isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id in SEQUENCE_HELPERS
-                and node.args):
-            arg = node.args[0]
-            if isinstance(arg, ast.Name):
-                wanted.add(arg.id)
-            elif isinstance(arg, ast.Attribute):
-                wanted.add(arg.attr)
-        elif (isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr in SEQUENCE_HELPERS
-                and node.args):
-            arg = node.args[0]
-            if isinstance(arg, ast.Name):
-                wanted.add(arg.id)
-            elif isinstance(arg, ast.Attribute):
-                wanted.add(arg.attr)
+    wanted = _header_constant_names(tree)
     if not wanted:
         return []
     out: list[list[str]] = []
@@ -289,19 +294,18 @@ def _header_constants(tree: ast.AST) -> list[list[str]]:
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [
             node.target]
-        value = node.value
-        if not isinstance(value, (ast.List, ast.Tuple)):
+        if not isinstance(node.value, (ast.List, ast.Tuple)):
             continue
         if not any(isinstance(t, ast.Name) and t.id in wanted
                    for t in targets):
             continue
-        strings = [s for e in value.elts if (s := _literal(e))]
+        strings = [s for e in node.value.elts if (s := _literal(e))]
         if strings:
             out.append(strings)
     return out
 
 
-def catalogue(locale: str = "pt_BR",
+def catalogue(locale: str = "pt_BR",  # noqa: C901
               path: Path | None = None) -> ET.ElementTree:
     from raptor.gui.command_table import COMMANDS, LAYOUT
     entries: dict[str, list[str]] = {"Page": [], "Group": [], "Command": []}

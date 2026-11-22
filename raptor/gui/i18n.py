@@ -321,7 +321,7 @@ def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
     written[key] = current
 
 
-def _translate_headers(view: QAbstractItemView) -> None:
+def _translate_headers(view: QAbstractItemView) -> None:  # noqa: C901
     """Translate a table's or tree's header labels, in place.
 
     Headers are model data, not widget text, so the widget pass above never
