@@ -397,3 +397,19 @@ def test_the_diagram_canvas_has_a_text_alternative(qapp):
     finally:
         view.deleteLater()
         qapp.processEvents()
+
+
+def test_the_canvas_description_states_what_the_diagram_holds(qapp):
+    from PySide6.QtWidgets import QApplication
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui.diagram import DiagramView
+    view = DiagramView()
+    try:
+        view.load_rbd(load_rbd(
+            "tests/golden/TwoBlockRedundancy/input.rbd"))
+        text = view.accessibleDescription()
+        assert "2 blocks" in text and "nodes" in text
+        assert "Nothing selected" in text
+    finally:
+        view.deleteLater()
+        QApplication.processEvents()

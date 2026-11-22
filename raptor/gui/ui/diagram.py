@@ -594,6 +594,41 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         if fixed_other_level:
             self.model_changed.emit()
 
+    def _refresh_accessible_summary(self, selected: int | None = None) -> None:
+        """Describe the canvas for assistive technology, in numbers.
+
+        A painted scene has no per-item text a screen reader can read; the
+        description says what the diagram holds and how much is selected,
+        and points at the Model Explorer / Data Tables for the elements
+        themselves.
+        """
+        rbd = getattr(self, "_rbd_ref", None)
+        if rbd is None:
+            self.setAccessibleDescription("No model open.")
+            return
+
+        def count(section: str) -> int:
+            sec = rbd.sections.get(section)
+            if sec is None:
+                return 0
+            return sum(1 for row in sec.rows
+                       if str(row.get("ID", "")).strip() not in ("", "0"))
+
+        if selected is None:
+            try:
+                selected = len(self._scene.selectedItems())
+            except RuntimeError:
+                selected = 0
+        parts = [
+            f"Diagram with {count('BLOCK_DATA')} blocks, "
+            f"{count('NODE_DATA')} nodes and {count('EVENT_DATA')} events",
+            f"{selected} element(s) selected." if selected
+            else "Nothing selected.",
+            "The Model Explorer and Data Tables list the same elements, "
+            "links and values as text.",
+        ]
+        self.setAccessibleDescription(" ".join(parts))
+
     def _on_selection_changed(self):
         try:
             items = self._scene.selectedItems()
@@ -603,6 +638,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             # selection changes on dead items. Non-fatal; ignore.
             return
         self._refresh_anchor_leader()
+        self._refresh_accessible_summary(len(items))
         if self._focus_mode:
             self._apply_focus(items)
         if not items:
@@ -781,6 +817,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         used = {int(a.get("id", 0)) for a in self.annotations}
         self._anno_seq = (max(used) + 1) if used else 1
         self._rbd_ref = rbd   # kept so element creation can clone real rows
+        self._refresh_accessible_summary()
         self._model_token = clipboard_payload.new_model_token()
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
