@@ -74,13 +74,6 @@ class ResultsGraphsMixin(_Base):
             src, stem = getattr(self, "_cap_lines", None), "rpt_capacity_plot"
         else:
             src, stem = getattr(self, "_ao_lines", None), "rpt_availability_plot"
-        lines = self._stream_lines(src)
-        if not lines:
-            self._status_hint_f and self._status_hint_f(
-                "No plot data collected: " + run_needs.gui_hint(
-                    "capacity_plot" if kind == "capacity" else "availability_plot")
-                .replace("<b>", "").replace("</b>", ""))
-            return
         base = (self._source_file_name or "model").rsplit(".", 1)[0]
         safe = "".join(c if c.isalnum() or c in "_-" else "_"
                        for c in base)[:60] or "model"
@@ -88,6 +81,21 @@ class ResultsGraphsMixin(_Base):
             self, "Export Plot Data",
             f"{stem}_{safe}.txt", "Text (*.txt);;All (*)")
         if not path:
+            return
+        if hasattr(src, "export_to") and hasattr(src, "read_all_lines"):
+            try:
+                req(src).export_to(path)
+                self._status_hint_f and self._status_hint_f(f"Saved: {path}")
+            except OSError as e:
+                msgbox.critical(self, "Export Failed",
+                                f"Could not write {path}:\n{e}")
+            return
+        lines = self._stream_lines(src)
+        if not lines:
+            self._status_hint_f and self._status_hint_f(
+                "No plot data collected: " + run_needs.gui_hint(
+                    "capacity_plot" if kind == "capacity" else "availability_plot")
+                .replace("<b>", "").replace("</b>", ""))
             return
         try:
             if hasattr(src, "export_to"):

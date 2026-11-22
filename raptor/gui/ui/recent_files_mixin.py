@@ -200,4 +200,6 @@ class RecentFilesMixin(_Base):
         record = getattr(self, "_record_history", None)
         if record is not None:
             record(path, reason="opened")
+        if str(path).lower().endswith(".rbdz"):
+            self._restore_archive_results(path)
         self._remember_recent(path)
