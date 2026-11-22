@@ -351,6 +351,22 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         qapp = cast(QApplication | None, QApplication.instance())
         if qapp is not None:
             ensure_fusion(qapp)
+        # Settings and appearance must be settled BEFORE the ribbon is
+        # built: the ribbon's geometry constants scale with the UI.
+        settings.ensure_migrated()
+        theme = ThemeManager.instance()
+        saved_scale = settings.get_int("appearance/ui_scale", 100)
+        theme.set_scale(saved_scale)
+        if theme.scale != saved_scale:
+            # A hand-edited or older out-of-range value: keep the file in
+            # step with what was actually applied.
+            settings.set_value("appearance/ui_scale", theme.scale)
+        theme.set_high_contrast(
+            settings.get_bool("appearance/high_contrast", False))
+        theme.set_dark(settings.get_bool("appearance/dark_mode"))
+        # The window's own stylesheet outranks the application sheet, so it
+        # must be rebuilt AFTER the saved dark/contrast/scale is applied.
+        self.setStyleSheet(global_stylesheet())
 
         self._setup_ribbon()
         self._setup_central()
@@ -429,16 +445,15 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._tooltip_keeper.install(QApplication.instance())
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
-        # One-shot settings migration BEFORE any read, so a user
-        # upgrading gets their preferences moved into the namespaced
-        # tree (and told if the gap was too big to interpret) rather
-        # than silently reset. See `ui/settings.py`.
-        settings.ensure_migrated()
-        # Remember the theme across launches. Applied before the window
-        # is shown, so startup doesn't flash light first; the checkable
-        # ribbon action follows via the _on_theme_changed callback.
-        ThemeManager.instance().set_dark(
-            settings.get_bool("appearance/dark_mode"))
+        # Appearance was applied before the ribbon was built. Seed the one
+        # piece of state that `_on_theme_changed` normally mirrors: the
+        # View menu action, or a dark-mode launch left it unchecked and
+        # labelled "Dark Theme" while the window was already dark.
+        self._theme_action.blockSignals(True)
+        self._theme_action.setChecked(theme.is_dark)
+        self._theme_action.setText(
+            "Light Theme" if theme.is_dark else "Dark Theme")
+        self._theme_action.blockSignals(False)
 
     @property
     def _step_session(self):

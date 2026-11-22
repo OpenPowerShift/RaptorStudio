@@ -729,7 +729,7 @@ class Backstage(QWidget):
         for btn in self.findChildren(QPushButton, "BackstageNavItem"):
             btn.setIcon(getattr(icons, btn.property("navIcon"))("#FFFFFF"))
         from raptor.gui.examples import thumbnail
-        from raptor.gui.resources.design_tokens import ThemeManager
+        from raptor.gui.resources.design_tokens import ThemeManager, scale_stylesheet
         dark = ThemeManager.instance().is_dark
         for card in self._cards:
             pic = card.findChild(QLabel, "BackstageCardPicture")
@@ -749,7 +749,7 @@ class Backstage(QWidget):
             tile_icon = tile.findChild(QLabel, "BackstageTileIcon")
             if tile_icon is not None:
                 tile_icon.setPixmap(pm)
-        self.setStyleSheet(f"""
+        self.setStyleSheet(scale_stylesheet(f"""
             #Backstage {{ background: {c['surface']}; }}
             #BackstagePage {{ background: {c['surface']}; }}
             #BackstageNav {{ background: {c['nav']}; border: none; }}
@@ -856,4 +856,4 @@ class Backstage(QWidget):
             }}
             #BackstageTipButton:hover {{ border-color: {c['accent']}; }}
             #BackstageTipButton:disabled {{ color: {c['muted']}; }}
-        """)
+        """, ThemeManager.instance().scale))

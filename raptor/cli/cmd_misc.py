@@ -232,9 +232,12 @@ def config_path() -> Path:
     return Path(base) / "raptor-studio" / "config.toml"
 
 
-def config_command(args: Any) -> int:
+def config_command(args: Any) -> int:  # noqa: C901
+    from PySide6.QtCore import QCoreApplication, QSettings
+    QCoreApplication.setOrganizationName("OpenPowerShift")
+    QCoreApplication.setApplicationName("RAPTOR Studio")
     if args.action == "path":
-        print(config_path())
+        print(QSettings().fileName())
         return X.OK
     from raptor.gui.ui import settings
     if args.action == "list":
@@ -255,6 +258,18 @@ def config_command(args: Any) -> int:
         v: Any = args.value
         low = v.lower()
         v = True if low == "true" else False if low == "false" else v
+        if args.key == "appearance/ui_scale":
+            from raptor.gui.resources.scale import SCALE_MAX, SCALE_MIN
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE) from None
+            if not SCALE_MIN <= v <= SCALE_MAX:
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE)
         settings.set_value(args.key, v)
     elif args.action == "unset":
         settings.remove(args.key)

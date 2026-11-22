@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
+from raptor.gui.resources.scale import SCALE_STEPS, normalise_scale
 from raptor.gui.ui.diagram_commands import apply_row_edits
 from raptor.gui.ui.main_window import _TERMINATION_CHOICES
 
@@ -656,6 +657,38 @@ def show_preferences(win):
         "Switches the whole application, including the chart surfaces and "
         "the cause fills' dark variants. The View menu has the same switch.",
         "app")
+    scale = QComboBox()
+    saved_scale = normalise_scale(
+        _settings.get_int("appearance/ui_scale", 100))
+    for percent in SCALE_STEPS:
+        scale.addItem(f"{percent}%", percent)
+    index = scale.findData(saved_scale)
+    if index < 0:
+        # The CLI accepts any whole percent in 100..200. Show that value
+        # rather than snapping the user's choice back to 100%.
+        scale.addItem(f"{saved_scale}% (custom)", saved_scale)
+        index = scale.count() - 1
+    scale.setCurrentIndex(index)
+    scale.setToolTip("Scales text, spacing and control sizes")
+    _pref_row(
+        app_form, "Interface scale:", scale,
+        "Enlarges text, spacing and controls together for a high-DPI or "
+        "low-vision display. 100% is the design size; takes effect after "
+        "you restart RAPTOR Studio.", "app",
+        reset=lambda w: w.setCurrentIndex(max(0, w.findData(100))),
+        builtins=("100%",))
+
+    contrast = QCheckBox("High-contrast colours")
+    contrast.setChecked(_settings.get_bool(
+        "appearance/high_contrast", False))
+    contrast.setToolTip(
+        "Black/white surfaces, stronger borders and text, visible focus rings")
+    _pref_row(
+        app_form, "Contrast:", contrast,
+        "Keeps the semantic state colours but makes the window, text, "
+        "borders and focus rings high contrast. Useful in bright rooms or "
+        "for low vision.", "app")
+
     from raptor.api.insight import palette as _palette
     palette_box = QComboBox()
     for key in _palette.names():
@@ -996,6 +1029,11 @@ def show_preferences(win):
     palette_key = str(palette_box.currentData() or _palette.DEFAULT)
     palette_changed = _settings.get("appearance/chart_palette", _palette.DEFAULT) != palette_key
     _settings.set_value("appearance/chart_palette", palette_key)
+    old_scale = _settings.get_int("appearance/ui_scale", 100)
+    _settings.set_value("appearance/ui_scale", scale.currentData())
+    _settings.set_value("appearance/high_contrast", contrast.isChecked())
+    from raptor.gui.resources.design_tokens import ThemeManager
+    ThemeManager.instance().set_high_contrast(contrast.isChecked())
     _palette.set_active(palette_key)
     if palette_changed:
         results = getattr(win, "_results", None)
@@ -1034,7 +1072,12 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
-    win._statusbar.showMessage("Preferences saved")
+    if int(scale.currentData()) != old_scale:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to apply the "
+            "interface scale", 8000)
+    else:
+        win._statusbar.showMessage("Preferences saved")
 
 
 

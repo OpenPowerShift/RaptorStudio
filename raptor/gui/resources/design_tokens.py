@@ -4,11 +4,22 @@ The simulation-state colours come from Raptor 7's block-status CASE.
 ThemeManager provides light/dark switching with live stylesheet updates.
 """
 from __future__ import annotations
+import re
 from collections.abc import Mapping
 from typing import Any, cast
 
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor, QFont
 from PySide6.QtWidgets import QApplication
+
+#: Interface scale, as a percentage of the design size. Re-exported from
+#: `scale` so the GUI, Preferences and the CLI share one set of bounds and
+#: one normaliser (the CLI must not import QtWidgets just to validate).
+from raptor.gui.resources.scale import (
+    SCALE_MAX as SCALE_MAX,
+    SCALE_MIN as SCALE_MIN,
+    SCALE_STEPS as SCALE_STEPS,
+    normalise_scale as normalise_scale,
+)
 
 SPACING = {
     "2xs": 2, "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "2xl": 32,
@@ -38,6 +49,11 @@ RIBBON = {
     "small_height": 24, "row_gap": 1, "column_gap": 2,
     "group_title_height": 16,
 }
+
+#: Base geometry: mutated in place when the interface scale changes, so
+#: every module that imported the dict sees the new values.
+BASE_RIBBON = dict(RIBBON)
+BASE_ICON = dict(ICON)
 
 DOCK = {
     "min_width": 260, "default_left": 320, "default_right": 360, "default_bottom": 260,
@@ -150,6 +166,79 @@ DARK_COLOUR = {
     "warn": "#F2A93B",
 }
 
+#: High-contrast palettes. They keep the normal palette's keys -- so every
+#: consumer, including the app-wide QPalette and the stylesheet, keeps
+#: working -- and replace every colour that is drawn as text or as a mark.
+#: The semantic state colours stay semantic, but take a shade that is
+#: legible on pure white/black: Appendix D's Yellow and LimeGreen are only
+#: 1.1:1 and 2.1:1 on white, which is why the normal palettes keep them for
+#: fills rather than text.
+#:
+#: tests/unit/test_accessibility.py holds every text colour to 4.5:1 and
+#: every mark to 3:1 on all four panel backgrounds.
+HIGH_CONTRAST_LIGHT = {
+    **LIGHT_COLOUR,
+    "nav": "#000000",
+    "accent": "#004A99",
+    "selection_bg": "#004A99",
+    "selection_text": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "canvas": "#FFFFFF",
+    "text": "#000000",
+    "muted": "#333333",
+    "border": "#000000",
+    "input_bg": "#FFFFFF",
+    "group_header": "#E6E6E6",
+    "operating": "#006400",
+    "understressed": "#006B00",
+    # Darker than Running, so the two green states stay distinguishable
+    # while both remain legible on white.
+    "overstressed": "#005000",
+    "degraded": "#6B6000",
+    "standby": "#000080",
+    "maintenance": "#8A4B00",
+    "idle": "#5B2F1A",
+    "relationship": "#5B3B8C",
+    "failed": "#8B0000",
+    "result_green": "#166B4A",
+    "result_yellow": "#8A5E00",
+    "result_red": "#B02020",
+    "go": "#1B873F",
+    "stop": "#C62828",
+    "warn": "#7A3F00",
+}
+
+HIGH_CONTRAST_DARK = {
+    **DARK_COLOUR,
+    "nav": "#000000",
+    "accent": "#66B2FF",
+    "selection_bg": "#004A99",
+    "selection_text": "#FFFFFF",
+    "surface": "#000000",
+    "canvas": "#000000",
+    "text": "#FFFFFF",
+    "muted": "#D0D0D0",
+    "border": "#FFFFFF",
+    "input_bg": "#111111",
+    "group_header": "#1A1A1A",
+    "operating": "#66FF66",
+    "understressed": "#33CC33",
+    "overstressed": "#B3FF66",
+    "degraded": "#FFFF66",
+    "standby": "#99CCFF",
+    "maintenance": "#FFC966",
+    "idle": "#D9A066",
+    # The normal dark relationship purple is only 3.3:1 on black.
+    "relationship": "#C4A9F0",
+    "failed": "#FF7777",
+    "result_green": "#34A873",
+    "result_yellow": "#E6A91A",
+    "result_red": "#E46B6B",
+    "go": "#4CC764",
+    "stop": "#F0605D",
+    "warn": "#F2A93B",
+}
+
 
 class ThemeManager:
     _instance: ThemeManager | None = None
@@ -163,9 +252,15 @@ class ThemeManager:
 
     def __init__(self):
         self._dark = False
+        #: Interface scale, as a percentage of the design size.
+        self._scale = 100
+        #: Stronger text, border and focus colours for low-vision use.
+        self._high_contrast = False
         #: whether the token palette and stylesheet have been put on the
         #: application yet: a first `set_dark(False)` must still apply them
         self._applied = False
+        #: The platform font at first use, so repeated scaling never compounds.
+        self._base_font: QFont | None = None
 
     @classmethod
     def instance(cls) -> ThemeManager:
@@ -178,7 +273,40 @@ class ThemeManager:
         return self._dark
 
     @property
+    def scale(self) -> int:
+        return self._scale
+
+    @property
+    def high_contrast(self) -> bool:
+        return self._high_contrast
+
+    def set_scale(self, percent: int | float) -> None:
+        value = normalise_scale(percent)
+        if value == self._scale:
+            # A value set before QApplication existed has geometry but no
+            # font/stylesheet/palette yet; apply on the first real call.
+            if not self._applied:
+                self._apply()
+            return
+        self._scale = value
+        _scale_geometry(value)
+        self._apply()
+        self._fire()
+
+    def set_high_contrast(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if enabled == self._high_contrast:
+            if not self._applied:
+                self._apply()
+            return
+        self._high_contrast = enabled
+        self._apply()
+        self._fire()
+
+    @property
     def colour(self) -> dict:
+        if self._high_contrast:
+            return HIGH_CONTRAST_DARK if self._dark else HIGH_CONTRAST_LIGHT
         return DARK_COLOUR if self._dark else LIGHT_COLOUR
 
     @property
@@ -240,6 +368,15 @@ class ThemeManager:
         # Setting an application-wide QPalette derived from the same tokens
         # makes every unstyled widget follow the active theme too.
         app.setPalette(_build_palette(self.colour))
+        if self._base_font is None:
+            self._base_font = QFont(app.font())
+        font = QFont(self._base_font)
+        factor = self._scale / 100.0
+        if font.pointSizeF() > 0:
+            font.setPointSizeF(max(6.0, font.pointSizeF() * factor))
+        else:
+            font.setPixelSize(max(9, round(font.pixelSize() * factor)))
+        app.setFont(font)
         app.setStyleSheet(global_stylesheet())
         self._applied = True
         _relink_labels(app)
@@ -329,8 +466,40 @@ def _rgba(hex_colour: str, alpha: float) -> str:
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
+def px(value: int | float) -> int:
+    """A design px length at the current interface scale."""
+    return max(1, round(float(value) * ThemeManager.instance().scale / 100))
+
+
+def _scale_geometry(percent: int) -> None:
+    """Scale the widget geometry constants in place (100 keeps them exact)."""
+    factor = percent / 100.0
+    for base, target in ((BASE_RIBBON, RIBBON), (BASE_ICON, ICON)):
+        for key, value in base.items():
+            if isinstance(value, int):
+                target[key] = max(1, round(value * factor))
+
+
 def global_stylesheet() -> str:
-    return _build_stylesheet(ThemeManager.instance().colour)
+    css = _build_stylesheet(ThemeManager.instance().colour)
+    return scale_stylesheet(css, ThemeManager.instance().scale)
+
+
+def scale_stylesheet(css: str, percent: int) -> str:
+    """Scale every px length in a stylesheet for UI scaling."""
+    if percent == 100:
+        return css
+    factor = percent / 100.0
+
+    def repl(match: re.Match[str]) -> str:
+        value = float(match.group(1)) * factor
+        return f"{value:g}px"
+
+    return re.sub(r"(\d+(?:\.\d+)?)px", repl, css)
+
+
+#: Kept for the accessibility tests and any older in-tree caller.
+_scale_css = scale_stylesheet
 
 
 def _build_stylesheet(c: dict) -> str:
@@ -907,7 +1076,7 @@ def _build_stylesheet(c: dict) -> str:
         background: {c['accent']};
         border-color: {c['accent']};
     }}
-    """ + _indicator_rules(c)
+    """ + _indicator_rules(c) + _focus_rules(c)
 
 
 def _indicator_rules(c: dict) -> str:
@@ -987,5 +1156,32 @@ def _indicator_rules(c: dict) -> str:
     }}
     QRadioButton::indicator:checked, QMenu::indicator:exclusive:checked {{
         image: url({u['dot']});
+    }}
+    """
+
+
+def _focus_rules(c: dict) -> str:
+    """Visible keyboard focus, independent of sub-control image generation:
+    the platform's default dotted line disappears on dark surfaces and on
+    busy tables."""
+    return f"""
+    QLineEdit:focus, QComboBox:focus, QAbstractSpinBox:focus,
+    QPlainTextEdit:focus, QTextEdit:focus, QTextBrowser:focus,
+    QAbstractItemView:focus {{
+        border: 2px solid {c['accent']};
+    }}
+    QPushButton:focus, QToolButton:focus, QCheckBox:focus,
+    QRadioButton:focus, QGroupBox:focus, QSlider:focus,
+    QScrollBar:focus {{
+        border: 2px solid {c['accent']};
+    }}
+    /* A default button is filled with the accent, so an accent ring round
+       it disappears. Ring it in the text colour instead. */
+    QPushButton:default:focus, QToolButton:checked:focus {{
+        border-color: {c['text']};
+    }}
+    QCheckBox, QRadioButton {{
+        border: 2px solid transparent;
+        padding: 1px;
     }}
     """

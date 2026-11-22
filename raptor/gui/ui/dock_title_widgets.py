@@ -148,7 +148,8 @@ class _DockStub(QWidget):
         p.setPen(QColor(c["text"]))
         f = self.font()
         f.setBold(True)
-        f.setPointSize(10)
+        # Keep the application font's size: it carries the interface scale
+        # and the OS font, unlike a hard-coded point size.
         p.setFont(f)
         p.translate(self.width() / 2, self.height() / 2)
         p.rotate(self._angle)
