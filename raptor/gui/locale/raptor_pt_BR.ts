@@ -2649,6 +2649,14 @@
       <translation>Fase da missão</translation>
     </message>
     <message>
+      <source>Reliability block diagram</source>
+      <translation>Diagrama de blocos de confiabilidade</translation>
+    </message>
+    <message>
+      <source>Interactive diagram of the model. The Model Explorer and Data Tables list the same elements, links and values as text.</source>
+      <translation>Diagrama interativo do modelo. O Explorador de modelo e as Tabelas de dados listam os mesmos elementos, vínculos e valores como texto.</translation>
+    </message>
+    <message>
       <source>Paste Here (at pointer)</source>
       <translation>Colar aqui (na posição do ponteiro)</translation>
     </message>

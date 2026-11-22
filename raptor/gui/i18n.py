@@ -486,7 +486,10 @@ def exec_translated(dialog):
     box). Returns the dialog's `exec()` code.
     """
     translate_widgets(dialog)
-    if not dialog.accessibleName() and dialog.windowTitle():
+    # Dialogs built by the app are QWidgets; a few tests (and embedders)
+    # pass a stand-in with only the methods they use.
+    if (hasattr(dialog, "setAccessibleName")
+            and not dialog.accessibleName() and dialog.windowTitle()):
         dialog.setAccessibleName(dialog.windowTitle())
     return dialog.exec()
 
