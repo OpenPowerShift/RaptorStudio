@@ -350,6 +350,47 @@ class BackgroundRunMixin(_Base):
                         "cost_interval"),
                     seed=run_seed or None,
                     keep_partial_logs=True)
+                # The downtime drivers are part of the result, not a later
+                # tab action: replay the event log here, in the worker,
+                # while the log and model are hot. The GUI receives a
+                # finished attribution and never replays the same data.
+                attribution = None
+                if any(logs):
+                    try:
+                        from raptor.api.insight.attribution import attribute_batch
+                        from raptor.api.progress import Cancelled
+                        experiment = (run_metadata.get("manifest") or {}) \
+                            .get("experiment") or {}
+                        start = float(experiment.get("start_stats") or 0.0)
+
+                        def drivers_progress(p) -> None:
+                            state["stage"] = ("downtime drivers", p.done,
+                                             p.total)
+
+                        class _BatchStop:
+                            """Stop *and Pause* land during the replay.
+
+                            `stop_check` is the same check the runs use: it
+                            blocks while the run is paused and returns True
+                            once Stop is pressed.
+                            """
+
+                            def is_set(inner) -> bool:
+                                return stop_check()
+
+                        attribution = attribute_batch(
+                            bg_model, logs, start_stats=start,
+                            capacity_lines=streams.get("capacity"),
+                            units=units, progress=drivers_progress,
+                            abort=_BatchStop())
+                    except Cancelled:
+                        attribution = None
+                    except Exception as exc:      # noqa: BLE001
+                        report_notes.append(
+                            "downtime attribution was not calculated: "
+                            f"{exc}")
+                        attribution = None
+                state["attribution"] = attribution
                 state["result"] = (logs, eor, fin, report_data,
                                    report_notes, ao_lines, cap_lines,
                                    cost_lines, units)
@@ -728,7 +769,8 @@ class BackgroundRunMixin(_Base):
                     cost_lines=cost_lines,
                     manifest=manifest_with_streams(state.get("run_metadata") or {}),
                     importance=importance,
-                    rbd=getattr(self, "_last_run_model", None))
+                    rbd=getattr(self, "_last_run_model", None),
+                    attribution=state.get("attribution"))
                 self._note_results_basis()
                 self._remember_report_streams(state.get("streams") or {})
                 self._results_show_action.setEnabled(bool(report_data))

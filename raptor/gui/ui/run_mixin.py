@@ -38,6 +38,22 @@ def _system_units(rbd):
     return None
 
 
+class _WindowStop:
+    """The window's Stop flag as the `is_set()` abort that
+    `raptor.api.progress.check` accepts.
+
+    A synchronous run's `_sync_stop` is a latched one-way abort, so it is
+    read live rather than turned into a `threading.Event` (which would have
+    to be created, set and cleared in step with it).
+    """
+
+    def __init__(self, window: Any):
+        self._window = window
+
+    def is_set(self) -> bool:
+        return bool(getattr(self._window, "_sync_stop", False))
+
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QMainWindow as _Base
     import PySide6.QtGui
@@ -315,7 +331,7 @@ class RunMixin(_Base):
     def _present_baseline_results(self, *, logs, eor, fin, report_data,
                                   notes, ao_lines, cap_lines, cost_lines,
                                   units, manifest, importance_total=None,
-                                  rbd=None):
+                                  rbd=None, attribution=None):
         """Put the finished baseline on screen while importance runs.
 
         Called once per run, on the GUI thread. `follow_up=True` keeps the
@@ -331,7 +347,7 @@ class RunMixin(_Base):
             logs, eor, fin, report_data=report_data, units=units,
             notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, manifest=manifest, importance=None,
-            follow_up=True, rbd=rbd)
+            follow_up=True, rbd=rbd, attribution=attribution)
         if not ok:
             return False
         self._note_results_basis()
@@ -669,10 +685,76 @@ class RunMixin(_Base):
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
+        attribution = self._compute_drivers_now(
+            run_model, event_logs, run_metadata, units,
+            streams.get("capacity"), report_notes)
         self._present_foreground_run(
             run_model, event_logs, end_of_run_lines, final_results_lines,
             streams=streams, report_data=report_data, report_notes=report_notes,
-            run_metadata=run_metadata)
+            run_metadata=run_metadata, attribution=attribution)
+
+    def _compute_drivers_now(self, rbd, logs, run_metadata, units,
+                             cap_lines=None, notes=None):
+        """The end-of-run attribution pass, with the run's own progress bar.
+
+        Runs before the results are presented, so the Story, Drivers, Charts
+        and the canvas all read one finished attribution instead of each
+        one replaying the log later. A missing event log simply returns
+        None and leaves the lazy Drivers path in place.
+
+        The event loop is pumped while the pass runs -- as the batch's own
+        progress hook does -- so the window keeps painting and Stop still
+        lands: the same `_sync_stop` flag ends the replay, and the results
+        are presented without drivers. A failure is noted and never costs
+        the batch its results.
+        """
+        if not any(logs or ()):
+            return None
+        from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
+        experiment = (run_metadata.get("manifest") or {}).get("experiment") or {}
+        start = float(experiment.get("start_stats") or 0.0)
+        last_pump = 0.0
+
+        def show(p) -> None:
+            nonlocal last_pump
+            pct = min(100, 100 * int(p.done) // int(p.total)) if p.total else 0
+            if p.total:
+                self._run_progress.setRange(0, 100)
+                self._run_progress.setValue(pct)
+                self._run_progress_label.setText(f"{pct}%")
+            else:
+                # unknown total: a busy bar, never a made-up share
+                self._run_progress.setRange(0, 0)
+                self._run_progress_label.setText("…")
+            self._statusbar.showMessage(p.text())
+            now = time.monotonic()
+            # One repaint every 50 ms is enough to look alive; pumping in
+            # between would only slow the replay down. Full events (not
+            # `ExcludeUserInputEvents`) so the Stop button lands here too.
+            if now - last_pump >= 0.05 or (p.total and p.done >= p.total):
+                last_pump = now
+                QApplication.processEvents()
+
+        self._run_progress.setVisible(True)
+        self._run_progress_label.setVisible(True)
+        try:
+            return attribute_batch(
+                rbd, logs, start_stats=start, capacity_lines=cap_lines,
+                units=units, progress=show, abort=_WindowStop(self))
+        except Cancelled:
+            return None
+        except Exception as exc:  # noqa: BLE001 - never lose the results for this
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            if notes is not None:
+                notes.append(
+                    f"downtime attribution was not calculated: {exc}")
+            return None
+        finally:
+            # The bar belongs to the percentage stages again (results,
+            # importance), whichever way the pass ended.
+            self._run_progress.setRange(0, 100)
 
     def _lock_for_foreground_run(self) -> None:
         """Re-entrancy guard and a clean slate for a synchronous batch: Run is
@@ -715,7 +797,8 @@ class RunMixin(_Base):
 
     def _present_foreground_run(self, run_model, event_logs, end_of_run_lines,
                                 final_results_lines, *, streams, report_data,
-                                report_notes, run_metadata) -> None:
+                                report_notes, run_metadata,
+                                attribution=None) -> None:
         """Put a finished (or stopped) batch's results on screen and release the UI."""
         ao_lines = streams.get("ao")
         cap_lines = streams.get("capacity")
@@ -791,7 +874,7 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     units=units, manifest=manifest_with_streams(run_metadata),
-                    rbd=run_model,
+                    rbd=run_model, attribution=attribution,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
             overlays = (self._checked_overlay_state()
@@ -814,7 +897,8 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     manifest=manifest_with_streams(run_metadata),
-                    importance=importance, rbd=run_model)
+                    importance=importance, rbd=run_model,
+                    attribution=attribution)
                 self._note_results_basis()
                 self._remember_report_streams(streams)
                 self._results_show_action.setEnabled(bool(report_data))

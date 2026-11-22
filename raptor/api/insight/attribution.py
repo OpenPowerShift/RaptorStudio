@@ -29,14 +29,18 @@ Block states come from the line's action, sub-divided by its comment:
 """
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from typing import Any
 
 from raptor.api.insight.capacity_attribution import (
     CapacityRun, CapacityTracker, aggregate_capacity,
 )
+
+log = logging.getLogger(__name__)
 
 CAUSES = ("repair", "wait_spare", "wait_resource", "logistics", "pm", "pm_wait",
           "dependency", "done", "other")
@@ -974,4 +978,58 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     result = aggregate(trials, phases, hierarchies)
     if with_outages:
         result["outages"] = outage_record(trials, hierarchies)
+    return result
+
+
+def attribute_batch(rbd: Any, logs: Iterable[Iterable[Any]] | None, *,
+                    start_stats: float = 0.0,
+                    capacity_lines: Iterable[str] | None = None,
+                    capacity: Iterable[CapacityRun | None] | None = None,
+                    units: str = "", progress: Any = None,
+                    abort: Any = None) -> dict[str, Any] | None:
+    """The whole attribution pass for one finished batch, or None.
+
+    One entry point for the GUI's worker, its synchronous path and
+    `raptor.api.run`, so the capacity split, the model's phases and
+    hierarchies, and the unit label cannot drift between them.
+
+    `capacity_lines` is the batch's capacity sink; `capacity` is an
+    already-computed track per run (in run order), for a caller that had to
+    build it with its own model key, rule, progress or abort. A capacity
+    split that fails is logged and left out: it is an extra, not the page.
+
+    `progress` is a `raptor.api.progress.ProgressFn`; `abort` is a
+    `threading.Event` (anything with `is_set()`). A cancelled pass raises
+    `raptor.api.progress.Cancelled`.
+    """
+    runs = list(logs or [])
+    if not any(runs):
+        return None
+    if capacity is None and rbd is not None and capacity_lines:
+        from raptor.api.progress import Cancelled
+        try:
+            from raptor.api.insight.capacity_attribution import capacity_runs
+            # Stop must land here too: building the split walks the Failure
+            # Effects machinery, which can be slow on a large model.
+            capacity = capacity_runs(rbd, capacity_lines, abort=abort)
+        except Cancelled:
+            raise
+        except Exception:      # noqa: BLE001 - capacity is an optional extra
+            log.exception("lost-capacity split failed")
+            capacity = None
+    if capacity is None:
+        trial_logs = [lines for lines in runs if lines]
+    else:
+        # The sink holds one track per run, in run order: pair the two
+        # BEFORE dropping runs without an event log, or every later run
+        # would be charged the previous run's flow.
+        pairs = [(lines, track) for lines, track in
+                 zip_longest(runs, capacity, fillvalue=None) if lines]
+        trial_logs = [lines for lines, _track in pairs]
+        capacity = [track for _lines, track in pairs]
+    result = attribute_logs(
+        trial_logs, start_stats, progress=progress, abort=abort,
+        with_outages=True, capacity=capacity,
+        phases=model_phases(rbd), hierarchies=model_hierarchies(rbd))
+    result["units"] = units
     return result

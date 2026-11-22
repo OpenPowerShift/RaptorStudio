@@ -30,6 +30,7 @@ import weakref
 
 from raptor.api import run_needs
 from raptor.api.presentation import probability_text
+from raptor.gui.ui.drivers_page import CANCELLED_TEXT
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
@@ -184,9 +185,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
-        #: Attribution read from an `.rbdz`, applied once the result pages
-        #: exist instead of replaying the event log again.
-        self._saved_attribution: dict | None = None
+        #: Attribution already known — computed by the run, or read from an
+        #: `.rbdz` — applied once instead of replaying the event log.
+        self._precomputed_attribution: dict | None = None
         self._period_summary: dict | None = None
         self._drivers_page.enable_requested.connect(self.enable_requested)
         self._tabs.addTab(self._drivers_page, "Drivers")
@@ -1553,37 +1554,51 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
             self._refresh_drivers()
 
+    def attribution(self) -> dict | None:
+        """The attribution on screen, or None before it has been worked out."""
+        page = getattr(self, "_drivers_page", None)
+        return page.attribution() if page is not None else None
+
+    def _clear_drivers(self) -> None:
+        """Forget the drivers on screen (no log, deferred, or failed).
+
+        Clears the outage timeline and the period summary too: the Story
+        and the Charts read all three, and a new result set must never be
+        shown with the previous one's drivers.
+        """
+        self._outages = None
+        self._period_summary = None
+        self._drivers_page.set_attribution(None)
+        self._drivers_page.set_periods(None)
+
     def _refresh_drivers(self) -> None:
         """Work out what caused the downtime from this result set's event logs."""
         self._drivers_stale = False
         # never export a previous result set's periods with this one
         self._period_summary = None
-        saved = self._saved_attribution
-        if saved is not None:
-            # An `.rbdz` already carries the attribution: apply it rather
-            # than replaying the same event log (and showing a progress
-            # caption for work that is already done).
-            self._saved_attribution = None
-            self._apply_attribution(dict(saved))
+        ready = self._precomputed_attribution
+        if ready is not None:
+            # Worked out by the run itself: apply it, never replay.
+            self._precomputed_attribution = None
+            self._apply_attribution(ready)
             return
-        logs = [log for log in (self._event_logs or []) if log]
+        raw_logs = list(self._event_logs or [])
+        logs = [log for log in raw_logs if log]
         if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
-            self._drivers_page.set_attribution(None)
-            self._drivers_page.set_periods(None)
+            self._clear_drivers()
             return
-        from raptor.api.insight.attribution import attribute_logs
+        from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
         experiment = (self._manifest or {}).get("experiment") or {}
-        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
-
-        class _Cancelled(Exception):
-            pass
+        total_lines = sum(len(log) for log in logs)
+        big = total_lines > self.DRIVERS_EAGER_LINES
 
         progress = None
         if big:
             from PySide6.QtWidgets import QProgressDialog
             progress = QProgressDialog(
                 "Working out what caused the downtime…", "Cancel",
-                0, 1, self)
+                0, max(1, len(logs)), self)
             progress.setWindowTitle("Downtime drivers")
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(0)
@@ -1596,46 +1611,39 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             if progress is None:
                 return
             if progress.wasCanceled():
-                raise _Cancelled()
+                raise Cancelled()
             if p.total:
                 progress.setMaximum(int(p.total))
             progress.setValue(int(p.done))
             progress.setLabelText(p.text() + " runs…")
-            # A long replay says where it has got to and keeps the window
-            # alive. Paint every tenth run: repainting a modal dialog per
-            # event would cost more than the replay.
             if p.done % 10 == 0 or p.done == p.total:
                 QApplication.processEvents()
 
-        cap_runs = None
-        if getattr(self, "_rbd", None) is not None and self._cap_lines:
-            try:
-                from raptor.api.insight.capacity_attribution import capacity_runs
-                cap_runs = capacity_runs(self._rbd, self._cap_lines)
-            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
-                import logging
-                logging.getLogger(__name__).exception("lost-capacity split failed")
         if big:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            from raptor.api.insight.attribution import model_hierarchies, model_phases
             rbd = getattr(self, "_rbd", None)
-            attribution = attribute_logs(logs, start, progress=show,
-                                         with_outages=True, capacity=cap_runs,
-                                         phases=model_phases(rbd),
-                                         hierarchies=model_hierarchies(rbd))
-        except _Cancelled:
-            # Cancelling this view's extra pass must not lose the results
-            # themselves; leave Drivers retryable.
-            self._drivers_page.set_attribution(None)
+            attribution = attribute_batch(
+                # Pass the unfiltered logs: capacity tracks are paired by
+                # run position, so filtering empty logs here shifts them.
+                rbd, raw_logs, start_stats=start,
+                capacity_lines=getattr(self, "_cap_lines", None),
+                units=getattr(self, "_units", ""), progress=show)
+        except Cancelled:
+            # Cancelling the extra pass must not lose the results. Say so
+            # instead of showing the "turn the event log on" prompt: the
+            # log is there, this pass was declined.
+            self._outages = None
+            self._period_summary = None
+            self._drivers_page.set_unavailable(CANCELLED_TEXT)
             self._drivers_page.set_periods(None)
             self._drivers_stale = True
             return
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
-            self._drivers_page.set_attribution(None)
+            self._clear_drivers()
             return
         finally:
             if progress is not None:
@@ -1643,13 +1651,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 progress.deleteLater()
             if big:
                 QApplication.restoreOverrideCursor()
-        attribution["units"] = self._units or attribution.get("units") or ""
+        if attribution is None:
+            self._clear_drivers()
+            return
         self._apply_attribution(attribution)
 
     def _apply_attribution(self, attribution: dict) -> None:
-        """Put a finished attribution (computed or restored) on every
-        surface that reads it: Drivers, the yearly periods, the Story and
-        the Charts."""
+        """Put a finished attribution (computed or supplied by the run) on
+        every surface that reads it."""
+        attribution = dict(attribution)
+        attribution.setdefault("units", getattr(self, "_units", "") or "")
         outages = attribution.pop("outages", None)
         # the run-to-run state ribbon draws from the outage timeline
         self._outages = outages
@@ -1679,11 +1690,17 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                               rows=True, units=self._units)
 
     def _schedule_drivers(self) -> None:
+        if self._precomputed_attribution is not None:
+            self._refresh_drivers()
+            return
         lines = sum(len(log) for log in (self._event_logs or []))
         showing = self._tabs.currentWidget() is self._drivers_page
         if showing or lines <= self.DRIVERS_EAGER_LINES:
             self._refresh_drivers()
         else:
+            # Deferred: drop the previous run's drivers now, so the Story
+            # and the Charts cannot read them for this result set.
+            self._clear_drivers()
             self._drivers_stale = True
 
     @property
@@ -1751,8 +1768,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._story_page.set_story(None)
         self._event_logs = []
         self._drivers_stale = False
-        self._saved_attribution = None
         self._drivers_page.set_attribution(None)
+        self._precomputed_attribution = None
+        self._clear_drivers()
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1823,8 +1841,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
         self._manifest = dict(manifest) if manifest else None
-        #: An archive's attribution replaces the replay when present.
-        self._saved_attribution = dict(attribution) if attribution else None
+        #: An attribution that travels with the results (a run that worked it
+        #: out up front, or an `.rbdz` that stored it) replaces the replay.
+        self._precomputed_attribution = (
+            dict(attribution) if attribution else None)
         # The run on screen until now becomes "the run before" -- unless
         # this is the same run again (importance variants populate twice).
         shown = getattr(self, "_shown_figures", None)
