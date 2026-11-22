@@ -150,6 +150,27 @@ def test_run_anyway_goes_ahead_after_the_unsupported_features_dialog(
     assert "successfully" in _status(win)
 
 
+def test_a_stop_after_the_last_run_still_reports_completion(win):
+    """Stop during the post-batch passes aborts them, not the batch."""
+    win._batch_requested_runs = 2
+    win._sync_stop = True
+    try:
+        win._show_run_outcome([["a", "b"], ["c"]], 2)
+    finally:
+        win._sync_stop = False
+    assert _status(win).startswith("Completed 2 run(s) successfully")
+
+
+def test_a_batch_cut_short_still_reports_the_stop(win):
+    win._batch_requested_runs = 5
+    win._sync_stop = True
+    try:
+        win._show_run_outcome([["a"], ["b"]], 2)
+    finally:
+        win._sync_stop = False
+    assert _status(win).startswith("Stopped after 2 run(s)")
+
+
 def test_an_unsupported_feature_error_unlocks_everything_and_says_so(win, monkeypatch):
     from raptor.gui.ui import msgbox, run_mixin
     shown = []

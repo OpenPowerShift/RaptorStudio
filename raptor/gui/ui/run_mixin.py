@@ -134,6 +134,7 @@ class RunMixin(_Base):
         _step_finalize_state: Any
         def _sync_overlay_actions(self, report_data: Any) -> None: ...
         _sync_stop: bool
+        _batch_requested_runs: int
         _undo_stack: PySide6.QtGui.QUndoStack
         def _update_status_summary(self, report_data: list, units: str | None) -> Any: ...
 
@@ -583,6 +584,9 @@ class RunMixin(_Base):
         # run must use the same value the panel shows and the manifest
         # records.
         num_runs = int(self._current_experiment()["trials"])
+        # Remembered for the outcome line: a Stop after the last run must
+        # not read as a batch that stopped short (see `_show_run_outcome`).
+        self._batch_requested_runs = num_runs
         self._write_dev_trees()
         from raptor.core import diagnostics as _dg
         self._diag(*_dg.pre_sim_lines(), _dg.start_simulation_line())
@@ -936,9 +940,18 @@ class RunMixin(_Base):
             self._sync_stop = False
 
     def _show_run_outcome(self, event_logs, completed: int) -> None:
-        """Status line for how the batch ended: stopped (and where) or completed."""
+        """Status line for how the batch ended: stopped (and where) or completed.
+
+        A Stop pressed after the last run finished -- during the end-of-run
+        drivers pass, or while the results are being parsed -- sets the same
+        one-way abort flag the batch itself reads, but it did not stop any
+        run. Whether the batch was cut short is a fact about the runs, so
+        compare what finished with what was asked for, not the flag.
+        """
+        requested = int(getattr(self, "_batch_requested_runs", 0) or 0)
+        stopped = bool(requested and completed < requested)
         text, timeout = run_outcome_text(
-            stopped=bool(getattr(self, "_sync_stop", False)), completed=completed,
+            stopped=stopped, completed=completed,
             logs=len(event_logs),
             event_log_lines=sum(len(lines) for lines in event_logs))
         self._statusbar.showMessage(text, timeout)
