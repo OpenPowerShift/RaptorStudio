@@ -42,32 +42,42 @@ def _problem(problem: Any) -> dict[str, Any]:
             "message": problem.message, "ref": problem.ref}
 
 
-def plan_file(ws: Any, model_id: str, workbook: str | Path,
-              sheet: str | None = None) -> dict[str, Any]:
-    """What the workbook would change, without touching the model.
-
-    `sheet` names the worksheet (the active/first one when omitted). A
-    problem with `level == "error"` blocks the apply; warnings do not.
-    """
-    plan = _plan(ws, model_id, workbook, sheet)
+def _result(plan: Any, *, applied: bool,
+            changes: list[Any] | None = None) -> dict[str, Any]:
+    """One result shape for preview and apply, so the two cannot drift."""
     return {
         "source": plan.source,
         "sheet": plan.sheet,
         "summary": plan.summary(),
-        "applied": False,
-        "changes": [_row(c) for c in plan.changes],
+        "applied": applied,
+        "changes": [_row(c) for c in (changes if changes is not None
+                                      else plan.changes)],
         "problems": [_problem(p) for p in plan.problems],
         "blocked": plan.has_errors(),
     }
 
 
+def plan_file(ws: Any, model_id: str, workbook: str | Path,
+              sheet: str | None = None) -> dict[str, Any]:
+    """What the workbook would change, without touching the model.
+
+    `sheet` names the worksheet (the workbook's active sheet, the first
+    when there is none, is read when omitted). A problem with
+    `level == "error"` blocks the apply; warnings do not.
+    """
+    return _result(_plan(ws, model_id, workbook, sheet), applied=False)
+
+
 def apply_file(ws: Any, model_id: str, workbook: str | Path,
-               sheet: str | None = None) -> dict[str, Any]:
+               sheet: str | None = None, *, save: bool = True
+               ) -> dict[str, Any]:
     """Apply the workbook's changes and save the model.
 
     Refuses a plan with an error (ValueError) so a mistyped row cannot
     half-edit a model. Returns the same shape as :func:`plan_file` with
-    `applied` true and only the changes that were written.
+    `applied` true and only the changes that were written. `save=False` is
+    for a caller that owns the file (the CLI writes it itself); the plan is
+    then applied in memory and nothing in the workspace is written.
     """
     from raptor.core.import_tables import apply_to_rbd
     plan = _plan(ws, model_id, workbook, sheet)
@@ -76,18 +86,14 @@ def apply_file(ws: Any, model_id: str, workbook: str | Path,
             "the import plan has errors; fix them before applying it: "
             + "; ".join(p.text() for p in plan.errors[:5]))
     if not plan.changes:
-        return {"source": plan.source, "sheet": plan.sheet,
-                "summary": plan.summary(), "applied": False,
-                "changes": [], "problems": [_problem(p) for p in plan.problems],
-                "blocked": False}
-    apply_to_rbd(ws.get(model_id).rbd, plan)
-    ws.save(model_id)
-    return {
-        "source": plan.source,
-        "sheet": plan.sheet,
-        "summary": plan.summary(),
-        "applied": True,
-        "changes": [_row(c) for c in plan.changes],
-        "problems": [_problem(p) for p in plan.problems],
-        "blocked": False,
-    }
+        return _result(plan, applied=False, changes=[])
+    handle = ws.get(model_id)
+    if save:
+        with ws.batch(model_id):
+            _before, after = apply_to_rbd(handle.rbd, plan)
+    else:
+        _before, after = apply_to_rbd(handle.rbd, plan)
+    # A block planned but deleted meanwhile (a concurrent edit) is skipped
+    # by `apply_to_rbd`; report only what the model now holds.
+    written = [c for c in plan.changes if c.id in after]
+    return _result(plan, applied=True, changes=written)

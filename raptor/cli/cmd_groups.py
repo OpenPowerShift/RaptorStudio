@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, open_model, workspace_for
+from raptor.cli.common import (emit_json, open_model, save_model_back,
+                               workspace_for)
 from raptor.cli.exitcodes import CliError
 
 _DESCRIPTION = (
@@ -42,9 +43,13 @@ def add_parser(sub: Any) -> None:
     p = s.add_parser("update", help="patch one group")
     p.add_argument("group", metavar="GROUP", help="group name or id")
     p.add_argument("--name", metavar="NAME", help="rename the group")
-    p.add_argument("--members", metavar="REFS", help="replace the member list")
-    p.add_argument("--add", metavar="REFS", help="add these members")
-    p.add_argument("--remove", metavar="REFS", help="remove these members")
+    edit_members = p.add_mutually_exclusive_group()
+    edit_members.add_argument("--members", metavar="REFS",
+                              help="replace the member list")
+    edit_members.add_argument("--add", metavar="REFS",
+                              help="add these members")
+    edit_members.add_argument("--remove", metavar="REFS",
+                              help="remove these members")
     p.add_argument("--tag", metavar="TAG",
                    help="set the tag query (empty string clears it)")
     p.add_argument("--colour", metavar="HEX",
@@ -61,7 +66,7 @@ def add_parser(sub: Any) -> None:
 
     p = s.add_parser("tag", help="tag, untag or re-tag elements")
     p.add_argument("elements", nargs="+", metavar="ELEMENT",
-                   help="selectors or names")
+                   help="Block:3 / Node:1 / Event:2 / Hier:900 selectors")
     p.add_argument("--tags", required=True, metavar="NAMES",
                    help="comma list of tags")
     p.add_argument("--mode", choices=("replace", "add", "remove"),
@@ -96,15 +101,11 @@ def _save_back(ws: Any, model_id: str, path: str, in_place: bool) -> None:
     if not in_place:
         return
     from pathlib import Path
-    source = Path(path)
-    if source.suffix.lower() == ".rbd":
+    if Path(path).suffix.lower() == ".rbd":
         raise CliError(
             "groups and tags are stored in .rbds only; save the model as "
             ".rbds (or omit --in-place) before grouping it", X.USAGE)
-    fmt = "rbds"
-    temp = source.with_name(source.stem + ".raptor-tmp" + source.suffix)
-    result = ws.save_model_as(model_id, str(temp), fmt=fmt)
-    Path(result["path"]).replace(source)
+    save_model_back(ws, model_id, path, in_place=True)
 
 
 def _run(args: Any, call) -> tuple[Any, bool]:
@@ -142,8 +143,9 @@ def list_command(args: Any) -> int:
 def add_command(args: Any) -> int:
     from raptor.api import groups
     try:
+        members = None if args.members is None else _refs(args.members)
         data, in_place = _run(args, lambda ws, mid: groups.create_group(
-            ws, mid, args.name, _refs(args.members), tag=args.tag,
+            ws, mid, args.name, members, tag=args.tag,
             colour=args.colour, description=args.description))
     except ValueError as exc:
         raise _fail(exc) from exc
@@ -151,9 +153,10 @@ def add_command(args: Any) -> int:
         emit_json(data, None)
         return X.OK
     group = data["group"]
-    print(f"Group {group['name']!r} "
-          f"({group['id']}) — {data['members']} member(s)"
-          + ("" if in_place else "; pass --in-place to save"))
+    done = "Group" if in_place else "Would create or update group"
+    print(f"{done} {group['name']!r} ({group['id']}) — "
+          f"{data['members']} member(s)"
+          + ("" if in_place else "; pass --in-place to write"))
     return X.OK
 
 
@@ -170,8 +173,9 @@ def update_command(args: Any) -> int:
     if args.format == "json":
         emit_json(data, None)
         return X.OK
-    print(f"Group {data['group']['name']!r} — {data['members']} member(s)"
-          + ("" if in_place else "; pass --in-place to save"))
+    done = "Group" if in_place else "Would update group"
+    print(f"{done} {data['group']['name']!r} — {data['members']} member(s)"
+          + ("" if in_place else "; pass --in-place to write"))
     return X.OK
 
 
@@ -185,8 +189,9 @@ def delete_command(args: Any) -> int:
     if args.format == "json":
         emit_json(data, None)
         return X.OK
-    print(f"Deleted group {data['name']!r}"
-          + ("" if in_place else "; pass --in-place to save"))
+    print(f"{'Deleted' if in_place else 'Would delete'} group "
+          f"{data['name']!r}"
+          + ("" if in_place else "; pass --in-place to write"))
     return X.OK
 
 
@@ -201,8 +206,9 @@ def tag_command(args: Any) -> int:
     if args.format == "json":
         emit_json(data, None)
         return X.OK
-    print(f"{data['count']} element(s) changed in {data['mode']} mode"
-          + ("" if in_place else "; pass --in-place to save"))
+    verb = "changed" if in_place else "would change"
+    print(f"{data['count']} element(s) {verb} ({data['mode']} mode)"
+          + ("" if in_place else "; pass --in-place to write"))
     return X.OK
 
 

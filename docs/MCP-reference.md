@@ -1735,7 +1735,7 @@ Parameter notes:
 
 #### `delete_group`
 
-- **Kind:** writes
+- **Kind:** destructive
 - **Group:** [Build and edit](#tools-build-edit)
 
 Delete a group; its elements and their tags are kept.
@@ -2500,9 +2500,12 @@ Say exactly what a spreadsheet would change, before changing it.
 Reads an `.xlsx` or `.ods` sheet whose headers name the block and the
 fields (failure/repair distribution and parameters, PM settings, stock).
 Formula cells use the value the spreadsheet application calculated, and
-the formula is reported beside the change. Every row is validated: an
-`error` blocks the import, a `warning` is a judgement. Nothing is
-written.
+the formula is reported beside the change. `sheet` names the worksheet
+(active, else first, when omitted). Every row is validated: an
+`error` blocks the import; a `warning` does not, so fix it only when
+the row is really meant. `sheet` names the worksheet (the workbook's
+active sheet, the first when there is none, is read when omitted).
+Nothing is written.
 
 **Parameters**
 
@@ -2515,6 +2518,7 @@ written.
 Parameter notes:
 
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `sheet` — `sheet` names the worksheet (active, else first, when omitted).
 
 **Returns**
 

@@ -11,12 +11,14 @@ from typing import Any, Literal
 from mcp.types import CallToolResult
 
 from raptor.mcp import context
-from raptor.mcp.result import ADDITIVE, EDIT, READ_ONLY, guarded, ok
+from raptor.mcp.result import (DESTRUCTIVE, EDIT, READ_ONLY, guarded,
+                               ok)
 
 from raptor.mcp.server import mcp
 
 
 def _save(model_id: str) -> None:
+    context.require_write()
     context.workspace().save(model_id)
 
 
@@ -48,7 +50,7 @@ def list_groups(model_id: str) -> CallToolResult:
     return ok(data, markdown="\n".join(lines))
 
 
-@mcp.tool(annotations=ADDITIVE("Create a component group"))
+@mcp.tool(annotations=EDIT("Create or update a component group"))
 @guarded
 def create_group(model_id: str, name: str,
                  members: list[str] | None = None,
@@ -97,7 +99,7 @@ def update_group(model_id: str, group: str,
         f"{data['members']} member(s)."))
 
 
-@mcp.tool(annotations=ADDITIVE("Delete a component group"))
+@mcp.tool(annotations=DESTRUCTIVE("Delete a component group"))
 @guarded
 def delete_group(model_id: str, group: str) -> CallToolResult:
     """Delete a group; its elements and their tags are kept."""

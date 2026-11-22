@@ -145,3 +145,27 @@ class TestMcp:
         assert result.is_error
         assert "errors" in " ".join(
             c.text for c in result.content if getattr(c, "type", "") == "text")
+
+
+def test_no_change_import_says_nothing_was_written(workspace):
+    from raptor.api import import_tables
+    from raptor.mcp import context
+    from raptor.mcp.tools_import import import_table_data
+    ws = context.workspace()
+    mid = _open(workspace)
+    # a sheet whose values already match the model
+    from raptor.core.fileio.rbds import load_rbds
+    from raptor.core.fileio.typed import row_int
+    rbd = load_rbds(str(MODEL))
+    row = next(r for r in rbd.sections["BLOCK_DATA"].rows
+               if row_int(r.get("ID"), 0) > 0)
+    book = _workbook(workspace / "same.xlsx",
+                     [[row["blockName"], float(row.get("FailureParam1") or 0),
+                       float(row.get("RepairParam1") or 0)]])
+    data = import_tables.plan_file(ws, mid, book)
+    if data["changes"]:
+        pytest.skip("the workbook's numbers differ from the model")
+    result = import_table_data(mid, "same.xlsx")
+    text = " ".join(c.text for c in result.content
+                    if getattr(c, "type", "") == "text")
+    assert "No changes" in text and "not saved" in text

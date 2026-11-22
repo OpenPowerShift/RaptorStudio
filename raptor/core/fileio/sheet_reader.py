@@ -30,6 +30,10 @@ from xml.etree import ElementTree as ET
 
 MAX_ROWS = 20_000
 MAX_COLUMNS = 512
+#: A workbook can name cell SR1 in every row with ~50 bytes: padding to
+#: that column would build 10M Cell objects for a sheet with one value per
+#: row. Bound the padded rectangle, not just the bytes.
+MAX_CELLS = 2_000_000
 #: A single XML part of a workbook or ODS (`sheet1.xml`, `content.xml`, ...)
 #: may not decompress beyond this. The entry's declared size is checked
 #: before reading, so a compressed "zip bomb" cannot expand into memory.
@@ -588,6 +592,10 @@ def _number(text: Any) -> float | int | None:
 
 def _xlsx_row(row_node: ET.Element, shared: list[str],
               filename: str) -> list[Cell]:
+    try:
+        row_number = int(row_node.get("r", "1"))
+    except ValueError:
+        row_number = 1
     row: list[Cell] = []
     for cell_node in row_node.findall("main:c", _NS):
         ref = cell_node.get("r", "")
@@ -603,6 +611,10 @@ def _xlsx_row(row_node: ET.Element, shared: list[str],
             raise SheetError(
                 f"{filename}: data in column {col + 1} is beyond the "
                 f"{MAX_COLUMNS}-column import limit")
+        if col * max(1, row_number) > MAX_CELLS:
+            raise SheetError(
+                f"{filename}: rows reach column {col + 1}; a sheet of this "
+                f"shape would exceed the {MAX_CELLS:,}-cell import limit")
         while len(row) < col:
             row.append(Cell())
         cell = _xlsx_cell(cell_node, shared)
@@ -627,7 +639,7 @@ def _xlsx_rows(sheet_data: ET.Element, shared: list[str],
         if trimmed:                   # a blank row is not a header or data
             rows.append(trimmed)
             row_numbers.append(number)
-        if len(rows) >= MAX_ROWS:
+        if len(rows) > MAX_ROWS:
             raise SheetError(
                 f"{filename} has more than {MAX_ROWS:,} rows; split it or "
                 "raise the limit")

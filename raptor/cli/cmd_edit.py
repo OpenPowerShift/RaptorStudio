@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, open_model, workspace_for
+from raptor.cli.common import (emit_json, open_model, save_model_back,
+                               workspace_for)
 from raptor.cli.exitcodes import CliError
 
 
@@ -65,16 +66,6 @@ def _missing(args: Any) -> int:
     raise CliError("use 'raptor edit duplicate|paste-data|out-of-service'", X.USAGE)
 
 
-def _save_back(ws: Any, model_id: str, path: str, in_place: bool) -> None:
-    if not in_place:
-        return
-    source = Path(path)
-    fmt = "rbd" if source.suffix.lower() == ".rbd" else "rbds"
-    temp = source.with_name(source.stem + ".raptor-tmp" + source.suffix)
-    result = ws.save_model_as(model_id, str(temp), fmt=fmt)
-    Path(result["path"]).replace(source)
-
-
 def duplicate_command(args: Any) -> int:
     from raptor.api import edit
     if args.copies < 1:
@@ -87,7 +78,7 @@ def duplicate_command(args: Any) -> int:
                 offset=(args.dx, args.dy))
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
-        _save_back(ws, mid, args.model, args.in_place)
+        save_model_back(ws, mid, args.model, in_place=args.in_place)
     if args.format == "json":
         emit_json(result, None)
         return X.OK
@@ -109,7 +100,7 @@ def paste_data_command(args: Any) -> int:
                                             groups)
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
-        _save_back(ws, mid, args.model, args.in_place)
+        save_model_back(ws, mid, args.model, in_place=args.in_place)
     if args.format == "json":
         emit_json(result, None)
         return X.OK
@@ -134,7 +125,7 @@ def out_of_service_command(args: Any) -> int:
                     None if args.state == "in-service" else args.state)
             except (ValueError, KeyError, BuildError) as exc:
                 raise CliError(str(exc), X.USAGE) from exc
-            _save_back(ws, mid, args.model, args.in_place)
+            save_model_back(ws, mid, args.model, in_place=args.in_place)
         else:
             result = {"changed": [], "out_of_service": edit.out_of_service(ws, mid)}
     if args.format == "json":

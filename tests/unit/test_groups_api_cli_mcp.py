@@ -157,3 +157,67 @@ class TestMcp:
         assert result.is_error
         assert "no group" in " ".join(
             c.text for c in result.content if getattr(c, "type", "") == "text")
+
+
+def test_create_without_members_keeps_the_existing_list(workspace):
+    from raptor.api import groups
+    from raptor.mcp import context
+    ws = context.workspace()
+    mid = ws.open_model(_rbds(workspace))["model_id"]
+    groups.create_group(ws, mid, "Pumps", ["Block:3", "Block:4"])
+    again = groups.create_group(ws, mid, "Pumps", colour="#123456")
+    assert again["members"] == 2
+
+
+def test_a_rename_cannot_collide_with_another_group(workspace):
+    from raptor.api import groups
+    from raptor.mcp import context
+    ws = context.workspace()
+    mid = ws.open_model(_rbds(workspace))["model_id"]
+    groups.create_group(ws, mid, "Pumps", ["Block:3"])
+    groups.create_group(ws, mid, "Valves", ["Block:4"])
+    with pytest.raises(ValueError, match="already exists"):
+        groups.update_group(ws, mid, "Valves", name="pumps")
+
+
+def test_replace_and_add_are_mutually_exclusive(workspace):
+    from raptor.api import groups
+    from raptor.mcp import context
+    ws = context.workspace()
+    mid = ws.open_model(_rbds(workspace))["model_id"]
+    groups.create_group(ws, mid, "Pumps", ["Block:3"])
+    with pytest.raises(ValueError, match="not both"):
+        groups.update_group(ws, mid, "Pumps", members=["Block:3"],
+                            add=["Block:4"])
+
+
+def test_removing_a_ref_whose_element_is_gone_still_works(workspace):
+    from raptor.api import groups
+    from raptor.mcp import context
+    from raptor.core.fileio.typed import row_int
+    ws = context.workspace()
+    mid = ws.open_model(_rbds(workspace))["model_id"]
+    groups.create_group(ws, mid, "Pumps", ["Block:3", "Block:4"])
+    # delete a block behind the group's back, as an MCP delete would
+    rows = ws.get(mid).rbd.sections["BLOCK_DATA"].rows
+    rows[:] = [r for r in rows if row_int(r.get("ID"), 0) != 3]
+    patched = groups.update_group(ws, mid, "Pumps", remove=["Block:3"])
+    assert patched["members"] == 1
+
+
+def test_read_only_refuses_group_and_tag_writes(workspace):
+    from raptor.mcp import context
+    from raptor.mcp.tools_groups import create_group, tag_elements
+    mid = context.workspace().open_model(_rbds(workspace))["model_id"]
+    args = context.parsed_args()
+    args.read_only = True
+    try:
+        created = create_group(mid, "Pumps", ["Block:3"])
+        tagged = tag_elements(mid, ["Block:3"], ["rotating"])
+    finally:
+        args.read_only = False
+    for result in (created, tagged):
+        assert result.is_error
+        text = " ".join(c.text for c in result.content
+                        if getattr(c, "type", "") == "text")
+        assert "read-only" in text

@@ -23,16 +23,20 @@ _SUFFIXES = (".xlsx", ".ods")
 
 
 def _resolve_workbook(path: str) -> Path:
-    """A spreadsheet inside the workspace or an --allow-read directory."""
+    """A spreadsheet inside the workspace or an --allow-read directory.
+
+    `..` and symlinks are resolved before the containment check, so the
+    boundary cannot be walked out of with a crafted path.
+    """
     text = context.require_relative_path(path, "path")
-    roots = [context.workspace().root, *context.allowed_read_dirs()]
-    for root in roots:
-        candidate = (Path(root) / text).resolve()
-        if candidate.is_file() and candidate.suffix.lower() in _SUFFIXES:
-            return candidate
-    raise FileNotFoundError(
-        f"no .xlsx or .ods spreadsheet at {path!r} in the workspace or an "
-        "--allow-read directory")
+    ws = context.workspace()
+    candidate = ws.resolve_output_path(
+        text, allow_extra=context.allowed_read_dirs())
+    if not candidate.is_file() or candidate.suffix.lower() not in _SUFFIXES:
+        raise FileNotFoundError(
+            f"no .xlsx or .ods spreadsheet at {path!r} in the workspace or "
+            "an --allow-read directory")
+    return candidate
 
 
 def _markdown(data: dict[str, Any]) -> str:
@@ -55,6 +59,9 @@ def _markdown(data: dict[str, Any]) -> str:
         lines += ["", "Applied and saved."]
     elif data["changes"]:
         lines += ["", "Nothing written; call `import_table_data` to apply."]
+    else:
+        lines += ["", "No changes; nothing was written and the model was "
+                      "not saved."]
     return "\n".join(lines)
 
 
@@ -67,9 +74,12 @@ def preview_table_import(model_id: str, path: str,
     Reads an `.xlsx` or `.ods` sheet whose headers name the block and the
     fields (failure/repair distribution and parameters, PM settings, stock).
     Formula cells use the value the spreadsheet application calculated, and
-    the formula is reported beside the change. Every row is validated: an
-    `error` blocks the import, a `warning` is a judgement. Nothing is
-    written.
+    the formula is reported beside the change. `sheet` names the worksheet
+    (active, else first, when omitted). Every row is validated: an
+    `error` blocks the import; a `warning` does not, so fix it only when
+    the row is really meant. `sheet` names the worksheet (the workbook's
+    active sheet, the first when there is none, is read when omitted).
+    Nothing is written.
     """
     from raptor.api import import_tables
     workbook = _resolve_workbook(path)

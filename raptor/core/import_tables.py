@@ -539,7 +539,14 @@ def _plan_row(  # noqa: C901, PLR0912, PLR0915
                     values.append(current_params[index - 1]
                                   if index <= len(current_params) else 0.0)
             if present:
-                imported = [float(v) for v in values]
+                try:
+                    imported = [float(v) for v in values]
+                except (TypeError, ValueError):
+                    plan.problems.append(Problem(
+                        sheet_row,
+                        f"{'failure' if which == 'F' else 'repair'} "
+                        "parameters are not all numbers"))
+                    continue
                 formula_field = next(
                     (f"{'fail' if which == 'F' else 'repair'}_param_{i}"
                      for i in (1, 2, 3)

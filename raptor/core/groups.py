@@ -335,6 +335,11 @@ def update_group(rbd: Any, group_id: str, *, name: str | None = None,
         return None
     name = _clean_text(name, NAME_MAX)
     if name:
+        same_name = group_by_name(rbd, name)
+        if same_name is not None and same_name["id"] != group_id:
+            raise ValueError(
+                f"a group called {name!r} already exists; names must be "
+                "unique (ignoring case)")
         group["name"] = name
     colour = clean_colour(colour)
     if colour:

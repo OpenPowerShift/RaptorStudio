@@ -467,7 +467,7 @@ returns the deleted annotation id and its kind.
 - `import_table_data` applies the same plan and saves the model. A plan
   with an error is refused, never partly applied; the returned changes are
   the ones written, and `undo_last_edit` is the way back.
-- The same importer is `raptor import-table MODEL SHEET` (dry run) with
+- The same importer is `raptor import-table MODEL WORKBOOK` (dry run) with
   `--in-place` to write, and **Data ▸ Import Table…** in the application,
   where the whole import is one undo step.
 

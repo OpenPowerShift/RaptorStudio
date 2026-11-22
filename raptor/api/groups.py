@@ -46,6 +46,16 @@ def _check_refs(rbd: Any, refs: Iterable[str]) -> list[str]:
     return wanted
 
 
+def _prune(rbd: Any) -> None:
+    """Drop refs to elements the model no longer has, before editing.
+
+    MCP delete tools do not prune groups, so a ref can outlive its element;
+    without this, `remove` would be refused for the very ref that needs
+    removing.
+    """
+    _groups.prune(rbd, _groups.valid_refs_from_model(rbd))
+
+
 def _resolve(rbd: Any, group: str) -> dict[str, Any]:
     """A group by id or by name (case-insensitive), or ValueError."""
     found = (_groups.group_by_id(rbd, group)
@@ -86,6 +96,7 @@ def create_group(ws: Any, model_id: str, name: str,
     elements tagged later.
     """
     rbd = _handle(ws, model_id).rbd
+    _prune(rbd)
     group = _groups.add_group(
         rbd, name, None if members is None else _check_refs(rbd, members),
         colour=colour,
@@ -107,10 +118,23 @@ def update_group(ws: Any, model_id: str, group: str, *,
     """
     rbd = _handle(ws, model_id).rbd
     found = _resolve(rbd, group)
+    # Members held before housekeeping: removing one of those is satisfied
+    # by the prune below, not an error.
+    listed_before = set(found.get("members") or ())
+    _prune(rbd)
+    if members is not None and (add or remove):
+        raise ValueError(
+            "replace the member list or add/remove from it, not both")
     if add:
         _groups.add_to_group(rbd, found["id"], _check_refs(rbd, add))
     if remove:
-        _groups.remove_from_group(rbd, found["id"], _check_refs(rbd, remove))
+        wanted = _normalise(remove)
+        valid = _groups.valid_refs_from_model(rbd)
+        unknown = [r for r in wanted
+                   if r not in listed_before and r not in valid]
+        if unknown:
+            raise ValueError("no such element(s): " + ", ".join(unknown[:10]))
+        _groups.remove_from_group(rbd, found["id"], wanted)
     if members is not None or any(v is not None for v in
                                   (name, colour, description, tag)):
         updated = _groups.update_group(
@@ -129,6 +153,7 @@ def update_group(ws: Any, model_id: str, group: str, *,
 def delete_group(ws: Any, model_id: str, group: str) -> dict[str, Any]:
     """Delete a group; the elements and their tags are kept."""
     rbd = _handle(ws, model_id).rbd
+    _prune(rbd)
     found = _resolve(rbd, group)
     removed = _groups.remove_group(rbd, found["id"])
     if not removed:
@@ -147,6 +172,7 @@ def set_tags(ws: Any, model_id: str, refs: Iterable[str],
     if mode not in ("replace", "add", "remove"):
         raise ValueError(f"mode must be replace, add or remove; got {mode!r}")
     rbd = _handle(ws, model_id).rbd
+    _prune(rbd)
     wanted = _check_refs(rbd, refs)
     clean = []
     for tag in tags:

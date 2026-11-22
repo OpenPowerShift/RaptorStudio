@@ -317,3 +317,27 @@ def _toml_value(v: Any) -> str:
     if isinstance(v, bool):
         return "true" if v else "false"
     return str(v)
+
+
+def save_model_back(ws: Any, model_id: str, path: str, *,
+                    in_place: bool) -> None:
+    """Write an edited model back to the file the user named.
+
+    Shared by `edit`, `groups` and `import-table` so the temp-then-replace
+    rule (and the archive refusal) cannot drift between them. The target is
+    resolved first: replacing a symlink's path would leave its real target
+    stale.
+    """
+    if not in_place:
+        return
+    source = Path(path).expanduser()
+    suffix = source.suffix.lower()
+    if suffix == ".rbdz":
+        raise CliError(
+            "cannot write an .rbdz here; save the model as .rbds first",
+            USAGE)
+    fmt = "rbd" if suffix == ".rbd" else "rbds"
+    target = source.resolve()
+    temp = target.with_name(target.stem + ".raptor-tmp" + target.suffix)
+    result = ws.save_model_as(model_id, str(temp), fmt=fmt)
+    Path(result["path"]).replace(target)

@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from raptor.cli import exitcodes as X
-from raptor.cli.common import emit_json, open_model, workspace_for
+from raptor.cli.common import (emit_json, open_model, save_model_back,
+                               workspace_for)
 from raptor.cli.exitcodes import CliError
 
 
@@ -20,7 +21,8 @@ def add_parser(sub: Any) -> None:
                     "whole import is refused if any row has an error; the "
                     "model file changes only with --in-place.")
     p.add_argument("model", metavar="MODEL")
-    p.add_argument("workbook", metavar="SHEET", help=".xlsx or .ods file")
+    p.add_argument("workbook", metavar="WORKBOOK",
+                   help=".xlsx or .ods file")
     p.add_argument("--sheet", metavar="NAME",
                    help="worksheet to read (default: active/first)")
     p.add_argument("--in-place", action="store_true",
@@ -28,17 +30,6 @@ def add_parser(sub: Any) -> None:
     p.add_argument("-f", "--format", choices=("text", "json"),
                    default="text")
     p.set_defaults(func=import_table_command)
-
-
-def _save_back(ws: Any, model_id: str, path: str, in_place: bool) -> bool:
-    if not in_place:
-        return False
-    source = Path(path)
-    fmt = "rbd" if source.suffix.lower() == ".rbd" else "rbds"
-    temp = source.with_name(source.stem + ".raptor-tmp" + source.suffix)
-    result = ws.save_model_as(model_id, str(temp), fmt=fmt)
-    Path(result["path"]).replace(source)
-    return True
 
 
 def _print_plan(data: dict[str, Any]) -> None:
@@ -66,18 +57,26 @@ def import_table_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
-            data = (import_tables.apply_file(ws, mid, workbook, args.sheet)
-                    if args.in_place
-                    else import_tables.plan_file(ws, mid, workbook, args.sheet))
+            data = import_tables.apply_file(
+                ws, mid, workbook, args.sheet, save=not args.in_place) \
+                if args.in_place else \
+                import_tables.plan_file(ws, mid, workbook, args.sheet)
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
-        _save_back(ws, mid, args.model, args.in_place)
+        if data["applied"]:
+            save_model_back(ws, mid, args.model, in_place=True)
+    if data["blocked"]:
+        if args.format == "json":
+            emit_json(data, None)
+        raise CliError(
+            "nothing applied: the sheet has errors (see the problems)",
+            X.USAGE)
     if args.format == "json":
         emit_json(data, None)
     else:
         _print_plan(data)
-        if data["blocked"]:
-            return X.USAGE
         if data["changes"] and not data["applied"]:
             print("nothing written; pass --in-place to apply")
-    return X.OK if not data["blocked"] else X.USAGE
+        elif data["applied"]:
+            print(f"applied to {args.model}")
+    return X.OK
