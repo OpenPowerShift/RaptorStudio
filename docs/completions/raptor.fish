@@ -171,6 +171,8 @@ complete -c raptor -n '__fish_seen_subcommand_from fit' -l repair
 complete -c raptor -n '__fish_use_subcommand' -a get
 complete -c raptor -n '__fish_seen_subcommand_from get' -l format
 complete -c raptor -n '__fish_seen_subcommand_from get' -l help
+complete -c raptor -n '__fish_use_subcommand' -a groups
+complete -c raptor -n '__fish_seen_subcommand_from groups' -l help
 complete -c raptor -n '__fish_use_subcommand' -a gui
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l help
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l new

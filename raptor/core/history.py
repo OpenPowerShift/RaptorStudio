@@ -367,9 +367,12 @@ class HistoryStore:
                ) -> tuple[dict[str, Any], list[str]]:
         """Keep the newest versions within both limits.
 
-        The byte cap is checked between versions, so the newest version is
-        always kept even when it alone is larger than the cap. Returns the
-        new index and the stored names to delete after it is written.
+        A labelled version is pinned: it is not counted against `keep` or
+        `max_bytes`, so naming one keeps it until the user deletes it (or
+        clears its label). The byte cap is checked between versions, so the
+        newest version is always kept even when it alone is larger than the
+        cap. Returns the new index and the stored names to delete after it
+        is written.
         """
         folder = self._folder(file)
         entries = sorted(
@@ -378,15 +381,21 @@ class HistoryStore:
         kept: list[dict[str, Any]] = []
         removed: list[str] = []
         total = 0
+        unpinned_kept = 0
         for entry in entries:
             name = str(entry.get("stored") or "")
             size = self._entry_size(folder, entry)
-            if len(kept) >= self.keep or (kept and total + size > self.max_bytes):
+            pinned = bool(clean_label(entry.get("label")))
+            if not pinned and (
+                    unpinned_kept >= self.keep
+                    or (unpinned_kept and total + size > self.max_bytes)):
                 if name:
                     removed.append(name)
                 continue
             kept.append(entry)
-            total += size
+            if not pinned:
+                unpinned_kept += 1
+                total += size
         return {"version": INDEX_VERSION, "file": str(file),
                 "snapshots": kept}, removed
 

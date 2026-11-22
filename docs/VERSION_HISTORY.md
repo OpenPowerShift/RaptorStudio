@@ -21,7 +21,9 @@ Open **File ▸ Version History…**:
   does not change the snapshot's content or checksum.
 - **Label…** names the selected version, or clears its label. Labelling
   the newest version when the file is unchanged updates that version
-  rather than adding a duplicate.
+  rather than adding a duplicate. A labelled version is pinned: it is not
+  deleted by the ordinary retention caps until you clear the label or
+  delete it yourself.
 - **Delete version** removes one snapshot; the model file is untouched.
 
 The list shows time, reason (`save`, `opened`, `manual`, `restored`), size
@@ -53,7 +55,9 @@ unreadable store, `6` a destination that could not be written.
 
 Snapshots are content-deduplicated: saving an unchanged file adds nothing.
 The default retention is 30 versions or 50 MB per file, whichever is reached
-first; the oldest versions beyond that are deleted. The size cap is checked
+first; the oldest versions beyond that are deleted. Labelled versions are
+pinned and do not count against either cap, so "save this one" survives
+later pruning; clear the label to let it age out. The size cap is checked
 between versions, so one model larger than the cap is still kept. The index
 is updated before pruned files are removed: a crash in between leaves an
 unreferenced snapshot (recoverable) rather than an index entry whose file is

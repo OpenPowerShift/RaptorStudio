@@ -21,7 +21,7 @@ The server is named `raptor-studio`. Its entry points are
 ## At a glance
 
 <!-- BEGIN GENERATED FACTS (tools/gen_mcp_reference.py) -->
-- **96 tools** in 8 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **95**.
+- **107 tools** in 9 task groups.  With `--no-render`, which hides the PNG diagram tool, the server exposes **106**.
 - **8 resources** (fixed URIs and templates) and **3 prompts**.
 - The tutorial book has **26 chapters**; the MCP chapter is book chapter 23 of 26 (source `new_docs/chapters/ch16-mcp.adoc`).
 <!-- END GENERATED FACTS -->
@@ -458,6 +458,22 @@ returns the deleted annotation id and its kind.
 
 <a id="validate-simulate"></a>
 
+### Groups and tags
+
+- `list_groups` lists a model's saved views and its tags. A group may hold
+  an explicit member list, every element carrying a tag, or both; it can
+  span hierarchies and never changes the simulation.
+- `create_group` (same name updates the existing group), `update_group`
+  (rename, recolour, replace/add/remove members, set or clear the tag
+  query) and `delete_group` (elements and tags are kept) edit them. Each
+  saves the model.
+- `tag_elements` sets, adds or removes tags on named elements
+  (`Block:3`, `Node:1`, `Event:2`, `Hier:900`); `mode="replace"` with no
+  tags clears them. An unknown element is refused, not skipped.
+- From a shell, the same store is `raptor groups MODEL
+  list|add|update|delete|tag|tags`; `--in-place` writes the file and the
+  legacy `.rbd` format cannot hold either (a clear error says so).
+
 ### Validate and simulate
 
 Always validate before a run. `validate_model` returns:
@@ -776,6 +792,26 @@ field was never applied, not that the model is insensitive.
 Both renderers accept `theme` (`light`/`dark`) and `routing` (`straight`,
 `angled`, `orthogonal`). Renders are content-addressed: an edit changes the
 file name, so a cached image can never be stale.
+
+### Project health, share-safe copies and versions
+
+- `project_health` reports what is in a model (counts per element type), the
+  validator's findings, and the review questions: unnamed or duplicate
+  elements, unused pools, annotations, comments, rate and formula prose.
+  Nothing is run or changed.
+- `share_safe_copy` writes a copy with the identifying prose removed and the
+  numbers intact, so it still simulates the same system. Every flag names one
+  kind (`names`, `comments`, `annotations`, `metadata`, `advisor`, `rates`)
+  and defaults to removing it. Read `residual_risk`: the structure, ids,
+  links, positions and costs remain and can identify a system without names.
+  The workspace model and its source file are never changed.
+- `list_versions` reads the versions kept for the model's file; the desktop
+  application records one automatically on each save, in the user's private
+  application folder. `snapshot_version` records one on demand (an unchanged
+  file re-labels the newest entry instead of duplicating it),
+  `label_version` names one, and `restore_version` writes one to a new path
+  inside the workspace after checking its checksum. Versions are tied to the
+  file's location, so a model that was never saved has none.
 
 <a id="large-models"></a>
 

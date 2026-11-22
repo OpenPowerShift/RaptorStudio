@@ -65,6 +65,9 @@ CATEGORIES: list[tuple[str, str, str]] = [
      "Read, page, plot and export the numbers from a completed run."),
     ("meta", "Meta and documentation",
      "Discover distributions and read the documentation the server ships."),
+    ("project", "Project health, sharing and versions",
+     "Review a model's completeness, write a share-safe copy, and keep or "
+     "restore versions of its file."),
 ]
 
 #: Every registered tool belongs to exactly one category.  A new tool is a
@@ -173,6 +176,19 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_distributions": "meta",
     "read_doc": "meta",
     "search_docs": "meta",
+    # Project health, sharing and versions
+    "project_health": "project",
+    "share_safe_copy": "project",
+    "list_versions": "project",
+    "snapshot_version": "project",
+    "label_version": "project",
+    "restore_version": "project",
+    # Groups and tags
+    "list_groups": "build-edit",
+    "create_group": "build-edit",
+    "update_group": "build-edit",
+    "delete_group": "build-edit",
+    "tag_elements": "build-edit",
 }
 
 #: A short, valid argument object for every tool.  ``<model_id>`` and
@@ -284,6 +300,25 @@ EXAMPLES: dict[str, dict[str, Any]] = {
                     "detail": "full"},
     "diff_models": {"model_a": "<model_id_a>", "model_b": "<model_id_b>",
                     "detail": "summary"},
+    "project_health": {"model_id": "<model_id>"},
+    "share_safe_copy": {"model_id": "<model_id>", "output": "shared/pump",
+                        "annotations": "all"},
+    "list_versions": {"model_id": "<model_id>", "limit": 10},
+    "snapshot_version": {"model_id": "<model_id>", "label": "sent to review"},
+    "label_version": {"model_id": "<model_id>",
+                      "snapshot_id": "<snapshot_id>", "label": "released"},
+    "restore_version": {"model_id": "<model_id>",
+                        "snapshot_id": "<snapshot_id>",
+                        "output": "restored/pump.rbds"},
+    "list_groups": {"model_id": "<model_id>"},
+    "create_group": {"model_id": "<model_id>", "name": "Pumps",
+                     "members": ["Block:3", "Block:4"]},
+    "update_group": {"model_id": "<model_id>", "group": "Pumps",
+                     "add": ["Block:5"], "colour": "#2E7D32"},
+    "delete_group": {"model_id": "<model_id>", "group": "Pumps"},
+    "tag_elements": {"model_id": "<model_id>",
+                     "elements": ["Block:3", "Block:4"],
+                     "tags": ["rotating"], "mode": "add"},
     "extract_hierarchy": {"model_id": "<model_id>",
                           "hierarchy": "Cooling loop", "report_only": True},
     "validate_model": {"model_id": "<model_id>"},
@@ -565,6 +600,26 @@ def _parameters(schema: dict[str, Any],
 #: output schema.  The catalogue must still give a reader the return summary,
 #: so keep these next to the examples and check them in the docs test.
 RETURN_NOTES: dict[str, str] = {
+    "list_groups": "`{groups: [{id, name, colour, description, tag, "
+                   "explicit_members, members}], count, tags}`.",
+    "create_group": "`{group, members}` for the stored group.",
+    "update_group": "`{group, members}` after the patch.",
+    "delete_group": "`{deleted, name}`.",
+    "tag_elements": "`{changed: [{ref, tags}], count, mode}`.",
+    "project_health": "`{counts, summary, annotations, text_annotations, "
+                      "comments, formulas, rates, errors, warnings, issues}`; "
+                      "each issue is `{severity, message, element}`.",
+    "share_safe_copy": "`{path, removed, summary, counts: {names, comments, "
+                       "text_annotations, graphic_annotations, metadata, "
+                       "advisor, rates}, residual_risk}`.",
+    "list_versions": "`{file, total, versions: [{snapshot_id, created, "
+                     "reason, label, bytes}]}`, newest first.",
+    "snapshot_version": "`{created, file, version: {snapshot_id, created, "
+                        "reason, label, bytes}}`; `created` is false when "
+                        "the file was unchanged.",
+    "label_version": "`{file, snapshot_id, label}`.",
+    "restore_version": "`{path, snapshot_id, created, bytes}` for the "
+                       "written copy.",
     "delete_link": "`{deleted, kind, id}` for the removed link.",
     "move_element": "`{moved, parent, element}` — the selector, its new "
                     "parent and the moved element row.",

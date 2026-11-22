@@ -341,6 +341,20 @@
    "targets"
   ]
  },
+ "create_group": {
+  "params": [
+   "colour",
+   "description",
+   "members",
+   "model_id",
+   "name",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "name"
+  ]
+ },
  "create_model": {
   "params": [
    "k",
@@ -390,6 +404,16 @@
   ],
   "required": [
    "path"
+  ]
+ },
+ "delete_group": {
+  "params": [
+   "group",
+   "model_id"
+  ],
+  "required": [
+   "group",
+   "model_id"
   ]
  },
  "delete_link": {
@@ -665,6 +689,18 @@
    "part"
   ]
  },
+ "label_version": {
+  "params": [
+   "label",
+   "model_id",
+   "snapshot_id"
+  ],
+  "required": [
+   "label",
+   "model_id",
+   "snapshot_id"
+  ]
+ },
  "list_advisor_rules": {
   "params": [],
   "required": []
@@ -681,6 +717,14 @@
  "list_distributions": {
   "params": [],
   "required": []
+ },
+ "list_groups": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
  },
  "list_models": {
   "params": [
@@ -702,6 +746,15 @@
   "params": [
    "model_id",
    "run_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "list_versions": {
+  "params": [
+   "limit",
+   "model_id"
   ],
   "required": [
    "model_id"
@@ -840,6 +893,14 @@
   "params": [],
   "required": []
  },
+ "project_health": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "read_doc": {
   "params": [
    "limit",
@@ -922,6 +983,18 @@
    "model_id",
    "replace",
    "table"
+  ]
+ },
+ "restore_version": {
+  "params": [
+   "model_id",
+   "output",
+   "snapshot_id"
+  ],
+  "required": [
+   "model_id",
+   "output",
+   "snapshot_id"
   ]
  },
  "run_chart": {
@@ -1041,6 +1114,22 @@
    "state"
   ]
  },
+ "share_safe_copy": {
+  "params": [
+   "advisor",
+   "annotations",
+   "comments",
+   "metadata",
+   "model_id",
+   "names",
+   "output",
+   "rates"
+  ],
+  "required": [
+   "model_id",
+   "output"
+  ]
+ },
  "simulate": {
   "params": [
    "attribution",
@@ -1072,6 +1161,15 @@
    "model_id",
    "offset",
    "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "snapshot_version": {
+  "params": [
+   "label",
+   "model_id"
   ],
   "required": [
    "model_id"
@@ -1122,6 +1220,19 @@
    "model_id"
   ]
  },
+ "tag_elements": {
+  "params": [
+   "elements",
+   "mode",
+   "model_id",
+   "tags"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "tags"
+  ]
+ },
  "undo_last_edit": {
   "params": [
    "model_id"
@@ -1163,6 +1274,23 @@
   "required": [
    "model_id",
    "updates"
+  ]
+ },
+ "update_group": {
+  "params": [
+   "add",
+   "colour",
+   "description",
+   "group",
+   "members",
+   "model_id",
+   "name",
+   "remove",
+   "tag"
+  ],
+  "required": [
+   "group",
+   "model_id"
   ]
  },
  "validate_model": {

@@ -224,3 +224,24 @@ def test_recovered_index_survives_repeated_lists_and_a_new_record(tmp_path):
     store.record(path)
     ids = {s.id for s in store.snapshots(path)}
     assert {first.id, second.id} <= ids
+
+
+def test_a_labelled_version_is_pinned_against_the_retention_caps(tmp_path):
+    """"Save this one" must survive ordinary pruning."""
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=2, max_bytes=10_000)
+    first = store.record(path, label="baseline")
+    ids = {first.id}
+    for n in range(2, 7):
+        path.write_text(f"model-v{n}", encoding="utf-8")
+        ids.add(store.record(path).id)
+    kept = {s.id for s in store.snapshots(path)}
+    assert first.id in kept, "the labelled version was pruned"
+    # the unlabelled ones still obey `keep`
+    assert len([s for s in store.snapshots(path) if not s.label]) == 2
+
+    # clearing the label makes it eligible again
+    store.set_label(path, first.id, "")
+    path.write_text("model-v8", encoding="utf-8")
+    store.record(path)
+    assert first.id not in {s.id for s in store.snapshots(path)}

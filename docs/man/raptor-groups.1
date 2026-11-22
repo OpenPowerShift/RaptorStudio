@@ -1,0 +1,115 @@
+.TH "RAPTOR-GROUPS" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-groups \- list, edit and tag component groups
+.SH SYNOPSIS
+\fBraptor groups\fR [\-h] MODEL ACTION ...
+.SH DESCRIPTION
+Groups and tags are saved views over a model: a group may span hierarchies and a tag is free\-form text on one element. Neither changes what the simulation runs. They are stored in the .rbds file and are lost by the legacy .rbd format. The model file changes only with \-\-in\-place.
+.SH COMMANDS
+.TP
+\fBlist\fR
+list groups and tags
+.TP
+\fBadd\fR
+create a group (or update the same name)
+.TP
+\fBupdate\fR
+patch one group
+.TP
+\fBdelete\fR
+delete a group (elements are kept)
+.TP
+\fBtag\fR
+tag, untag or re\-tag elements
+.TP
+\fBtags\fR
+show one element's tags
+.SH RAPTOR GROUPS LIST
+\fBraptor groups list\fR L list [\-h] [\-f {text,json}]
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR GROUPS ADD
+\fBraptor groups add\fR EL add [\-h] [\-\-members REFS] [\-\-tag TAG] [\-\-colour HEX] [\-\-description TEXT] [\-\-in\-place] [\-f {text,json}] NAME
+.SS Options
+.TP
+\fB\-\-members\fR \fIREFS\fR
+comma list of Block:3 / Node:1 / Event:2 / Hier:900
+.TP
+\fB\-\-tag\fR \fITAG\fR
+also include every element carrying this tag
+.TP
+\fB\-\-colour\fR \fIHEX\fR
+group colour, #RRGGBB
+.TP
+\fB\-\-description\fR \fITEXT\fR
+optional note shown in the selector tooltip
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR GROUPS UPDATE
+\fBraptor groups update\fR update [\-h] [\-\-name NAME] [\-\-members REFS] [\-\-add REFS] [\-\-remove REFS] [\-\-tag TAG] [\-\-colour HEX] [\-\-description TEXT] [\-\-in\-place] [\-f {text,json}] GROUP
+.SS Options
+.TP
+\fB\-\-name\fR \fINAME\fR
+rename the group
+.TP
+\fB\-\-members\fR \fIREFS\fR
+replace the member list
+.TP
+\fB\-\-add\fR \fIREFS\fR
+add these members
+.TP
+\fB\-\-remove\fR \fIREFS\fR
+remove these members
+.TP
+\fB\-\-tag\fR \fITAG\fR
+set the tag query (empty string clears it)
+.TP
+\fB\-\-colour\fR \fIHEX\fR
+group colour, #RRGGBB
+.TP
+\fB\-\-description\fR \fITEXT\fR
+optional note shown in the selector tooltip
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR GROUPS DELETE
+\fBraptor groups delete\fR delete [\-h] [\-\-in\-place] [\-f {text,json}] GROUP
+.SS Options
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR GROUPS TAG
+\fBraptor groups tag\fR EL tag [\-h] \-\-tags NAMES [\-\-mode {replace,add,remove}] [\-\-in\-place] [\-f {text,json}] ELEMENT [ELEMENT ...]
+.SS Options
+.TP
+\fB\-\-tags\fR \fINAMES\fR
+comma list of tags
+.TP
+\fB\-\-mode\fR \fI{replace|add|remove}\fR
+replace (default), add or remove
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR GROUPS TAGS
+\fBraptor groups tags\fR L tags [\-h] [\-f {text,json}] ELEMENT
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH SEE ALSO
+\fBraptor\fR(1)

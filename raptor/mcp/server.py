@@ -496,6 +496,8 @@ def _import_tools(args: argparse.Namespace) -> None:
     from raptor.mcp import tools_tables  # noqa: F401
     from raptor.mcp import tools_library  # noqa: F401
     from raptor.mcp import tools_optimise  # noqa: F401
+    from raptor.mcp import tools_project  # noqa: F401
+    from raptor.mcp import tools_groups  # noqa: F401
     from raptor.mcp import tools_svg  # noqa: F401  (SVG needs no Qt)
 
     if not getattr(args, "no_render", False) and _qt_available():
