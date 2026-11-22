@@ -1024,6 +1024,35 @@ def pencil_multi_icon(colour: str) -> QIcon:
     return _icon("massedit", colour, draw)
 
 
+def share_safe_icon(colour: str) -> QIcon:
+    """Share-safe copy: a document with a cut corner."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(10, 7, 28, 36)
+        p.setPen(QPen(c, 2))
+        p.drawLine(20, 17, 30, 17)
+        p.drawLine(20, 23, 30, 23)
+        p.drawLine(20, 29, 26, 29)
+    return _icon("share", colour, draw)
+
+
+def health_icon(colour: str) -> QIcon:
+    """Project health: a pulse line inside a rounded frame."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(7, 8, 34, 32, 6, 6)
+        pen = QPen(c, 3)
+        p.setPen(pen)
+        p.drawLine(11, 25, 17, 25)
+        p.drawLine(17, 25, 21, 17)
+        p.drawLine(21, 17, 26, 32)
+        p.drawLine(26, 32, 30, 25)
+        p.drawLine(30, 25, 37, 25)
+    return _icon("health", colour, draw)
+
+
 def droplet_icon(colour: str) -> QIcon:
     """Weak-link colouring: droplet quartered G/Y/R."""
     def draw(p: QPainter, c: QColor):

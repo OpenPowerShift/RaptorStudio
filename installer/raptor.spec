@@ -23,6 +23,7 @@ datas = [
     (str(ROOT / "docs" / "manual.html"), "docs"),
     (str(ROOT / "docs" / "formulas.html"), "docs"),
     (str(ROOT / "docs" / "KEYBOARD_SHORTCUTS.md"), "docs"),
+    (str(ROOT / "docs" / "PROJECT_HEALTH.md"), "docs"),
     (str(ROOT / "docs" / "js"), "docs/js"),
     (str(ROOT / "docs" / "ops_asciidoctor.css"), "docs"),
     # Our licences and the third-party notices, at the bundle root.

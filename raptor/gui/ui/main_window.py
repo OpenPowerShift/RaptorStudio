@@ -3439,6 +3439,61 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         except RuntimeError:             # already deleted by Qt
             pass
         self._undo_history_dialog = None
+    def _open_project_health(self):
+        """Model ▸ Project Health: statistics, findings and sharing."""
+        if self._rbd is None:
+            return
+        from raptor.api import health
+        from raptor.gui.ui.project_health_dialog import ProjectHealthDialog
+        report = health.report(self._rbd)
+        dialog = ProjectHealthDialog(
+            self, report, on_locate=self._locate_health_element,
+            on_share=self._share_safe_copy)
+        from raptor.gui.ui.modality import exec_dialog
+        exec_dialog(dialog)
+
+    def _locate_health_element(self, ref: str) -> bool:
+        kind, _, ident = str(ref).partition(":")
+        try:
+            return self._diagram_dock.view.locate_id(kind, int(ident))
+        except ValueError:
+            # Validation issues carry a human label such as
+            # "Block 101 'Utility_A'"; reuse the Issues dialog locator.
+            locate = getattr(self, "_locate_issue", None)
+            return bool(locate(ref)) if callable(locate) else False
+
+    def _share_safe_copy(self):
+        """File ▸ Share-safe Copy: declassify a copy of the open model."""
+        if self._rbd is None:
+            return
+        self._inspector.flush_pending_comment()
+        self._diagram_dock.view.write_back_to_rbd(self._rbd)
+        self._diagram_dock.view.write_back_annotations()
+        from raptor.gui.ui.project_health_dialog import ShareSafeDialog
+        folder = (Path(self._current_file).parent if self._current_file
+                  else Path.cwd())
+        # Do not put the source model's name into the shared filename or
+        # into its meta.file_name.
+        dialog = ShareSafeDialog(
+            self, str(folder / "shared-model.rbds"),
+            source=self._current_file or "")
+        from raptor.gui.ui.modality import exec_dialog
+        if exec_dialog(dialog) != QDialog.DialogCode.Accepted or not dialog.path:
+            return
+        try:
+            dest = dialog.write(self._rbd)
+        except Exception as exc:  # noqa: BLE001
+            msgbox.critical(self, "Share-safe Copy Failed",
+                            f"Could not write the copy:\n\n{exc}")
+            return
+        report = dialog.report
+        detail = report.summary() if report else ""
+        if report and report.risks:
+            detail += "\n\nResidual risk:\n" + report.risk_summary()
+        msgbox.information(self, "Share-safe Copy",
+                           f"Wrote {dest}\n\n{detail}")
+        self._statusbar.showMessage(
+            f"Share-safe copy written: {dest}", 8000)
 
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs
