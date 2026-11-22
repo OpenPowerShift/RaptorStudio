@@ -408,6 +408,8 @@ _TABLE_NAMES: dict[str, str] = {
     "Availability_Data": "availability", "Dependability_Data":
     "dependability", "Reliability_Data": "reliability",
     "State_Data": "states",
+    "Availability_Measures": "Availability measures",
+    "Block_Criticality": "Block criticality",
 }
 _PARTS = {"NODE_ANALYSIS": "Node", "BLOCK_ANALYSIS": "Block",
           "EVENT_ANALYSIS": "Event", "HIERARCHY_ANALYSIS": "Hierarchy"}

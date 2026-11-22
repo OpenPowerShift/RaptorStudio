@@ -1015,8 +1015,10 @@ class ResultsPagesMixin(_Base):
                 (money(avg("sparing")), avg("sparing")),
                 (money(avg("disposal")), avg("disposal")),
                 (money(avg("total")), avg("total"))])
-        add_table(f"Blocks ({len(block_rows)}) -- life-cycle costs",
-                  self._COST_HEADERS, block_rows,
+        add_table(
+            i18n.tr("Blocks ({count}) -- life-cycle costs").format(
+                count=len(block_rows)),
+            self._COST_HEADERS, block_rows,
                   "Purchase + Operating + Sparing + Disposal = Total",
                   sort_key="COST::BLOCKS",
                   default_sort=(5, Qt.SortOrder.DescendingOrder))
@@ -1047,8 +1049,9 @@ class ResultsPagesMixin(_Base):
             time_unit = f" ({self._units})" if self._units else ""
             add_table(
                 "Pools",
-                ["Name", "Initial", f"New Spares / Per-Time{time_unit}",
-                 f"Emer. Shipping / Per-Use{time_unit}", "Total"],
+                ["Name", "Initial",
+                 i18n.tr("New Spares / Per-Time") + time_unit,
+                 i18n.tr("Emer. Shipping / Per-Use") + time_unit, "Total"],
                 pool_rows, sort_key="COST::POOLS",
                 default_sort=(4, Qt.SortOrder.DescendingOrder))
 

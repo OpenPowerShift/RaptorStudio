@@ -304,3 +304,27 @@ def test_a_widget_added_after_the_first_pass_is_translated_by_the_next(
     finally:
         window.deleteLater()
         qapp.processEvents()
+
+
+def test_every_report_column_header_the_gui_builds_has_a_translation():
+    """The report's own columns become table headers via `humanise`."""
+    import xml.etree.ElementTree as ET
+    from raptor.api.presentation import humanise
+    golden = ROOT / "tests" / "golden"
+    labels: set[str] = set()
+    from raptor.api.tables import parse_final_sections
+    for path in sorted(golden.glob("*/ours/rpt_final_results_ours.txt")):
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        for _title, columns, _rows in parse_final_sections(lines):
+            labels.update(humanise(c) for c in columns if c)
+    assert labels, "no golden report tables found"
+    catalogue = {}
+    root = ET.parse(LOCALE / "raptor_pt_BR.ts").getroot()
+    for context in root.findall("context"):
+        for message in context.findall("message"):
+            translation = message.find("translation")
+            catalogue[message.findtext("source") or ""] = (
+                translation.text if translation is not None else "") or ""
+    missing = sorted(label for label in labels
+                     if not catalogue.get(label, "").strip())
+    assert not missing, f"report headers without a translation: {missing}"

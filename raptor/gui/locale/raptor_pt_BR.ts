@@ -5655,6 +5655,10 @@ Uso = FluxoMédio/CapacidadeMédia · Capacidade = CapacidadeMédia/CapacidadeM�
 Nós de fronteira de fluxo total mostram uso/capacidade N/D.</translation>
     </message>
     <message>
+      <source>Capacity by node</source>
+      <translation>Capacidade por nó</translation>
+    </message>
+    <message>
       <source>Go to selected element</source>
       <translation>Ir para o elemento selecionado</translation>
     </message>
@@ -5715,12 +5719,52 @@ A Análise de Elo fraco é ativada na seção Análise do Painel de execução �
       <translation>Detalhamento dos estados dos nós — % do tempo total em cada estado, com média entre as execuções.</translation>
     </message>
     <message>
+      <source>Node state breakdown</source>
+      <translation>Composição dos estados dos nós</translation>
+    </message>
+    <message>
       <source>No cost analysis in this model.
 
 Cost is simulated when Cost is enabled in the Run panel's Analysis section (and blocks define costs).</source>
       <translation>Sem análise de custo neste modelo.
 
 O Custo é simulado quando Custo está ativado na seção Análise do Painel de execução (e os blocos definem custos).</translation>
+    </message>
+    <message>
+      <source>Pools</source>
+      <translation>Pools</translation>
+    </message>
+    <message>
+      <source>Initial</source>
+      <translation>Inicial</translation>
+    </message>
+    <message>
+      <source>Total</source>
+      <translation>Total</translation>
+    </message>
+    <message>
+      <source>Success</source>
+      <translation>Sucesso</translation>
+    </message>
+    <message>
+      <source>Failure</source>
+      <translation>Falha</translation>
+    </message>
+    <message>
+      <source>Hierarchies</source>
+      <translation>Hierarquias</translation>
+    </message>
+    <message>
+      <source>Purchase</source>
+      <translation>Compra</translation>
+    </message>
+    <message>
+      <source>Operating</source>
+      <translation>Operação</translation>
+    </message>
+    <message>
+      <source>Disposal</source>
+      <translation>Descarte</translation>
     </message>
     <message>
       <source>No importance measures for this run.
@@ -5733,6 +5777,18 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     <message>
       <source>Measured on:</source>
       <translation>Medido em:</translation>
+    </message>
+    <message>
+      <source>Blocks ({count}) -- life-cycle costs</source>
+      <translation>Blocos ({count}) -- custos do ciclo de vida</translation>
+    </message>
+    <message>
+      <source>New Spares / Per-Time</source>
+      <translation>Novos sobressalentes / por tempo</translation>
+    </message>
+    <message>
+      <source>Emer. Shipping / Per-Use</source>
+      <translation>Envio emergencial / por uso</translation>
     </message>
     <message>
       <source>Colour</source>
@@ -6509,6 +6565,30 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois F)</translation>
     </message>
     <message>
+      <source>Availability measures</source>
+      <translation>Medidas de disponibilidade</translation>
+    </message>
+    <message>
+      <source>Block availability</source>
+      <translation>Disponibilidade dos blocos</translation>
+    </message>
+    <message>
+      <source>Block criticality</source>
+      <translation>Criticidade dos blocos</translation>
+    </message>
+    <message>
+      <source>Block dependability</source>
+      <translation>Dependabilidade dos blocos</translation>
+    </message>
+    <message>
+      <source>Block reliability</source>
+      <translation>Confiabilidade dos blocos</translation>
+    </message>
+    <message>
+      <source>Block states</source>
+      <translation>Estados dos blocos</translation>
+    </message>
+    <message>
       <source>Cost summary</source>
       <translation>Resumo de custos</translation>
     </message>
@@ -6521,8 +6601,24 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Evento</translation>
     </message>
     <message>
+      <source>Event availability</source>
+      <translation>Disponibilidade dos eventos</translation>
+    </message>
+    <message>
       <source>Event cost</source>
       <translation>Custo de eventos</translation>
+    </message>
+    <message>
+      <source>Event dependability</source>
+      <translation>Dependabilidade dos eventos</translation>
+    </message>
+    <message>
+      <source>Event reliability</source>
+      <translation>Confiabilidade dos eventos</translation>
+    </message>
+    <message>
+      <source>Event states</source>
+      <translation>Estados dos eventos</translation>
     </message>
     <message>
       <source>Extended results</source>
@@ -6541,8 +6637,24 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Hierarquia</translation>
     </message>
     <message>
+      <source>Hierarchy availability</source>
+      <translation>Disponibilidade das hierarquias</translation>
+    </message>
+    <message>
       <source>Hierarchy cost</source>
       <translation>Custo de hierarquias</translation>
+    </message>
+    <message>
+      <source>Hierarchy dependability</source>
+      <translation>Dependabilidade das hierarquias</translation>
+    </message>
+    <message>
+      <source>Hierarchy reliability</source>
+      <translation>Confiabilidade das hierarquias</translation>
+    </message>
+    <message>
+      <source>Hierarchy states</source>
+      <translation>Estados das hierarquias</translation>
     </message>
     <message>
       <source>Life-cycle cost</source>
@@ -6561,8 +6673,24 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Nó</translation>
     </message>
     <message>
+      <source>Node availability</source>
+      <translation>Disponibilidade dos nós</translation>
+    </message>
+    <message>
       <source>Node capacity</source>
       <translation>Capacidade dos nós</translation>
+    </message>
+    <message>
+      <source>Node dependability</source>
+      <translation>Dependabilidade dos nós</translation>
+    </message>
+    <message>
+      <source>Node reliability</source>
+      <translation>Confiabilidade dos nós</translation>
+    </message>
+    <message>
+      <source>Node states</source>
+      <translation>Estados dos nós</translation>
     </message>
     <message>
       <source>Operating cost</source>
@@ -6615,6 +6743,270 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>states</source>
       <translation>estados</translation>
+    </message>
+    <message>
+      <source>Armed %</source>
+      <translation>Armado %</translation>
+    </message>
+    <message>
+      <source>Avg available</source>
+      <translation>Média disponível</translation>
+    </message>
+    <message>
+      <source>Avg capacity</source>
+      <translation>Capacidade média</translation>
+    </message>
+    <message>
+      <source>Avg flow</source>
+      <translation>Fluxo médio</translation>
+    </message>
+    <message>
+      <source>Avg lost flow</source>
+      <translation>Fluxo perdido médio</translation>
+    </message>
+    <message>
+      <source>Avg stock</source>
+      <translation>Estoque médio</translation>
+    </message>
+    <message>
+      <source>Avg used</source>
+      <translation>Médio usado</translation>
+    </message>
+    <message>
+      <source>Blue %</source>
+      <translation>Azul %</translation>
+    </message>
+    <message>
+      <source>Brown %</source>
+      <translation>Marrom %</translation>
+    </message>
+    <message>
+      <source>Capable rate</source>
+      <translation>Taxa de capacidade</translation>
+    </message>
+    <message>
+      <source>Cost %</source>
+      <translation>Custo %</translation>
+    </message>
+    <message>
+      <source>Delays</source>
+      <translation>Atrasos</translation>
+    </message>
+    <message>
+      <source>Done</source>
+      <translation>Concluído</translation>
+    </message>
+    <message>
+      <source>Done %</source>
+      <translation>Concluído %</translation>
+    </message>
+    <message>
+      <source>Downtime %</source>
+      <translation>Inatividade %</translation>
+    </message>
+    <message>
+      <source>Emergency shipping</source>
+      <translation>Envio emergencial</translation>
+    </message>
+    <message>
+      <source>End available</source>
+      <translation>Disponível no fim</translation>
+    </message>
+    <message>
+      <source>End stock</source>
+      <translation>Estoque final</translation>
+    </message>
+    <message>
+      <source>Failure %</source>
+      <translation>Falhas %</translation>
+    </message>
+    <message>
+      <source>Failures %</source>
+      <translation>Falhas %</translation>
+    </message>
+    <message>
+      <source>Flow loss</source>
+      <translation>Perda de fluxo</translation>
+    </message>
+    <message>
+      <source>Good</source>
+      <translation>Bom</translation>
+    </message>
+    <message>
+      <source>Green %</source>
+      <translation>Verde %</translation>
+    </message>
+    <message>
+      <source>Idle</source>
+      <translation>Ocioso</translation>
+    </message>
+    <message>
+      <source>Idle %</source>
+      <translation>Ocioso %</translation>
+    </message>
+    <message>
+      <source>Initial spares</source>
+      <translation>Sobressalentes iniciais</translation>
+    </message>
+    <message>
+      <source>Item</source>
+      <translation>Item</translation>
+    </message>
+    <message>
+      <source>MDT</source>
+      <translation>MDT</translation>
+    </message>
+    <message>
+      <source>MTBDE</source>
+      <translation>MTBDE</translation>
+    </message>
+    <message>
+      <source>Max available</source>
+      <translation>Máximo disponível</translation>
+    </message>
+    <message>
+      <source>Max capacity</source>
+      <translation>Capacidade máxima</translation>
+    </message>
+    <message>
+      <source>Max flow</source>
+      <translation>Fluxo máximo</translation>
+    </message>
+    <message>
+      <source>Max lost flow</source>
+      <translation>Fluxo perdido máximo</translation>
+    </message>
+    <message>
+      <source>Max stock</source>
+      <translation>Estoque máximo</translation>
+    </message>
+    <message>
+      <source>Max used</source>
+      <translation>Máximo usado</translation>
+    </message>
+    <message>
+      <source>Maximum</source>
+      <translation>Máximo</translation>
+    </message>
+    <message>
+      <source>Measure</source>
+      <translation>Medida</translation>
+    </message>
+    <message>
+      <source>Min available</source>
+      <translation>Mínimo disponível</translation>
+    </message>
+    <message>
+      <source>Min capacity</source>
+      <translation>Capacidade mínima</translation>
+    </message>
+    <message>
+      <source>Min flow</source>
+      <translation>Fluxo mínimo</translation>
+    </message>
+    <message>
+      <source>Min lost flow</source>
+      <translation>Fluxo perdido mínimo</translation>
+    </message>
+    <message>
+      <source>Min stock</source>
+      <translation>Estoque mínimo</translation>
+    </message>
+    <message>
+      <source>Min used</source>
+      <translation>Mínimo usado</translation>
+    </message>
+    <message>
+      <source>Minimum</source>
+      <translation>Mínimo</translation>
+    </message>
+    <message>
+      <source>Orange %</source>
+      <translation>Laranja %</translation>
+    </message>
+    <message>
+      <source>PM</source>
+      <translation>MP</translation>
+    </message>
+    <message>
+      <source>PM %</source>
+      <translation>MP %</translation>
+    </message>
+    <message>
+      <source>PM hold</source>
+      <translation>Retenção de MP</translation>
+    </message>
+    <message>
+      <source>PM hold %</source>
+      <translation>Retenção de MP %</translation>
+    </message>
+    <message>
+      <source>Per time cost</source>
+      <translation>Custo por tempo</translation>
+    </message>
+    <message>
+      <source>Per use cost</source>
+      <translation>Custo por uso</translation>
+    </message>
+    <message>
+      <source>Pool</source>
+      <translation>Pool</translation>
+    </message>
+    <message>
+      <source>Red %</source>
+      <translation>Vermelho %</translation>
+    </message>
+    <message>
+      <source>Repair</source>
+      <translation>Reparar</translation>
+    </message>
+    <message>
+      <source>Repair hold</source>
+      <translation>Retenção de reparo</translation>
+    </message>
+    <message>
+      <source>Repair hold %</source>
+      <translation>Retenção de reparo %</translation>
+    </message>
+    <message>
+      <source>Repairing %</source>
+      <translation>Em reparo %</translation>
+    </message>
+    <message>
+      <source>Running %</source>
+      <translation>Em operação %</translation>
+    </message>
+    <message>
+      <source>Spare pool</source>
+      <translation>Pool de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Spare source</source>
+      <translation>Origem do sobressalente</translation>
+    </message>
+    <message>
+      <source>St. dev.</source>
+      <translation>Desvio padrão</translation>
+    </message>
+    <message>
+      <source>Standby</source>
+      <translation>Em espera</translation>
+    </message>
+    <message>
+      <source>Standby %</source>
+      <translation>Em espera %</translation>
+    </message>
+    <message>
+      <source>Success %</source>
+      <translation>Sucesso %</translation>
+    </message>
+    <message>
+      <source>Usage rate</source>
+      <translation>Taxa de uso</translation>
+    </message>
+    <message>
+      <source>Yellow %</source>
+      <translation>Amarelo %</translation>
     </message>
     <message>
       <source>Add models to compare</source>

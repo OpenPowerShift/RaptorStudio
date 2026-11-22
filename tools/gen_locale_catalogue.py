@@ -101,15 +101,21 @@ HELPERS: dict[str, tuple[int, ...]] = {
     "ask_redundancy": (1,),
     "redundancy_form": (1,),
     "_make_file_dialog": (0,),
+    "_add_table_header": (1,),
 }
 
 #: MessageBox entry points: (title position, text position).
 MESSAGE_BOXES = {"warning": (1, 2), "critical": (1, 2),
                  "information": (1, 2), "about": (1, 2)}
 
-#: Calls whose one argument is a list/tuple of UI strings (table headers).
-SEQUENCE_HELPERS = {"header_labels", "setHorizontalHeaderLabels",
-                    "_make_table"}
+#: Calls whose argument at each position is a list/tuple of UI strings.
+#: (positions, because `add_table` takes a title then the headers).
+SEQUENCE_HELPERS: dict[str, tuple[int, ...]] = {
+    "header_labels": (0,),
+    "setHorizontalHeaderLabels": (0,),
+    "_make_table": (0,),
+    "add_table": (0, 1),
+}
 
 
 def _existing(path: Path) -> dict[tuple[str, str], str]:
@@ -164,15 +170,23 @@ def _from_call(node: ast.Call,  # noqa: C901, PLR0912 - a literal whitelist
     if name in SEQUENCE_HELPERS:
         # setHorizontalHeaderLabels([...]) / header_labels((...)):
         # every element of the list/tuple is a UI string.
-        if node.args and isinstance(node.args[0], (ast.List, ast.Tuple)):
-            for element in node.args[0].elts:
-                if (value := _literal(element)) and _ui_string(value):
-                    sink.append((value, None))
+        for index in SEQUENCE_HELPERS[name]:
+            if index >= len(node.args):
+                continue
+            arg = node.args[index]
+            if isinstance(arg, (ast.List, ast.Tuple)):
+                for element in arg.elts:
+                    if (value := _literal(element)) and _ui_string(value):
+                        sink.append((value, None))
+            elif (value := _literal(arg)) and _ui_string(value):
+                # a title argument next to the list ("Pools", "Events")
+                sink.append((value, None))
         return
     positions: tuple[int, ...] = ()
     context: str | None = None
-    if name == "tr" and isinstance(func, ast.Name):
-        # tr("text", "Context") / tr("text")
+    if name == "tr" and isinstance(func, (ast.Name, ast.Attribute)):
+        # tr("text", "Context") / tr("text"), however it is imported:
+        # `tr(...)` and `i18n.tr(...)` are both calls to the same helper.
         positions = (0,)
         if len(node.args) > 1 and (ctx := _literal(node.args[1])):
             context = ctx
@@ -205,6 +219,46 @@ def _from_call(node: ast.Call,  # noqa: C901, PLR0912 - a literal whitelist
                 sink.append((value, context))
 
 
+#: The report's column vocabulary (Raptor 7's Final Results grammar). The
+#: GUI humanises these into table headers, so the strings never appear as
+#: literals in `raptor/gui` and the scan cannot see them. Keep in step with
+#: the engine's report writers; the i18n tests check the golden reports.
+REPORT_COLUMNS: tuple[str, ...] = (
+    "%Armed", "%Blue", "%Brown", "%Done", "%Failure", "%Green", "%Idle",
+    "%Orange", "%PM", "%PMHold", "%Red", "%RepHold", "%Repairing",
+    "%Running", "%Standby", "%Success", "%Yellow", "%Failures",
+    "%Downtime", "%Cost", "AoMax", "AoMean",
+    "AoMin", "AoSEM", "AoStdDev", "AveCapacity", "AveFlow", "AveLostFlow",
+    "AveNumRes", "AveStock", "AveUsed", "Block", "CapableRate", "Disposal",
+    "DoMax", "DoMean", "DoMin", "DoSEM", "DoStdDev", "Done", "EmerShip",
+    "EndNumRes", "EndStock", "Event", "Events", "Failure", "FlowLoss",
+    "Good", "HierNum", "Hierarchy", "Idle", "InHier", "InitNumRes",
+    "InitNumSpares", "InitSpares", "Initial", "Item", "MDT", "MTBDE",
+    "MaxCapacity", "MaxFlow", "MaxLostFlow", "MaxNumRes", "MaxStock",
+    "MaxUsed", "Maximum", "Mean", "MinCapacity", "MinFlow", "MinLostFlow",
+    "MinNumRes", "MinStock", "MinUsed", "Minimum", "NewSpares", "Node",
+    "NumDelays", "Operating", "PM", "PMHold", "PerTimeCost", "PerUseCost",
+    "Purchase", "RMax", "RMean", "RMin", "RSEM", "RStdDev", "RepHold",
+    "Repair", "Resources", "SEM", "SparePools", "SpareSource", "Sparing",
+    "St.Dev", "StDev", "Standby", "Success", "Total", "UsageRate", "Value",
+    "blockName", "poolName", "resourceName",
+)
+
+#: Header words the GUI adds itself, beside the report's own columns.
+EXTRA_HEADERS: tuple[str, ...] = ("Measure",)
+
+
+def report_column_labels() -> list[str]:
+    """The humanised headers the GUI builds from the report's columns."""
+    try:
+        from raptor.api.presentation import humanise
+    except Exception:  # noqa: BLE001 - the generator must still run
+        return []
+    labels = {humanise(column) for column in REPORT_COLUMNS}
+    labels |= set(EXTRA_HEADERS)
+    return sorted(labels)
+
+
 def presentation_labels() -> list[str]:
     """Report section and table names the GUI shows as tab/card titles.
 
@@ -221,6 +275,14 @@ def presentation_labels() -> list[str]:
     values |= set(getattr(p, "_SECTION_DEFAULT", {}).values())
     values |= set(getattr(p, "_TABLE_NAMES", {}).values())
     values |= set(getattr(p, "_PARTS", {}).values())
+    # "Block availability", "Node states", ...: a part plus one of the
+    # lower-case table names. The GUI composes these at run time, so the
+    # scan cannot see them; the vocabulary is the API's own.
+    words = [v for v in getattr(p, "_TABLE_NAMES", {}).values()
+             if v and v.islower()]
+    for part in getattr(p, "_PARTS", {}).values():
+        for word in words:
+            values.add(f"{part} {word}")
     return sorted(v for v in values if _ui_string(v))
 
 
@@ -267,14 +329,19 @@ def _header_constant_names(tree: ast.AST) -> set[str]:
     """Names (``COLUMNS``, ``self._HEADERS``) passed to a header setter."""
     wanted: set[str] = set()
     for node in ast.walk(tree):
-        if not (isinstance(node, ast.Call) and node.args
-                and _called_name(node) in SEQUENCE_HELPERS):
+        if not isinstance(node, ast.Call):
             continue
-        arg = node.args[0]
-        if isinstance(arg, ast.Name):
-            wanted.add(arg.id)
-        elif isinstance(arg, ast.Attribute):
-            wanted.add(arg.attr)
+        name = _called_name(node)
+        if name not in SEQUENCE_HELPERS:
+            continue
+        for index in SEQUENCE_HELPERS[name]:
+            if index >= len(node.args):
+                continue
+            arg = node.args[index]
+            if isinstance(arg, ast.Name):
+                wanted.add(arg.id)
+            elif isinstance(arg, ast.Attribute):
+                wanted.add(arg.attr)
     return wanted
 
 
@@ -324,6 +391,7 @@ def catalogue(locale: str = "pt_BR",  # noqa: C901
     gui, contexts = scanned_strings()
     entries.setdefault("Gui", []).extend(gui)
     entries.setdefault("Gui", []).extend(presentation_labels())
+    entries.setdefault("Gui", []).extend(report_column_labels())
     for context_name, sources in contexts.items():
         entries.setdefault(context_name, []).extend(sources)
     for key in entries:
