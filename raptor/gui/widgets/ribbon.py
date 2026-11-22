@@ -718,6 +718,12 @@ class Ribbon(QWidget):
         self.tab_bar.addTab(title)
         return index
 
+    def select_page_index(self, index: int) -> None:
+        if 0 <= index < self.tab_bar.count():
+            self.tab_bar.setCurrentIndex(index)
+            return
+        raise KeyError(index)
+
     def select_page(self, title: str) -> None:
         for index in range(self.tab_bar.count()):
             if self.tab_bar.tabText(index) == title:

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
 
+from raptor.gui.i18n import tr
 from raptor.gui.quick_match import Candidate, rank
 
 
@@ -18,12 +19,13 @@ class CommandSearch(QDialog):
     def __init__(self, window: Any, parent: Any = None) -> None:
         super().__init__(parent or window)
         self._window = window
-        self.setWindowTitle("Run a command")
+        self.setWindowTitle(tr("Run a command", "Command search"))
         self.resize(560, 420)
         lay = QVBoxLayout(self)
         self.query = QLineEdit()
-        self.query.setPlaceholderText("Type a command, e.g. duplicate, check, "
-                                      "export…")
+        self.query.setPlaceholderText(tr(
+            "Type a command, e.g. duplicate, check, export…",
+            "Command search"))
         lay.addWidget(self.query)
         self.results = QListWidget()
         # U19: the focus stays in the query, so the list is "inactive" and
@@ -94,9 +96,10 @@ class CommandSearch(QDialog):
         for spec in COMMANDS:
             if not spec.handler:
                 continue
+            translated = tr(spec.text, "Command")
             out.append(Candidate(
-                text=spec.text, category=spec.id.split(".", 1)[0],
-                keywords=(spec.id.split(".", 1)[-1],),
+                text=translated, category=spec.id.split(".", 1)[0],
+                keywords=(spec.id.split(".", 1)[-1], spec.text),
                 data=spec, recent=recent.get(spec.id, 99)))
         view = getattr(getattr(self._window, "_diagram_dock", None),
                        "view", None)
@@ -106,7 +109,8 @@ class CommandSearch(QDialog):
                                 ("event", getattr(view, "events", {}))):
                 for element in items.values():
                     out.append(Candidate(
-                        text=element.name, category=f"Go to {kind}",
+                        text=element.name,
+                        category=tr(f"Go to {kind}", "Command search"),
                         keywords=(kind, "go", "locate"),
                         data=("element", kind, element.name),
                         recent=99))
@@ -126,8 +130,10 @@ class CommandSearch(QDialog):
             shortcut = ""
             if action is not None:
                 shortcut = action.shortcut().toString()
+            shown = action.text() if action is not None else tr(
+                spec.text, "Command")
             item = QListWidgetItem(
-                f"{spec.text}" + (f"    {shortcut}" if shortcut else ""))
+                f"{shown}" + (f"    {shortcut}" if shortcut else ""))
             item.setData(Qt.ItemDataRole.UserRole, spec.id)
             if action is not None and not action.isEnabled():
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)

@@ -88,7 +88,7 @@ class OverlayMixin(_Base):
                 act.blockSignals(False)
         # weak band widgets
         want_type = (cfg.node_anal_type or "Availability").strip()
-        i = self._weak_type_combo.findText(want_type.capitalize())
+        i = self._weak_type_combo.findData(want_type)
         if i >= 0 and self._weak_type_combo.currentIndex() != i:
             self._weak_type_combo.blockSignals(True)
             self._weak_type_combo.setCurrentIndex(i)

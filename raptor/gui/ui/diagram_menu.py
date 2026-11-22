@@ -42,6 +42,8 @@ class ContextMenuMixin:
         their enabled state is the only way to keep the "disabled when
         appropriate" contract honest.
         """
+        from raptor.gui import i18n
+        i18n.translate_widgets(menu)
         return menu.exec(self.viewport().mapToGlobal(
             event.position().toPoint()))
 

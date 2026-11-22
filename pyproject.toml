@@ -307,6 +307,7 @@ include = ["raptor*"]
 "raptor.gui.resources" = ["*.png", "examples/*.png"]
 "raptor.mcp" = ["output_schemas.json"]
 "raptor.core.fileio" = ["awb_tables.json"]
+"raptor.gui.locale" = ["*.qm", "*.ts"]
 
 # The rendered help docs, the book chapters and the tutorial models are part
 # of the app (in-app Help viewer, opsmodel:// buttons, the MCP server's

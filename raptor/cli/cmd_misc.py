@@ -320,6 +320,8 @@ def config_path() -> Path:
 
 def config_command(args: Any) -> int:  # noqa: C901
     from PySide6.QtCore import QCoreApplication, QSettings
+    # The GUI writes QSettings under this identity; a bare QSettings in
+    # the CLI used to land in "Unknown Organization.conf".
     QCoreApplication.setOrganizationName("OpenPowerShift")
     QCoreApplication.setApplicationName("RAPTOR Studio")
     if args.action == "path":
@@ -327,7 +329,6 @@ def config_command(args: Any) -> int:  # noqa: C901
         return X.OK
     from raptor.gui.ui import settings
     if args.action == "list":
-        from PySide6.QtCore import QSettings
         s = QSettings()
         for k in sorted(s.allKeys()):
             print(f"{k}={s.value(k)}")

@@ -419,7 +419,7 @@ class RunExperimentMixin:
             sync(True)
         if self._ribbon.tab_bar.currentIndex() != \
                 getattr(self, "_simulate_page_index", -1):
-            self._ribbon.select_page("Simulate")
+            self._ribbon.select_page_index(self._simulate_page_index)
         panel = getattr(self, "_run_panel", None)
         if panel is not None:
             panel.setFocus()

@@ -1092,8 +1092,9 @@ class CompareDialog(_BatchDialog):
         from PySide6.QtWidgets import QFileDialog
         from raptor.gui.ui.filedialogs import theme_file_dialog
         start = os.path.dirname(self._win._current_file or "") or os.getcwd()
-        dlg = QFileDialog(self, "Add models to compare", start,
-                          "Raptor models (*.rbd *.rbds)")
+        from raptor.gui.i18n import tr
+        dlg = QFileDialog(self, tr("Add models to compare", "Gui"), start,
+                          tr("Raptor models (*.rbd *.rbds)", "Gui"))
         dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         theme_file_dialog(dlg)
         dlg.setFileMode(QFileDialog.FileMode.ExistingFiles)

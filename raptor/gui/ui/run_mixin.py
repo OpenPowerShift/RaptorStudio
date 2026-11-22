@@ -10,6 +10,7 @@ from raptor.gui.ui.foreground_run import ForegroundRun
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+from raptor.gui import i18n
 import time
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
@@ -487,7 +488,7 @@ class RunMixin(_Base):
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(run_btn)
         again = ask_again.add_box(box, "Don't warn me about long runs")
-        box.exec()
+        i18n.exec_translated(box)
         if box.clickedButton() is run_btn:
             if again.isChecked():
                 ask_again.stop_asking("confirm/long_run")
@@ -528,7 +529,7 @@ class RunMixin(_Base):
         box.setText(run_dialog_text(preflight))
         run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        box.exec()
+        i18n.exec_translated(box)
         if box.clickedButton() is not run_btn:
             self._statusbar.showMessage("Run cancelled — fix the model "
                                         "problems listed, or Run Anyway")
@@ -964,7 +965,7 @@ class RunMixin(_Base):
         again = QCheckBox(neg.DIALOG_DONT_SHOW)
         box.setCheckBox(again)
         box.addButton(QMessageBox.StandardButton.Ok)
-        box.exec()
+        i18n.exec_translated(box)
         if again.isChecked():
             self._rbd.section("SYSTEM_DATA").rows[0]["ShowNegErrMsg"] = "1"
             self._mark_dirty()

@@ -41,6 +41,8 @@ def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
     again = QCheckBox("Don't ask again")
     box.setCheckBox(again)
     box.setDefaultButton(yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes, again.isChecked()
 
@@ -73,6 +75,8 @@ def question_box(parent, title: str, text: str, *,
     no = box.addButton(no_text, QMessageBox.ButtonRole.NoRole)
     no.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogNoButton))
     box.setDefaultButton(no if not default_yes else yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes
 
@@ -616,8 +620,10 @@ def show_preferences(win):
     units = QComboBox()
     units.setEditable(True)
     for u in ("hours", "days", "weeks", "cycles"):
-        units.addItem(u)
-    units.setCurrentText(prefs["units"])
+        units.addItem(u, u)
+    index = units.findData(prefs["units"])
+    if index >= 0:
+        units.setCurrentIndex(index)
     units.setToolTip("Time unit a newly created model starts in")
     _pref_row(
         new_form, "Time units for new models:", units,
@@ -688,6 +694,20 @@ def show_preferences(win):
         "Keeps the semantic state colours but makes the window, text, "
         "borders and focus rings high contrast. Useful in bright rooms or "
         "for low vision.", "app")
+
+    from raptor.gui import i18n as _i18n
+    language = QComboBox()
+    language.addItem("System language", "system")
+    for code, name in _i18n.available_locales():
+        language.addItem(name, code)
+    current_language = str(_settings.get("appearance/language", "system"))
+    language.setCurrentIndex(max(0, language.findData(current_language)))
+    language.setToolTip("UI language; takes effect on the next launch")
+    _pref_row(
+        app_form, "Language:", language,
+        "The translated interface. English is the source language; a "
+        "catalogue is shipped for each listed language. Takes effect when "
+        "the application is restarted.", "app")
 
     from raptor.api.insight import palette as _palette
     palette_box = QComboBox()
@@ -982,8 +1002,8 @@ def show_preferences(win):
     # Write through the one accessor per key, so nothing can be dropped
     # the way the old write-the-whole-blob call dropped
     # `parallel_workers` (it was never IN the blob).
-    _settings.set_value("new_model/units",
-                        units.currentText().strip() or "hours")
+    chosen_units = units.currentData() or units.currentText().strip()
+    _settings.set_value("new_model/units", chosen_units or "hours")
     _settings.set_value("experiments/last_used", prof.currentData())
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())
@@ -1072,10 +1092,12 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
-    if int(scale.currentData()) != old_scale:
+    _settings.set_value("appearance/language", str(language.currentData()))
+    if (int(scale.currentData()) != old_scale
+            or str(language.currentData()) != current_language):
         win._statusbar.showMessage(
             "Preferences saved — restart RAPTOR Studio to apply the "
-            "interface scale", 8000)
+            "interface scale/language", 8000)
     else:
         win._statusbar.showMessage("Preferences saved")
 

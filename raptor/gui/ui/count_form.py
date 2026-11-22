@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from raptor.gui import i18n
+
 
 def redundancy_hint(k: int, n: int) -> str:
     """What k-of-n means, in words."""
@@ -107,7 +109,7 @@ def redundancy_form(parent: QWidget | None, title: str, *, count_label: str,
 def ask_redundancy(parent: QWidget | None, title: str, **kw) -> tuple[int, int] | None:
     """(count, k), or None when cancelled."""
     form = redundancy_form(parent, title, **kw)
-    if form.exec() != QDialog.DialogCode.Accepted:
+    if i18n.exec_translated(form) != QDialog.DialogCode.Accepted:
         return None
     v = form.values()
     return int(v["count"]), int(v["k"])
@@ -128,7 +130,7 @@ def array_form(parent: QWidget | None) -> CountForm:
 def ask_array(parent: QWidget | None) -> tuple[int, str, int] | None:
     """(copies, direction, spacing), or None when cancelled."""
     form = array_form(parent)
-    if form.exec() != QDialog.DialogCode.Accepted:
+    if i18n.exec_translated(form) != QDialog.DialogCode.Accepted:
         return None
     v = form.values()
     return int(v["copies"]), str(v["direction"]), int(v["spacing"])

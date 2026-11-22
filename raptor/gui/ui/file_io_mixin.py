@@ -119,7 +119,8 @@ class FileIoMixin(_Base):
         few pixels -- our global QToolButton stylesheet starves them.
         Building the dialog ourselves lets us restore sane icon sizes and
         keep the theme's stylesheet."""
-        dlg = QFileDialog(self, caption)
+        from raptor.gui.i18n import tr
+        dlg = QFileDialog(self, tr(caption, "Gui"))
         dlg.setAcceptMode(mode)
         dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         fdg.theme_file_dialog(dlg)
@@ -567,7 +568,8 @@ class FileIoMixin(_Base):
                 "destination.")
         box.setDetailedText(report.summary_text())
         box.setIcon(QMessageBox.Icon.Information)
-        box.exec()
+        from raptor.gui import i18n
+        i18n.exec_translated(box)
 
     def _write_model(self, path: str) -> bool:
         """Write the model in the format its EXTENSION asks for

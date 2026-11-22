@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.core import run_manifest
+from raptor.gui import i18n
 
 
 
@@ -133,7 +134,7 @@ class EditGuardMixin(_Base):
             # remembered (always undoing every edit is no way to work).
             again = ask_again.add_box(
                 box, "Don't ask again: discard the results when I edit")
-            box.exec()
+            i18n.exec_translated(box)
             if box.clickedButton() is discard_btn:
                 if again.isChecked():
                     ask_again.stop_asking("confirm/results_on_screen")
@@ -274,7 +275,7 @@ class EditGuardMixin(_Base):
             if keep_btn is None:
                 box.setDefaultButton(stop_btn)
                 box.setEscapeButton(stop_btn)
-            box.exec()
+            i18n.exec_translated(box)
             clicked = box.clickedButton()
             if clicked is keep_btn and keep_btn is not None:
                 # Undo the just-pushed edit command; the re-entrant
