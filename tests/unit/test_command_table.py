@@ -29,6 +29,9 @@ OFF_RIBBON = {
     "home.undo", "home.redo",
     # Shortcut/dialog first: Ctrl+Shift+P / Ctrl+K and the grid's Ctrl+H.
     "view.command_search", "data.find_replace",
+    # A modeless dialog opened by Ctrl+Shift+H; a ribbon button pushed
+    # View's other tools off a 1280 px window.
+    "view.undo_history",
     # The canvas menu's Duplicate submenu and shortcuts (Ctrl+Alt+D,
     # Ctrl+Shift+V); on the ribbon they pushed Build off a 1280 px window.
     "home.duplicate_parallel", "home.array", "home.paste_data",
