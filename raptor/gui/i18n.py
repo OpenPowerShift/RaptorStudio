@@ -23,12 +23,13 @@ import weakref
 from pathlib import Path
 
 from PySide6.QtCore import (
-    QCoreApplication, QLibraryInfo, QLocale, QTranslator,
+    QCoreApplication, QLibraryInfo, QLocale, QModelIndex, QTranslator, Qt,
 )
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QAbstractButton, QApplication, QComboBox, QGroupBox, QLabel, QLineEdit,
-    QMenu, QPlainTextEdit, QStatusBar, QTabWidget, QTextEdit, QWidget,
+    QAbstractButton, QAbstractItemView, QApplication, QComboBox, QGroupBox,
+    QLabel, QLineEdit, QMenu, QPlainTextEdit, QStatusBar, QTabWidget,
+    QTextEdit, QWidget,
 )
 
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
@@ -257,6 +258,18 @@ def qt_plural(context: str, singular: str, plural: str, n: int) -> str:
     return QCoreApplication.translate(context, singular, None, n)
 
 
+def header_labels(labels) -> list[str]:
+    """Translate table/tree header labels as they are set.
+
+    Header data lives in the item model, and this PySide build cannot
+    marshal ``headerDataChanged`` (Qt.Orientation) to Python, so a change
+    made after the window's first pass cannot be noticed. Translating at
+    the point of setting keeps every table, including one repopulated
+    after a run, in the chosen language.
+    """
+    return [tr(str(label)) for label in labels]
+
+
 # ---------------------------------------------------------------------------
 # Widget-tree translation
 # ---------------------------------------------------------------------------
@@ -306,6 +319,54 @@ def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
             return
         current = target
     written[key] = current
+
+
+def _translate_headers(view: QAbstractItemView) -> None:
+    """Translate a table's or tree's header labels, in place.
+
+    Headers are model data, not widget text, so the widget pass above never
+    saw them. They are tracked on the model (one entry per section) because
+    that is where the text lives and where a rebuilt model starts again.
+    """
+    model = view.model()
+    if model is None:
+        return
+    originals = _originals(model)
+    written = _written(model)
+
+    def count_of(kind: str, orientation: Qt.Orientation) -> int:
+        """Rows/columns, whichever overload this model exposes."""
+        method = model.columnCount if kind == "col" else model.rowCount
+        try:
+            return int(method())
+        except TypeError:
+            # A model subclass whose override takes a parent index.
+            return int(method(QModelIndex()))
+
+    for orientation, tag in ((Qt.Orientation.Horizontal, "col"),
+                             (Qt.Orientation.Vertical, "row")):
+        try:
+            count = count_of(tag, orientation)
+        except (TypeError, RuntimeError):
+            continue
+        for section in range(count):
+            try:
+                text = model.headerData(section, orientation)
+            except (RuntimeError, AttributeError):
+                return
+            if not isinstance(text, str) or not text:
+                continue
+            key = f"{tag}:{section}"
+            source = originals.get(key)
+            if source is None or (key in written and text != written[key]):
+                source = text
+                originals[key] = text
+            target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
+                      if _CURRENT != "en" else source)
+            if target and target != text:
+                model.setHeaderData(section, orientation, target)
+                text = target
+            written[key] = text
 
 
 def _translate_combo(box: QComboBox) -> None:
@@ -382,7 +443,17 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901 - one flat pass
                 _translate_tabs(widget)
             if isinstance(widget, QComboBox):
                 _translate_combo(widget)
+            if isinstance(widget, QAbstractItemView):
+                _translate_headers(widget)
             if isinstance(widget, QWidget):
+                _translate_property(widget, "accessibleName",
+                                    widget.accessibleName,
+                                    widget.setAccessibleName,
+                                    context=WIDGET_CONTEXT)
+                _translate_property(widget, "accessibleDescription",
+                                    widget.accessibleDescription,
+                                    widget.setAccessibleDescription,
+                                    context=WIDGET_CONTEXT)
                 _translate_property(widget, "toolTip", widget.toolTip,
                                     widget.setToolTip,
                                     context=WIDGET_CONTEXT)

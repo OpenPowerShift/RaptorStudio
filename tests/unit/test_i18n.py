@@ -272,3 +272,35 @@ def test_the_cli_writes_the_same_settings_file_as_the_gui(monkeypatch, tmp_path)
         assert settings.get("appearance/language") == "pt_BR"
     finally:
         settings.set_value("appearance/language", old)
+
+
+def test_table_headers_and_accessible_names_translate(qapp, pt):
+    from PySide6.QtWidgets import QTableWidget
+    table = QTableWidget(1, 2)
+    table.setHorizontalHeaderLabels(["Name", "Block"])
+    table.setAccessibleName("Live event log")
+    table.setAccessibleDescription("Run shown in the live log")
+    i18n.translate_widgets(table)
+    assert table.horizontalHeaderItem(0).text() == "Nome"
+    assert table.horizontalHeaderItem(1).text() == "Bloco"
+    assert table.accessibleName() == "Registro de eventos ao vivo"
+    assert table.accessibleDescription() == (
+        "Execução mostrada no registro ao vivo")
+
+
+def test_a_widget_added_after_the_first_pass_is_translated_by_the_next(
+        qapp, pt):
+    """Late content is translated where it is built: the results dock and
+    the Drivers page call `translate_widgets` once their pages exist."""
+    from PySide6.QtWidgets import QVBoxLayout, QWidget
+    window = QWidget()
+    layout = QVBoxLayout(window)
+    i18n.translate_widgets(window)
+    label = QLabel("Recent files", window)
+    layout.addWidget(label)
+    i18n.translate_widgets(window)      # the late-build funnel's second pass
+    try:
+        assert label.text() == "Arquivos recentes"
+    finally:
+        window.deleteLater()
+        qapp.processEvents()

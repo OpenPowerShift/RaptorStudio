@@ -1713,6 +1713,14 @@
       <translation>Cancelado</translation>
     </message>
     <message>
+      <source>Time</source>
+      <translation>Tempo</translation>
+    </message>
+    <message>
+      <source>Reliability</source>
+      <translation>Confiabilidade</translation>
+    </message>
+    <message>
       <source>Workbook not written.</source>
       <translation>Pasta de trabalho não gravada.</translation>
     </message>
@@ -1747,6 +1755,10 @@
     <message>
       <source>Export failed</source>
       <translation>Falha na exportação</translation>
+    </message>
+    <message>
+      <source>Element</source>
+      <translation>Elemento</translation>
     </message>
     <message>
       <source>Preferences ▸ Working ▸ Show all confirmations again brings it back</source>
@@ -2057,6 +2069,22 @@
       <translation>Mostrar a execução inteira</translation>
     </message>
     <message>
+      <source>Name</source>
+      <translation>Nome</translation>
+    </message>
+    <message>
+      <source>Value</source>
+      <translation>Valor</translation>
+    </message>
+    <message>
+      <source>Share</source>
+      <translation>Parcela</translation>
+    </message>
+    <message>
+      <source>Cause</source>
+      <translation>Causa</translation>
+    </message>
+    <message>
       <source>Search charts…</source>
       <translation>Pesquisar gráficos…</translation>
     </message>
@@ -2241,6 +2269,38 @@
       <translation>O valor mais alto deve ser maior que o mais baixo.</translation>
     </message>
     <message>
+      <source>ID</source>
+      <translation>ID</translation>
+    </message>
+    <message>
+      <source>Type</source>
+      <translation>Tipo</translation>
+    </message>
+    <message>
+      <source>Required good (k)</source>
+      <translation>Necessários bons (k)</translation>
+    </message>
+    <message>
+      <source>Out</source>
+      <translation>Saída</translation>
+    </message>
+    <message>
+      <source>Level</source>
+      <translation>Nível</translation>
+    </message>
+    <message>
+      <source>Distro</source>
+      <translation>Distrib.</translation>
+    </message>
+    <message>
+      <source>Param</source>
+      <translation>Parâm.</translation>
+    </message>
+    <message>
+      <source>Stream</source>
+      <translation>Fluxo</translation>
+    </message>
+    <message>
       <source>Blocks</source>
       <translation>Blocos</translation>
     </message>
@@ -2339,6 +2399,254 @@
     <message>
       <source>Export Failed</source>
       <translation>Falha na exportação</translation>
+    </message>
+    <message>
+      <source>Failure Dist</source>
+      <translation>Distrib. de falha</translation>
+    </message>
+    <message>
+      <source>Failure Param 1</source>
+      <translation>Parâm. de falha 1</translation>
+    </message>
+    <message>
+      <source>Failure Param 2</source>
+      <translation>Parâm. de falha 2</translation>
+    </message>
+    <message>
+      <source>Failure Param 3</source>
+      <translation>Parâm. de falha 3</translation>
+    </message>
+    <message>
+      <source># Failure Params</source>
+      <translation>Nº de parâm. de falha</translation>
+    </message>
+    <message>
+      <source>Repair Dist</source>
+      <translation>Distrib. de reparo</translation>
+    </message>
+    <message>
+      <source>Repair Param 1</source>
+      <translation>Parâm. de reparo 1</translation>
+    </message>
+    <message>
+      <source>Repair Param 2</source>
+      <translation>Parâm. de reparo 2</translation>
+    </message>
+    <message>
+      <source>Repair Param 3</source>
+      <translation>Parâm. de reparo 3</translation>
+    </message>
+    <message>
+      <source># Repair Params</source>
+      <translation>Nº de parâm. de reparo</translation>
+    </message>
+    <message>
+      <source>PM Frequency</source>
+      <translation>Frequência de MP</translation>
+    </message>
+    <message>
+      <source>Failure Mean</source>
+      <translation>Média de falha</translation>
+    </message>
+    <message>
+      <source>Failure Std Dev</source>
+      <translation>Desvio padrão de falha</translation>
+    </message>
+    <message>
+      <source>Repair Mean</source>
+      <translation>Média de reparo</translation>
+    </message>
+    <message>
+      <source>Repair Std Dev</source>
+      <translation>Desvio padrão de reparo</translation>
+    </message>
+    <message>
+      <source>Sparing Type</source>
+      <translation>Tipo de reserva</translation>
+    </message>
+    <message>
+      <source>Pool Name</source>
+      <translation>Nome do pool</translation>
+    </message>
+    <message>
+      <source>Resource</source>
+      <translation>Recurso</translation>
+    </message>
+    <message>
+      <source>New Spares</source>
+      <translation>Novos sobressalentes</translation>
+    </message>
+    <message>
+      <source>Order Interval</source>
+      <translation>Intervalo de pedido</translation>
+    </message>
+    <message>
+      <source>Frequency</source>
+      <translation>Frequência</translation>
+    </message>
+    <message>
+      <source>Needs spare</source>
+      <translation>Precisa de sobressalente</translation>
+    </message>
+    <message>
+      <source>Defer (non-mission)</source>
+      <translation>Adiar (não missão)</translation>
+    </message>
+    <message>
+      <source>Defer (unavailable)</source>
+      <translation>Adiar (indisponível)</translation>
+    </message>
+    <message>
+      <source>Failure resets</source>
+      <translation>Falha reinicia</translation>
+    </message>
+    <message>
+      <source>Initial cost</source>
+      <translation>Custo inicial</translation>
+    </message>
+    <message>
+      <source>Running cost</source>
+      <translation>Custo de operação</translation>
+    </message>
+    <message>
+      <source>Standby cost</source>
+      <translation>Custo em espera</translation>
+    </message>
+    <message>
+      <source>Idle cost</source>
+      <translation>Custo ocioso</translation>
+    </message>
+    <message>
+      <source>Repair fixed cost</source>
+      <translation>Custo fixo de reparo</translation>
+    </message>
+    <message>
+      <source>Repair cost per time</source>
+      <translation>Custo de reparo por tempo</translation>
+    </message>
+    <message>
+      <source>Repair hold cost per time</source>
+      <translation>Custo de retenção de reparo por tempo</translation>
+    </message>
+    <message>
+      <source>PM fixed cost</source>
+      <translation>Custo fixo de MP</translation>
+    </message>
+    <message>
+      <source>PM cost per time</source>
+      <translation>Custo de MP por tempo</translation>
+    </message>
+    <message>
+      <source>PM hold cost per time</source>
+      <translation>Custo de retenção de MP por tempo</translation>
+    </message>
+    <message>
+      <source>Done fixed cost</source>
+      <translation>Custo fixo de conclusão</translation>
+    </message>
+    <message>
+      <source>Done cost per time</source>
+      <translation>Custo de conclusão por tempo</translation>
+    </message>
+    <message>
+      <source>Spare cost</source>
+      <translation>Custo de sobressalente</translation>
+    </message>
+    <message>
+      <source>Emergency shipping cost</source>
+      <translation>Custo de envio emergencial</translation>
+    </message>
+    <message>
+      <source>Routine ordering</source>
+      <translation>Pedido de rotina</translation>
+    </message>
+    <message>
+      <source>Initial stock</source>
+      <translation>Estoque inicial</translation>
+    </message>
+    <message>
+      <source>New spares</source>
+      <translation>Novos sobressalentes</translation>
+    </message>
+    <message>
+      <source>Routine order interval</source>
+      <translation>Intervalo de pedido de rotina</translation>
+    </message>
+    <message>
+      <source>Emergency ordering</source>
+      <translation>Pedido emergencial</translation>
+    </message>
+    <message>
+      <source>Emergency arrival time</source>
+      <translation>Tempo de chegada emergencial</translation>
+    </message>
+    <message>
+      <source>Stock-level ordering</source>
+      <translation>Pedido por nível de estoque</translation>
+    </message>
+    <message>
+      <source>Reorder level</source>
+      <translation>Nível de reposição</translation>
+    </message>
+    <message>
+      <source>Reorder quantity</source>
+      <translation>Quantidade de reposição</translation>
+    </message>
+    <message>
+      <source>Reorder arrival time</source>
+      <translation>Tempo de chegada da reposição</translation>
+    </message>
+    <message>
+      <source>Units</source>
+      <translation>Unidades</translation>
+    </message>
+    <message>
+      <source>Fixed cost per use</source>
+      <translation>Custo fixo por uso</translation>
+    </message>
+    <message>
+      <source>Cost per time unit</source>
+      <translation>Custo por unidade de tempo</translation>
+    </message>
+    <message>
+      <source>Trigger Name</source>
+      <translation>Nome do gatilho</translation>
+    </message>
+    <message>
+      <source>Repeats</source>
+      <translation>Repetições</translation>
+    </message>
+    <message>
+      <source>First use offset</source>
+      <translation>Deslocamento do primeiro uso</translation>
+    </message>
+    <message>
+      <source>Distribution</source>
+      <translation>Distribuição</translation>
+    </message>
+    <message>
+      <source>Param 1</source>
+      <translation>Parâm. 1</translation>
+    </message>
+    <message>
+      <source>Param 2</source>
+      <translation>Parâm. 2</translation>
+    </message>
+    <message>
+      <source>Param 3</source>
+      <translation>Parâm. 3</translation>
+    </message>
+    <message>
+      <source>Phase Name</source>
+      <translation>Nome da fase</translation>
+    </message>
+    <message>
+      <source>Number</source>
+      <translation>Número</translation>
+    </message>
+    <message>
+      <source>Mission phase</source>
+      <translation>Fase da missão</translation>
     </message>
     <message>
       <source>Paste Here (at pointer)</source>
@@ -3477,6 +3785,18 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>CAPACIDADE</translation>
     </message>
     <message>
+      <source>Category</source>
+      <translation>Categoria</translation>
+    </message>
+    <message>
+      <source>State</source>
+      <translation>Estado</translation>
+    </message>
+    <message>
+      <source>Detail</source>
+      <translation>Detalhe</translation>
+    </message>
+    <message>
       <source>Left Failure Effects View</source>
       <translation>Visualização de efeitos de falha encerrada</translation>
     </message>
@@ -3897,6 +4217,26 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Nenhum campo desta planilha alteraria um bloco.</translation>
     </message>
     <message>
+      <source>Row</source>
+      <translation>Linha</translation>
+    </message>
+    <message>
+      <source>Field</source>
+      <translation>Campo</translation>
+    </message>
+    <message>
+      <source>Current</source>
+      <translation>Atual</translation>
+    </message>
+    <message>
+      <source>Imported</source>
+      <translation>Importado</translation>
+    </message>
+    <message>
+      <source>Formula</source>
+      <translation>Fórmula</translation>
+    </message>
+    <message>
       <source>The spreadsheet formula behind the imported value</source>
       <translation>A fórmula da planilha por trás do valor importado</translation>
     </message>
@@ -3987,10 +4327,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Mode</source>
       <translation>Modo</translation>
-    </message>
-    <message>
-      <source>Stream</source>
-      <translation>Fluxo</translation>
     </message>
     <message>
       <source>Antithetic variates for this stream (paired draws); stored as a negative stream number.</source>
@@ -4299,12 +4635,28 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Nenhum vínculo de entrada</translation>
     </message>
     <message>
-      <source>Antithetic draws (stored as a negative stream number)</source>
-      <translation>Amostras antitéticas (armazenadas como um número de fluxo negativo)</translation>
+      <source>Link From</source>
+      <translation>Vínculo de origem</translation>
     </message>
     <message>
-      <source>Name</source>
-      <translation>Nome</translation>
+      <source>Priority</source>
+      <translation>Prioridade</translation>
+    </message>
+    <message>
+      <source>Auto Prob</source>
+      <translation>Prob. automática</translation>
+    </message>
+    <message>
+      <source>Auto Time</source>
+      <translation>Tempo automático</translation>
+    </message>
+    <message>
+      <source>Manual Time</source>
+      <translation>Tempo manual</translation>
+    </message>
+    <message>
+      <source>Antithetic draws (stored as a negative stream number)</source>
+      <translation>Amostras antitéticas (armazenadas como um número de fluxo negativo)</translation>
     </message>
     <message>
       <source>Markdown supported: **bold**, *italic*, lists, links…</source>
@@ -4891,6 +5243,22 @@ Continuar?</translation>
       <translation>Valor que a paleta aplica (multiplicador de estresse, probabilidade ou k)</translation>
     </message>
     <message>
+      <source>Phase</source>
+      <translation>Fase</translation>
+    </message>
+    <message>
+      <source>Mission</source>
+      <translation>Missão</translation>
+    </message>
+    <message>
+      <source>Dist</source>
+      <translation>Dist</translation>
+    </message>
+    <message>
+      <source>Params</source>
+      <translation>Parâmetros</translation>
+    </message>
+    <message>
       <source>Assign</source>
       <translation>Atribuir</translation>
     </message>
@@ -4921,6 +5289,22 @@ Continuar?</translation>
     <message>
       <source>Stop here even if the precision is not reached</source>
       <translation>Parar aqui mesmo que a precisão não seja atingida</translation>
+    </message>
+    <message>
+      <source>Trials</source>
+      <translation>Ensaios</translation>
+    </message>
+    <message>
+      <source>Estimate</source>
+      <translation>Estimativa</translation>
+    </message>
+    <message>
+      <source>± half-width</source>
+      <translation>± meia largura</translation>
+    </message>
+    <message>
+      <source>Relative width</source>
+      <translation>Largura relativa</translation>
     </message>
     <message>
       <source>Include</source>
@@ -5103,12 +5487,24 @@ Continuar?</translation>
       <translation>Principais responsáveis</translation>
     </message>
     <message>
-      <source>Trials</source>
-      <translation>Ensaios</translation>
-    </message>
-    <message>
       <source>Material gain</source>
       <translation>Ganho material</translation>
+    </message>
+    <message>
+      <source>Change</source>
+      <translation>Alteração</translation>
+    </message>
+    <message>
+      <source>Measured effect</source>
+      <translation>Efeito medido</translation>
+    </message>
+    <message>
+      <source>Availability gain</source>
+      <translation>Ganho de disponibilidade</translation>
+    </message>
+    <message>
+      <source>Downtime a run</source>
+      <translation>Inatividade por execução</translation>
     </message>
     <message>
       <source>No results yet — click Run (F5).</source>
@@ -5275,6 +5671,26 @@ Nós de fronteira de fluxo total mostram uso/capacidade N/D.</translation>
       <translation>Nenhuma seleção no diagrama — selecione um ou mais blocos, ou limpe “Somente elementos selecionados”.</translation>
     </message>
     <message>
+      <source>Block</source>
+      <translation>Bloco</translation>
+    </message>
+    <message>
+      <source>Birnbaum</source>
+      <translation>Birnbaum</translation>
+    </message>
+    <message>
+      <source>RAW</source>
+      <translation>RAW</translation>
+    </message>
+    <message>
+      <source>RRW</source>
+      <translation>RRW</translation>
+    </message>
+    <message>
+      <source>Vesely–Fussell</source>
+      <translation>Vesely–Fussell</translation>
+    </message>
+    <message>
       <source>Estimated by re-simulation: the model is run once with each block unable to fail and once with it dead. These are Monte Carlo estimates, not analytical derivatives -- the standard error says how much of the ranking is sampling noise. Definitions and equations: Help ▸ Formulas.</source>
       <translation>Estimado por re-simulação: o modelo é executado uma vez com cada bloco incapaz de falhar e outra com ele inativo. São estimativas de Monte Carlo, não derivadas analíticas -- o erro padrão indica quanto da classificação é ruído de amostragem. Definições e equações: Ajuda ▸ Fórmulas.</translation>
     </message>
@@ -5317,6 +5733,26 @@ Ative Medidas de importância na seção Análise do Painel de execução e exec
     <message>
       <source>Measured on:</source>
       <translation>Medido em:</translation>
+    </message>
+    <message>
+      <source>Colour</source>
+      <translation>Cor</translation>
+    </message>
+    <message>
+      <source>Min</source>
+      <translation>Mín.</translation>
+    </message>
+    <message>
+      <source>Max</source>
+      <translation>Máx.</translation>
+    </message>
+    <message>
+      <source>StdDev</source>
+      <translation>DesvPad</translation>
+    </message>
+    <message>
+      <source>SEM</source>
+      <translation>EPM</translation>
     </message>
     <message>
       <source>Save As…</source>
@@ -6037,16 +6473,28 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Adicionar um cenário vazio para digitar alterações</translation>
     </message>
     <message>
-      <source>Block</source>
-      <translation>Bloco</translation>
+      <source>Scenario</source>
+      <translation>Cenário</translation>
     </message>
     <message>
-      <source>Change</source>
-      <translation>Alteração</translation>
+      <source>Changes (separate with ;)</source>
+      <translation>Alterações (separe com ;)</translation>
     </message>
     <message>
       <source>no ready-made change for this block</source>
       <translation>nenhuma alteração pronta para este bloco</translation>
+    </message>
+    <message>
+      <source>Change vs Base</source>
+      <translation>Variação vs. base</translation>
+    </message>
+    <message>
+      <source>Chance better</source>
+      <translation>Chance de melhora</translation>
+    </message>
+    <message>
+      <source>Mean downtime change</source>
+      <translation>Variação do tempo de inatividade médio</translation>
     </message>
     <message>
       <source>Type to search…</source>
@@ -6059,6 +6507,114 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Open, save, print, export and recent files (Alt, then E)</source>
       <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois F)</translation>
+    </message>
+    <message>
+      <source>Cost summary</source>
+      <translation>Resumo de custos</translation>
+    </message>
+    <message>
+      <source>Custom sparing</source>
+      <translation>Reserva personalizada</translation>
+    </message>
+    <message>
+      <source>Event</source>
+      <translation>Evento</translation>
+    </message>
+    <message>
+      <source>Event cost</source>
+      <translation>Custo de eventos</translation>
+    </message>
+    <message>
+      <source>Extended results</source>
+      <translation>Resultados estendidos</translation>
+    </message>
+    <message>
+      <source>Flow</source>
+      <translation>Fluxo</translation>
+    </message>
+    <message>
+      <source>Grand total</source>
+      <translation>Total geral</translation>
+    </message>
+    <message>
+      <source>Hierarchy</source>
+      <translation>Hierarquia</translation>
+    </message>
+    <message>
+      <source>Hierarchy cost</source>
+      <translation>Custo de hierarquias</translation>
+    </message>
+    <message>
+      <source>Life-cycle cost</source>
+      <translation>Custo do ciclo de vida</translation>
+    </message>
+    <message>
+      <source>Logistics</source>
+      <translation>Logística</translation>
+    </message>
+    <message>
+      <source>Lost flow</source>
+      <translation>Fluxo perdido</translation>
+    </message>
+    <message>
+      <source>Node</source>
+      <translation>Nó</translation>
+    </message>
+    <message>
+      <source>Node capacity</source>
+      <translation>Capacidade dos nós</translation>
+    </message>
+    <message>
+      <source>Operating cost</source>
+      <translation>Custo de operação</translation>
+    </message>
+    <message>
+      <source>Resource cost</source>
+      <translation>Custo de recursos</translation>
+    </message>
+    <message>
+      <source>Spare pool cost</source>
+      <translation>Custo do pool de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Spare pools</source>
+      <translation>Pools de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Spare use</source>
+      <translation>Uso de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Sparing cost</source>
+      <translation>Custo de reserva</translation>
+    </message>
+    <message>
+      <source>Summary</source>
+      <translation>Resumo</translation>
+    </message>
+    <message>
+      <source>System capacity</source>
+      <translation>Capacidade do sistema</translation>
+    </message>
+    <message>
+      <source>Weak link</source>
+      <translation>Elo fraco</translation>
+    </message>
+    <message>
+      <source>availability</source>
+      <translation>disponibilidade</translation>
+    </message>
+    <message>
+      <source>dependability</source>
+      <translation>dependabilidade</translation>
+    </message>
+    <message>
+      <source>reliability</source>
+      <translation>confiabilidade</translation>
+    </message>
+    <message>
+      <source>states</source>
+      <translation>estados</translation>
     </message>
     <message>
       <source>Add models to compare</source>

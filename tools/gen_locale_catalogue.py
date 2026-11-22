@@ -107,6 +107,10 @@ HELPERS: dict[str, tuple[int, ...]] = {
 MESSAGE_BOXES = {"warning": (1, 2), "critical": (1, 2),
                  "information": (1, 2), "about": (1, 2)}
 
+#: Calls whose one argument is a list/tuple of UI strings (table headers).
+SEQUENCE_HELPERS = {"header_labels", "setHorizontalHeaderLabels",
+                    "_make_table"}
+
 
 def _existing(path: Path) -> dict[tuple[str, str], str]:
     out: dict[tuple[str, str], str] = {}
@@ -157,6 +161,14 @@ def _from_call(node: ast.Call,  # noqa: C901, PLR0912 - a literal whitelist
             else func.attr if isinstance(func, ast.Attribute) else None)
     if name is None:
         return
+    if name in SEQUENCE_HELPERS:
+        # setHorizontalHeaderLabels([...]) / header_labels((...)):
+        # every element of the list/tuple is a UI string.
+        if node.args and isinstance(node.args[0], (ast.List, ast.Tuple)):
+            for element in node.args[0].elts:
+                if (value := _literal(element)) and _ui_string(value):
+                    sink.append((value, None))
+        return
     positions: tuple[int, ...] = ()
     context: str | None = None
     if name == "tr" and isinstance(func, ast.Name):
@@ -193,6 +205,25 @@ def _from_call(node: ast.Call,  # noqa: C901, PLR0912 - a literal whitelist
                 sink.append((value, context))
 
 
+def presentation_labels() -> list[str]:
+    """Report section and table names the GUI shows as tab/card titles.
+
+    They are defined in `raptor.api.presentation`, which stays English for
+    the documentation and the MCP server, so the GUI scan cannot see them;
+    the GUI copies them into tabs and table headers, where they are
+    translated like any other chrome.
+    """
+    try:
+        from raptor.api import presentation as p
+    except Exception:  # noqa: BLE001 - the generator must still run
+        return []
+    values = set(p.SECTIONS.values())
+    values |= set(getattr(p, "_SECTION_DEFAULT", {}).values())
+    values |= set(getattr(p, "_TABLE_NAMES", {}).values())
+    values |= set(getattr(p, "_PARTS", {}).values())
+    return sorted(v for v in values if _ui_string(v))
+
+
 def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:
     """`(widget-context sources, {explicit context: sources})`."""
     gui: dict[str, None] = {}
@@ -216,7 +247,58 @@ def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:
                     other.setdefault(context, {})[value] = None
                 else:
                     gui[value] = None
+            for table in _header_constants(tree):
+                for value in table:
+                    if _ui_string(value):
+                        gui[value] = None
     return list(gui), {name: list(values) for name, values in other.items()}
+
+
+def _header_constants(tree: ast.AST) -> list[list[str]]:
+    """String lists that are handed to a header setter by name.
+
+    ``header_labels(COLUMNS)`` and ``setHorizontalHeaderLabels(headers)``
+    name their list, so the English labels are the literals in its
+    assignment (usually a module or class constant).
+    """
+    wanted: set[str] = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in SEQUENCE_HELPERS
+                and node.args):
+            arg = node.args[0]
+            if isinstance(arg, ast.Name):
+                wanted.add(arg.id)
+            elif isinstance(arg, ast.Attribute):
+                wanted.add(arg.attr)
+        elif (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in SEQUENCE_HELPERS
+                and node.args):
+            arg = node.args[0]
+            if isinstance(arg, ast.Name):
+                wanted.add(arg.id)
+            elif isinstance(arg, ast.Attribute):
+                wanted.add(arg.attr)
+    if not wanted:
+        return []
+    out: list[list[str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [
+            node.target]
+        value = node.value
+        if not isinstance(value, (ast.List, ast.Tuple)):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id in wanted
+                   for t in targets):
+            continue
+        strings = [s for e in value.elts if (s := _literal(e))]
+        if strings:
+            out.append(strings)
+    return out
 
 
 def catalogue(locale: str = "pt_BR",
@@ -237,6 +319,7 @@ def catalogue(locale: str = "pt_BR",
 
     gui, contexts = scanned_strings()
     entries.setdefault("Gui", []).extend(gui)
+    entries.setdefault("Gui", []).extend(presentation_labels())
     for context_name, sources in contexts.items():
         entries.setdefault(context_name, []).extend(sources)
     for key in entries:

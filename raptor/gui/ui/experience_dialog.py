@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.gui.resources.design_tokens import active_colour
 
 LAWS = (("weibull", "Weibull: lives that wear out"),
@@ -164,9 +165,9 @@ class ExperienceDialog(QDialog):
         use = self.use
         unit = f" ({self.units})" if self.units else ""
         self.table = QTableWidget(len(DEFAULT_SHARES), 2)
-        self.table.setHorizontalHeaderLabels(
+        self.table.setHorizontalHeaderLabels(i18n.header_labels(
             ("Share failed (%)" if use == "fail" else "Share repaired (%)",
-             f"By this age{unit}" if use == "fail" else f"Within{unit}"))
+             f"By this age{unit}" if use == "fail" else f"Within{unit}")))
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setMaximumHeight(150)

@@ -3,6 +3,7 @@
 Expects on `self`: the Inspector's tab layouts and the selected node."""
 from __future__ import annotations
 
+from raptor.gui import i18n
 from raptor.gui.ui.inspector_common import (
     _i_raw,
     _row_float,
@@ -209,7 +210,7 @@ class InspectorNodeMixin(_Base):
         t = QTableWidget(len(rows), len(headers))
         t.setAccessibleName("Incoming link flows" if incoming
                             else "Outgoing link priorities")
-        t.setHorizontalHeaderLabels(headers)
+        t.setHorizontalHeaderLabels(i18n.header_labels(headers))
         t.verticalHeader().setVisible(False)
         # Editable value columns (Raptor 7's Node
         # Properties Capacity tab): Nominal Flow + Max Flow on incoming
@@ -447,7 +448,7 @@ class InspectorNodeMixin(_Base):
                    "Manual Time"]
         t = QTableWidget(len(rows), len(headers))
         t.setAccessibleName("Standby switchover by incoming link")
-        t.setHorizontalHeaderLabels(headers)
+        t.setHorizontalHeaderLabels(i18n.header_labels(headers))
         t.verticalHeader().setVisible(False)
         t.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         for r, row in enumerate(rows):

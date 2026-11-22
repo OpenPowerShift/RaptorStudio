@@ -30,6 +30,7 @@ import weakref
 
 from raptor.api import run_needs
 from raptor.api.presentation import probability_text
+from raptor.gui import i18n
 from raptor.gui.ui.drivers_page import CANCELLED_TEXT
 from raptor.gui.ui.qtcompat import req
 
@@ -725,7 +726,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     def _make_table(self, headers: list[str], rows: list[list[Any]],
                     first_col_label: str = "Measure") -> QTableWidget:
         table = _FitTable(len(rows), len(headers))
-        table.setHorizontalHeaderLabels(headers)
+        table.setHorizontalHeaderLabels(i18n.header_labels(headers))
         bold = QFont()
         bold.setBold(True)
         for c, _h in enumerate(headers):
@@ -1669,6 +1670,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.set_periods(self._period_summary)
         self._refresh_story()
         self._refresh_charts()
+        # The Drivers page fills itself after the run, outside the window's
+        # first pass (it may also be the lazy path, opened long after).
+        i18n.translate_widgets(self._drivers_page)
 
     def _yearly(self, outages: dict | None) -> dict | None:
         """Year-by-year availability (and, with capacity analysis,
@@ -1985,6 +1989,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         self._log_tree, v))
         self._update_log_empty_state()
         self._refresh_theme()
+        # Every result page above was built after the window's first
+        # translation pass, so its static labels, headers and accessible
+        # names are still English: translate the dock once, now that it
+        # is complete.
+        i18n.translate_widgets(self)
         self.contents_changed.emit()
 
     def set_importance(self, importance: dict | None) -> None:
@@ -2013,6 +2022,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # the Charts page's importance quadrant reads the same measures: it
         # stayed greyed out ("Needs importance measures") after they came
         self._refresh_charts()
+        i18n.translate_widgets(self)     # the new page was built just now
         self.contents_changed.emit()
 
     # ------------------------------------------------------------------

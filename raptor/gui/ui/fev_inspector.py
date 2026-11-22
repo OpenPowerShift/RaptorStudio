@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from raptor.core.engine.fmeca import fmeca_entries
 from raptor.core.engine.system_status import SystemColor
+from raptor.gui import i18n
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui.contrast import readable_text_colour
 
@@ -117,7 +118,7 @@ class FevInspectorDock(QWidget):
 
     def _build_table(self) -> QTableWidget:
         table = QTableWidget(0, len(_HEADERS))
-        table.setHorizontalHeaderLabels(list(_HEADERS))
+        table.setHorizontalHeaderLabels(i18n.header_labels(_HEADERS))
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)

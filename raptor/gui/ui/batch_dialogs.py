@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
 
@@ -768,8 +769,8 @@ class SweepDialog(_BatchDialog):
 
     def _build_results(self) -> QSplitter:
         self._table = QTableWidget(0, 1 + len(_TABLE_METRICS))
-        self._table.setHorizontalHeaderLabels(
-            ["Value"] + [_LABEL[m] for m in _TABLE_METRICS])
+        self._table.setHorizontalHeaderLabels(i18n.header_labels(
+            ["Value"] + [_LABEL[m] for m in _TABLE_METRICS]))
         self._table.verticalHeader().setVisible(False)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(
@@ -1166,7 +1167,7 @@ class CompareDialog(_BatchDialog):
         optional = {key for key, _, _ in OPTIONAL_METRICS}
         mixed_capacity = _capacity_settings_differ(entries)
         self._table.setColumnCount(len(labels))
-        self._table.setHorizontalHeaderLabels(labels)
+        self._table.setHorizontalHeaderLabels(i18n.header_labels(labels))
         self._table.setRowCount(len(rows))
         self._table.setVerticalHeaderLabels([lbl for _, lbl, _ in rows])
         for r, (key, _, higher) in enumerate(rows):

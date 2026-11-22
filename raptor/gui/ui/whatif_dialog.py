@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QPushButton, QSplitter, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
 
@@ -118,7 +119,8 @@ class WhatIfDialog(AnalysisDialog):
         presets = self._preset_row()
 
         self.scenarios = QTableWidget(0, 2)
-        self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (separate with ;)"))
+        self.scenarios.setHorizontalHeaderLabels(
+            i18n.header_labels(("Scenario", "Changes (separate with ;)")))
         for column, tip in enumerate(SCENARIO_TIPS):
             if (heading := self.scenarios.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)
@@ -218,7 +220,8 @@ class WhatIfDialog(AnalysisDialog):
 
     def build_result_area(self) -> QWidget:
         self.table = QTableWidget(0, len(RESULT_COLUMNS))
-        self.table.setHorizontalHeaderLabels(RESULT_COLUMNS)
+        self.table.setHorizontalHeaderLabels(
+            i18n.header_labels(RESULT_COLUMNS))
         for column, tip in enumerate(RESULT_TIPS):
             if (heading := self.table.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLayout, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
@@ -29,7 +30,7 @@ def _pct(value: float | None) -> str:
 
 def _table(columns: tuple[str, ...]) -> QTableWidget:
     table = QTableWidget(0, len(columns))
-    table.setHorizontalHeaderLabels(columns)
+    table.setHorizontalHeaderLabels(i18n.header_labels(columns))
     table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
     table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
     table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
