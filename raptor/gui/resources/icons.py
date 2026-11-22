@@ -1091,6 +1091,24 @@ def history_clock_icon(colour: str) -> QIcon:
     return _icon("history", colour, draw)
 
 
+def model_history_icon(colour: str) -> QIcon:
+    """Model History: editing steps in a list, with a jump-to marker."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(13, 8, 28, 32, 4, 4)
+        p.setPen(QPen(c, 2))
+        p.drawLine(20, 17, 34, 17)
+        p.drawLine(20, 24, 34, 24)
+        p.drawLine(20, 31, 29, 31)
+        # The step the model jumps to, drawn entering the list.
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawPolygon(QPolygonF([QPointF(6, 19), QPointF(6, 29),
+                                 QPointF(11, 24)]))
+    return _icon("modelhistory", colour, draw)
+
+
 def folder_open_icon(colour: str) -> QIcon:
     def draw(p: QPainter, c: QColor):
         p.setBrush(Qt.BrushStyle.NoBrush)

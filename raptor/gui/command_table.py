@@ -1374,7 +1374,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         shortcut="Ctrl+Shift+H",
         attr="_undo_history_action",
         text="Model History",
-        icon="history_clock_icon:text",
+        icon="model_history_icon:text",
         tooltip=(
             "Browse the model's retained undo steps and jump to one "
             "(Ctrl+Shift+H); the maximum number kept is set in Preferences"),

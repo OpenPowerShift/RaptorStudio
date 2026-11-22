@@ -271,6 +271,15 @@ def _originals(obj) -> dict[str, str]:
     return store
 
 
+def _written(obj) -> dict[str, str]:
+    """The text this module last put on each property of *obj*."""
+    store = getattr(obj, "_raptor_i18n_written", None)
+    if store is None:
+        store = {}
+        obj._raptor_i18n_written = store  # noqa: SLF001
+    return store
+
+
 def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
     """Translate one text property, remembering the source for a rerun."""
     try:
@@ -280,14 +289,23 @@ def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
     if not isinstance(current, str) or not current:
         return
     originals = _originals(obj)
-    source = originals.setdefault(key, current)
+    written = _written(obj)
+    source = originals.get(key)
+    if source is None or (key in written and current != written[key]):
+        # First sight of this property, or the code replaced the text
+        # since (a floated dock names its model, a label counts runs):
+        # the new text is the English source, not a translation to undo.
+        source = current
+        originals[key] = current
     target = (QCoreApplication.translate(context, source)
               if _CURRENT != "en" else source)
     if target and target != current:
         try:
             set_(target)
         except (RuntimeError, AttributeError):
-            pass
+            return
+        current = target
+    written[key] = current
 
 
 def _translate_combo(box: QComboBox) -> None:
