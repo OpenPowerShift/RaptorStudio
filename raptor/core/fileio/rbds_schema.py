@@ -276,6 +276,31 @@ def build_schema() -> dict[str, Any]:
                                      "value": {"type": "number"},
                                      "description": {"type": "string"}}}},
             "formulas": {"type": "object", "additionalProperties": {"type": "object"}},
+            "tags": {
+                "type": "object",
+                "description": "Free-form labels for navigation, keyed by "
+                               "element reference ('block:3', 'hier:7').",
+                "additionalProperties": {
+                    "type": "array", "items": {"type": "string"}}},
+            "groups": {
+                "type": "array",
+                "description": "Named, coloured sets of elements for "
+                               "navigation. A group is not a simulation "
+                               "hierarchy and may span hierarchies.",
+                "items": {
+                    "type": "object",
+                    "required": ["id", "name"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "colour": {"type": "string"},
+                        "description": {"type": "string"},
+                        "tag": {"type": "string",
+                                "description": "Also include every element "
+                                               "carrying this tag."},
+                        "members": {"type": "array",
+                                    "items": {"type": "string"}}}}},
             "display_unit": {"type": ["string", "null"]},
             "currency": {
                 "type": "string", "minLength": 1, "maxLength": 8,

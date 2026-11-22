@@ -750,6 +750,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_on_mass_edit",
         enabled_when="can_mass_edit"),
     CommandSpec(
+        id="data.groups",
+        attr="_groups_action",
+        text="Groups / Tags…",
+        icon="tag_icon:text",
+        tooltip=(
+            "Component groups and tags — named, coloured views over the "
+            "model. They may span hierarchies and never change the "
+            "simulation"),
+        handler="_open_groups_dialog",
+        enabled_when="model_open"),
+    CommandSpec(
         id="data.phases",
         attr="_phases_action",
         text="Phases…",
@@ -1612,6 +1623,7 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
                            Btn("data.mass_edit", True),
+                           Btn("data.groups", True),
                            Btn("data.own_streams", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),

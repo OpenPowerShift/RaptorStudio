@@ -1,6 +1,7 @@
 """Undo commands for the diagram canvas: each captures the old value and
 re-applies via the view's `_apply_*` helpers or its file rows."""
 from __future__ import annotations
+import copy
 from typing import Any
 from PySide6.QtGui import (
     QUndoCommand,
@@ -700,6 +701,11 @@ class DeleteCmd(_ViewCmd):
             {r.get("eventName") for r in self.event_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
+        # Tags/groups are keyed by id; a deleted element's id can be
+        # reused by the next new block, so drop its bindings reversibly.
+        rbd = getattr(view, "_rbd_ref", None)
+        self._groups_before = copy.deepcopy(getattr(rbd, "groups", None) or [])
+        self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     def _drop_comments(self) -> None:
         _drop_comment_rows(self._v, self.comment_rows,
@@ -725,10 +731,18 @@ class DeleteCmd(_ViewCmd):
                                  if _safe_int(r.get("ID")) in dead}
         v._remove_ids(dead_b, dead_n, dead_e, dead_l)
         self._drop_comments()
+        rbd = getattr(v, "_rbd_ref", None)
+        if rbd is not None:
+            from raptor.core import groups
+            groups.prune(rbd, groups.valid_refs_from_model(rbd))
         self._done()
 
     def undo(self):
         v = self._v
+        rbd = getattr(v, "_rbd_ref", None)
+        if rbd is not None:
+            rbd.groups = copy.deepcopy(self._groups_before)
+            rbd.tags = copy.deepcopy(self._tags_before)
         self._restore_comments()
         at = getattr(self, "_at", {})
         for section, saved in (("BLOCK_DATA", self.block_rows),
@@ -942,6 +956,11 @@ class DissolveCmd(_ViewCmd):
             {r.get("Name") for r in self.marker_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
+        # Tags/groups are keyed by id; a deleted element's id can be
+        # reused by the next new block, so drop its bindings reversibly.
+        rbd = getattr(view, "_rbd_ref", None)
+        self._groups_before = copy.deepcopy(getattr(rbd, "groups", None) or [])
+        self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     @staticmethod
     def _row_by_id(section, oid):

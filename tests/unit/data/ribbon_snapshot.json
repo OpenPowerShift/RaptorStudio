@@ -841,6 +841,16 @@
    "text": "Formulas",
    "tooltip": "Reliability formulas quick reference \u2014 every metric the engine reports (availability, MTBDE, MDT, reliability, SEM), the distribution table, and the limits of an RBD model, all on one page"
   },
+  "_groups_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Groups / Tags\u2026",
+   "tooltip": "Component groups and tags \u2014 named, coloured views over the model. They may span hierarchies and never change the simulation\n\nUnavailable: open or create a model first"
+  },
   "_guide_action": {
    "checkable": false,
    "checked": false,
@@ -1903,6 +1913,7 @@
    "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
+   "_groups_action": false,
    "_guide_action": true,
    "_health_action": false,
    "_hier_home_action": false,
@@ -2076,6 +2087,7 @@
    "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
+   "_groups_action": true,
    "_guide_action": true,
    "_health_action": true,
    "_hier_home_action": false,
@@ -2249,6 +2261,7 @@
    "_focus_action": true,
    "_focus_event_action": true,
    "_formulas_action": true,
+   "_groups_action": false,
    "_guide_action": true,
    "_health_action": false,
    "_hier_home_action": false,
@@ -2678,6 +2691,11 @@
        "kind": "action",
        "large": true,
        "text": "Mass Edit\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Groups / Tags\u2026"
       },
       {
        "kind": "action",

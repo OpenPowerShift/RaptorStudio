@@ -7,7 +7,7 @@ from collections import deque
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QHBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
+    QComboBox, QHBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
     QTreeWidgetItemIterator, QVBoxLayout, QWidget,
 )
 
@@ -30,10 +30,21 @@ class ExplorerDock(QWidget):
     #: (ascend) — MainWindow wires these to the diagram's navigation.
     hier_activated = Signal(int)  # descend into this hierarchy id
     ascend_requested = Signal(int)  # leave this hierarchy (the marker's own)
+    #: The group/tag view changed: a set of element refs, or None for all.
+    group_view_changed = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._view: DiagramView | None = None
+        #: The last group refs sent to the canvas, so a plain Explorer
+        #: refresh does not reset focus dimming by re-emitting "all".
+        self._emitted_group: object = object()
+        #: A temporary "no elements" row under the root, owned by the tree.
+        self._empty_item: QTreeWidgetItem | None = None
+        #: The active view's refs, so typing in Find does not rebuild the
+        #: tag index on every keystroke. `_refresh` invalidates it.
+        self._group_refs: set[str] = set()
+        self._group_refs_for: tuple[str, str] | None = None
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setIndentation(16)
@@ -59,6 +70,18 @@ class ExplorerDock(QWidget):
         bar.addWidget(self._expand_button)
         bar.addWidget(self._collapse_button)
         bar.addStretch(1)
+        # A group/tag view. Groups are navigation metadata, not a second
+        # hierarchy: this filters the same whole-model tree.
+        self._group_combo = QComboBox()
+        self._group_combo.setToolTip(
+            "Show only the elements in a component group or tag")
+        self._group_combo.setAccessibleName("Filter by group or tag")
+        self._group_combo.setMinimumWidth(120)
+        self._group_combo.setMaximumWidth(200)
+        self._group_combo.setEnabled(False)
+        self._group_combo.currentIndexChanged.connect(
+            self._on_group_filter_changed)
+        bar.addWidget(self._group_combo)
         self._retheme_buttons()
         from raptor.gui.resources.design_tokens import ThemeManager
         ThemeManager.instance().on_changed(self._retheme_buttons)
@@ -142,7 +165,94 @@ class ExplorerDock(QWidget):
 
     def set_view(self, view: DiagramView | None):
         self._view = view
+        self._emitted_group = object()      # a different model entirely
         self._refresh()
+
+    def _selected_group(self) -> tuple[str, str] | None:
+        """The active group/tag view, or None for the whole model."""
+        combo = getattr(self, "_group_combo", None)
+        if combo is None:
+            return None
+        data = combo.currentData()
+        if isinstance(data, (tuple, list)) and len(data) == 2:
+            return str(data[0]), str(data[1])
+        return None
+
+    def _on_group_filter_changed(self, _index: int = 0) -> None:
+        """A different group/tag view: rebuild, then re-apply Find."""
+        self._refresh()
+        # Clearing the selector must also un-dim the canvas; `_refresh`
+        # only emits while a group is active.
+        self._emit_group_view()
+
+    def _group_refs_now(self) -> set[str]:
+        """The active group/tag view's refs, cached until the view changes."""
+        group = self._selected_group()
+        if group is None:
+            return set()
+        if group != self._group_refs_for:
+            from raptor.core import groups as group_model
+            rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
+            self._group_refs_for = group
+            self._group_refs = (group_model.refs_for_view(rbd, *group)
+                                if rbd is not None else set())
+        return self._group_refs
+
+    def _emit_group_view(self) -> None:
+        group = self._selected_group()
+        value = None if group is None else frozenset(self._group_refs_now())
+        if value != self._emitted_group:
+            self._emitted_group = value
+            self.group_view_changed.emit(set(value) if value is not None else None)
+
+    @staticmethod
+    def _choice_tooltip(rbd, kind: str, value: str, tag_counts: dict) -> str:
+        """What a group/tag selector entry contains, for its tooltip."""
+        from raptor.core import groups as group_model
+        if kind == "group":
+            group = group_model.group_by_id(rbd, value)
+            if group is None:
+                return ""
+            count = len(group_model.group_members(rbd, group))
+            parts = [f"{count} element(s)"]
+            if group.get("tag"):
+                parts.append(f"tag query “{group['tag']}”")
+            if group.get("description"):
+                parts.append(group["description"])
+            return f"{group['name']} — " + ", ".join(parts)
+        return f"{value} — {len(tag_counts.get(value, ()))} element(s) tagged"
+
+    def refresh_groups(self) -> None:
+        """Fill the group/tag selector from the model, keeping the choice."""
+        combo = getattr(self, "_group_combo", None)
+        if combo is None:
+            return
+        from raptor.core import groups as group_model
+        rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
+        self._group_refs_for = None    # the model may have changed
+        choices = group_model.view_choices(rbd) if rbd is not None else []
+        tag_counts = group_model.tag_index(rbd) if rbd is not None else {}
+        current = self._selected_group()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("All elements", None)
+        combo.setItemData(0, "Show the whole model", Qt.ItemDataRole.ToolTipRole)
+        for label, kind, value in choices:
+            combo.addItem(label, (kind, value))
+            combo.setItemData(
+                combo.count() - 1,
+                self._choice_tooltip(rbd, kind, value, tag_counts),
+                Qt.ItemDataRole.ToolTipRole)
+        wanted = 0
+        if current is not None:
+            for i in range(combo.count()):
+                data = combo.itemData(i)
+                if isinstance(data, (tuple, list)) and tuple(data) == current:
+                    wanted = i
+                    break
+        combo.setCurrentIndex(wanted)
+        combo.setEnabled(bool(choices))
+        combo.blockSignals(False)
 
     def filter_items(self, text: str) -> None:
         """Refine the tree in place as the user types, and MARK the hits.
@@ -152,22 +262,21 @@ class ExplorerDock(QWidget):
         whole subtree visible and matching a child keeps its hierarchy
         chain visible.
 
-        The walk visits every descendant, including rows under a collapsed
-        folder, and expands the chain to each hit. So a search finds items
-        that are not currently visible because their parent is closed;
-        no Expand all is needed first.
+        A component group/tag view is applied at the same time: the row
+        must be a member (or a folder holding one) *and* match the Find
+        text. Groups are navigation metadata, so this filters the same
+        whole-model tree rather than changing the simulated structure.
 
         While a search is active the rows are coloured as well as filtered:
         a title that matches the search directly takes the accent colour,
-        and the rows kept only to hold a match go muted. So the search
-        *results* are what the tree shows -- which is the point, and why
-        the Find box no longer also pops up a list of the same names over
-        the top of it. Empty text restores the full tree in the normal
-        colour.
+        and the rows kept only to hold a match go muted. Empty text restores
+        the full tree in the normal colour.
         """
         from PySide6.QtGui import QBrush, QColor
         from raptor.gui.resources.design_tokens import active_colour
         text = (text or "").strip().lower()
+        group = self._selected_group()
+        selected = self._group_refs_now() if group is not None else set()
         c = active_colour()
         normal = QBrush(QColor(c["text"]))
         accent = QBrush(QColor(c["accent"]))
@@ -175,7 +284,8 @@ class ExplorerDock(QWidget):
         root = self._tree.topLevelItem(0)
         if root is None:
             return
-        if not text:
+        self._clear_empty_state()
+        if not text and group is None:
             def show_all(item):
                 item.setHidden(False)
                 item.setForeground(0, normal)
@@ -190,20 +300,70 @@ class ExplorerDock(QWidget):
             for i in range(item.childCount()):
                 if keep(item.child(i)):
                     child_keep = True
-            own = text in item.text(0).lower()
+            role = item.data(0, Qt.ItemDataRole.UserRole)
+            label_hit = text in item.text(0).lower() if text else True
+            if role == "root":
+                own = True
+            elif role == "system":
+                # Project Settings is not a component: hide it while a
+                # group view is active, and let Find reach it otherwise.
+                own = group is None and (not text or label_hit)
+            elif isinstance(role, str) and ":" in role:
+                member = group is None or role in selected
+                own = member and label_hit
+            else:
+                own = label_hit
             visible = own or child_keep
             item.setHidden(not visible)
             if visible:
-                # A hit wears the accent; an ancestor kept only to reach a
-                # hit recedes. Anything not part of the search is hidden,
-                # so the two states here are the whole story.
-                item.setForeground(0, accent if own else muted)
-                item.setExpanded(True)
+                if text:
+                    # A hit wears the accent; an ancestor kept only to
+                    # reach a hit recedes.
+                    item.setForeground(0, accent if own and role != "root"
+                                      else normal if role == "root" else muted)
+                    item.setExpanded(True)
+                else:
+                    item.setForeground(0, normal)
             return visible
 
         keep(root)
         root.setForeground(0, normal)
         root.setExpanded(True)
+        # A view with nothing in it used to leave an empty panel: the user
+        # could not tell "no members" from a failed filter.
+        if not any(not root.child(i).isHidden()
+                   for i in range(root.childCount())):
+            self._show_empty_state(group, text, muted)
+
+    def _clear_empty_state(self) -> None:
+        item = getattr(self, "_empty_item", None)
+        self._empty_item = None
+        if item is None:
+            return
+        root = self._tree.topLevelItem(0)
+        if root is not None:
+            root.removeChild(item)
+
+    def _show_empty_state(self, group, text: str, muted) -> None:
+        """One muted, unselectable row saying why the tree is empty."""
+        if group is not None:
+            label = self._group_combo.currentText()
+            message = (f"No elements in “{label}” match “{text}”."
+                       if text else
+                       f"{label} has no elements yet — add members in "
+                       "Data ▸ Groups / Tags…")
+        else:
+            message = f"No elements match “{text}”."
+        root = self._tree.topLevelItem(0)
+        if root is None:
+            return
+        item = QTreeWidgetItem([message])
+        item.setData(0, Qt.ItemDataRole.UserRole, "empty")
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setForeground(0, muted)
+        item.setToolTip(0, message)
+        root.addChild(item)
+        self._empty_item = item
 
     def refresh(self):
         """Rebuild the tree from the whole model (after edits that bypass
@@ -254,6 +414,8 @@ class ExplorerDock(QWidget):
         # A rebuild deletes the items an in-progress Expand all still holds.
         self._cancel_expand()
         self._tree.clear()
+        self._empty_item = None        # owned (and deleted) by the tree
+        self.refresh_groups()
         self._hier_tree_items: dict[int, QTreeWidgetItem] = {}
         #: node id -> (node type, parent hierarchy id), for double-click.
         self._node_info: dict[int, tuple[int, int]] = {}
@@ -323,11 +485,11 @@ class ExplorerDock(QWidget):
         build(0, root)
         self._tree.addTopLevelItem(root)
         self._apply_default_expansion()
-        # Re-apply the Find box's live filter after a rebuild, so an
-        # active search survives model edits / hierarchy navigation.
+        # Re-apply Find and the group/tag view after a rebuild, so both
+        # survive model edits and hierarchy navigation.
         sw = getattr(self, "_search_widget", None)
-        if sw is not None and sw.text():
-            self.filter_items(sw.text())
+        self.filter_items(sw.text() if sw is not None else "")
+        self._emit_group_view()
 
     def _apply_default_expansion(self) -> None:
         """Open the root, the top-level hierarchies and the chain down to
