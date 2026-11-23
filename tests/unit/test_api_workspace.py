@@ -7,8 +7,8 @@ resolution, workspace info, and concurrent saves.
 from __future__ import annotations
 
 import json
-import logging
 import os
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -20,6 +20,8 @@ from raptor.api.workspace import (
     PathOutsideWorkspace,
     UnknownHandle,
     Workspace,
+    WorkspaceSizeExceeded,
+    prepare_workspace_root,
 )
 
 
@@ -108,11 +110,174 @@ class TestCreateModel:
         assert len(ws.list_models()) == 5
 
 
+class TestColdStart:
+    """Construction reads the index only; model parsing is on demand."""
+
+    def test_construction_does_not_parse_models(
+            self, tmp_path: Path, monkeypatch):
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        ids = {writer.create_model(f"M{i}")["model_id"] for i in range(30)}
+
+        def _unexpected_load(path):
+            raise AssertionError(
+                f"Workspace() parsed a model at start-up: {path}")
+
+        with monkeypatch.context() as patched:
+            patched.setattr(Workspace, "_load_any",
+                            staticmethod(_unexpected_load))
+            reopened = Workspace(root)
+
+        assert reopened._models == {}
+        assert {m["model_id"] for m in reopened.list_models()} == ids
+
+    def test_list_models_counts_come_from_meta_json(
+            self, tmp_path: Path, monkeypatch):
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        model_id = writer.create_model("Indexed")["model_id"]
+        meta_path = root / "models" / model_id / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta["blocks"] = 17
+        meta["nodes"] = 9
+        meta_path.write_text(json.dumps(meta))
+
+        def _unexpected_load(path):
+            raise AssertionError(
+                f"Workspace() parsed a model at start-up: {path}")
+
+        with monkeypatch.context() as patched:
+            patched.setattr(Workspace, "_load_any",
+                            staticmethod(_unexpected_load))
+            reopened = Workspace(root)
+
+        row = next(m for m in reopened.list_models()
+                   if m["model_id"] == model_id)
+        assert row["name"] == "Indexed"
+        assert row["blocks"] == 17
+        assert row["nodes"] == 9
+
+    def test_list_models_row_shape_is_stable_across_a_load(
+            self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        model_id = writer.create_model("Shape")["model_id"]
+        reopened = Workspace(root)
+        expected = {"model_id", "name", "blocks", "nodes",
+                    "last_modified", "source"}
+
+        cold = next(m for m in reopened.list_models()
+                    if m["model_id"] == model_id)
+        assert set(cold) == expected
+
+        reopened.get(model_id)
+        loaded = next(m for m in reopened.list_models()
+                      if m["model_id"] == model_id)
+        assert set(loaded) == expected
+        assert loaded == cold
+
+    def test_list_models_missing_meta_has_null_counts(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        model_id = "m_nometa"
+        model_dir = root / "models" / model_id
+        model_dir.mkdir(parents=True)
+        shutil.copyfile(
+            Path(__file__).parent.parent.parent / "new_docs" / "models"
+            / "HospitalPower.rbds",
+            model_dir / "model.rbds",
+        )
+        ws = Workspace(root)
+        row = next(m for m in ws.list_models()
+                   if m["model_id"] == model_id)
+        assert row["name"] == model_id
+        assert row["blocks"] is None and row["nodes"] is None
+
+    def test_concurrent_get_parses_a_cold_model_once(
+            self, tmp_path: Path, monkeypatch):
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        model_id = writer.create_model("Cold")["model_id"]
+        ws = Workspace(root)
+        assert ws._models == {}
+
+        calls: list[str] = []
+        real_load = Workspace._load_any
+
+        def counting_load(path):
+            calls.append(path)
+            time.sleep(0.01)          # widen the old check-then-parse race
+            return real_load(path)
+
+        monkeypatch.setattr(Workspace, "_load_any",
+                            staticmethod(counting_load))
+        barrier = threading.Barrier(8)
+        handles: list[ModelHandle] = []
+        errors: list[BaseException] = []
+
+        def worker():
+            try:
+                barrier.wait(timeout=5)
+                handles.append(ws.get(model_id))
+            except BaseException as exc:     # noqa: BLE001 - asserted below
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        assert errors == []
+        assert len(handles) == 8
+        assert len(calls) == 1
+
+    def test_get_refuses_an_oversized_model_on_disk(
+            self, tmp_path: Path, monkeypatch):
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        model_id = writer.create_model("TooBig")["model_id"]
+        monkeypatch.setattr("raptor.api.workspace.MAX_MODEL_BYTES", 1)
+        ws = Workspace(root)
+
+        with pytest.raises(WorkspaceSizeExceeded, match="per-model limit"):
+            ws.get(model_id)
+
+    def test_write_probe_checks_each_managed_directory(self, tmp_path: Path):
+        if not hasattr(os, "geteuid") or os.geteuid() == 0:
+            pytest.skip("directory permissions are not enforced here")
+        root = prepare_workspace_root(tmp_path / "workspace")
+        models = root / "models"
+        models.chmod(0o500)
+        try:
+            with pytest.raises(OSError):
+                prepare_workspace_root(root)
+        finally:
+            models.chmod(0o700)
+
+    def test_construction_reads_an_existing_read_only_workspace(
+            self, tmp_path: Path):
+        if not hasattr(os, "geteuid") or os.geteuid() == 0:
+            pytest.skip("directory permissions are not enforced here")
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        model_id = writer.create_model("ReadOnly")["model_id"]
+        folders = [root, root / "models", root / "runs", root / "renders",
+                   root / "models" / model_id]
+        try:
+            for folder in folders:
+                folder.chmod(0o500)
+            reopened = Workspace(root)
+            assert reopened.get(model_id).name == "ReadOnly"
+        finally:
+            for folder in reversed(folders):
+                folder.chmod(0o700)
+
+
 class TestStartupWithUnreadableModel:
     """One unreadable model must not stop the workspace from starting."""
 
-    def test_bad_model_is_skipped_and_good_models_still_load(
-            self, tmp_path: Path, caplog):
+    def test_bad_model_is_indexed_but_not_read_at_startup(
+            self, tmp_path: Path, monkeypatch):
         root = tmp_path / "workspace"
         first = Workspace(root)
         good_id = first.create_model("Good")["model_id"]
@@ -127,19 +292,23 @@ class TestStartupWithUnreadableModel:
         doc["links"][0]["to"] = ["Hierarchy", doc["links"][0]["to"][1]]
         bad_path.write_text(json.dumps(doc))
 
-        with caplog.at_level(logging.WARNING, logger="raptor.api.workspace"):
+        # Start-up must not parse any model, good or bad.  A failure here
+        # would mean construction is still warming the cache.
+        def _unexpected_load(_path):
+            raise AssertionError("Workspace() must not parse model files")
+
+        with monkeypatch.context() as patched:
+            patched.setattr(Workspace, "_load_any",
+                            staticmethod(_unexpected_load))
             reopened = Workspace(root)
 
-        # The workspace started, the good model is usable, and the bad one
-        # is still visible in the index (an explicit get() reports why).
-        assert reopened.get(good_id).name == "Good"
+        # Both are visible in the index without a parse...
         ids = {m["model_id"] for m in reopened.list_models()}
         assert {good_id, bad_id} <= ids
-        assert any(
-            "could not load model" in record.getMessage()
-            and bad_id in record.getMessage()
-            for record in caplog.records
-        )
+        assert reopened._models == {}
+
+        # ...the good model loads on demand, and the bad one reports why.
+        assert reopened.get(good_id).name == "Good"
         with pytest.raises(Exception, match="not a valid .rbds file"):
             reopened.get(bad_id)
 

@@ -538,10 +538,17 @@ def main(argv: list[str] | None = None) -> int:
     # Store parsed args for the tool context (flags are enforced there).
     mcp._raptor_args = args  # type: ignore[attr-defined]
 
-    # Create the workspace up front so bad paths fail fast and so the
-    # retention sweep runs once at startup.
+    # Check the workspace path up front so bad paths fail fast, but do not
+    # build the Workspace yet: reading the model index and loading models is
+    # the first tool or resource call's job, so initialize/server/discover can
+    # be answered before any model is touched.
     from raptor.mcp import context
-    context.workspace()
+    try:
+        context.prepare_workspace()
+    except OSError as exc:
+        print(f"raptor-mcp: cannot use workspace {args.workspace}: {exc}",
+              file=sys.stderr)
+        return 1
 
     _import_tools(args)
 
