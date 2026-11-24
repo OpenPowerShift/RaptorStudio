@@ -754,6 +754,14 @@
       <translation>Importar parâmetros de falha/reparo, configurações de MP ou estoque de uma planilha do Excel (.xlsx) ou OpenDocument (.ods). Os valores são validados primeiro e aplicados como um único passo de desfazer; células com fórmula usam o valor calculado da pasta de trabalho</translation>
     </message>
     <message>
+      <source>Data Table Template…</source>
+      <translation>Modelo de tabela de dados…</translation>
+    </message>
+    <message>
+      <source>Save the open model's block data as an Excel (.xlsx) or OpenDocument (.ods) sheet with the columns Import Table reads. Edit it, then import it back</source>
+      <translation>Salva os dados dos blocos do modelo aberto numa planilha Excel (.xlsx) ou OpenDocument (.ods) com as colunas que Importar tabela lê. Edite-a e importe-a de volta</translation>
+    </message>
+    <message>
       <source>Phases…</source>
       <translation>Fases…</translation>
     </message>
@@ -1833,6 +1841,14 @@
       <translation>Velocidade: máx.</translation>
     </message>
     <message>
+      <source>Out of Disk Space</source>
+      <translation>Sem espaço em disco</translation>
+    </message>
+    <message>
+      <source>Run failed — out of disk space</source>
+      <translation>A execução falhou — sem espaço em disco</translation>
+    </message>
+    <message>
       <source>Stopped before any run completed — no results</source>
       <translation>Parou antes de concluir qualquer execução — sem resultados</translation>
     </message>
@@ -2749,8 +2765,20 @@
       <translation>Remover vínculos</translation>
     </message>
     <message>
+      <source>Groups / Tags…</source>
+      <translation>Grupos / Etiquetas…</translation>
+    </message>
+    <message>
+      <source>Put the selected elements in a component group or tag them</source>
+      <translation>Colocar os elementos selecionados num grupo de componentes ou etiquetá-los</translation>
+    </message>
+    <message>
       <source>Move to parent level</source>
       <translation>Mover para o nível pai</translation>
+    </message>
+    <message>
+      <source>Put this element in a component group or tag it</source>
+      <translation>Colocar este elemento num grupo de componentes ou etiquetá-lo</translation>
     </message>
     <message>
       <source>Properties</source>
@@ -3685,6 +3713,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Todos os elementos</translation>
     </message>
     <message>
+      <source>Manage groups and tags…</source>
+      <translation>Gerenciar grupos e etiquetas…</translation>
+    </message>
+    <message>
       <source>Save Reduced RAPTOR Model</source>
       <translation>Salvar modelo RAPTOR reduzido</translation>
     </message>
@@ -4185,6 +4217,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Selecione uma versão.</translation>
     </message>
     <message>
+      <source>What this version contains</source>
+      <translation>O que esta versão contém</translation>
+    </message>
+    <message>
       <source>Open as copy</source>
       <translation>Abrir como cópia</translation>
     </message>
@@ -4225,8 +4261,8 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>O arquivo do modelo está ausente; não há nada para registrar</translation>
     </message>
     <message>
-      <source>The newest version already matches the file; no duplicate was added.</source>
-      <translation>A versão mais recente já corresponde ao arquivo; nenhuma duplicata foi adicionada.</translation>
+      <source>Saving was cancelled; no version recorded.</source>
+      <translation>O salvamento foi cancelado; nenhuma versão registrada.</translation>
     </message>
     <message>
       <source>Label updated.</source>
@@ -5023,6 +5059,14 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Planilhas (*.xlsx *.ods);;Todos os arquivos (*)</translation>
     </message>
     <message>
+      <source>Save Data Table Template</source>
+      <translation>Salvar modelo de tabela de dados</translation>
+    </message>
+    <message>
+      <source>Excel workbook (*.xlsx);;OpenDocument spreadsheet (*.ods)</source>
+      <translation>Pasta de trabalho do Excel (*.xlsx);;Planilha OpenDocument (*.ods)</translation>
+    </message>
+    <message>
       <source>Import RBD as Hierarchy</source>
       <translation>Importar RBD como hierarquia</translation>
     </message>
@@ -5125,6 +5169,10 @@ Continuar?</translation>
     <message>
       <source>Share-safe Copy Failed</source>
       <translation>Falha na cópia segura para compartilhamento</translation>
+    </message>
+    <message>
+      <source>Template Not Saved</source>
+      <translation>Modelo não salvo</translation>
     </message>
     <message>
       <source>Collapse: select at least one block, node, or event first</source>
