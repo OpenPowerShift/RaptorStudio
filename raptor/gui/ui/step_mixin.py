@@ -106,7 +106,7 @@ class StepMixin(_Base):
             self._last_run_model = step_model
             self._step_sink = []
             self._step_ao: list[str] = []
-            self._results.clear()   # new debug session: clear stale results
+            self._results.clear(keep_chart_state=True)   # new debug session: clear stale results
             self._diagram_dock.view.clear_result_overlays()
             self._edit_run_abandoned = False
             # The session spans the configured runs, as Raptor 7's does: Jump goes on to the next run

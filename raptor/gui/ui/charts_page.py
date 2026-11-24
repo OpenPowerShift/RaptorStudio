@@ -37,10 +37,11 @@ from raptor.gui import i18n
 from raptor.api import run_needs
 from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
-from raptor.gui.ui import chart_export
+from raptor.gui.ui import chart_export, chart_i18n
 from raptor.gui.ui.chart_widget import ChartWidget
 
 _KEY = Qt.ItemDataRole.UserRole
+_GROUP = Qt.ItemDataRole.UserRole + 1
 
 
 @dataclass
@@ -292,7 +293,7 @@ class ChartsPage(QWidget):
         bar.addWidget(self.compare_button)
         self.baseline_button = QToolButton()
         self.baseline_button.setAccessibleName("Hierarchy baseline")
-        self.baseline_button.setText("Baseline: none")
+        self._retext(self.baseline_button, "Baseline: none")
         self.baseline_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.baseline_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.baseline_button.setToolTip(
@@ -441,6 +442,14 @@ class ChartsPage(QWidget):
         attribution = self._inputs.get("attribution")
         return hier.scope_meta(attribution, self._scope_row())
 
+    @staticmethod
+    def _retext(widget: Any, text: str) -> None:
+        """Set text built at run time, in the GUI language: the English is
+        written and the widget pass translates it, so switching the language
+        back restores the English."""
+        widget.setText(text)
+        i18n.translate_widgets(widget)
+
     def _scope_text(self) -> str:
         row = self._scope_row()
         if row is None:
@@ -462,7 +471,7 @@ class ChartsPage(QWidget):
             ref = int(row.get("id") or 0)
             action.triggered.connect(
                 lambda _c=False, ref=ref: self.set_scope(ref, follow=False))
-        self.scope_button.setText(self._scope_text())
+        self._retext(self.scope_button, self._scope_text())
 
     def _update_compare_menu(self) -> None:
         self.compare_menu.clear()
@@ -481,9 +490,9 @@ class ChartsPage(QWidget):
             action.triggered.connect(
                 lambda checked=False, ref=ref: self._toggle_compare(ref, checked))
         count = len(self._selected)
-        self.compare_button.setText(
-            "Compare: top 4" if not count else
-            f"Compare: {count} selected")
+        self._retext(self.compare_button,
+                     "Compare: top 4" if not count else
+                     f"Compare: {count} selected")
         self._update_chips()
 
     def _update_chips(self) -> None:
@@ -708,20 +717,21 @@ class ChartsPage(QWidget):
         self._baseline_rows = list(attribution["hierarchies"])
         run = self._inputs.get("run_id")
         self._baseline_label = f"run {run}" if run else "this run"
-        self.baseline_button.setText("Baseline: set")
+        self._retext(self.baseline_button, "Baseline: set")
         self.clear_baseline_action.setEnabled(True)
         self._rebuild()
 
     def _clear_baseline(self) -> None:
         self._baseline_rows = None
         self._baseline_label = None
-        self.baseline_button.setText("Baseline: none")
+        self._retext(self.baseline_button, "Baseline: none")
         self.clear_baseline_action.setEnabled(False)
         self._rebuild()
 
     def set_baseline(self, rows: list[dict[str, Any]] | None) -> None:
         self._baseline_rows = list(rows) if rows else None
-        self.baseline_button.setText("Baseline: set" if rows else "Baseline: none")
+        self._retext(self.baseline_button,
+                     "Baseline: set" if rows else "Baseline: none")
         self.clear_baseline_action.setEnabled(bool(rows))
 
     # -- input ----------------------------------------------------------
@@ -763,8 +773,15 @@ class ChartsPage(QWidget):
         valid_ids = {int(row.get("id") or 0)
                      for row in ((attribution or {}).get("hierarchies") or [])}
         before_selected = list(self._selected)
-        self._selected = [hid for hid in self._selected if hid in valid_ids]
-        if before_selected != self._selected:
+        # An empty reset (the dock was cleared ahead of a re-run of the same
+        # model) holds the picks; the run's own attribution prunes them.
+        if attribution is not None or not self._selected:
+            self._selected = [hid for hid in self._selected
+                              if hid in valid_ids]
+        if before_selected != self._selected or (
+                self._selected and attribution is not None):
+            # Re-sent after a re-run too: the canvas rings were drawn for the
+            # previous result set.
             self.compare_changed.emit(list(self._selected))
         if baseline is not None:
             self.set_baseline(baseline)
@@ -820,7 +837,8 @@ class ChartsPage(QWidget):
     def _rebuild(self) -> None:  # noqa: C901 - one list rebuild
         self.stop_hops(reset=True, redraw=False)
         current = self.selected_key() or self._wanted
-        folded = {item.text(0) for item in self._groups() if not item.isExpanded()}
+        folded = {self._group_name(item) for item in self._groups()
+                  if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
         self._build_errors = {}
         self._specs = {}
@@ -840,9 +858,10 @@ class ChartsPage(QWidget):
             members = [e for e in self._entries.values() if e.group == group]
             if not members:
                 continue
-            parent = QTreeWidgetItem([group.upper()])
+            parent = QTreeWidgetItem([i18n.tr(group).upper()])
+            parent.setData(0, _GROUP, group)
             parent.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            parent.setToolTip(0, "Click to fold or unfold this group")
+            parent.setToolTip(0, i18n.tr("Click to fold or unfold this group"))
             parent.setFont(0, heading)
             parent.setForeground(0, muted)
             self.nav.addTopLevelItem(parent)
@@ -851,7 +870,7 @@ class ChartsPage(QWidget):
                 parent.addChild(item)
                 if entry.key == current:
                     chosen = item
-            parent.setExpanded(parent.text(0) not in folded
+            parent.setExpanded(self._group_name(parent) not in folded
                                or (chosen is not None and chosen.parent() is parent))
         if chosen is None:
             chosen = self._first_available()
@@ -867,12 +886,12 @@ class ChartsPage(QWidget):
         needle = " ".join(text.lower().split())
         groups = self._groups()
         if needle and self._search_folded is None:
-            self._search_folded = {group.text(0): group.isExpanded()
+            self._search_folded = {self._group_name(group): group.isExpanded()
                                    for group in groups}
         if not needle and self._search_folded is not None:
             folded, self._search_folded = self._search_folded, None
             for group in groups:
-                group.setExpanded(folded.get(group.text(0), True))
+                group.setExpanded(folded.get(self._group_name(group), True))
         first: QTreeWidgetItem | None = None
         for group in groups:
             any_visible = False
@@ -880,7 +899,8 @@ class ChartsPage(QWidget):
                 item = group.child(index)
                 entry = self._entries.get(str(item.data(0, _KEY) or ""))
                 haystack = " ".join((
-                    group.text(0), item.text(0),
+                    group.text(0), item.text(0), self._group_name(group),
+                    entry.title if entry else "",
                     entry.key if entry else "", entry.group if entry else "",
                     entry.missing if entry else "")).lower()
                 visible = not needle or all(part in haystack
@@ -899,7 +919,7 @@ class ChartsPage(QWidget):
 
     def _item(self, entry: _Entry, muted: QColor) -> QTreeWidgetItem:
         """One chart's row: greyed, with the reason, when it cannot be drawn."""
-        item = QTreeWidgetItem([entry.title])
+        item = QTreeWidgetItem([i18n.tr(entry.title)])
         item.setData(0, _KEY, entry.key)
         if entry.missing:
             italic = QFont(self.nav.font())
@@ -909,10 +929,17 @@ class ChartsPage(QWidget):
             item.setToolTip(0, entry.missing)
         else:
             spec = self._specs.get(entry.title)
-            item.setToolTip(0, (f"{entry.title} — {spec.subtitle}"
+            spec = chart_i18n.translate_spec(spec)
+            title = i18n.tr(entry.title)
+            item.setToolTip(0, (f"{title} — {spec.subtitle}"
                                 if spec is not None and spec.subtitle
-                                else entry.title))
+                                else title))
         return item
+
+    @staticmethod
+    def _group_name(item: QTreeWidgetItem) -> str:
+        """A heading's English name (the text shown may be translated)."""
+        return str(item.data(0, _GROUP) or item.text(0))
 
     def _groups(self) -> list[QTreeWidgetItem]:
         items = (self.nav.topLevelItem(i) for i in range(self.nav.topLevelItemCount()))
@@ -1364,7 +1391,7 @@ class ChartsPage(QWidget):
             self.stack.setCurrentWidget(self.chart_scroll)
             return
         if entry.missing:
-            self._show_missing(entry.title, entry.missing, entry.action)
+            self._show_missing(i18n.tr(entry.title), entry.missing, entry.action)
             return
         spec: charts.ChartSpec | None
         if entry.key == "hierarchy-map":
@@ -1388,7 +1415,7 @@ class ChartsPage(QWidget):
                     else self._specs.get(entry.title))
         if spec is None:
             self._show_missing(
-                entry.title,
+                i18n.tr(entry.title),
                 self._build_errors.get(entry.key,
                                        "This chart cannot be drawn from this "
                                        "result."), "")
@@ -1401,7 +1428,7 @@ class ChartsPage(QWidget):
             spec = hier.annotate(spec, self._scope_meta())
         if entry.key in ("capacity-through-run", "capacity-band"):
             spec = self._apply_capacity_axis(spec)
-        self.chart.set_spec(spec)
+        self.chart.set_spec(chart_i18n.translate_spec(spec))
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
 
@@ -1445,9 +1472,10 @@ class ChartsPage(QWidget):
             "ranking changes")
         self.hops_step.setEnabled(runs > 1)
         self.hops_summary.setEnabled(self._hops_frame is not None)
-        self.hops_label.setText(
-            f"Run {self._hops_frame + 1} of {runs}" if self._hops_frame is not None
-            else (f"All {runs} runs" if runs else ""))
+        self._retext(self.hops_label,
+                     f"Run {self._hops_frame + 1} of {runs}"
+                     if self._hops_frame is not None
+                     else (f"All {runs} runs" if runs else ""))
 
     def toggle_hops_play(self) -> None:
         if self._hops_timer.isActive():

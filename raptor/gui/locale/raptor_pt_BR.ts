@@ -2193,10 +2193,6 @@
       <translation>Referência de hierarquia</translation>
     </message>
     <message>
-      <source>Baseline: none</source>
-      <translation>Referência: nenhuma</translation>
-    </message>
-    <message>
       <source>Keep this run's hierarchy table as the baseline, then run again to see the change by hierarchy</source>
       <translation>Manter a tabela de hierarquias desta execução como referência e executar novamente para ver a mudança por hierarquia</translation>
     </message>
@@ -2293,10 +2289,6 @@
       <translation>Todos os níveis</translation>
     </message>
     <message>
-      <source>Baseline: set</source>
-      <translation>Referência: definida</translation>
-    </message>
-    <message>
       <source>Y axis: auto</source>
       <translation>Eixo Y: automático</translation>
     </message>
@@ -2311,6 +2303,10 @@
     <message>
       <source>A target availability drawn as a dashed line on these charts and judged in the Overview's Story (met or missed, and by how many runs). It is saved in the model file; it does not change the simulation.</source>
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
+    </message>
+    <message>
+      <source>Click to fold or unfold this group</source>
+      <translation>Clique para recolher ou expandir este grupo</translation>
     </message>
     <message>
       <source>Y axis</source>
@@ -7841,6 +7837,686 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>%1: todo o fluxo gerado no Início (Configurações do projeto). %2/%3: uma divisão igual entre os %4 caminhos de entrada deste nó. Ou um número inteiro: um fluxo fixo.</translation>
     </message>
     <message>
+      <source>Compare: %1 selected</source>
+      <translation>Comparar: %1 selecionadas</translation>
+    </message>
+    <message>
+      <source>Scope: %1</source>
+      <translation>Escopo: %1</translation>
+    </message>
+    <message>
+      <source>Run %1 of %2</source>
+      <translation>Execução %1 de %2</translation>
+    </message>
+    <message>
+      <source>All %1 runs</source>
+      <translation>Todas as %1 execuções</translation>
+    </message>
+    <message>
+      <source>Run-to-run %1</source>
+      <translation>Execução a execução: %1</translation>
+    </message>
+    <message>
+      <source>Chance of reaching %1</source>
+      <translation>Chance de atingir %1</translation>
+    </message>
+    <message>
+      <source>Importance on %1</source>
+      <translation>Importância sobre %1</translation>
+    </message>
+    <message>
+      <source>Pareto inside %1</source>
+      <translation>Pareto dentro de %1</translation>
+    </message>
+    <message>
+      <source>Causes inside %1</source>
+      <translation>Causas dentro de %1</translation>
+    </message>
+    <message>
+      <source>Phases inside %1</source>
+      <translation>Fases dentro de %1</translation>
+    </message>
+    <message>
+      <source>Inside %1</source>
+      <translation>Dentro de %1</translation>
+    </message>
+    <message>
+      <source>Availability through run %1</source>
+      <translation>Disponibilidade ao longo da execução %1</translation>
+    </message>
+    <message>
+      <source>Availability interval by interval, run %1</source>
+      <translation>Disponibilidade intervalo a intervalo, execução %1</translation>
+    </message>
+    <message>
+      <source>Capacity through run %1</source>
+      <translation>Capacidade ao longo da execução %1</translation>
+    </message>
+    <message>
+      <source>When was each hierarchy down? (run %1)</source>
+      <translation>Quando cada hierarquia esteve inativa? (execução %1)</translation>
+    </message>
+    <message>
+      <source>When was %1 down? (run %2)</source>
+      <translation>Quando %1 esteve inativa? (execução %2)</translation>
+    </message>
+    <message>
+      <source>scope: %1</source>
+      <translation>escopo: %1</translation>
+    </message>
+    <message>
+      <source>level %1</source>
+      <translation>nível %1</translation>
+    </message>
+    <message>
+      <source>top %1 levels</source>
+      <translation>%1 níveis superiores</translation>
+    </message>
+    <message>
+      <source>top %1 of %2</source>
+      <translation>%1 maiores de %2</translation>
+    </message>
+    <message>
+      <source>the other %1 together %2</source>
+      <translation>os outros %1 juntos somam %2</translation>
+    </message>
+    <message>
+      <source>one panel per hierarchy at %1</source>
+      <translation>um painel por hierarquia em %1</translation>
+    </message>
+    <message>
+      <source>each run's share of system downtime at %1</source>
+      <translation>parcela de cada execução no tempo de inatividade do sistema em %1</translation>
+    </message>
+    <message>
+      <source>share of %1's downtime, stacked by main cause</source>
+      <translation>parcela do tempo de inatividade de %1, empilhada pela causa principal</translation>
+    </message>
+    <message>
+      <source>each dot is %1 of the %2 run-years</source>
+      <translation>cada ponto é %1 dos %2 anos de execução</translation>
+    </message>
+    <message>
+      <source>area = share of %1</source>
+      <translation>área = parcela de %1</translation>
+    </message>
+    <message>
+      <source>%1 of the %2 runs, evenly through the ranking, sorted by downtime</source>
+      <translation>%1 das %2 execuções, distribuídas uniformemente pelo ranking, ordenadas por inatividade</translation>
+    </message>
+    <message>
+      <source>Baseline: none</source>
+      <translation>Referência: nenhuma</translation>
+    </message>
+    <message>
+      <source>Baseline: set</source>
+      <translation>Referência: definida</translation>
+    </message>
+    <message>
+      <source>The answer</source>
+      <translation>A resposta</translation>
+    </message>
+    <message>
+      <source>By hierarchy</source>
+      <translation>Por hierarquia</translation>
+    </message>
+    <message>
+      <source>Over time</source>
+      <translation>Ao longo do tempo</translation>
+    </message>
+    <message>
+      <source>Why it goes down</source>
+      <translation>Por que ele cai</translation>
+    </message>
+    <message>
+      <source>Year by year</source>
+      <translation>Ano a ano</translation>
+    </message>
+    <message>
+      <source>What matters most</source>
+      <translation>O que mais importa</translation>
+    </message>
+    <message>
+      <source>Run-to-run outcome</source>
+      <translation>Resultado de execução a execução</translation>
+    </message>
+    <message>
+      <source>Chance of reaching a value</source>
+      <translation>Chance de atingir um valor</translation>
+    </message>
+    <message>
+      <source>Reliability over time</source>
+      <translation>Confiabilidade ao longo do tempo</translation>
+    </message>
+    <message>
+      <source>Availability ladder</source>
+      <translation>Escada de disponibilidade</translation>
+    </message>
+    <message>
+      <source>Has the run settled?</source>
+      <translation>A execução se estabilizou?</translation>
+    </message>
+    <message>
+      <source>Hierarchy scorecard</source>
+      <translation>Painel de hierarquias</translation>
+    </message>
+    <message>
+      <source>Hierarchy Pareto</source>
+      <translation>Pareto de hierarquias</translation>
+    </message>
+    <message>
+      <source>Where the downtime sits</source>
+      <translation>Onde está a inatividade</translation>
+    </message>
+    <message>
+      <source>Hierarchy treemap</source>
+      <translation>Mapa de árvore de hierarquias</translation>
+    </message>
+    <message>
+      <source>Hierarchy sunburst</source>
+      <translation>Sunburst de hierarquias</translation>
+    </message>
+    <message>
+      <source>When did each hierarchy's downtime build up?</source>
+      <translation>Quando a inatividade de cada hierarquia se acumulou?</translation>
+    </message>
+    <message>
+      <source>Is the hierarchy ranking stable?</source>
+      <translation>O ranking de hierarquias é estável?</translation>
+    </message>
+    <message>
+      <source>Which hierarchy is worse, run by run?</source>
+      <translation>Qual hierarquia é pior, execução a execução?</translation>
+    </message>
+    <message>
+      <source>Hierarchy change against baseline</source>
+      <translation>Mudança de hierarquia em relação à referência</translation>
+    </message>
+    <message>
+      <source>Hierarchy by cause</source>
+      <translation>Hierarquia por causa</translation>
+    </message>
+    <message>
+      <source>Hierarchy by phase</source>
+      <translation>Hierarquia por fase</translation>
+    </message>
+    <message>
+      <source>Outage paths across hierarchies</source>
+      <translation>Caminhos de indisponibilidade entre hierarquias</translation>
+    </message>
+    <message>
+      <source>When was each hierarchy down?</source>
+      <translation>Quando cada hierarquia esteve inativa?</translation>
+    </message>
+    <message>
+      <source>Which components fail most often?</source>
+      <translation>Quais componentes falham com mais frequência?</translation>
+    </message>
+    <message>
+      <source>Availability year by year</source>
+      <translation>Disponibilidade ano a ano</translation>
+    </message>
+    <message>
+      <source>How often is a year below target?</source>
+      <translation>Com que frequência um ano fica abaixo da meta?</translation>
+    </message>
+    <message>
+      <source>Capacity delivered year by year</source>
+      <translation>Capacidade entregue ano a ano</translation>
+    </message>
+    <message>
+      <source>Where the money goes</source>
+      <translation>Para onde vai o dinheiro</translation>
+    </message>
+    <message>
+      <source>Cost treemap</source>
+      <translation>Mapa de árvore de custos</translation>
+    </message>
+    <message>
+      <source>Importance quadrant</source>
+      <translation>Quadrante de importância</translation>
+    </message>
+    <message>
+      <source>Availability through a run</source>
+      <translation>Disponibilidade ao longo de uma execução</translation>
+    </message>
+    <message>
+      <source>Availability interval by interval</source>
+      <translation>Disponibilidade intervalo a intervalo</translation>
+    </message>
+    <message>
+      <source>Availability across all runs</source>
+      <translation>Disponibilidade em todas as execuções</translation>
+    </message>
+    <message>
+      <source>Capacity through a run</source>
+      <translation>Capacidade ao longo de uma execução</translation>
+    </message>
+    <message>
+      <source>Capacity across all runs</source>
+      <translation>Capacidade em todas as execuções</translation>
+    </message>
+    <message>
+      <source>Who causes the downtime</source>
+      <translation>Quem causa a inatividade</translation>
+    </message>
+    <message>
+      <source>Where availability is lost</source>
+      <translation>Onde a disponibilidade é perdida</translation>
+    </message>
+    <message>
+      <source>From full availability to the achieved one</source>
+      <translation>Da disponibilidade total à alcançada</translation>
+    </message>
+    <message>
+      <source>What each kind of availability keeps</source>
+      <translation>O que cada tipo de disponibilidade mantém</translation>
+    </message>
+    <message>
+      <source>Downtime treemap</source>
+      <translation>Mapa de árvore de inatividade</translation>
+    </message>
+    <message>
+      <source>Downtime by phase</source>
+      <translation>Inatividade por fase</translation>
+    </message>
+    <message>
+      <source>Phase by cause</source>
+      <translation>Fase por causa</translation>
+    </message>
+    <message>
+      <source>What an outage looks like</source>
+      <translation>Como é uma indisponibilidade</translation>
+    </message>
+    <message>
+      <source>Run-to-run state ribbon</source>
+      <translation>Faixa de estados de execução a execução</translation>
+    </message>
+    <message>
+      <source>Run-to-run system state</source>
+      <translation>Estado do sistema de execução a execução</translation>
+    </message>
+    <message>
+      <source>How long is an outage?</source>
+      <translation>Quanto dura uma indisponibilidade?</translation>
+    </message>
+    <message>
+      <source>Frequent or long outages?</source>
+      <translation>Indisponibilidades frequentes ou longas?</translation>
+    </message>
+    <message>
+      <source>Who loses the capacity</source>
+      <translation>Quem perde a capacidade</translation>
+    </message>
+    <message>
+      <source>Downtime against lost capacity</source>
+      <translation>Inatividade contra capacidade perdida</translation>
+    </message>
+    <message>
+      <source>Downtime share against lost capacity</source>
+      <translation>Parcela de inatividade contra capacidade perdida</translation>
+    </message>
+    <message>
+      <source>Lost capacity by cause</source>
+      <translation>Capacidade perdida por causa</translation>
+    </message>
+    <message>
+      <source>Lost capacity treemap</source>
+      <translation>Mapa de árvore da capacidade perdida</translation>
+    </message>
+    <message>
+      <source>Lost capacity by hierarchy and cause</source>
+      <translation>Capacidade perdida por hierarquia e causa</translation>
+    </message>
+    <message>
+      <source>Cost by category</source>
+      <translation>Custo por categoria</translation>
+    </message>
+    <message>
+      <source>Cumulative operating cost over time</source>
+      <translation>Custo operacional acumulado ao longo do tempo</translation>
+    </message>
+    <message>
+      <source>Operating cost per year</source>
+      <translation>Custo operacional por ano</translation>
+    </message>
+    <message>
+      <source>Run-to-run availability</source>
+      <translation>Disponibilidade de execução a execução</translation>
+    </message>
+    <message>
+      <source>Run-to-run dependability</source>
+      <translation>Confiabilidade operacional de execução a execução</translation>
+    </message>
+    <message>
+      <source>Chance of reaching availability</source>
+      <translation>Chance de atingir a disponibilidade</translation>
+    </message>
+    <message>
+      <source>Chance of reaching dependability</source>
+      <translation>Chance de atingir a confiabilidade operacional</translation>
+    </message>
+    <message>
+      <source>availability</source>
+      <translation>disponibilidade</translation>
+    </message>
+    <message>
+      <source>dependability</source>
+      <translation>dependabilidade</translation>
+    </message>
+    <message>
+      <source>share of system downtime</source>
+      <translation>parcela do tempo de inatividade do sistema</translation>
+    </message>
+    <message>
+      <source>one dot per quantile slice of the runs</source>
+      <translation>um ponto por fatia de quantil das execuções</translation>
+    </message>
+    <message>
+      <source>read across from a share of runs to the value they reached</source>
+      <translation>leia da parcela de execuções até o valor que elas atingiram</translation>
+    </message>
+    <message>
+      <source>the chance the system has not yet gone down by each time</source>
+      <translation>a chance de o sistema ainda não ter parado até cada instante</translation>
+    </message>
+    <message>
+      <source>any outage counts, planned maintenance included</source>
+      <translation>qualquer indisponibilidade conta, inclusive a manutenção planejada</translation>
+    </message>
+    <message>
+      <source>Kaplan–Meier</source>
+      <translation>Kaplan–Meier</translation>
+    </message>
+    <message>
+      <source>a run still up at its end is censored</source>
+      <translation>uma execução ainda em operação no fim é censurada</translation>
+    </message>
+    <message>
+      <source>all component failures, including those that did not down the system</source>
+      <translation>todas as falhas de componentes, inclusive as que não derrubaram o sistema</translation>
+    </message>
+    <message>
+      <source>each outage charged to the element that started it, stacked by what that element was doing</source>
+      <translation>cada indisponibilidade atribuída ao elemento que a iniciou, empilhada pelo que esse elemento estava fazendo</translation>
+    </message>
+    <message>
+      <source>each step is a share of the loss, in the availability ladder's order</source>
+      <translation>cada passo é uma parcela da perda, na ordem da escada de disponibilidade</translation>
+    </message>
+    <message>
+      <source>each step is a cause's share of the loss</source>
+      <translation>cada passo é a parcela da perda de uma causa</translation>
+    </message>
+    <message>
+      <source>the gap between rungs is what the next cause takes away</source>
+      <translation>a diferença entre os degraus é o que a próxima causa tira</translation>
+    </message>
+    <message>
+      <source>log scale: many short outages or a few long ones</source>
+      <translation>escala logarítmica: muitas indisponibilidades curtas ou poucas longas</translation>
+    </message>
+    <message>
+      <source>x = system outages it starts a run, y = how long they last, area = share of downtime</source>
+      <translation>x = indisponibilidades do sistema que inicia por execução, y = quanto duram, área = parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>x = share of outages started, y = outage length relative to the average (1 = average), area = share of downtime</source>
+      <translation>x = parcela das indisponibilidades iniciadas, y = duração relativa à média (1 = média), área = parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>x = RAW (what losing it costs), y = RRW (what fixing it buys)</source>
+      <translation>x = RAW (o que custa perdê-lo), y = RRW (o que consertá-lo traz)</translation>
+    </message>
+    <message>
+      <source>the band is +/- 2 standard errors</source>
+      <translation>a faixa é de +/- 2 erros padrão</translation>
+    </message>
+    <message>
+      <source>it should stop moving</source>
+      <translation>ela deve parar de se mover</translation>
+    </message>
+    <message>
+      <source>life-cycle cost a run</source>
+      <translation>custo de ciclo de vida por execução</translation>
+    </message>
+    <message>
+      <source>capacity-related rows are separated from the rest</source>
+      <translation>as linhas ligadas à capacidade ficam separadas das demais</translation>
+    </message>
+    <message>
+      <source>mean cumulative cost in each operating category</source>
+      <translation>custo acumulado médio em cada categoria operacional</translation>
+    </message>
+    <message>
+      <source>one-off capital is separate</source>
+      <translation>o capital pontual fica à parte</translation>
+    </message>
+    <message>
+      <source>capacity-related costs are the lost-flow and system-downtime lines</source>
+      <translation>os custos ligados à capacidade são as linhas de fluxo perdido e de inatividade do sistema</translation>
+    </message>
+    <message>
+      <source>across the runs</source>
+      <translation>entre as execuções</translation>
+    </message>
+    <message>
+      <source>mean cost per run, by element, largest first</source>
+      <translation>custo médio por execução, por elemento, do maior para o menor</translation>
+    </message>
+    <message>
+      <source>capacity share against downtime share, same element order</source>
+      <translation>parcela de capacidade contra parcela de inatividade, na mesma ordem de elementos</translation>
+    </message>
+    <message>
+      <source>points far above the diagonal remove more capacity than their downtime suggests</source>
+      <translation>pontos bem acima da diagonal removem mais capacidade do que a inatividade sugere</translation>
+    </message>
+    <message>
+      <source>each step is a cause's share of the summed marginal contributions</source>
+      <translation>cada passo é a parcela de uma causa na soma das contribuições marginais</translation>
+    </message>
+    <message>
+      <source>each step is a cause's share of the lost energy</source>
+      <translation>cada passo é a parcela de uma causa na energia perdida</translation>
+    </message>
+    <message>
+      <source>the box holds the middle half, the whiskers 9 in 10, the bar is the median</source>
+      <translation>a caixa contém a metade central, as hastes 9 em 10, a barra é a mediana</translation>
+    </message>
+    <message>
+      <source>the dark band holds the middle half, the light one 9 in 10, the line is the median</source>
+      <translation>a faixa escura contém a metade central, a clara 9 em 10, a linha é a mediana</translation>
+    </message>
+    <message>
+      <source>each dot is one run-year</source>
+      <translation>cada ponto é um ano de execução</translation>
+    </message>
+    <message>
+      <source>each dot is one of the quantiles P1 to P99 of the run-years</source>
+      <translation>cada ponto é um dos quantis P1 a P99 dos anos de execução</translation>
+    </message>
+    <message>
+      <source>one card per hierarchy: share of system downtime, ±2 standard errors, members and starters</source>
+      <translation>um cartão por hierarquia: parcela do tempo de inatividade do sistema, ±2 erros padrão, membros e iniciadores</translation>
+    </message>
+    <message>
+      <source>badges compare with the baseline run</source>
+      <translation>os selos comparam com a execução de referência</translation>
+    </message>
+    <message>
+      <source>share of system downtime, stacked by main cause</source>
+      <translation>parcela do tempo de inatividade do sistema, empilhada pela causa principal</translation>
+    </message>
+    <message>
+      <source>outer blocks are hierarchies, inner cells are elements</source>
+      <translation>os blocos externos são hierarquias, as células internas são elementos</translation>
+    </message>
+    <message>
+      <source>area = share of system downtime</source>
+      <translation>área = parcela do tempo de inatividade do sistema</translation>
+    </message>
+    <message>
+      <source>colour = main cause</source>
+      <translation>cor = causa principal</translation>
+    </message>
+    <message>
+      <source>click a cell to locate</source>
+      <translation>clique em uma célula para localizar</translation>
+    </message>
+    <message>
+      <source>area = share of the lost flow</source>
+      <translation>área = parcela do fluxo perdido</translation>
+    </message>
+    <message>
+      <source>area = mean life-cycle cost per run</source>
+      <translation>área = custo médio de ciclo de vida por execução</translation>
+    </message>
+    <message>
+      <source>colour = largest part of it</source>
+      <translation>cor = maior parte dele</translation>
+    </message>
+    <message>
+      <source>cumulative system downtime caused by each hierarchy</source>
+      <translation>inatividade acumulada do sistema causada por cada hierarquia</translation>
+    </message>
+    <message>
+      <source>system is the dashed reference</source>
+      <translation>o sistema é a referência tracejada</translation>
+    </message>
+    <message>
+      <source>each dot is a run</source>
+      <translation>cada ponto é uma execução</translation>
+    </message>
+    <message>
+      <source>the dashed line is each hierarchy's mean</source>
+      <translation>a linha tracejada é a média de cada hierarquia</translation>
+    </message>
+    <message>
+      <source>change in downtime a run</source>
+      <translation>variação da inatividade por execução</translation>
+    </message>
+    <message>
+      <source>bars right are worse</source>
+      <translation>barras à direita são piores</translation>
+    </message>
+    <message>
+      <source>each row adds to 100 % of that hierarchy's downtime</source>
+      <translation>cada linha soma 100 % da inatividade dessa hierarquia</translation>
+    </message>
+    <message>
+      <source>share of each hierarchy's downtime in each phase</source>
+      <translation>parcela da inatividade de cada hierarquia em cada fase</translation>
+    </message>
+    <message>
+      <source>rows add to 100 %</source>
+      <translation>as linhas somam 100 %</translation>
+    </message>
+    <message>
+      <source>each block is a hierarchy</source>
+      <translation>cada bloco é uma hierarquia</translation>
+    </message>
+    <message>
+      <source>colour = what started its outages</source>
+      <translation>cor = o que iniciou suas indisponibilidades</translation>
+    </message>
+    <message>
+      <source>each row is a hierarchy</source>
+      <translation>cada linha é uma hierarquia</translation>
+    </message>
+    <message>
+      <source>green = no downtime attributed to it (the system may be down elsewhere)</source>
+      <translation>verde = nenhuma inatividade atribuída a ela (o sistema pode estar parado em outro ponto)</translation>
+    </message>
+    <message>
+      <source>red = down because of it</source>
+      <translation>vermelho = parado por causa dela</translation>
+    </message>
+    <message>
+      <source>inner ring: top level</source>
+      <translation>anel interno: nível superior</translation>
+    </message>
+    <message>
+      <source>each next ring is one level deeper</source>
+      <translation>cada anel seguinte é um nível mais profundo</translation>
+    </message>
+    <message>
+      <source>share of all system downtime in each phase, in phase order</source>
+      <translation>parcela de toda a inatividade do sistema em cada fase, na ordem das fases</translation>
+    </message>
+    <message>
+      <source>non-mission phases included</source>
+      <translation>fases fora da missão incluídas</translation>
+    </message>
+    <message>
+      <source>share of each phase's downtime by cause</source>
+      <translation>parcela da inatividade de cada fase por causa</translation>
+    </message>
+    <message>
+      <source>each column is the next step</source>
+      <translation>cada coluna é o passo seguinte</translation>
+    </message>
+    <message>
+      <source>width = share of downtime</source>
+      <translation>largura = parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>one row per trial, sorted by downtime</source>
+      <translation>uma linha por tentativa, ordenadas por inatividade</translation>
+    </message>
+    <message>
+      <source>red = system down</source>
+      <translation>vermelho = sistema parado</translation>
+    </message>
+    <message>
+      <source>the share of time so far spent fully up, degraded and down</source>
+      <translation>a parcela do tempo até agora em pleno funcionamento, degradado e parado</translation>
+    </message>
+    <message>
+      <source>the share of each recording interval the system was up</source>
+      <translation>a parcela de cada intervalo de registro em que o sistema esteve em operação</translation>
+    </message>
+    <message>
+      <source>each run's availability so far: where the runs agree</source>
+      <translation>a disponibilidade de cada execução até agora: onde as execuções concordam</translation>
+    </message>
+    <message>
+      <source>flow delivered against a fully working system</source>
+      <translation>fluxo entregue em comparação com um sistema em pleno funcionamento</translation>
+    </message>
+    <message>
+      <source>flow at each moment: where the runs agree</source>
+      <translation>fluxo a cada instante: onde as execuções concordam</translation>
+    </message>
+    <message>
+      <source>first step: the element; next: what kept it down</source>
+      <translation>primeiro passo: o elemento; depois: o que o manteve parado</translation>
+    </message>
+    <message>
+      <source>lost flow → cause</source>
+      <translation>fluxo perdido → causa</translation>
+    </message>
+    <message>
+      <source>lost flow → hierarchy → cause</source>
+      <translation>fluxo perdido → hierarquia → causa</translation>
+    </message>
+    <message>
+      <source>generated flow → delivered and lost → cause</source>
+      <translation>fluxo gerado → entregue e perdido → causa</translation>
+    </message>
+    <message>
+      <source>generated flow → delivered and lost → hierarchy → cause</source>
+      <translation>fluxo gerado → entregue e perdido → hierarquia → causa</translation>
+    </message>
+    <message>
+      <source>top level</source>
+      <translation>nível superior</translation>
+    </message>
+    <message>
+      <source>every level</source>
+      <translation>todos os níveis</translation>
+    </message>
+    <message>
       <source>seconds</source>
       <translation>segundos</translation>
     </message>
@@ -8287,14 +8963,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Weak link</source>
       <translation>Elo fraco</translation>
-    </message>
-    <message>
-      <source>availability</source>
-      <translation>disponibilidade</translation>
-    </message>
-    <message>
-      <source>dependability</source>
-      <translation>dependabilidade</translation>
     </message>
     <message>
       <source>reliability</source>
