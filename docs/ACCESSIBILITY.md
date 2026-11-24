@@ -26,6 +26,18 @@ From a script or a managed install:
 raptor config set appearance/ui_scale 150
 ```
 
+## Reduce motion
+
+**Preferences ▸ Appearance ▸ Reduce motion** turns off animated charts. The
+run-by-run hierarchy chart (*Which hierarchy is worse, run by run?*) never
+plays while it is on: its Play control is disabled and the static summary is
+shown. Animation is always opt-in, so with the setting off the chart still
+waits for you to press Play or Step.
+
+```sh
+raptor config set appearance/reduce_motion true
+```
+
 ## High contrast
 
 **Preferences ▸ Appearance ▸ Contrast** switches to black/white surfaces,

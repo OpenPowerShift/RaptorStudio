@@ -1369,6 +1369,10 @@
       <translation>Mostrar esta constatação novamente</translation>
     </message>
     <message>
+      <source>Advisor</source>
+      <translation>Advisor</translation>
+    </message>
+    <message>
       <source>That finding is about a setting, not an element on the diagram</source>
       <translation>Essa constatação se refere a uma configuração, não a um elemento do diagrama</translation>
     </message>
@@ -1481,12 +1485,20 @@
       <translation>Confiabilidade: probabilidade de nenhuma falha do sistema até o tempo de missão. Disponibilidade: fração de tempo, no longo prazo, em que o sistema está operacional.</translation>
     </message>
     <message>
+      <source>Mode:</source>
+      <translation>Modo:</translation>
+    </message>
+    <message>
       <source>Mission time</source>
       <translation>Tempo de missão</translation>
     </message>
     <message>
       <source>The time at which R(t), density and hazard are evaluated. Defaults to the model's run length.</source>
       <translation>O instante em que R(t), a densidade e a taxa de risco são avaliados. O padrão é a duração da execução do modelo.</translation>
+    </message>
+    <message>
+      <source>Mission time:</source>
+      <translation>Tempo de missão:</translation>
     </message>
     <message>
       <source>blank = 0 to the mission time; or e.g. 0, 24, 48</source>
@@ -1501,6 +1513,10 @@
       <translation>Instantes separados por vírgula para a curva de confiabilidade. Deixe em branco para uma curva uniforme de 0 até o tempo de missão.</translation>
     </message>
     <message>
+      <source>Curve at times:</source>
+      <translation>Curva nos instantes:</translation>
+    </message>
+    <message>
       <source>e.g. 10, 5</source>
       <translation>por exemplo, 10, 5</translation>
     </message>
@@ -1511,6 +1527,10 @@
     <message>
       <source>Comma-separated percentages. B10 is the time by which 10 % of systems have failed.</source>
       <translation>Percentuais separados por vírgula. B10 é o tempo em que 10 % dos sistemas já falharam.</translation>
+    </message>
+    <message>
+      <source>BX life (%):</source>
+      <translation>Vida BX (%):</translation>
     </message>
     <message>
       <source>Importance measures</source>
@@ -1527,6 +1547,10 @@
     <message>
       <source>The exact system equation as a sum of path products.</source>
       <translation>A equação exata do sistema como soma de produtos de caminhos.</translation>
+    </message>
+    <message>
+      <source>Include:</source>
+      <translation>Incluir:</translation>
     </message>
     <message>
       <source>Repairs</source>
@@ -1561,12 +1585,20 @@
       <translation>Presumir que equipes e ferramentas estão sempre disponíveis.</translation>
     </message>
     <message>
+      <source>Ignore:</source>
+      <translation>Ignorar:</translation>
+    </message>
+    <message>
       <source>Phase to analyse</source>
       <translation>Fase a analisar</translation>
     </message>
     <message>
       <source>Analyse the system as if it stayed in this phase for the whole time. Phase changes during the mission are not modelled.</source>
       <translation>Analisar o sistema como se permanecesse nesta fase durante todo o tempo. Mudanças de fase durante a missão não são modeladas.</translation>
+    </message>
+    <message>
+      <source>Phase:</source>
+      <translation>Fase:</translation>
     </message>
     <message>
       <source>Standby treatment</source>
@@ -1589,6 +1621,10 @@
       <translation>Tratar como ausente</translation>
     </message>
     <message>
+      <source>Standby:</source>
+      <translation>Em espera:</translation>
+    </message>
+    <message>
       <source>Dependency treatment</source>
       <translation>Tratamento de dependência</translation>
     </message>
@@ -1605,12 +1641,20 @@
       <translation>Tratar como inativa</translation>
     </message>
     <message>
+      <source>Dependencies:</source>
+      <translation>Dependências:</translation>
+    </message>
+    <message>
       <source>Hierarchy to analyse</source>
       <translation>Hierarquia a analisar</translation>
     </message>
     <message>
       <source>Analyse the whole model, or one hierarchy on its own. The hierarchy's In node is treated as the system Start and its Out node as the End, so its input is assumed always available; everything outside the hierarchy is left out.</source>
       <translation>Analisar o modelo inteiro ou uma hierarquia isoladamente. O nó de entrada da hierarquia é tratado como o Start do sistema e o nó de saída como o End, então sua entrada é presumida sempre disponível; tudo o que está fora da hierarquia é omitido.</translation>
+    </message>
+    <message>
+      <source>Hierarchy:</source>
+      <translation>Hierarquia:</translation>
     </message>
     <message>
       <source>Maximum elements</source>
@@ -1631,6 +1675,10 @@
     <message>
       <source>Show advanced settings</source>
       <translation>Mostrar configurações avançadas</translation>
+    </message>
+    <message>
+      <source>Limits:</source>
+      <translation>Limites:</translation>
     </message>
     <message>
       <source>Compute</source>
@@ -1985,6 +2033,22 @@
       <translation>O que alterar: digite parte de um nome para encontrá-lo</translation>
     </message>
     <message>
+      <source>Change:</source>
+      <translation>Alteração:</translation>
+    </message>
+    <message>
+      <source>Number:</source>
+      <translation>Número:</translation>
+    </message>
+    <message>
+      <source>From:</source>
+      <translation>De:</translation>
+    </message>
+    <message>
+      <source>Trials each:</source>
+      <translation>Ensaios por valor:</translation>
+    </message>
+    <message>
       <source>Run the model at a range of values for one number, and see how the results move.</source>
       <translation>Execute o modelo em uma faixa de valores para um número e veja como os resultados mudam.</translation>
     </message>
@@ -2019,6 +2083,10 @@
     <message>
       <source>This model has no rates, block parameters or k-of-n nodes to sweep.</source>
       <translation>Este modelo não tem taxas, parâmetros de bloco ou nós k-de-n para variar.</translation>
+    </message>
+    <message>
+      <source>Look in:</source>
+      <translation>Procurar em:</translation>
     </message>
     <message>
       <source>to</source>
@@ -2443,6 +2511,14 @@
     <message>
       <source>Match case</source>
       <translation>Diferenciar maiúsculas</translation>
+    </message>
+    <message>
+      <source>Find:</source>
+      <translation>Localizar:</translation>
+    </message>
+    <message>
+      <source>Replace with:</source>
+      <translation>Substituir por:</translation>
     </message>
     <message>
       <source>Replace all</source>
@@ -3325,8 +3401,44 @@
       <translation>Configurações do projeto</translation>
     </message>
     <message>
+      <source>Time units:</source>
+      <translation>Unidades de tempo:</translation>
+    </message>
+    <message>
+      <source>Termination type:</source>
+      <translation>Tipo de término:</translation>
+    </message>
+    <message>
+      <source>Term condition (time / count):</source>
+      <translation>Condição de término (tempo / contagem):</translation>
+    </message>
+    <message>
+      <source>Number of runs:</source>
+      <translation>Número de execuções:</translation>
+    </message>
+    <message>
+      <source>Green/Yellow threshold:</source>
+      <translation>Limite verde/amarelo:</translation>
+    </message>
+    <message>
+      <source>Yellow/Red threshold:</source>
+      <translation>Limite amarelo/vermelho:</translation>
+    </message>
+    <message>
+      <source>Ignore negative value warning:</source>
+      <translation>Ignorar aviso de valor negativo:</translation>
+    </message>
+    <message>
+      <source>Ignore start failures:</source>
+      <translation>Ignorar falhas na partida:</translation>
+    </message>
+    <message>
       <source>System comment (stored with the model's Comments)</source>
       <translation>Comentário do sistema (armazenado nos Comentários do modelo)</translation>
+    </message>
+    <message>
+      <source>System comment:</source>
+      <translation>Comentário do sistema:</translation>
     </message>
     <message>
       <source>System streams</source>
@@ -3351,6 +3463,14 @@
     <message>
       <source>Default</source>
       <translation>Padrão</translation>
+    </message>
+    <message>
+      <source>Block template:</source>
+      <translation>Modelo de bloco:</translation>
+    </message>
+    <message>
+      <source>Sparing:</source>
+      <translation>Provisão de sobressalentes:</translation>
     </message>
     <message>
       <source>Reset Defaults</source>
@@ -3405,12 +3525,16 @@
       <translation>Fluxo do sistema (F e R):</translation>
     </message>
     <message>
-      <source>Sparing:</source>
-      <translation>Provisão de sobressalentes:</translation>
-    </message>
-    <message>
       <source>(none)</source>
       <translation>(nenhum)</translation>
+    </message>
+    <message>
+      <source>Pool:</source>
+      <translation>Pool:</translation>
+    </message>
+    <message>
+      <source>Rename:</source>
+      <translation>Renomear:</translation>
     </message>
     <message>
       <source>Success probability (Param):</source>
@@ -3643,6 +3767,10 @@
     <message>
       <source>That one is only in the other model</source>
       <translation>Esse item só existe no outro modelo</translation>
+    </message>
+    <message>
+      <source>Type:</source>
+      <translation>Tipo:</translation>
     </message>
     <message>
       <source>Maximise</source>
@@ -4173,6 +4301,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Cor do grupo</translation>
     </message>
     <message>
+      <source>Colour</source>
+      <translation>Cor</translation>
+    </message>
+    <message>
       <source>Group tag query</source>
       <translation>Consulta de etiqueta do grupo</translation>
     </message>
@@ -4185,12 +4317,20 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Incluir também todos os elementos que carregam esta etiqueta, inclusive os etiquetados depois. Deixe em branco para usar apenas uma lista explícita de membros.</translation>
     </message>
     <message>
+      <source>Tag query</source>
+      <translation>Consulta de etiqueta</translation>
+    </message>
+    <message>
       <source>Group description</source>
       <translation>Descrição do grupo</translation>
     </message>
     <message>
       <source>Optional note, shown in the selector's tooltip</source>
       <translation>Nota opcional, exibida na dica do seletor</translation>
+    </message>
+    <message>
+      <source>Description</source>
+      <translation>Descrição</translation>
     </message>
     <message>
       <source>Members</source>
@@ -4277,10 +4417,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Próxima correspondência (Enter)</translation>
     </message>
     <message>
-      <source>Find:</source>
-      <translation>Localizar:</translation>
-    </message>
-    <message>
       <source>Search hierarchies…</source>
       <translation>Pesquisar hierarquias…</translation>
     </message>
@@ -4303,10 +4439,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>%1 of %2</source>
       <translation>%1 de %2</translation>
-    </message>
-    <message>
-      <source>Description</source>
-      <translation>Descrição</translation>
     </message>
     <message>
       <source>Edit</source>
@@ -4721,8 +4853,16 @@ Salvá-las?</translation>
       <translation>Marca esta hierarquia como faseada -- exibida hachurada no diagrama. Uma hierarquia não tem valores próprios por fase; isto indica que seu CONTEÚDO muda entre fases.</translation>
     </message>
     <message>
+      <source>Success probability:</source>
+      <translation>Probabilidade de sucesso:</translation>
+    </message>
+    <message>
       <source>Apply costs</source>
       <translation>Aplicar custos</translation>
+    </message>
+    <message>
+      <source>Stream:</source>
+      <translation>Fluxo:</translation>
     </message>
     <message>
       <source>Time units</source>
@@ -4731,6 +4871,10 @@ Salvá-las?</translation>
     <message>
       <source>Time-unit label for this model: pick one of the common units or type your own (hours, years, cycles…). It relabels values; it does not convert stored numbers.</source>
       <translation>Rótulo da unidade de tempo deste modelo: escolha uma das unidades comuns ou digite a sua (horas, anos, ciclos…). Ele renomeia os valores; não converte os números armazenados.</translation>
+    </message>
+    <message>
+      <source>Units:</source>
+      <translation>Unidades:</translation>
     </message>
     <message>
       <source>System comment</source>
@@ -4805,12 +4949,36 @@ Salvá-las?</translation>
       <translation>Tamanho do texto em pontos</translation>
     </message>
     <message>
+      <source>Font:</source>
+      <translation>Fonte:</translation>
+    </message>
+    <message>
+      <source>Line style:</source>
+      <translation>Estilo da linha:</translation>
+    </message>
+    <message>
+      <source>To:</source>
+      <translation>Para:</translation>
+    </message>
+    <message>
       <source>Pick on canvas…</source>
       <translation>Escolher no diagrama…</translation>
     </message>
     <message>
       <source>Click, then click an element or another annotation to anchor this annotation to it (Esc cancels)</source>
       <translation>Clique e depois clique em um elemento ou outra anotação para ancorar esta anotação nele (Esc cancela)</translation>
+    </message>
+    <message>
+      <source>Anchored to:</source>
+      <translation>Ancorado a:</translation>
+    </message>
+    <message>
+      <source>Location:</source>
+      <translation>Posição:</translation>
+    </message>
+    <message>
+      <source>Gap:</source>
+      <translation>Espaço:</translation>
     </message>
     <message>
       <source>Reset position</source>
@@ -4829,6 +4997,10 @@ Salvá-las?</translation>
       <translation>Escolher…</translation>
     </message>
     <message>
+      <source>Comment:</source>
+      <translation>Comentário:</translation>
+    </message>
+    <message>
       <source>Estimate from experience…</source>
       <translation>Estimar pela experiência…</translation>
     </message>
@@ -4845,12 +5017,20 @@ Salvá-las?</translation>
       <translation>Com que rapidez o bloco envelhece enquanto aguarda em espera, como múltiplo de sua taxa normal. 0 = espera fria (sem envelhecimento durante a espera), entre 0 e 1 = morna, 1 ou mais = quente (envelhece na taxa normal, ou mais rápido, mesmo em espera).</translation>
     </message>
     <message>
+      <source>Standby stress:</source>
+      <translation>Estresse de espera:</translation>
+    </message>
+    <message>
       <source>Duty cycle</source>
       <translation>Ciclo de trabalho</translation>
     </message>
     <message>
       <source>How hard the block works, as a share of its rated duty; it sets how fast the block uses up its life in calendar time. 1 = working all the time (the default). 0.3 = working 30% of the time, so each life lasts 1/0.3 = 3.3 times as long. 1.5 = run 50% harder than rated. It multiplies any phase stress, and the standby stress while the block is in standby.</source>
       <translation>Com que intensidade o bloco trabalha, como parcela de seu regime nominal; define com que rapidez o bloco consome sua vida em tempo de calendário. 1 = trabalhando o tempo todo (o padrão). 0,3 = trabalhando 30% do tempo, então cada vida dura 1/0,3 = 3,3 vezes mais. 1,5 = trabalhar 50% acima do nominal. Multiplica qualquer estresse de fase e o estresse de espera enquanto o bloco está em espera.</translation>
+    </message>
+    <message>
+      <source>Duty cycle:</source>
+      <translation>Ciclo de trabalho:</translation>
     </message>
     <message>
       <source>Off — repair as good as new</source>
@@ -4881,12 +5061,20 @@ Tipo II (Kijima II): remove essa parcela de toda a idade do bloco.
 Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
     </message>
     <message>
+      <source>Restoration:</source>
+      <translation>Restauração:</translation>
+    </message>
+    <message>
       <source>Restoration factor</source>
       <translation>Fator de restauração</translation>
     </message>
     <message>
       <source>Share of the block's age a repair or PM removes. 0 = none: the block is as worn as just before it failed (as bad as old). 1 = all: as good as new. 0.7 removes 70% and leaves 30%. Used only when Restoration is Type I or Type II.</source>
       <translation>Parcela da idade do bloco que um reparo ou MP remove. 0 = nenhuma: o bloco fica tão desgastado quanto imediatamente antes de falhar (tão ruim quanto velho). 1 = toda: como novo. 0,7 remove 70% e deixa 30%. Usado somente quando a Restauração é Tipo I ou Tipo II.</translation>
+    </message>
+    <message>
+      <source>Restoration factor:</source>
+      <translation>Fator de restauração:</translation>
     </message>
     <message>
       <source>Reliability growth or decay: after each failure the block's lives get longer (growth, e.g. design fixes) or shorter (decay, e.g. wear that repairs do not remove).</source>
@@ -4909,8 +5097,24 @@ Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
       <translation>Criar, editar ou excluir pools de sobressalentes</translation>
     </message>
     <message>
+      <source>Pre-repair delay (LDT):</source>
+      <translation>Atraso pré-reparo (LDT):</translation>
+    </message>
+    <message>
+      <source>Post-repair delay (LDT):</source>
+      <translation>Atraso pós-reparo (LDT):</translation>
+    </message>
+    <message>
       <source>A resource (e.g. technicians) a block borrows during repair/PM and returns afterward -- a fixed shared pool, unlike a spare (consumed permanently). A block uses at most one resource pool.</source>
       <translation>Um recurso (por exemplo, técnicos) que um bloco toma emprestado durante reparo/MP e devolve depois -- um pool compartilhado fixo, ao contrário de um sobressalente (consumido permanentemente). Um bloco usa no máximo um pool de recursos.</translation>
+    </message>
+    <message>
+      <source>Needed for repair:</source>
+      <translation>Necessário para o reparo:</translation>
+    </message>
+    <message>
+      <source>Needed for PM:</source>
+      <translation>Necessário para a MP:</translation>
     </message>
     <message>
       <source>Manage Resources…</source>
@@ -4923,6 +5127,10 @@ Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
     <message>
       <source>PM = Preventive Maintenance: scheduled servicing performed on a healthy block, separate from repairing a failure.</source>
       <translation>MP = Manutenção preventiva: manutenção programada realizada em um bloco saudável, separada do reparo de uma falha.</translation>
+    </message>
+    <message>
+      <source>Trigger name:</source>
+      <translation>Nome do gatilho:</translation>
     </message>
     <message>
       <source>Manage Triggers…</source>
@@ -4983,8 +5191,28 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>A vida média (nas unidades de tempo do modelo) em que a mudança cessa: o crescimento nunca fica acima dela e o decaimento nunca abaixo.</translation>
     </message>
     <message>
+      <source>Rate:</source>
+      <translation>Taxa:</translation>
+    </message>
+    <message>
+      <source>Limit:</source>
+      <translation>Limite:</translation>
+    </message>
+    <message>
       <source>Only used when the block performs Preventive Maintenance -- enable 'This block performs Preventive Maintenance' on the PM tab first.</source>
       <translation>Usado somente quando o bloco realiza Manutenção preventiva -- ative primeiro "Este bloco realiza Manutenção preventiva" na aba MP.</translation>
+    </message>
+    <message>
+      <source>Initial stock:</source>
+      <translation>Estoque inicial:</translation>
+    </message>
+    <message>
+      <source>New spares/order:</source>
+      <translation>Novos sobressalentes/pedido:</translation>
+    </message>
+    <message>
+      <source>Arrival interval:</source>
+      <translation>Intervalo de chegada:</translation>
     </message>
     <message>
       <source>k-out-of-n: this node needs at least k of its n input paths working for it to count as up (k=1 is a simple OR, k=n is a simple AND).</source>
@@ -5053,6 +5281,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Antithetic draws (stored as a negative stream number)</source>
       <translation>Amostras antitéticas (armazenadas como um número de fluxo negativo)</translation>
+    </message>
+    <message>
+      <source>Name:</source>
+      <translation>Nome:</translation>
     </message>
     <message>
       <source>Free-text comment stored with the model (Part #, data source, etc.). Markdown is supported and is rendered when the comment is shown as a canvas annotation. Committed when you pause or leave the box.</source>
@@ -5131,6 +5363,18 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Atribuir fluxos próprios às amostras compartilhadas</translation>
     </message>
     <message>
+      <source>Outside dependencies:</source>
+      <translation>Dependências externas:</translation>
+    </message>
+    <message>
+      <source>Shared spare / resource pools:</source>
+      <translation>Pools de sobressalentes / recursos compartilhados:</translation>
+    </message>
+    <message>
+      <source>Shared random streams:</source>
+      <translation>Fluxos aleatórios compartilhados:</translation>
+    </message>
+    <message>
       <source>Open the extract in this window after saving</source>
       <translation>Abrir a extração nesta janela após salvar</translation>
     </message>
@@ -5159,6 +5403,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>opcional, por exemplo, Bombas</translation>
     </message>
     <message>
+      <source>Category:</source>
+      <translation>Categoria:</translation>
+    </message>
+    <message>
       <source>Assembly — a copy of the selection to insert anywhere</source>
       <translation>Montagem — uma cópia da seleção para inserir em qualquer lugar</translation>
     </message>
@@ -5171,8 +5419,16 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>De onde vieram os números de falha e reparo; mantido com o tipo de peça</translation>
     </message>
     <message>
+      <source>Numbers from:</source>
+      <translation>Números de:</translation>
+    </message>
+    <message>
       <source>optional, e.g. OREDA 2015 table 4.2</source>
       <translation>opcional, por exemplo, OREDA 2015 tabela 4.2</translation>
+    </message>
+    <message>
+      <source>Source:</source>
+      <translation>Origem:</translation>
     </message>
     <message>
       <source>Search parts…</source>
@@ -5327,6 +5583,26 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Resultados limpos: o modelo pode ser editado</translation>
     </message>
     <message>
+      <source>Model Explorer</source>
+      <translation>Explorador de modelo</translation>
+    </message>
+    <message>
+      <source>Part Library</source>
+      <translation>Biblioteca de peças</translation>
+    </message>
+    <message>
+      <source>Inspector</source>
+      <translation>Inspetor</translation>
+    </message>
+    <message>
+      <source>Live Log</source>
+      <translation>Registro ao vivo</translation>
+    </message>
+    <message>
+      <source>Data Tables</source>
+      <translation>Tabelas de dados</translation>
+    </message>
+    <message>
       <source>Ready — Open an .rbd or .rbds file to begin (Ctrl+O)</source>
       <translation>Pronto — abra um arquivo .rbd ou .rbds para começar (Ctrl+O)</translation>
     </message>
@@ -5343,10 +5619,6 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Simulação em andamento</translation>
     </message>
     <message>
-      <source>Live Log</source>
-      <translation>Registro ao vivo</translation>
-    </message>
-    <message>
       <source>Unsaved Changes</source>
       <translation>Alterações não salvas</translation>
     </message>
@@ -5357,6 +5629,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>100 = model units at native scale</source>
       <translation>100 = unidades do modelo na escala nativa</translation>
+    </message>
+    <message>
+      <source>Zoom:</source>
+      <translation>Zoom:</translation>
     </message>
     <message>
       <source>Domain Diagram</source>
@@ -5679,6 +5955,10 @@ Continuar?</translation>
       <translation>Valor da fase</translation>
     </message>
     <message>
+      <source>Value:</source>
+      <translation>Valor:</translation>
+    </message>
+    <message>
       <source>Value the palette stamps (stress multiplier, probability, or k)</source>
       <translation>Valor que a paleta aplica (multiplicador de estresse, probabilidade ou k)</translation>
     </message>
@@ -5739,6 +6019,18 @@ Continuar?</translation>
       <translation>Bloco de título</translation>
     </message>
     <message>
+      <source>Project:</source>
+      <translation>Projeto:</translation>
+    </message>
+    <message>
+      <source>Revision:</source>
+      <translation>Revisão:</translation>
+    </message>
+    <message>
+      <source>Date:</source>
+      <translation>Data:</translation>
+    </message>
+    <message>
       <source>Page</source>
       <translation>Página</translation>
     </message>
@@ -5749,6 +6041,10 @@ Continuar?</translation>
     <message>
       <source>Landscape</source>
       <translation>Paisagem</translation>
+    </message>
+    <message>
+      <source>Orientation:</source>
+      <translation>Orientação:</translation>
     </message>
     <message>
       <source>Print</source>
@@ -5831,6 +6127,10 @@ Continuar?</translation>
       <translation>Remover nomes, descrições e fórmulas de taxas</translation>
     </message>
     <message>
+      <source>Annotations:</source>
+      <translation>Anotações:</translation>
+    </message>
+    <message>
       <source>&lt;b&gt;Residual risk:&lt;/b&gt; the copy still contains the structure, element IDs, links, positions, costs and all numerical data. Those can identify a system even without names. Keep names, comments, annotations, rate descriptions, project metadata or Advisor notes only when you mean to share that prose. Remove confidential costs from the source before sharing.</source>
       <translation>&lt;b&gt;Risco residual:&lt;/b&gt; a cópia ainda contém a estrutura, os ids dos elementos, vínculos, posições, custos e todos os dados numéricos. Isso pode identificar um sistema mesmo sem nomes. Mantenha nomes, comentários, anotações, descrições de taxas, metadados do projeto ou notas do Advisor apenas quando quiser compartilhar esse texto. Remova os custos confidenciais da origem antes de compartilhar.</translation>
     </message>
@@ -5855,8 +6155,16 @@ Continuar?</translation>
       <translation>0.00015 * 20000 / 8760  # 0.00015 falhas/km, 20.000 km/ano</translation>
     </message>
     <message>
+      <source>Expression:</source>
+      <translation>Expressão:</translation>
+    </message>
+    <message>
       <source>What this rate represents, e.g. "Highway failure rate"</source>
       <translation>O que esta taxa representa, por exemplo, "Taxa de falha em rodovias"</translation>
+    </message>
+    <message>
+      <source>Description:</source>
+      <translation>Descrição:</translation>
     </message>
     <message>
       <source>Rates</source>
@@ -5985,10 +6293,6 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
 Green = fully working · Yellow = degraded, still partially working · Red = fully down.</source>
       <translation>Como a parcela de tempo de MISSÃO da execução foi dividida entre os estados do sistema (logística faseada -- média de todas as execuções):
 Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcialmente · Vermelho = totalmente inativo.</translation>
-    </message>
-    <message>
-      <source>Hierarchy:</source>
-      <translation>Hierarquia:</translation>
     </message>
     <message>
       <source>All</source>
@@ -6237,10 +6541,6 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Emer. Shipping / Per-Use</source>
       <translation>Envio emergencial / por uso</translation>
-    </message>
-    <message>
-      <source>Colour</source>
-      <translation>Cor</translation>
     </message>
     <message>
       <source>Min</source>
@@ -6667,12 +6967,24 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>Núcleos:</translation>
     </message>
     <message>
+      <source>Model scope:</source>
+      <translation>Escopo do modelo:</translation>
+    </message>
+    <message>
       <source>Seed number</source>
       <translation>Número da semente</translation>
     </message>
     <message>
+      <source>Seed:</source>
+      <translation>Semente:</translation>
+    </message>
+    <message>
       <source>Block random streams</source>
       <translation>Fluxos aleatórios dos blocos</translation>
+    </message>
+    <message>
+      <source>Streams:</source>
+      <translation>Fluxos:</translation>
     </message>
     <message>
       <source>Precision…</source>
@@ -6689,6 +7001,10 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Start from a preset: it sets the run's length, trials and statistics start, and adds the analyses it needs. It never turns off one you chose.</source>
       <translation>Comece por uma predefinição: ela define a duração da execução, os ensaios e o início das estatísticas, e adiciona as análises necessárias. Nunca desliga uma que você escolheu.</translation>
+    </message>
+    <message>
+      <source>Trials:</source>
+      <translation>Ensaios:</translation>
     </message>
     <message>
       <source>Experiment</source>
@@ -6711,12 +7027,20 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>após</translation>
     </message>
     <message>
+      <source>Stop at:</source>
+      <translation>Parar em:</translation>
+    </message>
+    <message>
       <source>Statistics gathering starts here, so start-up transients are excluded from the reported numbers. Must be earlier than the run length.</source>
       <translation>A coleta de estatísticas começa aqui, então transientes de inicialização são excluídos dos números relatados. Deve ser anterior à duração da execução.</translation>
     </message>
     <message>
       <source>time units</source>
       <translation>unidades de tempo</translation>
+    </message>
+    <message>
+      <source>Statistics from:</source>
+      <translation>Estatísticas a partir de:</translation>
     </message>
     <message>
       <source>Results to calculate</source>
@@ -7033,6 +7357,166 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois F)</translation>
     </message>
     <message>
+      <source>System red cost</source>
+      <translation>Custo do sistema em vermelho</translation>
+    </message>
+    <message>
+      <source>Cost per time unit while the whole system is down.</source>
+      <translation>Custo por unidade de tempo enquanto o sistema inteiro está parado.</translation>
+    </message>
+    <message>
+      <source>Cost of lost flow</source>
+      <translation>Custo do fluxo perdido</translation>
+    </message>
+    <message>
+      <source>Price per unit of demand the capacity analysis cannot deliver. Needs Capacity and Cost.</source>
+      <translation>Preço por unidade de demanda que a análise de capacidade não consegue atender. Requer Capacidade e Custo.</translation>
+    </message>
+    <message>
+      <source>Statistics start is only meaningful for a time-terminated run.</source>
+      <translation>O início das estatísticas só faz sentido em uma execução terminada por tempo.</translation>
+    </message>
+    <message>
+      <source>Raptor 7 (fixed)</source>
+      <translation>Raptor 7 (fixa)</translation>
+    </message>
+    <message>
+      <source>Raptor 7's seed table: every run draws the same random numbers and matches Raptor 7. Two runs are the same experiment twice, not two independent samples.</source>
+      <translation>Tabela de sementes do Raptor 7: toda execução sorteia os mesmos números aleatórios e coincide com o Raptor 7. Duas execuções são o mesmo experimento repetido, não duas amostras independentes.</translation>
+    </message>
+    <message>
+      <source>New each run</source>
+      <translation>Nova a cada execução</translation>
+    </message>
+    <message>
+      <source>A fresh seed every run, so each result is an independent sample. The seed is shown in the results; choose Number afterwards to repeat that run.</source>
+      <translation>Uma semente nova a cada execução, de modo que cada resultado é uma amostra independente. A semente aparece nos resultados; escolha Número depois para repetir essa execução.</translation>
+    </message>
+    <message>
+      <source>A seed you choose, saved with the model: the same number repeats a run. The CLI (raptor run --seed N) and the AI Assistant (seed=N) give the same numbers on the same number of cores.</source>
+      <translation>Uma semente que você escolhe, salva com o modelo: o mesmo número repete uma execução. A linha de comando (raptor run --seed N) e o Assistente de IA (seed=N) dão os mesmos números com o mesmo número de núcleos.</translation>
+    </message>
+    <message>
+      <source>As in the model</source>
+      <translation>Como no modelo</translation>
+    </message>
+    <message>
+      <source>Each block draws from the streams set in its data. By default every block shares one stream, as in Raptor 7, and the results match Raptor 7's.</source>
+      <translation>Cada bloco sorteia dos fluxos definidos em seus dados. Por padrão todos os blocos compartilham um fluxo, como no Raptor 7, e os resultados coincidem com os do Raptor 7.</translation>
+    </message>
+    <message>
+      <source>Separate for each block</source>
+      <translation>Separado para cada bloco</translation>
+    </message>
+    <message>
+      <source>System failures</source>
+      <translation>Falhas do sistema</translation>
+    </message>
+    <message>
+      <source>Phase cycles</source>
+      <translation>Ciclos de fase</translation>
+    </message>
+    <message>
+      <source>Improvement (RRW, Vesely-Fussell)</source>
+      <translation>Melhoria (RRW, Vesely-Fussell)</translation>
+    </message>
+    <message>
+      <source>Risk (RAW)</source>
+      <translation>Risco (RAW)</translation>
+    </message>
+    <message>
+      <source>Both (adds Birnbaum)</source>
+      <translation>Ambos (acrescenta Birnbaum)</translation>
+    </message>
+    <message>
+      <source>Adds one batch per block (two with Birnbaum), on top of the ordinary run.</source>
+      <translation>Acrescenta um lote por bloco (dois com Birnbaum), além da execução comum.</translation>
+    </message>
+    <message>
+      <source>Sample every:</source>
+      <translation>Amostrar a cada:</translation>
+    </message>
+    <message>
+      <source>Record every:</source>
+      <translation>Registrar a cada:</translation>
+    </message>
+    <message>
+      <source>Experiment presets</source>
+      <translation>Predefinições do experimento</translation>
+    </message>
+    <message>
+      <source>Number of trials</source>
+      <translation>Número de ensaios</translation>
+    </message>
+    <message>
+      <source>Size trials by precision</source>
+      <translation>Dimensionar ensaios pela precisão</translation>
+    </message>
+    <message>
+      <source>Stop condition</source>
+      <translation>Condição de parada</translation>
+    </message>
+    <message>
+      <source>Run length</source>
+      <translation>Duração da execução</translation>
+    </message>
+    <message>
+      <source>Statistics start time</source>
+      <translation>Instante de início das estatísticas</translation>
+    </message>
+    <message>
+      <source>Model scope</source>
+      <translation>Escopo do modelo</translation>
+    </message>
+    <message>
+      <source>Isolation options</source>
+      <translation>Opções de isolamento</translation>
+    </message>
+    <message>
+      <source>Availability plot sample interval</source>
+      <translation>Intervalo de amostragem do gráfico de disponibilidade</translation>
+    </message>
+    <message>
+      <source>Interim cost sample interval</source>
+      <translation>Intervalo de amostragem do custo intermediário</translation>
+    </message>
+    <message>
+      <source>Flow generated</source>
+      <translation>Fluxo gerado</translation>
+    </message>
+    <message>
+      <source>Importance measure set</source>
+      <translation>Conjunto de medidas de importância</translation>
+    </message>
+    <message>
+      <source>Importance measures note</source>
+      <translation>Nota sobre as medidas de importância</translation>
+    </message>
+    <message>
+      <source>Experiment — one hierarchy, isolated</source>
+      <translation>Experimento — uma hierarquia, isolada</translation>
+    </message>
+    <message>
+      <source>The event log figure is rough: it assumes every block runs all the time.</source>
+      <translation>O valor do registro de eventos é aproximado: supõe que todo bloco funciona o tempo todo.</translation>
+    </message>
+    <message>
+      <source>Recordings are written to disk as the run goes, not held in memory.</source>
+      <translation>As gravações são escritas em disco durante a execução, não mantidas na memória.</translation>
+    </message>
+    <message>
+      <source>System red cost:</source>
+      <translation>Custo do sistema em vermelho:</translation>
+    </message>
+    <message>
+      <source>Flow generated:</source>
+      <translation>Fluxo gerado:</translation>
+    </message>
+    <message>
+      <source>Cost of lost flow:</source>
+      <translation>Custo do fluxo perdido:</translation>
+    </message>
+    <message>
       <source>Read-only — editing is locked</source>
       <translation>Somente leitura — a edição está bloqueada</translation>
     </message>
@@ -7085,16 +7569,8 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Disparo</translation>
     </message>
     <message>
-      <source>Success probability:</source>
-      <translation>Probabilidade de sucesso:</translation>
-    </message>
-    <message>
       <source>Random Stream</source>
       <translation>Fluxo aleatório</translation>
-    </message>
-    <message>
-      <source>Stream:</source>
-      <translation>Fluxo:</translation>
     </message>
     <message>
       <source>Simulation Settings</source>
@@ -7133,20 +7609,12 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Altere as tentativas no painel Executar</translation>
     </message>
     <message>
-      <source>Units:</source>
-      <translation>Unidades:</translation>
-    </message>
-    <message>
       <source>Random Streams</source>
       <translation>Fluxos aleatórios</translation>
     </message>
     <message>
       <source>Comment</source>
       <translation>Comentário</translation>
-    </message>
-    <message>
-      <source>System comment:</source>
-      <translation>Comentário do sistema:</translation>
     </message>
     <message>
       <source>Flags</source>
@@ -7261,10 +7729,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>ID do nível superior</translation>
     </message>
     <message>
-      <source>Comment:</source>
-      <translation>Comentário:</translation>
-    </message>
-    <message>
       <source>Position</source>
       <translation>Posição</translation>
     </message>
@@ -7301,22 +7765,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Distribuição de falha</translation>
     </message>
     <message>
-      <source>Standby stress:</source>
-      <translation>Estresse de espera:</translation>
-    </message>
-    <message>
-      <source>Duty cycle:</source>
-      <translation>Ciclo de trabalho:</translation>
-    </message>
-    <message>
-      <source>Restoration:</source>
-      <translation>Restauração:</translation>
-    </message>
-    <message>
-      <source>Restoration factor:</source>
-      <translation>Fator de restauração:</translation>
-    </message>
-    <message>
       <source>This block's mean life changes following a failure</source>
       <translation>A vida média deste bloco muda após uma falha</translation>
     </message>
@@ -7325,40 +7773,16 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Distribuição de reparo</translation>
     </message>
     <message>
-      <source>Type:</source>
-      <translation>Tipo:</translation>
-    </message>
-    <message>
-      <source>Pool:</source>
-      <translation>Pool:</translation>
-    </message>
-    <message>
       <source>Logistical Constraints</source>
       <translation>Restrições logísticas</translation>
-    </message>
-    <message>
-      <source>Pre-repair delay (LDT):</source>
-      <translation>Atraso pré-reparo (LDT):</translation>
     </message>
     <message>
       <source>Pre-LDT</source>
       <translation>Pré-LDT</translation>
     </message>
     <message>
-      <source>Post-repair delay (LDT):</source>
-      <translation>Atraso pós-reparo (LDT):</translation>
-    </message>
-    <message>
       <source>Post-LDT</source>
       <translation>Pós-LDT</translation>
-    </message>
-    <message>
-      <source>Needed for repair:</source>
-      <translation>Necessário para o reparo:</translation>
-    </message>
-    <message>
-      <source>Needed for PM:</source>
-      <translation>Necessário para a MP:</translation>
     </message>
     <message>
       <source>This block performs Preventive Maintenance</source>
@@ -7375,10 +7799,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     <message>
       <source>Triggered by a PM trigger</source>
       <translation>Acionado por um gatilho de MP</translation>
-    </message>
-    <message>
-      <source>Trigger name:</source>
-      <translation>Nome do gatilho:</translation>
     </message>
     <message>
       <source>PM Distribution</source>
@@ -7497,14 +7917,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Sem dados? Informe que parcela é reparada até uma certa idade (uma em dez até 100 horas, metade até 300) e ajuste uma lei de Weibull, lognormal ou exponencial às respostas.</translation>
     </message>
     <message>
-      <source>Rate:</source>
-      <translation>Taxa:</translation>
-    </message>
-    <message>
-      <source>Limit:</source>
-      <translation>Limite:</translation>
-    </message>
-    <message>
       <source>None — repair in place</source>
       <translation>Nenhum — reparo no local</translation>
     </message>
@@ -7611,18 +8023,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     <message>
       <source>Life already used at time 0. It adds to Start age.</source>
       <translation>Vida já consumida no instante 0. Soma-se à idade inicial.</translation>
-    </message>
-    <message>
-      <source>Initial stock:</source>
-      <translation>Estoque inicial:</translation>
-    </message>
-    <message>
-      <source>New spares/order:</source>
-      <translation>Novos sobressalentes/pedido:</translation>
-    </message>
-    <message>
-      <source>Arrival interval:</source>
-      <translation>Intervalo de chegada:</translation>
     </message>
     <message>
       <source>New spares/order</source>
@@ -7781,10 +8181,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>A probabilidade de comutação automática deve ser maior que 0 e no máximo 1</translation>
     </message>
     <message>
-      <source>Name:</source>
-      <translation>Nome:</translation>
-    </message>
-    <message>
       <source>No phases defined</source>
       <translation>Nenhuma fase definida</translation>
     </message>
@@ -7841,10 +8237,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Ancorada, ela se move com o alvo. Centro ignora o espaço. Arraste a anotação para colocá-la onde quiser; ela continua seguindo o alvo a partir dali. Redefinir posição a devolve à sua Posição, Romper vínculo a solta. Use Escolher no diagrama… para definir o alvo com um clique.</translation>
     </message>
     <message>
-      <source>Font:</source>
-      <translation>Fonte:</translation>
-    </message>
-    <message>
       <source>Solid</source>
       <translation>Contínua</translation>
     </message>
@@ -7865,10 +8257,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Traço-ponto-ponto</translation>
     </message>
     <message>
-      <source>Line style:</source>
-      <translation>Estilo da linha:</translation>
-    </message>
-    <message>
       <source>Fill</source>
       <translation>Preenchimento</translation>
     </message>
@@ -7885,28 +8273,8 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Livre</translation>
     </message>
     <message>
-      <source>From:</source>
-      <translation>De:</translation>
-    </message>
-    <message>
-      <source>To:</source>
-      <translation>Para:</translation>
-    </message>
-    <message>
       <source>Not anchored</source>
       <translation>Sem âncora</translation>
-    </message>
-    <message>
-      <source>Anchored to:</source>
-      <translation>Ancorado a:</translation>
-    </message>
-    <message>
-      <source>Location:</source>
-      <translation>Posição:</translation>
-    </message>
-    <message>
-      <source>Gap:</source>
-      <translation>Espaço:</translation>
     </message>
     <message>
       <source>Random</source>
@@ -7967,6 +8335,18 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     <message>
       <source>Edit formula basis</source>
       <translation>Editar a base da fórmula</translation>
+    </message>
+    <message>
+      <source>Metric</source>
+      <translation>Métrica</translation>
+    </message>
+    <message>
+      <source>Green ≥</source>
+      <translation>Verde ≥</translation>
+    </message>
+    <message>
+      <source>Red &lt;</source>
+      <translation>Vermelho &lt;</translation>
     </message>
     <message>
       <source>k* Target</source>
@@ -8115,6 +8495,82 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Dependency percentages must sum to 100 (got %1)</source>
       <translation>As porcentagens de dependência devem somar 100 (soma atual: %1)</translation>
+    </message>
+    <message>
+      <source>Minimize %1</source>
+      <translation>Minimizar %1</translation>
+    </message>
+    <message>
+      <source>Restore %1</source>
+      <translation>Restaurar %1</translation>
+    </message>
+    <message>
+      <source>Close %1</source>
+      <translation>Fechar %1</translation>
+    </message>
+    <message>
+      <source>Redock %1</source>
+      <translation>Reancorar %1</translation>
+    </message>
+    <message>
+      <source>Float %1 in its own window</source>
+      <translation>Destacar %1 em uma janela própria</translation>
+    </message>
+    <message>
+      <source>Return %1 to the dock</source>
+      <translation>Devolver %1 ao painel ancorado</translation>
+    </message>
+    <message>
+      <source>Loaded: %1 — %2 blocks, %3 nodes, %4 events, %5 links</source>
+      <translation>Carregado: %1 — %2 blocos, %3 nós, %4 eventos, %5 vínculos</translation>
+    </message>
+    <message>
+      <source>%1/%2 cores</source>
+      <translation>%1/%2 núcleos</translation>
+    </message>
+    <message>
+      <source>%1/%2 cores (Animate)</source>
+      <translation>%1/%2 núcleos (Animar)</translation>
+    </message>
+    <message>
+      <source>%1 cores</source>
+      <translation>%1 núcleos</translation>
+    </message>
+    <message>
+      <source>%1 core</source>
+      <translation>%1 núcleo</translation>
+    </message>
+    <message>
+      <source>Full speed — %1 of %2 cores</source>
+      <translation>Velocidade máxima — %1 de %2 núcleos</translation>
+    </message>
+    <message>
+      <source>Full speed — %1 of %2 core</source>
+      <translation>Velocidade máxima — %1 de %2 núcleo</translation>
+    </message>
+    <message>
+      <source>%1. Change it in the Run panel.</source>
+      <translation>%1. Altere no Painel de execução.</translation>
+    </message>
+    <message>
+      <source>More options: %1</source>
+      <translation>Mais opções: %1</translation>
+    </message>
+    <message>
+      <source>No %1 in this model.</source>
+      <translation>Nenhum item de %1 neste modelo.</translation>
+    </message>
+    <message>
+      <source>Show %1 ignored</source>
+      <translation>Mostrar %1 ignorado(s)</translation>
+    </message>
+    <message>
+      <source>Hide %1 ignored</source>
+      <translation>Ocultar %1 ignorado(s)</translation>
+    </message>
+    <message>
+      <source>A full-speed run splits its trials across this many cores (this machine has %1). Sweep and Compare use them too. Any number from 2 up gives the same results; one core gives a different random sequence: statistically the same answer but not bit-identical.</source>
+      <translation>Uma execução em velocidade máxima divide seus ensaios entre esta quantidade de núcleos (esta máquina tem %1). Varredura e Comparar também os usam. Qualquer número a partir de 2 dá os mesmos resultados; um núcleo dá uma sequência aleatória diferente: estatisticamente a mesma resposta, mas não idêntica bit a bit.</translation>
     </message>
     <message>
       <source>%1 must be greater than 0</source>
@@ -10119,6 +10575,190 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>None (unrepairable)</source>
       <translation>Nenhuma (irreparável)</translation>
+    </message>
+    <message>
+      <source>phases</source>
+      <translation>fases</translation>
+    </message>
+    <message>
+      <source>preventive maintenance</source>
+      <translation>manutenção preventiva</translation>
+    </message>
+    <message>
+      <source>resources</source>
+      <translation>recursos</translation>
+    </message>
+    <message>
+      <source>spare pools</source>
+      <translation>pools de sobressalentes</translation>
+    </message>
+    <message>
+      <source>sparing</source>
+      <translation>provisão de sobressalentes</translation>
+    </message>
+    <message>
+      <source>triggers</source>
+      <translation>gatilhos</translation>
+    </message>
+    <message>
+      <source>1 core (Animate)</source>
+      <translation>1 núcleo (Animar)</translation>
+    </message>
+    <message>
+      <source>IEC 61078 Annex D importance factors, estimated by re-simulation.</source>
+      <translation>Fatores de importância da IEC 61078 Anexo D, estimados por re-simulação.</translation>
+    </message>
+    <message>
+      <source>Statistics gathering starts here, so start-up transients are excluded from the reported numbers.</source>
+      <translation>A coleta de estatísticas começa aqui, de modo que os transientes de partida ficam fora dos números informados.</translation>
+    </message>
+    <message>
+      <source>Must be earlier than the run length.</source>
+      <translation>Deve ser anterior à duração da execução.</translation>
+    </message>
+    <message>
+      <source>No recordings ticked: nothing extra is written.</source>
+      <translation>Nenhuma gravação marcada: nada extra é escrito.</translation>
+    </message>
+    <message>
+      <source>Size on disk depends on how long each run lasts (the run does not stop at a fixed time).</source>
+      <translation>O tamanho em disco depende da duração de cada execução (a execução não termina em um instante fixo).</translation>
+    </message>
+    <message>
+      <source>Lengthen a sample interval or untick a recording to reduce it.</source>
+      <translation>Aumente um intervalo de amostragem ou desmarque uma gravação para reduzi-lo.</translation>
+    </message>
+    <message>
+      <source>Animate — 1 core, every event shown</source>
+      <translation>Animar — 1 núcleo, cada evento exibido</translation>
+    </message>
+    <message>
+      <source>Detailed event log</source>
+      <translation>Registro detalhado de eventos</translation>
+    </message>
+    <message>
+      <source>Every event. Also needed for Downtime drivers, the Story's causes and the Advisor's downtime checks.</source>
+      <translation>Todo evento. Também necessário para Responsáveis pelo tempo de inatividade, as causas da História e as verificações de inatividade do Advisor.</translation>
+    </message>
+    <message>
+      <source>Availability plot</source>
+      <translation>Gráfico de disponibilidade</translation>
+    </message>
+    <message>
+      <source>Availability over time, for Charts.</source>
+      <translation>Disponibilidade ao longo do tempo, para Gráficos.</translation>
+    </message>
+    <message>
+      <source>Capacity plot</source>
+      <translation>Gráfico de capacidade</translation>
+    </message>
+    <message>
+      <source>Flow vs capacity over time.</source>
+      <translation>Fluxo e capacidade ao longo do tempo.</translation>
+    </message>
+    <message>
+      <source>Interim cost</source>
+      <translation>Custo intermediário</translation>
+    </message>
+    <message>
+      <source>Cost totals over time.</source>
+      <translation>Totais de custo ao longo do tempo.</translation>
+    </message>
+    <message>
+      <source>For the Weak Link results and the canvas weak-link bands.</source>
+      <translation>Para os resultados de Elo fraco e as faixas de elo fraco no diagrama.</translation>
+    </message>
+    <message>
+      <source>Off: the Weak Link results and the canvas weak-link bands will be empty.</source>
+      <translation>Desligado: os resultados de Elo fraco e as faixas de elo fraco no diagrama ficarão vazios.</translation>
+    </message>
+    <message>
+      <source>For the Cost results and the cost charts.</source>
+      <translation>Para os resultados de Custo e os gráficos de custo.</translation>
+    </message>
+    <message>
+      <source>Off: the Cost results and the cost charts will be empty.</source>
+      <translation>Desligado: os resultados de Custo e os gráficos de custo ficarão vazios.</translation>
+    </message>
+    <message>
+      <source>For the Capacity results (flow against the limits).</source>
+      <translation>Para os resultados de Capacidade (fluxo contra os limites).</translation>
+    </message>
+    <message>
+      <source>Off: the Capacity results (flow against the limits) will be empty.</source>
+      <translation>Desligado: os resultados de Capacidade (fluxo contra os limites) ficarão vazios.</translation>
+    </message>
+    <message>
+      <source>For the Importance results and the importance chart.</source>
+      <translation>Para os resultados de Importância e o gráfico de importância.</translation>
+    </message>
+    <message>
+      <source>Off: the Importance results and the importance chart will be empty.</source>
+      <translation>Desligado: os resultados de Importância e o gráfico de importância ficarão vazios.</translation>
+    </message>
+    <message>
+      <source>For the Event Log tab, Downtime drivers, the Story's causes, the Advisor's downtime checks and the canvas downtime layers.</source>
+      <translation>Para a aba Registro de eventos, os Responsáveis pelo tempo de inatividade, as causas da História, as verificações de inatividade do Advisor e as camadas de inatividade no diagrama.</translation>
+    </message>
+    <message>
+      <source>Off: the Event Log tab, Downtime drivers, the Story's causes, the Advisor's downtime checks and the canvas downtime layers will be empty.</source>
+      <translation>Desligado: a aba Registro de eventos, os Responsáveis pelo tempo de inatividade, as causas da História, as verificações de inatividade do Advisor e as camadas de inatividade no diagrama ficarão vazios.</translation>
+    </message>
+    <message>
+      <source>For the availability-over-time chart (Charts).</source>
+      <translation>Para o gráfico de disponibilidade ao longo do tempo (Gráficos).</translation>
+    </message>
+    <message>
+      <source>Off: the availability-over-time chart (Charts) will be empty.</source>
+      <translation>Desligado: o gráfico de disponibilidade ao longo do tempo (Gráficos) ficará vazio.</translation>
+    </message>
+    <message>
+      <source>For the flow-over-time chart (Charts).</source>
+      <translation>Para o gráfico de fluxo ao longo do tempo (Gráficos).</translation>
+    </message>
+    <message>
+      <source>Off: the flow-over-time chart (Charts) will be empty.</source>
+      <translation>Desligado: o gráfico de fluxo ao longo do tempo (Gráficos) ficará vazio.</translation>
+    </message>
+    <message>
+      <source>For the cost-over-time chart (Charts).</source>
+      <translation>Para o gráfico de custo ao longo do tempo (Gráficos).</translation>
+    </message>
+    <message>
+      <source>Off: the cost-over-time chart (Charts) will be empty.</source>
+      <translation>Desligado: o gráfico de custo ao longo do tempo (Gráficos) ficará vazio.</translation>
+    </message>
+    <message>
+      <source>Capacity plot (needs Capacity)</source>
+      <translation>Gráfico de capacidade (requer Capacidade)</translation>
+    </message>
+    <message>
+      <source>needs Capacity</source>
+      <translation>requer Capacidade</translation>
+    </message>
+    <message>
+      <source>Needs the Capacity analysis, under Results to calculate. For the flow-over-time chart (Charts).</source>
+      <translation>Requer a análise de Capacidade, em Resultados a calcular. Para o gráfico de fluxo ao longo do tempo (Gráficos).</translation>
+    </message>
+    <message>
+      <source>Needs the Capacity analysis, under Results to calculate. Off: the flow-over-time chart (Charts) will be empty.</source>
+      <translation>Requer a análise de Capacidade, em Resultados a calcular. Desligado: o gráfico de fluxo ao longo do tempo (Gráficos) ficará vazio.</translation>
+    </message>
+    <message>
+      <source>Interim cost (needs Cost)</source>
+      <translation>Custo intermediário (requer Custo)</translation>
+    </message>
+    <message>
+      <source>needs Cost</source>
+      <translation>requer Custo</translation>
+    </message>
+    <message>
+      <source>Needs the Cost analysis, under Results to calculate. For the cost-over-time chart (Charts).</source>
+      <translation>Requer a análise de Custo, em Resultados a calcular. Para o gráfico de custo ao longo do tempo (Gráficos).</translation>
+    </message>
+    <message>
+      <source>Needs the Cost analysis, under Results to calculate. Off: the cost-over-time chart (Charts) will be empty.</source>
+      <translation>Requer a análise de Custo, em Resultados a calcular. Desligado: o gráfico de custo ao longo do tempo (Gráficos) ficará vazio.</translation>
     </message>
     <message>
       <source>Failure params:</source>

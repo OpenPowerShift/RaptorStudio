@@ -1005,6 +1005,76 @@ or `results.summary`.
   `path` is given.
 |===
 
+==== Groups, imports, versions and sharing
+
+Groups and tags are saved views over a model and never change the
+simulation. A *version* is a checkpoint you save on purpose (the desktop
+app's *File ▸ Save Version Now...*); the tools use the word snapshot only
+in `snapshot_version`'s name. See the Version History and Project Health
+guides in `docs/` for the full story.
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `list_groups`
+| The model's groups and tags. `members` is the resolved count: explicit
+  members plus every element carrying the group's tag.
+
+| `create_group`
+| Create a group (or update the one with that name): `members` as
+  selectors such as `Block:3` or `Hier:900`, an optional `tag` query, a
+  `colour` and a `description`. The model is saved.
+
+| `update_group`
+| Patch one group by name or id: rename, recolour, replace `members` or
+  edit them with `add` / `remove`; an empty `tag` or `description` clears
+  it.
+
+| `delete_group`
+| Delete a group. Its elements and their tags are kept.
+
+| `tag_elements`
+| Set, add or remove tags on elements (`mode` is `replace`, `add` or
+  `remove`).
+
+| `preview_table_import`
+| Say exactly what an `.xlsx` or `.ods` sheet would change, row by row,
+  before anything is written. An `error` blocks the import; a `warning`
+  does not.
+
+| `import_table_data`
+| Apply the sheet's changes and save the model. A plan with any error is
+  refused, so a mistyped row cannot half-edit the model. One edit step;
+  `undo_last_edit` is the way back.
+
+| `project_health`
+| What is in the model and what a reviewer should tidy: element counts,
+  validator findings, unnamed or duplicate names, unused pools and the
+  prose a share-safe copy would remove. Nothing is run or changed.
+
+| `share_safe_copy`
+| Write a copy with the identifying prose removed and the data intact.
+  Group and tag names become `Group_N` and `tag_N`, group descriptions are
+  dropped, and colours and membership are kept.
+
+| `snapshot_version`
+| Record the model's file as a version now, with an optional `label` and
+  Markdown `description`. Ordinary saves record none.
+
+| `list_versions`
+| The versions kept for the model's file, newest first, with the history's
+  total size and whether it is over the 50 MB soft limit.
+
+| `label_version`
+| Name a version or give it a Markdown description; the content is
+  unchanged.
+
+| `restore_version`
+| Write a version to a new file in the workspace. The open model is not
+  changed; open the written file with `open_model`.
+|===
+
 ==== Reference
 
 [cols="1,3",options="header"]

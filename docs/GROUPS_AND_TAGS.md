@@ -35,7 +35,9 @@ overlaps freely with other groups.
 
 ## In the application
 
-**Data ▸ Groups / Tags…** opens the editor.
+**Data ▸ Groups / Tags…** opens the editor. It is also on the right-click
+menu of an element, of a selection and of a hierarchy, and is the last entry
+of the Explorer's group selector.
 
 - **New** creates a group from the canvas selection, or an empty group
   when nothing is selected. Group names must be unique (ignoring case).
