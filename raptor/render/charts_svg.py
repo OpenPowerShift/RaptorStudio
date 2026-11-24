@@ -1421,6 +1421,54 @@ def _delta(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
+def _hops(spec: ChartSpec, area: _Box) -> list[str]:
+    """Which hierarchy is worse, run by run: the quantile summary, or one
+    run's bars when the spec carries a frame (the GUI's animation)."""
+    rows = spec.series
+    if not rows:
+        return []
+    low, high = (float(v) for v in spec.provenance.get("x_range") or (0.0, 1.0))
+    gutter = min(area.width * 0.4, _gutter(area, [str(r.get("name") or "") for r in rows], len(rows)))
+    out: list[str] = []
+    plot = _Box(area.left + gutter, area.top, area.right, area.bottom)
+    frame = _frame(out, spec, plot, x_range=(low, high),
+                   y_range=(0.0, float(len(rows))), y_ticks=[],
+                   x_fmt="percent", x_label=spec.x_label, y_label="")
+    box = frame.box
+    band = box.height / len(rows)
+    index = spec.provenance.get("frame")
+    shares = ([float(r["runs"][index]) for r in rows]
+              if isinstance(index, int) else [])
+    order = sorted(range(len(rows)), key=lambda i: -shares[i]) if shares else []
+    for i, row in enumerate(rows):
+        top = box.top + i * band
+        mid = top + band / 2
+        out.append(_text(plot.left - 6, mid + 4,
+                         _shrink(str(row.get("name") or ""), gutter - 10),
+                         size=10, anchor="end"))
+        mean_x = frame.x(float(row.get("value") or 0.0))
+        if shares:
+            bar_h = max(4.0, min(24.0, band * 0.5))
+            x = frame.x(shares[i])
+            out.append(_rect(box.left, mid - bar_h / 2, max(1.0, x - box.left),
+                             bar_h, ACCENT))
+            rank = order.index(i) + 1
+            out.append(_text(min(max(x, mean_x) + 6, box.right - 60), mid + 4,
+                             f"#{rank} {pct(shares[i])}", size=10))
+        else:
+            dots = [float(d["value"]) for d in row.get("dots") or []
+                    for _ in range(max(1, int(d.get("count", 1))))]
+            diameter, levels = fit_dots([frame.x(v) for v in dots],
+                                        band * 0.8, largest=10.0)
+            for (x, level) in levels:
+                y = top + band - 3 - diameter / 2 - level * diameter
+                out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' "
+                           f"r='{_fmt(diameter / 2 - 0.6)}' fill='{ACCENT}'/>")
+        out.append(_line(mean_x, top + 2, mean_x, top + band - 2, INK,
+                         width=1.6, dash="3,2"))
+    return out
+
+
 def _heat_colour(value: float, largest: float) -> str:
     """A sequential blue from the surface to the accent for 0..largest."""
     if largest <= 0:
@@ -1742,6 +1790,7 @@ _RENDERERS: dict[str, Callable[[ChartSpec, _Box], list[str]]] = {
     "sunburst": _sunburst,
     "scorecard": _scorecard,
     "small_multiples": _small_multiples,
+    "hops": _hops,
 }
 
 

@@ -1607,6 +1607,71 @@ class ChartWidget(QWidget):
                       str(row.get("name") or ""),
                       f"{row.get('name')}: {100 * value:+.3g} points")
 
+    def _paint_hops(self, painter, spec, palette, area) -> None:
+        rows = spec.series
+        if not rows:
+            return self._paint_none(painter, spec, palette, area)
+        low, high = (float(v) for v in spec.provenance.get("x_range") or (0.0, 1.0))
+        fm = QFontMetrics(self.font())
+        gutter = min(area.width() * 0.4,
+                     max(60, max(fm.horizontalAdvance(str(r.get("name") or ""))
+                                 for r in rows) + 10))
+        plot = QRectF(area.left() + gutter, area.top(),
+                      max(1.0, area.width() - gutter), area.height())
+        frame = self._frame(painter, spec, palette, plot, x_range=(low, high),
+                            y_range=(0.0, float(len(rows))), y_ticks=[],
+                            x_fmt="percent", x_label=spec.x_label, y_label="")
+        box = frame.rect
+        band = box.height() / len(rows)
+        index = spec.provenance.get("frame")
+        shares = ([float(r["runs"][index]) for r in rows]
+                  if isinstance(index, int) else [])
+        order = sorted(range(len(rows)), key=lambda i: -shares[i]) if shares else []
+        accent = QColor(palette["accent"])
+        for i, row in enumerate(rows):
+            top = box.top() + i * band
+            mid = top + band / 2
+            painter.setPen(QColor(palette["text"]))
+            painter.drawText(
+                QRectF(area.left(), top, gutter - 6, band),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                fm.elidedText(str(row.get("name") or ""),
+                              Qt.TextElideMode.ElideMiddle,
+                              int(max(1.0, gutter - 10))))
+            if shares:
+                bar_h = max(4.0, min(24.0, band * 0.5))
+                x = frame.x(shares[i])
+                painter.fillRect(QRectF(box.left(), mid - bar_h / 2,
+                                        max(1.0, x - box.left()), bar_h), accent)
+                painter.setPen(QColor(palette["text"]))
+                painter.drawText(
+                    QRectF(min(max(x, frame.x(float(row.get('value') or 0.0))) + 6,
+                         box.right() - 90), mid - 10, 90, 20),
+                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                    f"#{order.index(i) + 1}  {format_value(shares[i], 'percent', 3)}")
+                self._hit(QRectF(box.left(), top, box.width(), band), "hierarchy",
+                          str(row.get("name") or ""),
+                          f"{row.get('name')}: {format_value(shares[i], 'percent', 3)}"
+                          f" in run {index + 1}")
+            else:
+                dots = [float(d["value"]) for d in row.get("dots") or []
+                        for _ in range(max(1, int(d.get("count", 1))))]
+                diameter, levels = fit_dots([frame.x(v) for v in dots],
+                                            max(8.0, band * 0.8), largest=10.0)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(accent)
+                radius = diameter / 2 - 0.6
+                for x, level in levels:
+                    y = top + band - 3 - diameter / 2 - level * diameter
+                    painter.drawEllipse(QPointF(x, y), radius, radius)
+                self._hit(QRectF(box.left(), top, box.width(), band), "hierarchy",
+                          str(row.get("name") or ""),
+                          f"{row.get('name')}: mean "
+                          f"{format_value(float(row.get('value') or 0.0), 'percent', 3)}")
+            mean_x = frame.x(float(row.get("value") or 0.0))
+            painter.setPen(QPen(QColor(palette["text"]), 1.6, Qt.PenStyle.DashLine))
+            painter.drawLine(QPointF(mean_x, top + 2), QPointF(mean_x, top + band - 2))
+
     def _paint_heatmap(self, painter, spec, palette, area) -> None:
         rows = spec.series
         columns = [str(item.get("key")) for item in

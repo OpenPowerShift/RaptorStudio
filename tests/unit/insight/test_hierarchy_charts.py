@@ -75,6 +75,7 @@ def _attribution():
     ("hierarchy-treemap", "treemap"),
     ("hierarchy-overlay", "timeline"),
     ("hierarchy-small-multiples", "small_multiples"),
+    ("hierarchy-hops", "hops"),
     ("hierarchy-heatmap", "heatmap"),
     ("hierarchy-anatomy", "icicle"),
     ("hierarchy-ribbon", "ribbon"),
