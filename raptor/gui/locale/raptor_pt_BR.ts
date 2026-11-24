@@ -4409,10 +4409,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>⏣ Custos</translation>
     </message>
     <message>
-      <source>Phased</source>
-      <translation>Faseado</translation>
-    </message>
-    <message>
       <source>Marks this hierarchy as phased -- shown hatched on the canvas. A hierarchy has no per-phase values of its own; this flags that its CONTENTS change between phases.</source>
       <translation>Marca esta hierarquia como faseada -- exibida hachurada no diagrama. Uma hierarquia não tem valores próprios por fase; isto indica que seu CONTEÚDO muda entre fases.</translation>
     </message>
@@ -4585,10 +4581,6 @@ Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
       <translation>Parcela da idade do bloco que um reparo ou MP remove. 0 = nenhuma: o bloco fica tão desgastado quanto imediatamente antes de falhar (tão ruim quanto velho). 1 = toda: como novo. 0,7 remove 70% e deixa 30%. Usado somente quando a Restauração é Tipo I ou Tipo II.</translation>
     </message>
     <message>
-      <source>This block's mean life changes following a failure</source>
-      <translation>A vida média deste bloco muda após uma falha</translation>
-    </message>
-    <message>
       <source>Reliability growth or decay: after each failure the block's lives get longer (growth, e.g. design fixes) or shorter (decay, e.g. wear that repairs do not remove).</source>
       <translation>Crescimento ou decaimento da confiabilidade: após cada falha, as vidas do bloco ficam mais longas (crescimento, por exemplo correções de projeto) ou mais curtas (decaimento, por exemplo desgaste que os reparos não removem).</translation>
     </message>
@@ -4649,10 +4641,6 @@ Com a atualização de MP marcada, uma MP é sempre como novo.</translation>
       <translation>Aplicar dependência</translation>
     </message>
     <message>
-      <source>Always add Done cost at run end</source>
-      <translation>Sempre adicionar custo Done ao final da execução</translation>
-    </message>
-    <message>
       <source>How old the block already is at time 0, for a block partway through its life. Its first life is drawn given it has survived to this age, so a worn block fails sooner. It also counts as age already used when a restoration factor applies. 0 = new.</source>
       <translation>Qual a idade do bloco no instante 0, para um bloco em meio à sua vida. Sua primeira vida é sorteada considerando que sobreviveu até esta idade, então um bloco desgastado falha mais cedo. Também conta como idade já usada quando um fator de restauração se aplica. 0 = novo.</translation>
     </message>
@@ -4695,32 +4683,12 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>k-de-n: este nó precisa de pelo menos k de seus n caminhos de entrada funcionando para contar como ativo (k=1 é um OU simples, k=n é um E simples).</translation>
     </message>
     <message>
-      <source>Unrestricted flow</source>
-      <translation>Fluxo irrestrito</translation>
-    </message>
-    <message>
-      <source>Use any available path</source>
-      <translation>Usar qualquer caminho disponível</translation>
-    </message>
-    <message>
-      <source>Engage standby logic for this node</source>
-      <translation>Ativar a lógica de espera para este nó</translation>
-    </message>
-    <message>
       <source>The first checkbox, which engages the remainder of the tab.</source>
       <translation>A primeira caixa de seleção, que ativa o restante da aba.</translation>
     </message>
     <message>
-      <source>Return alternates to standby once the primary is repaired</source>
-      <translation>Devolver os alternativos à espera quando o primário for reparado</translation>
-    </message>
-    <message>
       <source>If unchecked, an alternate that becomes a primary stays a primary until it itself fails.</source>
       <translation>Se desmarcado, um alternativo que se torna primário permanece primário até ele próprio falhar.</translation>
-    </message>
-    <message>
-      <source>Try automatic switchover before manual</source>
-      <translation>Tentar comutação automática antes da manual</translation>
     </message>
     <message>
       <source>The number of paths a user would DESIRE operating at any time (&gt;= k, &lt;= n) -- distinct from k, the minimum required. Default equals k.</source>
@@ -4733,10 +4701,6 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Standby switchover by incoming link</source>
       <translation>Comutação de espera por vínculo de entrada</translation>
-    </message>
-    <message>
-      <source>Include node analysis information for this node in the output tables and reports</source>
-      <translation>Incluir informações de análise do nó para este nó nas tabelas e relatórios de saída</translation>
     </message>
     <message>
       <source>Independent: answers to nothing but its own clocks. No other element's state can idle, hold or trigger it.</source>
@@ -4797,6 +4761,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Create a Markdown text annotation on the canvas from this comment, next to the element</source>
       <translation>Criar uma anotação de texto Markdown no diagrama a partir deste comentário, ao lado do elemento</translation>
+    </message>
+    <message>
+      <source>Phased</source>
+      <translation>Faseado</translation>
     </message>
     <message>
       <source>A phased element's attributes change from one phase to another (below) -- shown hatched on the canvas.</source>
@@ -6733,6 +6701,1394 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Abrir, salvar, imprimir, exportar e arquivos recentes (Alt e depois F)</translation>
     </message>
     <message>
+      <source>Read-only — editing is locked</source>
+      <translation>Somente leitura — a edição está bloqueada</translation>
+    </message>
+    <message>
+      <source>Results are on screen. Clear them to edit, or your first edit will ask whether to discard them.</source>
+      <translation>Há resultados na tela. Limpe-os para editar; caso contrário, a primeira edição perguntará se deseja descartá-los.</translation>
+    </message>
+    <message>
+      <source>General</source>
+      <translation>Geral</translation>
+    </message>
+    <message>
+      <source>Repair</source>
+      <translation>Reparar</translation>
+    </message>
+    <message>
+      <source>PM</source>
+      <translation>MP</translation>
+    </message>
+    <message>
+      <source>Dependencies</source>
+      <translation>Dependências</translation>
+    </message>
+    <message>
+      <source>Hierarchy</source>
+      <translation>Hierarquia</translation>
+    </message>
+    <message>
+      <source>Parent level</source>
+      <translation>Nível superior</translation>
+    </message>
+    <message>
+      <source>Markers</source>
+      <translation>Marcadores</translation>
+    </message>
+    <message>
+      <source>In node</source>
+      <translation>Nó de entrada</translation>
+    </message>
+    <message>
+      <source>Out node</source>
+      <translation>Nó de saída</translation>
+    </message>
+    <message>
+      <source>Identity</source>
+      <translation>Identificação</translation>
+    </message>
+    <message>
+      <source>Firing</source>
+      <translation>Disparo</translation>
+    </message>
+    <message>
+      <source>Success probability:</source>
+      <translation>Probabilidade de sucesso:</translation>
+    </message>
+    <message>
+      <source>Random Stream</source>
+      <translation>Fluxo aleatório</translation>
+    </message>
+    <message>
+      <source>Stream:</source>
+      <translation>Fluxo:</translation>
+    </message>
+    <message>
+      <source>Simulation Settings</source>
+      <translation>Configurações da simulação</translation>
+    </message>
+    <message>
+      <source>Time simulation (run length)</source>
+      <translation>Simulação por tempo (duração da execução)</translation>
+    </message>
+    <message>
+      <source>Failure simulation (N system failures)</source>
+      <translation>Simulação por falhas (N falhas do sistema)</translation>
+    </message>
+    <message>
+      <source>Phase cycles (N phase cycles)</source>
+      <translation>Ciclos de fases (N ciclos de fases)</translation>
+    </message>
+    <message>
+      <source>Termination</source>
+      <translation>Término</translation>
+    </message>
+    <message>
+      <source>Term condition</source>
+      <translation>Condição de término</translation>
+    </message>
+    <message>
+      <source>Start stats</source>
+      <translation>Início das estatísticas</translation>
+    </message>
+    <message>
+      <source>Num runs</source>
+      <translation>Nº de execuções</translation>
+    </message>
+    <message>
+      <source>Change trials in the Run panel</source>
+      <translation>Altere as tentativas no painel Executar</translation>
+    </message>
+    <message>
+      <source>Units:</source>
+      <translation>Unidades:</translation>
+    </message>
+    <message>
+      <source>Random Streams</source>
+      <translation>Fluxos aleatórios</translation>
+    </message>
+    <message>
+      <source>Comment</source>
+      <translation>Comentário</translation>
+    </message>
+    <message>
+      <source>System comment:</source>
+      <translation>Comentário do sistema:</translation>
+    </message>
+    <message>
+      <source>Flags</source>
+      <translation>Opções</translation>
+    </message>
+    <message>
+      <source>General — identity, position, and simulation-start state</source>
+      <translation>Geral — identificação, posição e estado inicial da simulação</translation>
+    </message>
+    <message>
+      <source>Failure distribution and random-number stream</source>
+      <translation>Distribuição de falha e fluxo de números aleatórios</translation>
+    </message>
+    <message>
+      <source>Repair distribution and random-number stream</source>
+      <translation>Distribuição de reparo e fluxo de números aleatórios</translation>
+    </message>
+    <message>
+      <source>Sparing strategy, spare pools, and logistics delay time (LDT)</source>
+      <translation>Estratégia de sobressalentes, pools de sobressalentes e tempo de atraso logístico (LDT)</translation>
+    </message>
+    <message>
+      <source>PM — Preventive Maintenance schedule and options</source>
+      <translation>MP — programação e opções da manutenção preventiva</translation>
+    </message>
+    <message>
+      <source>Deps — Dependencies on other elements</source>
+      <translation>Dep. — dependências de outros elementos</translation>
+    </message>
+    <message>
+      <source>Cost rates</source>
+      <translation>Taxas de custo</translation>
+    </message>
+    <message>
+      <source>Identity, position, connections, and K-out-of-N logic</source>
+      <translation>Identificação, posição, conexões e lógica K-de-N</translation>
+    </message>
+    <message>
+      <source>▤ Capacity</source>
+      <translation>▤ Capacidade</translation>
+    </message>
+    <message>
+      <source>Flow-in / flow-out routing</source>
+      <translation>Roteamento de fluxo de entrada e saída</translation>
+    </message>
+    <message>
+      <source>⇄ Standby</source>
+      <translation>⇄ Espera</translation>
+    </message>
+    <message>
+      <source>Standby switchover — engage cold-standby logic, priority return, auto-switch order, and the k* target</source>
+      <translation>Comutação de espera — lógica de espera fria, retorno por prioridade, ordem de comutação automática e a meta k*</translation>
+    </message>
+    <message>
+      <source>⇢ Dependency</source>
+      <translation>⇢ Dependência</translation>
+    </message>
+    <message>
+      <source>Dependency on another element</source>
+      <translation>Dependência de outro elemento</translation>
+    </message>
+    <message>
+      <source>⚙ Advanced</source>
+      <translation>⚙ Avançado</translation>
+    </message>
+    <message>
+      <source>Name, comment, and firing probability</source>
+      <translation>Nome, comentário e probabilidade de disparo</translation>
+    </message>
+    <message>
+      <source>Cost per initial/success/failure</source>
+      <translation>Custo por início, sucesso e falha</translation>
+    </message>
+    <message>
+      <source>Random-number stream and phasing</source>
+      <translation>Fluxo de números aleatórios e fases</translation>
+    </message>
+    <message>
+      <source>Name, nesting, and In/Out markers</source>
+      <translation>Nome, aninhamento e marcadores de entrada e saída</translation>
+    </message>
+    <message>
+      <source>Project-wide simulation, analysis, and display settings</source>
+      <translation>Configurações de simulação, análise e exibição de todo o projeto</translation>
+    </message>
+    <message>
+      <source>Colours and font for this canvas annotation</source>
+      <translation>Cores e fonte desta anotação do diagrama</translation>
+    </message>
+    <message>
+      <source>Initial event</source>
+      <translation>Evento inicial</translation>
+    </message>
+    <message>
+      <source>Per success</source>
+      <translation>Por sucesso</translation>
+    </message>
+    <message>
+      <source>Per failure</source>
+      <translation>Por falha</translation>
+    </message>
+    <message>
+      <source>Logistics Delay Time (LDT): time spent waiting for parts, technicians, or transport -- separate from the repair work itself.
+Pre-repair delay = LDT before the repair starts.
+Post-repair delay = LDT after the repair finishes (before the block goes back up).</source>
+      <translation>Tempo de atraso logístico (LDT): tempo gasto esperando peças, técnicos ou transporte, separado do trabalho de reparo em si.
+Atraso pré-reparo = LDT antes de o reparo começar.
+Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a operar).</translation>
+    </message>
+    <message>
+      <source>Parent ID</source>
+      <translation>ID do nível superior</translation>
+    </message>
+    <message>
+      <source>Comment:</source>
+      <translation>Comentário:</translation>
+    </message>
+    <message>
+      <source>Position</source>
+      <translation>Posição</translation>
+    </message>
+    <message>
+      <source>Connections</source>
+      <translation>Conexões</translation>
+    </message>
+    <message>
+      <source>Inputs</source>
+      <translation>Entradas</translation>
+    </message>
+    <message>
+      <source>Outputs</source>
+      <translation>Saídas</translation>
+    </message>
+    <message>
+      <source>Simulation</source>
+      <translation>Simulação</translation>
+    </message>
+    <message>
+      <source>Start state</source>
+      <translation>Estado inicial</translation>
+    </message>
+    <message>
+      <source>How the block begins each run: working or failed, and how much of its life or repair is already done.</source>
+      <translation>Como o bloco começa cada execução: funcionando ou falhado, e quanto da sua vida ou do seu reparo já foi cumprido.</translation>
+    </message>
+    <message>
+      <source>Uses phasing</source>
+      <translation>Usa fases</translation>
+    </message>
+    <message>
+      <source>Failure Distribution</source>
+      <translation>Distribuição de falha</translation>
+    </message>
+    <message>
+      <source>Standby stress:</source>
+      <translation>Estresse de espera:</translation>
+    </message>
+    <message>
+      <source>Duty cycle:</source>
+      <translation>Ciclo de trabalho:</translation>
+    </message>
+    <message>
+      <source>Restoration:</source>
+      <translation>Restauração:</translation>
+    </message>
+    <message>
+      <source>Restoration factor:</source>
+      <translation>Fator de restauração:</translation>
+    </message>
+    <message>
+      <source>This block's mean life changes following a failure</source>
+      <translation>A vida média deste bloco muda após uma falha</translation>
+    </message>
+    <message>
+      <source>Repair Distribution</source>
+      <translation>Distribuição de reparo</translation>
+    </message>
+    <message>
+      <source>Type:</source>
+      <translation>Tipo:</translation>
+    </message>
+    <message>
+      <source>Pool:</source>
+      <translation>Pool:</translation>
+    </message>
+    <message>
+      <source>Logistical Constraints</source>
+      <translation>Restrições logísticas</translation>
+    </message>
+    <message>
+      <source>Pre-repair delay (LDT):</source>
+      <translation>Atraso pré-reparo (LDT):</translation>
+    </message>
+    <message>
+      <source>Pre-LDT</source>
+      <translation>Pré-LDT</translation>
+    </message>
+    <message>
+      <source>Post-repair delay (LDT):</source>
+      <translation>Atraso pós-reparo (LDT):</translation>
+    </message>
+    <message>
+      <source>Post-LDT</source>
+      <translation>Pós-LDT</translation>
+    </message>
+    <message>
+      <source>Needed for repair:</source>
+      <translation>Necessário para o reparo:</translation>
+    </message>
+    <message>
+      <source>Needed for PM:</source>
+      <translation>Necessário para a MP:</translation>
+    </message>
+    <message>
+      <source>This block performs Preventive Maintenance</source>
+      <translation>Este bloco realiza manutenção preventiva</translation>
+    </message>
+    <message>
+      <source>PM Configuration</source>
+      <translation>Configuração da MP</translation>
+    </message>
+    <message>
+      <source>At start-up, PM cycle has already elapsed</source>
+      <translation>Na partida, o ciclo de MP já decorreu</translation>
+    </message>
+    <message>
+      <source>Triggered by a PM trigger</source>
+      <translation>Acionado por um gatilho de MP</translation>
+    </message>
+    <message>
+      <source>Trigger name:</source>
+      <translation>Nome do gatilho:</translation>
+    </message>
+    <message>
+      <source>PM Distribution</source>
+      <translation>Distribuição da MP</translation>
+    </message>
+    <message>
+      <source>PM Options</source>
+      <translation>Opções da MP</translation>
+    </message>
+    <message>
+      <source>Default Dependency Action</source>
+      <translation>Ação de dependência padrão</translation>
+    </message>
+    <message>
+      <source>Effects (%)</source>
+      <translation>Efeitos (%)</translation>
+    </message>
+    <message>
+      <source>PM threshold</source>
+      <translation>Limite de MP</translation>
+    </message>
+    <message>
+      <source>Initial acquisition</source>
+      <translation>Aquisição inicial</translation>
+    </message>
+    <message>
+      <source>Running (/time)</source>
+      <translation>Em operação (/tempo)</translation>
+    </message>
+    <message>
+      <source>Standby (/time)</source>
+      <translation>Em espera (/tempo)</translation>
+    </message>
+    <message>
+      <source>Idle downtime (/time)</source>
+      <translation>Parada ociosa (/tempo)</translation>
+    </message>
+    <message>
+      <source>Hands-on maintenance, fixed cost</source>
+      <translation>Manutenção direta, custo fixo</translation>
+    </message>
+    <message>
+      <source>Hands-on maintenance (/time)</source>
+      <translation>Manutenção direta (/tempo)</translation>
+    </message>
+    <message>
+      <source>Logistical hold (/time)</source>
+      <translation>Espera logística (/tempo)</translation>
+    </message>
+    <message>
+      <source>Preventive maintenance, fixed cost</source>
+      <translation>Manutenção preventiva, custo fixo</translation>
+    </message>
+    <message>
+      <source>Preventive maintenance (/time)</source>
+      <translation>Manutenção preventiva (/tempo)</translation>
+    </message>
+    <message>
+      <source>Preventive maintenance hold (/time)</source>
+      <translation>Espera da manutenção preventiva (/tempo)</translation>
+    </message>
+    <message>
+      <source>Rebate or disposal, fixed cost</source>
+      <translation>Abatimento ou descarte, custo fixo</translation>
+    </message>
+    <message>
+      <source>Permanently done (/time)</source>
+      <translation>Encerrado em definitivo (/tempo)</translation>
+    </message>
+    <message>
+      <source>Recurring spare</source>
+      <translation>Sobressalente recorrente</translation>
+    </message>
+    <message>
+      <source>Emergency spare additional cost</source>
+      <translation>Custo adicional do sobressalente de emergência</translation>
+    </message>
+    <message>
+      <source>Costs (edit all, then Apply)</source>
+      <translation>Custos (edite todos e depois clique em Aplicar)</translation>
+    </message>
+    <message>
+      <source>Always add Done cost at run end</source>
+      <translation>Sempre adicionar custo Done ao final da execução</translation>
+    </message>
+    <message>
+      <source>X</source>
+      <translation>X</translation>
+    </message>
+    <message>
+      <source>Y</source>
+      <translation>Y</translation>
+    </message>
+    <message>
+      <source>Yes</source>
+      <translation>Sim</translation>
+    </message>
+    <message>
+      <source>No</source>
+      <translation>Não</translation>
+    </message>
+    <message>
+      <source>% complete</source>
+      <translation>% concluído</translation>
+    </message>
+    <message>
+      <source>Start age</source>
+      <translation>Idade inicial</translation>
+    </message>
+    <message>
+      <source>No data? Say what share fails by a given age (one in ten by 100 hours, half by 300) and fit a Weibull, lognormal or exponential law to the answers.</source>
+      <translation>Sem dados? Informe que parcela falha até uma certa idade (uma em dez até 100 horas, metade até 300) e ajuste uma lei de Weibull, lognormal ou exponencial às respostas.</translation>
+    </message>
+    <message>
+      <source>No data? Say what share is repaired by a given age (one in ten by 100 hours, half by 300) and fit a Weibull, lognormal or exponential law to the answers.</source>
+      <translation>Sem dados? Informe que parcela é reparada até uma certa idade (uma em dez até 100 horas, metade até 300) e ajuste uma lei de Weibull, lognormal ou exponencial às respostas.</translation>
+    </message>
+    <message>
+      <source>Rate:</source>
+      <translation>Taxa:</translation>
+    </message>
+    <message>
+      <source>Limit:</source>
+      <translation>Limite:</translation>
+    </message>
+    <message>
+      <source>None — repair in place</source>
+      <translation>Nenhum — reparo no local</translation>
+    </message>
+    <message>
+      <source>Spare pool</source>
+      <translation>Pool de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Infinite spares</source>
+      <translation>Sobressalentes infinitos</translation>
+    </message>
+    <message>
+      <source>Custom stock</source>
+      <translation>Estoque personalizado</translation>
+    </message>
+    <message>
+      <source>Spare Stock</source>
+      <translation>Estoque de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Spare Ordering</source>
+      <translation>Pedido de sobressalentes</translation>
+    </message>
+    <message>
+      <source>Routine (RSO)</source>
+      <translation>Rotina (RSO)</translation>
+    </message>
+    <message>
+      <source>Routine Spare Ordering (RSO): reorder a spare on a fixed schedule, before stock actually runs out.</source>
+      <translation>Pedido de sobressalentes de rotina (RSO): repõe um sobressalente em intervalos fixos, antes que o estoque acabe.</translation>
+    </message>
+    <message>
+      <source>Emergency (ESO)</source>
+      <translation>Emergência (ESO)</translation>
+    </message>
+    <message>
+      <source>Emergency Spare Ordering (ESO): rush-order a spare (usually faster but costlier) when the pool runs out and a block needs one now.</source>
+      <translation>Pedido de sobressalentes de emergência (ESO): pede um sobressalente com urgência (em geral mais rápido, porém mais caro) quando o pool acaba e um bloco precisa de um agora.</translation>
+    </message>
+    <message>
+      <source>Emergency time</source>
+      <translation>Tempo de emergência</translation>
+    </message>
+    <message>
+      <source>How long an emergency (ESO) spare takes to arrive.</source>
+      <translation>Quanto tempo um sobressalente de emergência (ESO) leva para chegar.</translation>
+    </message>
+    <message>
+      <source>Stock level (SLO)</source>
+      <translation>Nível de estoque (SLO)</translation>
+    </message>
+    <message>
+      <source>Stock-Level Ordering (SLO): automatically reorder once the pool's stock drops to a threshold level.</source>
+      <translation>Pedido por nível de estoque (SLO): repõe automaticamente quando o estoque do pool cai a um nível limite.</translation>
+    </message>
+    <message>
+      <source>Needs a spare to conduct PM</source>
+      <translation>Precisa de um sobressalente para realizar a MP</translation>
+    </message>
+    <message>
+      <source>After PM is completed, refresh block like new</source>
+      <translation>Após a MP, renovar o bloco como novo</translation>
+    </message>
+    <message>
+      <source>Ticked: every PM leaves the block as good as new, whatever its restoration setting. Unticked: the block resumes the life it had, or, with restoration Type I or II (Failure tab), has part of its age removed.</source>
+      <translation>Marcado: toda MP deixa o bloco como novo, qualquer que seja sua restauração. Desmarcado: o bloco retoma a vida que tinha ou, com restauração do tipo I ou II (aba Falha), tem parte da sua idade removida.</translation>
+    </message>
+    <message>
+      <source>Defer PM until a non-mission phase occurs</source>
+      <translation>Adiar a MP até ocorrer uma fase fora da missão</translation>
+    </message>
+    <message>
+      <source>Only meaningful when this model has phases defined.</source>
+      <translation>Só faz sentido quando este modelo tem fases definidas.</translation>
+    </message>
+    <message>
+      <source>Defer PM until a spare or resources are available</source>
+      <translation>Adiar a MP até haver sobressalente ou recursos</translation>
+    </message>
+    <message>
+      <source>A failure resets the time to next PM activity</source>
+      <translation>Uma falha reinicia o tempo até a próxima atividade de MP</translation>
+    </message>
+    <message>
+      <source>Nothing %</source>
+      <translation>Nada %</translation>
+    </message>
+    <message>
+      <source>Idle %</source>
+      <translation>Ocioso %</translation>
+    </message>
+    <message>
+      <source>PM %</source>
+      <translation>MP %</translation>
+    </message>
+    <message>
+      <source>Failure %</source>
+      <translation>Falhas %</translation>
+    </message>
+    <message>
+      <source>Amount exhausted</source>
+      <translation>Quantidade consumida</translation>
+    </message>
+    <message>
+      <source>Life already used at time 0. It adds to Start age.</source>
+      <translation>Vida já consumida no instante 0. Soma-se à idade inicial.</translation>
+    </message>
+    <message>
+      <source>Initial stock:</source>
+      <translation>Estoque inicial:</translation>
+    </message>
+    <message>
+      <source>New spares/order:</source>
+      <translation>Novos sobressalentes/pedido:</translation>
+    </message>
+    <message>
+      <source>Arrival interval:</source>
+      <translation>Intervalo de chegada:</translation>
+    </message>
+    <message>
+      <source>New spares/order</source>
+      <translation>Novos sobressalentes/pedido</translation>
+    </message>
+    <message>
+      <source>Arrival interval</source>
+      <translation>Intervalo de chegada</translation>
+    </message>
+    <message>
+      <source>SLO level</source>
+      <translation>Nível SLO</translation>
+    </message>
+    <message>
+      <source>Stock level that triggers an SLO reorder.</source>
+      <translation>Nível de estoque que aciona uma reposição SLO.</translation>
+    </message>
+    <message>
+      <source>SLO quantity</source>
+      <translation>Quantidade SLO</translation>
+    </message>
+    <message>
+      <source>How many spares an SLO reorder brings in.</source>
+      <translation>Quantos sobressalentes uma reposição SLO traz.</translation>
+    </message>
+    <message>
+      <source>SLO time</source>
+      <translation>Tempo SLO</translation>
+    </message>
+    <message>
+      <source>How long an SLO reorder takes to arrive.</source>
+      <translation>Quanto tempo uma reposição SLO leva para chegar.</translation>
+    </message>
+    <message>
+      <source>Start</source>
+      <translation>Início</translation>
+    </message>
+    <message>
+      <source>Regular</source>
+      <translation>Comum</translation>
+    </message>
+    <message>
+      <source>End</source>
+      <translation>Fim</translation>
+    </message>
+    <message>
+      <source>Hierarchy In</source>
+      <translation>Entrada da hierarquia</translation>
+    </message>
+    <message>
+      <source>Hierarchy Out</source>
+      <translation>Saída da hierarquia</translation>
+    </message>
+    <message>
+      <source>K-out-of-N Logic</source>
+      <translation>Lógica K-de-N</translation>
+    </message>
+    <message>
+      <source>Flow In</source>
+      <translation>Fluxo de entrada</translation>
+    </message>
+    <message>
+      <source>Unrestricted flow</source>
+      <translation>Fluxo irrestrito</translation>
+    </message>
+    <message>
+      <source>Flow Out</source>
+      <translation>Fluxo de saída</translation>
+    </message>
+    <message>
+      <source>Use any available path</source>
+      <translation>Usar qualquer caminho disponível</translation>
+    </message>
+    <message>
+      <source>Switchover</source>
+      <translation>Comutação</translation>
+    </message>
+    <message>
+      <source>Engage standby logic for this node</source>
+      <translation>Ativar a lógica de espera para este nó</translation>
+    </message>
+    <message>
+      <source>Return alternates to standby once the primary is repaired</source>
+      <translation>Devolver os alternativos à espera quando o primário for reparado</translation>
+    </message>
+    <message>
+      <source>Try automatic switchover before manual</source>
+      <translation>Tentar comutação automática antes da manual</translation>
+    </message>
+    <message>
+      <source>Incoming link switchover</source>
+      <translation>Comutação por vínculo de entrada</translation>
+    </message>
+    <message>
+      <source>Reporting</source>
+      <translation>Relatórios</translation>
+    </message>
+    <message>
+      <source>Include node analysis information for this node in the output tables and reports</source>
+      <translation>Incluir informações de análise do nó para este nó nas tabelas e relatórios de saída</translation>
+    </message>
+    <message>
+      <source>Total paths (n)</source>
+      <translation>Total de caminhos (n)</translation>
+    </message>
+    <message>
+      <source>(not stored)</source>
+      <translation>(não armazenado)</translation>
+    </message>
+    <message>
+      <source>Nominal Flow</source>
+      <translation>Fluxo nominal</translation>
+    </message>
+    <message>
+      <source>Max Flow</source>
+      <translation>Fluxo máximo</translation>
+    </message>
+    <message>
+      <source>Link To</source>
+      <translation>Vínculo para</translation>
+    </message>
+    <message>
+      <source>Incoming link flows</source>
+      <translation>Fluxos dos vínculos de entrada</translation>
+    </message>
+    <message>
+      <source>Outgoing link priorities</source>
+      <translation>Prioridades dos vínculos de saída</translation>
+    </message>
+    <message>
+      <source>Status</source>
+      <translation>Status</translation>
+    </message>
+    <message>
+      <source>Not applicable to this node type</source>
+      <translation>Não se aplica a este tipo de nó</translation>
+    </message>
+    <message>
+      <source>Node</source>
+      <translation>Nó</translation>
+    </message>
+    <message>
+      <source>Hier</source>
+      <translation>Hier.</translation>
+    </message>
+    <message>
+      <source>Capacity priority (CapPri): order this link is served when flows compete; 1 first, 99 last.</source>
+      <translation>Prioridade de capacidade (CapPri): ordem em que este vínculo é atendido quando os fluxos competem; 1 primeiro, 99 por último.</translation>
+    </message>
+    <message>
+      <source>Priority must be between 1 and 99</source>
+      <translation>A prioridade deve estar entre 1 e 99</translation>
+    </message>
+    <message>
+      <source>Auto switch probability must be greater than 0 and at most 1</source>
+      <translation>A probabilidade de comutação automática deve ser maior que 0 e no máximo 1</translation>
+    </message>
+    <message>
+      <source>Name:</source>
+      <translation>Nome:</translation>
+    </message>
+    <message>
+      <source>No phases defined</source>
+      <translation>Nenhuma fase definida</translation>
+    </message>
+    <message>
+      <source>Std Dev</source>
+      <translation>Desvio padrão</translation>
+    </message>
+    <message>
+      <source>Shape</source>
+      <translation>Forma</translation>
+    </message>
+    <message>
+      <source>Shape2</source>
+      <translation>Forma 2</translation>
+    </message>
+    <message>
+      <source>N Trials</source>
+      <translation>Nº de tentativas</translation>
+    </message>
+    <message>
+      <source>Probability</source>
+      <translation>Probabilidade</translation>
+    </message>
+    <message>
+      <source>Linked</source>
+      <translation>Vinculado</translation>
+    </message>
+    <message>
+      <source>Active stress</source>
+      <translation>Estresse ativo</translation>
+    </message>
+    <message>
+      <source>Colours</source>
+      <translation>Cores</translation>
+    </message>
+    <message>
+      <source>Line</source>
+      <translation>Linha</translation>
+    </message>
+    <message>
+      <source>Border</source>
+      <translation>Borda</translation>
+    </message>
+    <message>
+      <source>Anchor</source>
+      <translation>Âncora</translation>
+    </message>
+    <message>
+      <source>Each end can be attached to an element or another annotation: it then follows it and stops at its edge. Pick… chooses the target by clicking it; Remove frees that end where it is.</source>
+      <translation>Cada extremidade pode ser presa a um elemento ou a outra anotação: ela passa a segui-lo e para na sua borda. Escolher… define o alvo com um clique; Remover solta a extremidade onde ela está.</translation>
+    </message>
+    <message>
+      <source>Anchored, it moves with its target. Centre ignores the gap. Drag the annotation to place it where you like; it keeps following its target from there. Reset position returns it to its Location, Break link frees it. Use Pick on canvas… to choose the target by clicking it.</source>
+      <translation>Ancorada, ela se move com o alvo. Centro ignora o espaço. Arraste a anotação para colocá-la onde quiser; ela continua seguindo o alvo a partir dali. Redefinir posição a devolve à sua Posição, Romper vínculo a solta. Use Escolher no diagrama… para definir o alvo com um clique.</translation>
+    </message>
+    <message>
+      <source>Font:</source>
+      <translation>Fonte:</translation>
+    </message>
+    <message>
+      <source>Solid</source>
+      <translation>Contínua</translation>
+    </message>
+    <message>
+      <source>Dash</source>
+      <translation>Tracejada</translation>
+    </message>
+    <message>
+      <source>Dot</source>
+      <translation>Pontilhada</translation>
+    </message>
+    <message>
+      <source>Dash-Dot</source>
+      <translation>Traço-ponto</translation>
+    </message>
+    <message>
+      <source>Dash-Dot-Dot</source>
+      <translation>Traço-ponto-ponto</translation>
+    </message>
+    <message>
+      <source>Line style:</source>
+      <translation>Estilo da linha:</translation>
+    </message>
+    <message>
+      <source>Fill</source>
+      <translation>Preenchimento</translation>
+    </message>
+    <message>
+      <source>Text</source>
+      <translation>Texto</translation>
+    </message>
+    <message>
+      <source>Font</source>
+      <translation>Fonte</translation>
+    </message>
+    <message>
+      <source>Free</source>
+      <translation>Livre</translation>
+    </message>
+    <message>
+      <source>From:</source>
+      <translation>De:</translation>
+    </message>
+    <message>
+      <source>To:</source>
+      <translation>Para:</translation>
+    </message>
+    <message>
+      <source>Not anchored</source>
+      <translation>Sem âncora</translation>
+    </message>
+    <message>
+      <source>Anchored to:</source>
+      <translation>Ancorado a:</translation>
+    </message>
+    <message>
+      <source>Location:</source>
+      <translation>Posição:</translation>
+    </message>
+    <message>
+      <source>Gap:</source>
+      <translation>Espaço:</translation>
+    </message>
+    <message>
+      <source>Random</source>
+      <translation>Aleatório</translation>
+    </message>
+    <message>
+      <source>Start Up — Random life exhausted</source>
+      <translation>Operando — vida consumida aleatória</translation>
+    </message>
+    <message>
+      <source>Start Up — Some life exhausted</source>
+      <translation>Operando — parte da vida consumida</translation>
+    </message>
+    <message>
+      <source>Start Failed — Random point in repair</source>
+      <translation>Falhado — ponto aleatório do reparo</translation>
+    </message>
+    <message>
+      <source>Start Failed — % repair complete</source>
+      <translation>Falhado — % do reparo concluído</translation>
+    </message>
+    <message>
+      <source>Start Failed — Repair at start</source>
+      <translation>Falhado — reparo desde o início</translation>
+    </message>
+    <message>
+      <source>Rectangle</source>
+      <translation>Retângulo</translation>
+    </message>
+    <message>
+      <source>Ellipse</source>
+      <translation>Elipse</translation>
+    </message>
+    <message>
+      <source>Arrow</source>
+      <translation>Seta</translation>
+    </message>
+    <message>
+      <source>Right</source>
+      <translation>Direita</translation>
+    </message>
+    <message>
+      <source>Left</source>
+      <translation>Esquerda</translation>
+    </message>
+    <message>
+      <source>Above</source>
+      <translation>Acima</translation>
+    </message>
+    <message>
+      <source>Below</source>
+      <translation>Abaixo</translation>
+    </message>
+    <message>
+      <source>Centre</source>
+      <translation>Centro</translation>
+    </message>
+    <message>
+      <source>Edit formula basis</source>
+      <translation>Editar a base da fórmula</translation>
+    </message>
+    <message>
+      <source>k* Target</source>
+      <translation>Meta k*</translation>
+    </message>
+    <message>
+      <source>not a number</source>
+      <translation>não é um número</translation>
+    </message>
+    <message>
+      <source>a priority from 1 to 99</source>
+      <translation>uma prioridade de 1 a 99</translation>
+    </message>
+    <message>
+      <source>This block draws from a spare pool -- its cost comes from the POOL's own fields (Spares tab -&gt; Manage Spare Pools…), not this one.</source>
+      <translation>Este bloco retira de um pool de sobressalentes — o custo vem dos campos do próprio POOL (aba Sobressalentes → Gerenciar pools de sobressalentes…), não deste.</translation>
+    </message>
+    <message>
+      <source>Block: %1  (ID %2)</source>
+      <translation>Bloco: %1  (ID %2)</translation>
+    </message>
+    <message>
+      <source>Node: %1  (ID %2)</source>
+      <translation>Nó: %1  (ID %2)</translation>
+    </message>
+    <message>
+      <source>Hierarchy: %1  (ID %2)</source>
+      <translation>Hierarquia: %1  (ID %2)</translation>
+    </message>
+    <message>
+      <source>Event: %1  (ID %2)</source>
+      <translation>Evento: %1  (ID %2)</translation>
+    </message>
+    <message>
+      <source>Annotation: %1  (ID %2)</source>
+      <translation>Anotação: %1  (ID %2)</translation>
+    </message>
+    <message>
+      <source>Block %1 — not found</source>
+      <translation>Bloco %1 — não encontrado</translation>
+    </message>
+    <message>
+      <source>Node %1 — not found</source>
+      <translation>Nó %1 — não encontrado</translation>
+    </message>
+    <message>
+      <source>Select a block, node, event or hierarchy on the canvas to see and edit its properties.
+
+This model: %1 blocks · %2 nodes · %3 events · %4 hierarchies</source>
+      <translation>Selecione um bloco, nó, evento ou hierarquia no diagrama para ver e editar suas propriedades.
+
+Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias</translation>
+    </message>
+    <message>
+      <source>Select a block, node, event or hierarchy on the canvas to see and edit its properties.
+
+This model: %1 blocks · %2 nodes · %3 events · %4 hierarchies · time in %5</source>
+      <translation>Selecione um bloco, nó, evento ou hierarquia no diagrama para ver e editar suas propriedades.
+
+Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5</translation>
+    </message>
+    <message>
+      <source>Failure %1</source>
+      <translation>%1 de falha</translation>
+    </message>
+    <message>
+      <source>Repair %1</source>
+      <translation>%1 de reparo</translation>
+    </message>
+    <message>
+      <source>Pre-LDT %1</source>
+      <translation>%1 do pré-LDT</translation>
+    </message>
+    <message>
+      <source>Post-LDT %1</source>
+      <translation>%1 do pós-LDT</translation>
+    </message>
+    <message>
+      <source>PM %1</source>
+      <translation>%1 da MP</translation>
+    </message>
+    <message>
+      <source>Use a saved rate or formula for %1</source>
+      <translation>Usar uma taxa ou fórmula salva para %1</translation>
+    </message>
+    <message>
+      <source>Unknown (%1)</source>
+      <translation>Desconhecido (%1)</translation>
+    </message>
+    <message>
+      <source>Unknown distribution code #%1 — pick one to fix it</source>
+      <translation>Código de distribuição desconhecido #%1 — escolha uma para corrigir</translation>
+    </message>
+    <message>
+      <source>Phase %1</source>
+      <translation>Fase %1</translation>
+    </message>
+    <message>
+      <source> of %1</source>
+      <translation> de %1</translation>
+    </message>
+    <message>
+      <source>Flow generated = %1</source>
+      <translation>Fluxo gerado = %1</translation>
+    </message>
+    <message>
+      <source>Random number stream. System A..J are shared streams; independent streams draw from seeds 1..%1.</source>
+      <translation>Fluxo de números aleatórios. Os fluxos A..J do sistema são compartilhados; os fluxos independentes usam sementes de 1 a %1.</translation>
+    </message>
+    <message>
+      <source>System stream %1</source>
+      <translation>Fluxo do sistema %1</translation>
+    </message>
+    <message>
+      <source>Stream %1 antithetic</source>
+      <translation>Fluxo %1 antitético</translation>
+    </message>
+    <message>
+      <source>Stream %1</source>
+      <translation>Fluxo %1</translation>
+    </message>
+    <message>
+      <source>%1 block - %2</source>
+      <translation>Bloco %1 - %2</translation>
+    </message>
+    <message>
+      <source>Dependency percentages must sum to 100 (got %1)</source>
+      <translation>As porcentagens de dependência devem somar 100 (soma atual: %1)</translation>
+    </message>
+    <message>
+      <source>%1 must be greater than 0</source>
+      <translation>%1 deve ser maior que 0</translation>
+    </message>
+    <message>
+      <source>%1 must be between 0 and 999,999,999</source>
+      <translation>%1 deve estar entre 0 e 999.999.999</translation>
+    </message>
+    <message>
+      <source>%1. Not applied until the other fields make it valid.</source>
+      <translation>%1. Não aplicado até que os outros campos o tornem válido.</translation>
+    </message>
+    <message>
+      <source>write %1/%2 for an even share, or a number</source>
+      <translation>escreva %1/%2 para uma divisão igual, ou um número</translation>
+    </message>
+    <message>
+      <source>%1 takes %2 or %3/%4; %5 belongs to the other column</source>
+      <translation>%1 aceita %2 ou %3/%4; %5 pertence à outra coluna</translation>
+    </message>
+    <message>
+      <source>enter a flow (0 or more), %1, or %2/%3</source>
+      <translation>informe um fluxo (0 ou mais), %1 ou %2/%3</translation>
+    </message>
+    <message>
+      <source>%1: all of the flow generated at Start (Project Settings). %2/%3: an even share across this node's %4 incoming paths. Or a whole number: a fixed flow.</source>
+      <translation>%1: todo o fluxo gerado no Início (Configurações do projeto). %2/%3: uma divisão igual entre os %4 caminhos de entrada deste nó. Ou um número inteiro: um fluxo fixo.</translation>
+    </message>
+    <message>
+      <source>seconds</source>
+      <translation>segundos</translation>
+    </message>
+    <message>
+      <source>minutes</source>
+      <translation>minutos</translation>
+    </message>
+    <message>
+      <source>kilo-hrs</source>
+      <translation>mil h</translation>
+    </message>
+    <message>
+      <source>mega-hrs</source>
+      <translation>milhões de h</translation>
+    </message>
+    <message>
+      <source>giga-hrs</source>
+      <translation>bilhões de h</translation>
+    </message>
+    <message>
+      <source>tera-hrs</source>
+      <translation>trilhões de h</translation>
+    </message>
+    <message>
+      <source>days</source>
+      <translation>dias</translation>
+    </message>
+    <message>
+      <source>months</source>
+      <translation>meses</translation>
+    </message>
+    <message>
+      <source>years</source>
+      <translation>anos</translation>
+    </message>
+    <message>
+      <source>cycles</source>
+      <translation>ciclos</translation>
+    </message>
+    <message>
+      <source>units</source>
+      <translation>unidades</translation>
+    </message>
+    <message>
+      <source>miles</source>
+      <translation>milhas</translation>
+    </message>
+    <message>
+      <source>kilometers</source>
+      <translation>quilômetros</translation>
+    </message>
+    <message>
+      <source>PPM</source>
+      <translation>PPM</translation>
+    </message>
+    <message>
+      <source>PPB</source>
+      <translation>PPB</translation>
+    </message>
+    <message>
+      <source>pool-managed</source>
+      <translation>gerenciado pelo pool</translation>
+    </message>
+    <message>
+      <source>Beta</source>
+      <translation>Beta</translation>
+    </message>
+    <message>
+      <source>Chi-square</source>
+      <translation>Qui-quadrado</translation>
+    </message>
+    <message>
+      <source>Binomial</source>
+      <translation>Binomial</translation>
+    </message>
+    <message>
+      <source>Exponential</source>
+      <translation>Exponencial</translation>
+    </message>
+    <message>
+      <source>Erlang</source>
+      <translation>Erlang</translation>
+    </message>
+    <message>
+      <source>Gamma</source>
+      <translation>Gama</translation>
+    </message>
+    <message>
+      <source>Lognormal</source>
+      <translation>Lognormal</translation>
+    </message>
+    <message>
+      <source>Normal</source>
+      <translation>Normal</translation>
+    </message>
+    <message>
+      <source>Uniform Integer</source>
+      <translation>Uniforme inteira</translation>
+    </message>
+    <message>
+      <source>Uniform Real</source>
+      <translation>Uniforme real</translation>
+    </message>
+    <message>
+      <source>Pearson 5</source>
+      <translation>Pearson 5</translation>
+    </message>
+    <message>
+      <source>Pearson 6</source>
+      <translation>Pearson 6</translation>
+    </message>
+    <message>
+      <source>Poisson</source>
+      <translation>Poisson</translation>
+    </message>
+    <message>
+      <source>Triangular</source>
+      <translation>Triangular</translation>
+    </message>
+    <message>
+      <source>Weibull</source>
+      <translation>Weibull</translation>
+    </message>
+    <message>
+      <source>Empirical</source>
+      <translation>Empírica</translation>
+    </message>
+    <message>
+      <source>Point Estimate</source>
+      <translation>Estimativa pontual</translation>
+    </message>
+    <message>
+      <source>Fixed</source>
+      <translation>Fixa</translation>
+    </message>
+    <message>
+      <source>Exponential Power</source>
+      <translation>Potência exponencial</translation>
+    </message>
+    <message>
+      <source>Extreme Value</source>
+      <translation>Valor extremo</translation>
+    </message>
+    <message>
+      <source>Laplace</source>
+      <translation>Laplace</translation>
+    </message>
+    <message>
+      <source>Constant</source>
+      <translation>Constante</translation>
+    </message>
+    <message>
+      <source>Location</source>
+      <translation>Localização</translation>
+    </message>
+    <message>
+      <source>P Success</source>
+      <translation>P de sucesso</translation>
+    </message>
+    <message>
+      <source>Scale</source>
+      <translation>Escala</translation>
+    </message>
+    <message>
+      <source>Standard Dev</source>
+      <translation>Desvio padrão</translation>
+    </message>
+    <message>
+      <source>Rate</source>
+      <translation>Taxa</translation>
+    </message>
+    <message>
+      <source>Mu</source>
+      <translation>μ</translation>
+    </message>
+    <message>
+      <source>Sigma</source>
+      <translation>σ</translation>
+    </message>
+    <message>
+      <source>None (unrepairable)</source>
+      <translation>Nenhuma (irreparável)</translation>
+    </message>
+    <message>
+      <source>Failure params:</source>
+      <translation>Parâmetros de falha:</translation>
+    </message>
+    <message>
+      <source>Enter data… (Failure)</source>
+      <translation>Inserir dados… (falha)</translation>
+    </message>
+    <message>
+      <source>Repair params:</source>
+      <translation>Parâmetros de reparo:</translation>
+    </message>
+    <message>
+      <source>Enter data… (Repair)</source>
+      <translation>Inserir dados… (reparo)</translation>
+    </message>
+    <message>
+      <source>Pre-LDT params:</source>
+      <translation>Parâmetros do pré-LDT:</translation>
+    </message>
+    <message>
+      <source>Enter data… (Pre-LDT)</source>
+      <translation>Inserir dados… (pré-LDT)</translation>
+    </message>
+    <message>
+      <source>Post-LDT params:</source>
+      <translation>Parâmetros do pós-LDT:</translation>
+    </message>
+    <message>
+      <source>Enter data… (Post-LDT)</source>
+      <translation>Inserir dados… (pós-LDT)</translation>
+    </message>
+    <message>
+      <source>PM params:</source>
+      <translation>Parâmetros da MP:</translation>
+    </message>
+    <message>
+      <source>Enter data… (PM)</source>
+      <translation>Inserir dados… (MP)</translation>
+    </message>
+    <message>
+      <source>Line colour</source>
+      <translation>Cor da linha</translation>
+    </message>
+    <message>
+      <source>Pick a line colour</source>
+      <translation>Escolher a cor da linha</translation>
+    </message>
+    <message>
+      <source>Draw no line at all (stores null)</source>
+      <translation>Não desenhar a linha (armazena nulo)</translation>
+    </message>
+    <message>
+      <source>Border colour</source>
+      <translation>Cor da borda</translation>
+    </message>
+    <message>
+      <source>Pick a border colour</source>
+      <translation>Escolher a cor da borda</translation>
+    </message>
+    <message>
+      <source>Draw no border at all (stores null)</source>
+      <translation>Não desenhar a borda (armazena nulo)</translation>
+    </message>
+    <message>
+      <source>Fill colour</source>
+      <translation>Cor de preenchimento</translation>
+    </message>
+    <message>
+      <source>Pick a fill colour</source>
+      <translation>Escolher a cor de preenchimento</translation>
+    </message>
+    <message>
+      <source>Draw no fill at all (stores null)</source>
+      <translation>Não preencher (armazena nulo)</translation>
+    </message>
+    <message>
+      <source>Text colour</source>
+      <translation>Cor do texto</translation>
+    </message>
+    <message>
+      <source>Pick a text colour</source>
+      <translation>Escolher a cor do texto</translation>
+    </message>
+    <message>
+      <source>Draw no text at all (stores null)</source>
+      <translation>Não exibir texto (armazena nulo)</translation>
+    </message>
+    <message>
+      <source>Line width:</source>
+      <translation>Largura da linha:</translation>
+    </message>
+    <message>
+      <source>Border width:</source>
+      <translation>Largura da borda:</translation>
+    </message>
+    <message>
+      <source>Click, then click an element or annotation to attach the arrow's from end to it (Esc cancels)</source>
+      <translation>Clique e depois clique em um elemento ou anotação para prender a origem da seta a ele (Esc cancela)</translation>
+    </message>
+    <message>
+      <source>Detach the from end: it stays where it is and no longer follows anything</source>
+      <translation>Soltar a origem: ela fica onde está e deixa de seguir qualquer coisa</translation>
+    </message>
+    <message>
+      <source>Click, then click an element or annotation to attach the arrow's to end to it (Esc cancels)</source>
+      <translation>Clique e depois clique em um elemento ou anotação para prender o destino da seta a ele (Esc cancela)</translation>
+    </message>
+    <message>
+      <source>Detach the to end: it stays where it is and no longer follows anything</source>
+      <translation>Soltar o destino: ele fica onde está e deixa de seguir qualquer coisa</translation>
+    </message>
+    <message>
       <source>Availability measures</source>
       <translation>Medidas de disponibilidade</translation>
     </message>
@@ -6801,10 +8157,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Total geral</translation>
     </message>
     <message>
-      <source>Hierarchy</source>
-      <translation>Hierarquia</translation>
-    </message>
-    <message>
       <source>Hierarchy availability</source>
       <translation>Disponibilidade das hierarquias</translation>
     </message>
@@ -6835,10 +8187,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Lost flow</source>
       <translation>Fluxo perdido</translation>
-    </message>
-    <message>
-      <source>Node</source>
-      <translation>Nó</translation>
     </message>
     <message>
       <source>Node availability</source>
@@ -6981,10 +8329,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Estoque final</translation>
     </message>
     <message>
-      <source>Failure %</source>
-      <translation>Falhas %</translation>
-    </message>
-    <message>
       <source>Failures %</source>
       <translation>Falhas %</translation>
     </message>
@@ -7003,10 +8347,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Idle</source>
       <translation>Ocioso</translation>
-    </message>
-    <message>
-      <source>Idle %</source>
-      <translation>Ocioso %</translation>
     </message>
     <message>
       <source>Initial spares</source>
@@ -7089,14 +8429,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Laranja %</translation>
     </message>
     <message>
-      <source>PM</source>
-      <translation>MP</translation>
-    </message>
-    <message>
-      <source>PM %</source>
-      <translation>MP %</translation>
-    </message>
-    <message>
       <source>PM hold</source>
       <translation>Retenção de MP</translation>
     </message>
@@ -7121,10 +8453,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Vermelho %</translation>
     </message>
     <message>
-      <source>Repair</source>
-      <translation>Reparar</translation>
-    </message>
-    <message>
       <source>Repair hold</source>
       <translation>Retenção de reparo</translation>
     </message>
@@ -7139,10 +8467,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Running %</source>
       <translation>Em operação %</translation>
-    </message>
-    <message>
-      <source>Spare pool</source>
-      <translation>Pool de sobressalentes</translation>
     </message>
     <message>
       <source>Spare source</source>

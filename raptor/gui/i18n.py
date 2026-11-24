@@ -19,8 +19,11 @@ literal call sites, and it keeps the source English.
 """
 from __future__ import annotations
 
+import re
 import weakref
+from functools import lru_cache
 from pathlib import Path
+from collections.abc import Iterable
 from typing import cast
 
 from PySide6.QtCore import (
@@ -28,9 +31,9 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QAbstractButton, QAbstractItemView, QApplication, QComboBox, QGroupBox,
-    QLabel, QLineEdit, QMenu, QPlainTextEdit, QStatusBar, QTabWidget,
-    QTextEdit, QWidget,
+    QAbstractButton, QAbstractItemView, QApplication,
+    QComboBox, QDoubleSpinBox, QGroupBox, QLabel, QLineEdit, QMenu,
+    QPlainTextEdit, QSpinBox, QStatusBar, QTabWidget, QTextEdit, QWidget,
 )
 
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
@@ -214,6 +217,7 @@ def install(app: QApplication | None = None,  # noqa: C901
     _CURRENT = chosen
     _EVER_TRANSLATED = _EVER_TRANSLATED or chosen != "en"
     _TRANSLATED_WINDOWS.clear()
+    _lookup.cache_clear()
     app.setProperty("raptorLocale", chosen)
     _install_focus_hook(app)
     return chosen
@@ -242,6 +246,218 @@ def _install_focus_hook(app: QApplication) -> None:
     app.focusChanged.connect(on_focus_changed)
 
 
+# ---------------------------------------------------------------------------
+# Text built at run time
+# ---------------------------------------------------------------------------
+
+#: Sentences the GUI assembles from model data ("Block: Pump  (ID 3)").  A
+#: catalogue holds one entry per template, with ``%1``, ``%2`` .. for the
+#: pieces; the value is the pieces that are themselves UI text (translated
+#: in turn, e.g. an annotation's kind) as opposed to model data, which is
+#: left exactly as written -- a block called "Mean" is a name, not a word.
+#: A piece listed as 1 must translate or the template is skipped (so a
+#: label that merely starts with "Failure" is left alone); -1 is a unit,
+#: translated when known and kept otherwise.
+TEMPLATES: dict[str, tuple[int, ...]] = {
+    "Block: %1  (ID %2)": (),
+    "Node: %1  (ID %2)": (),
+    "Hierarchy: %1  (ID %2)": (),
+    "Event: %1  (ID %2)": (),
+    "Annotation: %1  (ID %2)": (1,),
+    "Block %1 \u2014 not found": (),
+    "Node %1 \u2014 not found": (),
+    "Select a block, node, event or hierarchy on the canvas to see and edit "
+    "its properties.\n\nThis model: %1 blocks \u00b7 %2 nodes \u00b7 %3 events "
+    "\u00b7 %4 hierarchies": (),
+    "Select a block, node, event or hierarchy on the canvas to see and edit "
+    "its properties.\n\nThis model: %1 blocks \u00b7 %2 nodes \u00b7 %3 events "
+    "\u00b7 %4 hierarchies \u00b7 time in %5": (-5,),
+    # A distribution's parameter, named for what it describes: "Failure Mean".
+    "Failure %1": (1,),
+    "Repair %1": (1,),
+    "Pre-LDT %1": (1,),
+    "Post-LDT %1": (1,),
+    "PM %1": (1,),
+    "Use a saved rate or formula for %1": (1,),
+    "Unknown (%1)": (),
+    "Unknown distribution code #%1 \u2014 pick one to fix it": (),
+    "Phase %1": (),
+    " of %1": (),
+    "Flow generated = %1": (),
+    "Random number stream. System A..J are shared streams; independent "
+    "streams draw from seeds 1..%1.": (),
+    "System stream %1": (),
+    "Stream %1 antithetic": (),
+    "Stream %1": (),
+    "%1 block - %2": (),
+    "Dependency percentages must sum to 100 (got %1)": (),
+    # Messages for an entry the Inspector refused.  The field is named by
+    # its (translated) label; a column name or an engine message stays as
+    # written.
+    "%1 must be greater than 0": (1,),
+    "%1 must be between 0 and 999,999,999": (),
+    "%1. Not applied until the other fields make it valid.": (),
+    "write %1/%2 for an even share, or a number": (),
+    "%1 takes %2 or %3/%4; %5 belongs to the other column": (),
+    "enter a flow (0 or more), %1, or %2/%3": (),
+    "%1: all of the flow generated at Start (Project Settings). %2/%3: an "
+    "even share across this node's %4 incoming paths. Or a whole number: a "
+    "fixed flow.": (),
+}
+
+#: The laws a block carries; the Inspector labels their fields with these.
+LAW_USES: tuple[str, ...] = ("Failure", "Repair", "Pre-LDT", "Post-LDT", "PM")
+
+#: Time-unit words a model may carry (and the forms built from them).
+UNIT_WORDS: tuple[str, ...] = (
+    "seconds", "minutes", "hours", "kilo-hrs", "mega-hrs", "giga-hrs",
+    "tera-hrs", "days", "months", "years", "cycles", "units", "miles",
+    "kilometers", "PPM", "PPB", "pool-managed",
+)
+
+
+def dynamic_sources() -> list[str]:
+    """Every catalogue source that no literal in the code spells out.
+
+    The templates above, plus the distribution vocabulary kept in the
+    engine package (the catalogue scan only reads ``raptor/gui``).  Used
+    by ``tools/gen_locale_catalogue.py``.
+    """
+    from raptor.core.distro_rules import DISTRO_NAMES, DISTRO_PARAM_LABELS
+    out = list(TEMPLATES)
+    out += UNIT_WORDS
+    out += [name for name in DISTRO_NAMES.values()]
+    out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()
+                   for lab in labs if lab})
+    out += ["Rate", "Mu", "Sigma", "None (unrepairable)"]
+    # The five laws a block carries, named in the sentences built around
+    # them ("Enter data... (Failure)").  Spelt out, not composed: each
+    # reads differently in other languages.
+    for use in LAW_USES:
+        out += [f"{use} params:", f"Enter data\u2026 ({use})"]
+    # An annotation's colour rows: what each one is called.
+    for part in ("Line", "Border", "Fill", "Text"):
+        low = part.lower()
+        out += [f"{part} colour", f"Pick a {low} colour",
+                f"Draw no {low} at all (stores null)"]
+    out += ["Line width:", "Border width:"]
+    # An arrow's two ends.
+    for end in ("from", "to"):
+        out += [f"Click, then click an element or annotation to attach the "
+                f"arrow's {end} end to it (Esc cancels)",
+                f"Detach the {end} end: it stays where it is and no longer "
+                f"follows anything"]
+    return list(dict.fromkeys(out))
+
+
+@lru_cache(maxsize=1)
+def _template_patterns() -> tuple[tuple[re.Pattern[str], str, tuple[int, ...]], ...]:
+    """`(regex, template, translated pieces)`, most literal text first."""
+    built = []
+    for template, translated in TEMPLATES.items():
+        pieces = re.split(r"(%\d)", template)
+        body = "".join("(.+?)" if re.fullmatch(r"%\d", piece)
+                       else re.escape(piece) for piece in pieces)
+        literal = sum(len(p) for p in pieces if not re.fullmatch(r"%\d", p))
+        built.append((literal, re.compile(f"^{body}$", re.DOTALL), template,
+                      translated))
+    built.sort(key=lambda item: -item[0])
+    return tuple((rx, tpl, tr_) for _n, rx, tpl, tr_ in built)
+
+
+_UNIT_SUFFIX = re.compile(r"^(?P<stem>.+?) \((?P<unit>.+)\)(?P<tail>:?)$",
+                          re.DOTALL)
+
+
+def _is_number(text: str) -> bool:
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _unit(context: str, unit: str) -> str:
+    """A unit as written in a label: ``hours``, ``per hours``, ``ln(hours)``."""
+    got = QCoreApplication.translate(context, unit)
+    if got != unit:
+        return got
+    if unit.startswith("per "):
+        return "por " + _unit(context, unit[4:])
+    if unit.startswith("ln(") and unit.endswith(")"):
+        return f"ln({_unit(context, unit[3:-1])})"
+    return unit
+
+
+def _from_template(context: str, source: str) -> str | None:
+    """*source* read as one of the :data:`TEMPLATES`, or None."""
+    for rx, template, translated in _template_patterns():
+        match = rx.match(source)
+        if match is None:
+            continue
+        form = QCoreApplication.translate(context, template)
+        if form == template and "%" not in form:
+            continue
+        pieces = list(match.groups())
+        complete = True
+        for index in translated:
+            at = abs(index) - 1
+            if at >= len(pieces):
+                continue
+            if index < 0:
+                pieces[at] = _unit(context, pieces[at])
+                continue
+            got = _lookup(context, pieces[at], _CURRENT)
+            complete = complete and got != pieces[at]
+            pieces[at] = got
+        if complete:
+            return _fill(form, pieces)
+    return None
+
+
+def _fill(form: str, pieces: list[str]) -> str:
+    """*form* with ``%1``, ``%2`` .. replaced by *pieces*."""
+    def piece(match: re.Match[str]) -> str:
+        at = int(match.group(1)) - 1
+        return pieces[at] if at < len(pieces) else match.group(0)
+    return re.sub(r"%(\d)", piece, form)
+
+
+@lru_cache(maxsize=8192)
+def _lookup(context: str, source: str, locale: str) -> str:
+    """The translation of *source* (the English), or *source* itself.
+
+    Order: an exact catalogue entry; the label without its colon; a label
+    with a unit in brackets -- ``Failure Mean (hours):`` -- whose stem is
+    translated and whose unit follows it; a template whose pieces are
+    filled in from the text.  *locale* is only part of the cache key.
+    """
+    del locale
+    got = QCoreApplication.translate(context, source)
+    if got != source or context != WIDGET_CONTEXT:
+        return got
+    # A trailing colon belongs to the label, not to what it names.
+    if source.endswith(":") and len(source) > 1:
+        head = _lookup(context, source[:-1], _CURRENT)
+        if head != source[:-1]:
+            return head + ":"
+    match = _UNIT_SUFFIX.match(source)
+    if match is not None:
+        stem, unit, tail = match["stem"], match["unit"], match["tail"]
+        head = _lookup(context, stem, _CURRENT)
+        if head != stem or _is_number(stem):
+            return f"{head} ({_unit(context, unit)}){tail}"
+    filled = _from_template(context, source)
+    return source if filled is None else filled
+
+
+def translate_source(source: str, context: str = WIDGET_CONTEXT) -> str:
+    """Translate widget text, including text built at run time."""
+    if not source or _CURRENT == "en":
+        return source
+    return _lookup(context, source, _CURRENT)
+
+
 def tr(text: str, context: str = "General") -> str:
     """Translate one source string; returns it unchanged without a catalogue.
 
@@ -254,6 +470,8 @@ def tr(text: str, context: str = "General") -> str:
     translated = QCoreApplication.translate(context, text)
     if translated == text and context != WIDGET_CONTEXT:
         translated = QCoreApplication.translate(WIDGET_CONTEXT, text)
+    if translated == text and _CURRENT != "en":
+        translated = _lookup(WIDGET_CONTEXT, text, _CURRENT)
     return translated
 
 
@@ -304,7 +522,7 @@ def _translate_property(obj, key: str, get, set_, *, context: str) -> None:
         # the new text is the English source, not a translation to undo.
         source = current
         originals[key] = current
-    target = (QCoreApplication.translate(context, source)
+    target = (_lookup(context, source, _CURRENT)
               if _CURRENT != "en" else source)
     if target and target != current:
         try:
@@ -353,7 +571,7 @@ def _translate_headers(view: QAbstractItemView) -> None:  # noqa: C901
         if source is None or (key in written and text != written[key]):
             source = text
             originals[key] = text
-        target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
+        target = (_lookup(WIDGET_CONTEXT, source, _CURRENT)
                   if _CURRENT != "en" else source)
         if target and target != text:
             model.setHeaderData(section, Qt.Orientation.Horizontal, target)
@@ -361,12 +579,16 @@ def _translate_headers(view: QAbstractItemView) -> None:  # noqa: C901
         written[key] = text
 
 
-def _translate_combo(box: QComboBox) -> None:
-    """Translate combo entries, keeping their (programmatic) item data."""
+def _translate_combo(box: QComboBox, only: Iterable[int] | None = None) -> None:
+    """Translate combo entries, keeping their (programmatic) item data.
+
+    *only* limits it to those entries (a combo of model names whose first
+    entry is chrome).
+    """
     originals = _originals(box)
     blocked = box.blockSignals(True)
     try:
-        _translate_combo_items(box, originals)
+        _translate_combo_items(box, originals, only)
     finally:
         box.blockSignals(blocked)
 
@@ -386,7 +608,7 @@ def _translate_indexed(obj, key: str, current: str, set_) -> None:
     if source is None or (key in written and current != written[key]):
         source = current
         originals[key] = current
-    target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
+    target = (_lookup(WIDGET_CONTEXT, source, _CURRENT)
               if _CURRENT != "en" else source)
     if target and target != current:
         set_(target)
@@ -394,11 +616,37 @@ def _translate_indexed(obj, key: str, current: str, set_) -> None:
     written[key] = current
 
 
-def _translate_combo_items(box: QComboBox, originals: dict) -> None:
+def _translate_combo_items(box: QComboBox, originals: dict,
+                          only: Iterable[int] | None = None) -> None:
     del originals
-    for index in range(box.count()):
+    for index in (range(box.count()) if only is None else only):
+        if not 0 <= index < box.count():
+            continue
         _translate_indexed(box, f"item:{index}", box.itemText(index),
                            lambda text, i=index: box.setItemText(i, text))
+
+
+def source_text(obj, key: str, current: str) -> str:
+    """The English text behind *current* on an indexed entry (a tab title).
+
+    *current* is what the widget shows now: what this module wrote there
+    is a translation of the source, anything else is a new source.
+    """
+    written = _written(obj)
+    if key in written and current == written[key]:
+        return _originals(obj).get(key, current)
+    return current
+
+
+def needs_pass() -> bool:
+    """Whether :func:`translate_widgets` can change anything right now."""
+    return _CURRENT != "en" or _EVER_TRANSLATED
+
+
+def translate_tab_strip(tabs: QTabWidget) -> None:
+    """Translate just a tab widget's titles and tool tips, not its pages."""
+    if needs_pass():
+        _translate_tabs(tabs)
 
 
 def _translate_tabs(tabs: QTabWidget) -> None:
@@ -415,6 +663,11 @@ def _translate_tab_items(tabs: QTabWidget, originals: dict) -> None:
     for index in range(tabs.count()):
         _translate_indexed(tabs, f"tab:{index}", tabs.tabText(index),
                            lambda text, i=index: tabs.setTabText(i, text))
+        tip = tabs.tabToolTip(index)
+        if tip:
+            _translate_indexed(
+                tabs, f"tabtip:{index}", tip,
+                lambda text, i=index: tabs.setTabToolTip(i, text))
 
 
 def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat pass
@@ -458,12 +711,20 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
                                     context=WIDGET_CONTEXT)
             if isinstance(widget, QTabWidget):
                 _translate_tabs(widget)
-            if isinstance(widget, QComboBox) and \
-                    not widget.property("raptor_i18n_data_items"):
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                _translate_property(widget, "suffix", widget.suffix,
+                                    widget.setSuffix, context=WIDGET_CONTEXT)
+            if isinstance(widget, QComboBox):
                 # A combo listing model names (hierarchies, pools, groups)
                 # keeps its tooltip translated but never its items: a
                 # block called "Start" is a name, not the word "Start".
-                _translate_combo(widget)
+                # The entries listed in `raptor_i18n_ui_items` (the "(none)"
+                # in front of the names) are chrome and still translate.
+                if not widget.property("raptor_i18n_data_items"):
+                    _translate_combo(widget)
+                else:
+                    _translate_combo(widget, widget.property(
+                        "raptor_i18n_ui_items") or ())
             if isinstance(widget, QAbstractItemView):
                 _translate_headers(widget)
             if isinstance(widget, QWidget):

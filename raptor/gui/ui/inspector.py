@@ -10,6 +10,7 @@ Raptor 7 (`ConvertToString`, `GetParameters`,
 """
 from __future__ import annotations
 
+from raptor.gui import i18n
 from raptor.gui.ui.qtcompat import req
 
 import os
@@ -43,6 +44,7 @@ from raptor.gui.ui.inspector_common import (  # noqa: F401  (names tests and cal
     RAPTOR7_UNITS,
     COMMENT_COMMIT_DELAY_MS,
     _CommentEdit,
+    WrappingCheckBox,
     _SIM_START,
     _i_raw,
     _row_float,
@@ -405,6 +407,42 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
 
         ThemeManager.instance().on_changed(self._refresh_theme)
 
+    @staticmethod
+    def _fit_forms(page: QWidget | None) -> None:
+        """Let every form on *page* narrow to the dock instead of overflowing.
+
+        A label and its field sit side by side only while both fit: a row
+        that cannot wraps its field under its label, and a long label wraps
+        its words.  Without it a long translation (or a 340 px dock) pushed
+        the page past the viewport and a horizontal scroll bar appeared.
+        """
+        if page is None:
+            return
+        for form in page.findChildren(QFormLayout):
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                label = item.widget() if item is not None else None
+                if isinstance(label, QLabel) and not label.wordWrap():
+                    label.setWordWrap(True)
+
+    def _translate_ui(self, page: QWidget | None = None) -> None:
+        """Put the freshly built form into the interface language.
+
+        The form is rebuilt on every selection, after the window-wide pass
+        has run, so each rebuild translates what it just made: the page
+        built (or every page, for a kind that builds them all), the header
+        and the tab strip.  Nothing when the language is English and has
+        never been anything else.
+        """
+        self._fit_forms(page)
+        if not i18n.needs_pass():
+            return
+        i18n.translate_widgets(self._header)
+        i18n.translate_tab_strip(self._tabs)
+        if page is not None:
+            i18n.translate_widgets(page)
+
     def _show_tabs(self, on: bool) -> None:
         """Tabs while something is selected; the empty state otherwise."""
         empty = getattr(self, "_empty", None)
@@ -414,6 +452,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         empty.setVisible(not on)
         if not on:
             self._refresh_empty_text()
+            i18n.translate_widgets(empty)
 
     def _refresh_empty_text(self) -> None:
         rbd = getattr(self, "_rbd", None)
@@ -468,9 +507,10 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
             if visible:
                 text, tip = cfg[i]
                 # Each call re-lays out the tab strip: only touch what changed (selection clicks do this often).
-                if self._tabs.tabText(i) != text:
+                # Compared as English: a translated title is not a change.
+                if i18n.source_text(self._tabs, f"tab:{i}", self._tabs.tabText(i)) != text:
                     self._tabs.setTabText(i, text)
-                if self._tabs.tabToolTip(i) != tip:
+                if i18n.source_text(self._tabs, f"tabtip:{i}", self._tabs.tabToolTip(i)) != tip:
                     self._tabs.setTabToolTip(i, tip)
         if self._tabs.tabBar().isVisible() != (len(cfg) > 1):
             self._tabs.tabBar().setVisible(len(cfg) > 1)
@@ -495,6 +535,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
             build()
         finally:
             self._populating = was
+        self._translate_ui(self._tabs.widget(index))
         self._apply_read_only()
 
     def ensure_all_tabs_built(self) -> None:
@@ -561,6 +602,9 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
                        if self._tabs.isTabVisible(i)), 0)
         self._populating = False
         self._tabs.setCurrentIndex(idx)
+        # A block builds only the shown page (in `_run_deferred`); every
+        # other kind has built all of them by now.
+        self._translate_ui(None if self._tab_kind == "block" else self._tabs)
         # Pages were just rebuilt for this selection: re-apply the
         # read-only lock to the new fields (tab strip itself stays
         # clickable -- see set_read_only).
@@ -969,7 +1013,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         table `_phasing_group` builds for the other kinds."""
         layout = _vbox(layout)
         _gb, fl = self._group("Phasing", layout)
-        cb = QCheckBox("Phased")
+        cb = WrappingCheckBox("Phased")
         cb.setChecked(phased_now)
         cb.setToolTip(
             "Marks this hierarchy as phased -- shown "
@@ -1191,6 +1235,9 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         # picked unit is one the display-unit picker can convert to.
         units_edit = QComboBox()
         units_edit.setEditable(True)
+        # What is typed or picked here IS the model's unit string (labels,
+        # conversions): never translate the presets.
+        units_edit.setProperty("raptor_i18n_data_items", True)
         # Raptor 7's own `UnitsCombo` item list, verbatim
         # (`UnitsCombo`): a drop-down that
         # also accepts typing. Its order and wording are kept so a file
@@ -1282,14 +1329,14 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         fl.addRow("System comment:", comment_edit)
 
         _gb, fl = self._group("Flags", layout)
-        startfail_cb = QCheckBox("Ignore start failures")
+        startfail_cb = WrappingCheckBox("Ignore start failures")
         startfail_cb.setAccessibleName("Ignore start failures")
         startfail_cb.setChecked(bool(cfg.ignore_start_fail))
         startfail_cb.toggled.connect(
             lambda on: self.system_config_changed.emit(
                 {"IgnoreStartFail": "1" if on else "0"}))
         fl.addRow(startfail_cb)
-        neg_cb = QCheckBox("Ignore negative-value warning")
+        neg_cb = WrappingCheckBox("Ignore negative-value warning")
         neg_cb.setAccessibleName("Ignore negative-value warning")
         neg_cb.setChecked(bool(cfg.show_neg_err_msg))
         neg_cb.toggled.connect(

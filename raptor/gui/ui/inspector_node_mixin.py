@@ -4,19 +4,21 @@ Expects on `self`: the Inspector's tab layouts and the selected node."""
 from __future__ import annotations
 
 from raptor.gui.ui.inspector_common import (
+    WrappingCheckBox,
     _i_raw,
     _row_float,
     _vbox,
     parse_flow_cell,
 )
 
+from raptor.gui import i18n
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
 from typing import TYPE_CHECKING, Any, cast
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QLayout, QScrollArea, QLabel, QCheckBox, QComboBox, QRadioButton, QButtonGroup, QTableWidget,
+    QLayout, QScrollArea, QLabel, QComboBox, QRadioButton, QButtonGroup, QTableWidget,
     QTableWidgetItem,
 )
 
@@ -260,7 +262,7 @@ class InspectorNodeMixin(_Base):
         header = t.horizontalHeader()
         for c, head in enumerate(headers):
             fm = t.fontMetrics()
-            min_w = max(fm.horizontalAdvance(head) + 16,
+            min_w = max(fm.horizontalAdvance(i18n.translate_source(head)) + 30,
                         t.columnWidth(c), 56)
             if t.columnWidth(c) < min_w:
                 t.setColumnWidth(c, min_w)
@@ -344,7 +346,7 @@ class InspectorNodeMixin(_Base):
         into, out_of = self._link_rows_for_node(node_id)
 
         _gb, fl = self._group("Flow In", layout)
-        unrestricted = QCheckBox("Unrestricted flow")
+        unrestricted = WrappingCheckBox("Unrestricted flow")
         unrestricted.setChecked(bool(node.full_flow))
         unrestricted.toggled.connect(
             lambda on: self.node_full_flow_changed.emit(node_id, on))
@@ -353,7 +355,7 @@ class InspectorNodeMixin(_Base):
             self._flow_table(layout, into, incoming=True)
 
         _gb, fl = self._group("Flow Out", layout)
-        any_path = QCheckBox("Use any available path")
+        any_path = WrappingCheckBox("Use any available path")
         any_path.setChecked(bool(node.any_path))
         any_path.toggled.connect(
             lambda on: self.node_any_path_changed.emit(node_id, on))
@@ -383,7 +385,7 @@ class InspectorNodeMixin(_Base):
         node_id = node.id
 
         gb, fl = self._group("Switchover", layout)
-        cold_cb = QCheckBox("Engage standby logic for this node")
+        cold_cb = WrappingCheckBox("Engage standby logic for this node")
         cold_cb.setChecked(bool(node.cold_standby))
         cold_cb.setToolTip(
             "The first checkbox, which engages the remainder of the tab.")
@@ -391,7 +393,7 @@ class InspectorNodeMixin(_Base):
             lambda on: self.node_cold_standby_changed.emit(node_id, on))
         fl.addRow(cold_cb)
 
-        pr_cb = QCheckBox("Return alternates to standby once the "
+        pr_cb = WrappingCheckBox("Return alternates to standby once the "
                           "primary is repaired")
         pr_cb.setChecked(bool(node.priority_return))
         pr_cb.setEnabled(bool(node.cold_standby))
@@ -403,7 +405,7 @@ class InspectorNodeMixin(_Base):
                 node_id, on))
         fl.addRow(pr_cb)
 
-        autos_cb = QCheckBox("Try automatic switchover before manual")
+        autos_cb = WrappingCheckBox("Try automatic switchover before manual")
         autos_cb.setChecked(bool(node.check_autos_first))
         autos_cb.setEnabled(bool(node.cold_standby))
         autos_cb.toggled.connect(
@@ -470,7 +472,7 @@ class InspectorNodeMixin(_Base):
         header = t.horizontalHeader()
         for c, head in enumerate(headers):
             fm = t.fontMetrics()
-            min_w = max(fm.horizontalAdvance(head) + 16,
+            min_w = max(fm.horizontalAdvance(i18n.translate_source(head)) + 30,
                         t.columnWidth(c), 56)
             if t.columnWidth(c) < min_w:
                 t.setColumnWidth(c, min_w)
@@ -577,7 +579,7 @@ class InspectorNodeMixin(_Base):
         self._clear_tab(self._scroll_costs)
         node_id = node.id
         _gb, fl = self._group("Reporting", layout)
-        report_cb = QCheckBox(
+        report_cb = WrappingCheckBox(
             "Include node analysis information for this node in the "
             "output tables and reports")
         report_cb.setChecked(bool(node.report_node_anal))
