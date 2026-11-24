@@ -324,8 +324,41 @@ class TestLazyWorkspaceStartup:
         (safe / "models").rename(tmp_path / "moved-models")
         (safe / "models").symlink_to(evil, target_is_directory=True)
 
-        with pytest.raises(Exception, match="resolves outside"):
+        with pytest.raises(Exception, match="changed since start-up"):
             context.workspace()
+
+    @pytest.mark.parametrize("name", ["models", "runs", "renders"])
+    def test_startup_refuses_a_symlinked_managed_directory(
+            self, tmp_path, monkeypatch, name):
+        """A managed directory linked outside the root is refused up front.
+
+        `sweep_retention` rmtrees old entries under `runs`; through a
+        `runs -> elsewhere` link it would delete directories it does not
+        own.  The server must exit 1 before anything is swept.
+        """
+        import os
+        import time
+
+        from raptor.mcp import server
+
+        monkeypatch.setattr(server, "_import_tools", lambda args: None)
+        monkeypatch.setattr(server.mcp, "run", lambda **kw: None)
+        monkeypatch.setattr(server.mcp, "_raptor_args", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None,
+                            raising=False)
+        root = tmp_path / "workspace"
+        root.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        old = elsewhere / "precious"
+        old.mkdir(parents=True)
+        stale = time.time() - 365 * 86400
+        os.utime(old, (stale, stale))
+        (root / name).symlink_to(elsewhere, target_is_directory=True)
+
+        assert server.main(["--workspace", str(root),
+                            "--transport", "stdio"]) == 1
+        assert old.is_dir()
 
     def test_modern_discover_and_lazy_first_call(self, tmp_path):
         """A 2026-07-28 first frame is served, then the first call loads."""

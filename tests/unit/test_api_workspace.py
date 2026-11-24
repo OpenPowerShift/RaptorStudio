@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from raptor.api.workspace import (
+    WorkspaceError,
     ModelHandle,
     PathOutsideWorkspace,
     UnknownHandle,
@@ -241,6 +242,24 @@ class TestColdStart:
 
         with pytest.raises(WorkspaceSizeExceeded, match="per-model limit"):
             ws.get(model_id)
+
+    @pytest.mark.parametrize("target", ["outside", "sibling"])
+    def test_construction_refuses_a_symlinked_managed_directory(
+            self, tmp_path: Path, target: str):
+        """`runs -> ~` or `models -> runs` must never be followed.
+
+        The retention sweep rmtrees old entries under `runs`, so either
+        link would let it delete directories (or models) it does not own.
+        """
+        root = tmp_path / "workspace"
+        Workspace(root)
+        shutil.rmtree(root / "runs")
+        dest = tmp_path / "elsewhere" if target == "outside" else root / "models"
+        dest.mkdir(exist_ok=True)
+        (root / "runs").symlink_to(dest, target_is_directory=True)
+
+        with pytest.raises(WorkspaceError, match="is a symlink"):
+            Workspace(root)
 
     def test_write_probe_checks_each_managed_directory(self, tmp_path: Path):
         if not hasattr(os, "geteuid") or os.geteuid() == 0:

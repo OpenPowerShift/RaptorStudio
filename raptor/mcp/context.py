@@ -51,8 +51,10 @@ def prepare_workspace() -> Path:
         probe_write=not bool(getattr(args, "read_only", False)),
     )
     # Pin the path this process checked.  Re-resolving `args.workspace` at
-    # first use would follow a symlink swapped in after start-up.
-    mcp._raptor_prepared = (str(Path(args.workspace)), root)  # type: ignore[attr-defined]
+    # first use would follow a symlink swapped in after start-up.  The pin
+    # is keyed on this `args` object, so it never outlives the arguments it
+    # was made for (a later `main()` or test installs new ones).
+    mcp._raptor_prepared = (args, str(Path(args.workspace)), root)  # type: ignore[attr-defined]
     return root
 
 
@@ -71,8 +73,9 @@ def workspace() -> Workspace:
             "its normal entry point."
         )
     prepared = getattr(mcp, "_raptor_prepared", None)
-    if prepared is not None and prepared[0] == str(Path(args.workspace)):
-        root, resolved = prepared[1], True
+    if (prepared is not None and prepared[0] is args
+            and prepared[1] == str(Path(args.workspace))):
+        root, resolved = prepared[2], True
     else:
         root, resolved = Path(args.workspace).resolve(), False
     ws = getattr(mcp, "_raptor_ws", None)

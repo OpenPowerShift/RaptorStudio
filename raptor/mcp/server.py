@@ -543,9 +543,10 @@ def main(argv: list[str] | None = None) -> int:
     # the first tool or resource call's job, so initialize/server/discover can
     # be answered before any model is touched.
     from raptor.mcp import context
+    from raptor.api.workspace import WorkspaceError
     try:
         context.prepare_workspace()
-    except OSError as exc:
+    except (OSError, WorkspaceError) as exc:
         print(f"raptor-mcp: cannot use workspace {args.workspace}: {exc}",
               file=sys.stderr)
         return 1

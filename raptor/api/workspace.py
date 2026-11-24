@@ -263,16 +263,23 @@ def prepare_workspace_root(root: str | Path, *,
         )
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     managed = ("models", "runs", "renders")
-    if not resolve:
-        # The root is pinned, but a child swapped for an outside symlink
-        # would still redirect model reads, run artefacts and the sweep.
-        for name in managed:
-            child = (root / name).resolve()
-            if child != root and root not in child.parents:
-                raise WorkspaceError(
-                    f"workspace directory changed since start-up: "
-                    f"{root / name} now resolves outside {root}"
-                )
+    # Each managed directory must be a real directory directly under the
+    # root, never a symlink -- not even one that was there at start-up.
+    # Model reads and writes go through `models`, and `sweep_retention`
+    # `rmtree`s old entries under `runs`: a `runs -> ~` link would let the
+    # sweep delete the user's own old directories.  A link to a sibling
+    # (`models -> runs`) is refused too, since the sweep would then expire
+    # models.  Checked before `mkdir`, so nothing is created through one.
+    for name in managed:
+        child = root / name
+        if child.is_symlink() or child.resolve() != child:
+            what = ("changed since start-up" if not resolve
+                    else "is a symlink")
+            raise WorkspaceError(
+                f"workspace directory {child} {what} (it resolves to "
+                f"{child.resolve()}); models, runs and renders must be real "
+                f"directories inside the workspace"
+            )
     for name in managed:
         (root / name).mkdir(parents=True, exist_ok=True, mode=0o700)
     if probe_write:
@@ -1401,20 +1408,13 @@ class Workspace:
     def _load_existing_models(self) -> None:
         """Populate the index from the models directory.
 
-        Deliberately does **not** parse any model file.  An earlier
-        version warmed the cache here: it parsed up to `max_models` files,
-        which meant a workspace with more models than the cap came back
-        over it, and nothing ever evicted, so `create_model` failed for the
-        lifetime of the server with a limit the user had no way to clear.
-        The index is one small JSON read per model and the cap only ever
-        governs how many are *materialised* at once.
-
-        Models are loaded by `get()` on first use.  Warming the cache here
-        parsed (and JSON-schema checked) up to `max_models` files before
-        the constructor returned; on a normal workspace that delayed the
-        MCP server's first frame by several seconds.  A damaged model now
-        surfaces when it is explicitly used instead of being read at
-        start-up.
+        Deliberately does **not** parse any model file: the index is one
+        small JSON read per model, and `get()` loads a model on first use.
+        Earlier versions parsed models here, first all of them (a
+        workspace over `max_models` then refused `create_model` for the
+        server's lifetime), later up to `max_models` (which delayed the
+        MCP server's first frame by several seconds).  A damaged model now
+        surfaces when it is explicitly used, not at start-up.
         """
         models_dir = self.root / "models"
         if not models_dir.exists():
