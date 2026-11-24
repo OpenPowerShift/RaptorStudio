@@ -7143,6 +7143,10 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <source>Run</source>
       <translation>Execução</translation>
     </message>
+    <message>
+      <source>Remove {name} from comparison</source>
+      <translation>Remover {name} da comparação</translation>
+    </message>
   </context>
   <context>
     <name>Command search</name>

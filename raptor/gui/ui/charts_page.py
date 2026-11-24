@@ -486,7 +486,6 @@ class ChartsPage(QWidget):
         swatch.setFixedSize(12, 12)
         swatch.setStyleSheet(
             f"background: {colour}; border-radius: 6px; border: none;")
-        swatch.setAccessibleName(f"Series colour for {name}")
         lay.addWidget(swatch)
         label = QLabel(name)
         label.setObjectName("CompareChipName")
@@ -497,8 +496,10 @@ class ChartsPage(QWidget):
         close.setAutoRaise(True)
         close.setCursor(Qt.CursorShape.PointingHandCursor)
         close.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        close.setAccessibleName(f"Remove {name} from comparison")
-        close.setToolTip(f"Remove {name} from the comparison")
+        remove = i18n.tr("Remove {name} from comparison", "Results").format(
+            name=name)
+        close.setAccessibleName(remove)
+        close.setToolTip(remove)
         close.clicked.connect(lambda _c=False, ref=ref: self._remove_compare(ref))
         lay.addWidget(close)
         return chip
