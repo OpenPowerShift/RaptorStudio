@@ -337,7 +337,12 @@ class HistoryDialog(QDialog):
                 i18n.tr("The model has not changed; no version was added."))
         elif newest and newest[0].id == shot.id:
             self._note.setText(
-                f"Labelled the version recorded {shot.time_text()}.")
+                f"Named the newest version recorded {shot.time_text()}.")
+        elif newest and newest[0].sha256 == shot.sha256:
+            self._note.setText(
+                f"Added a version ({shot.size_text()}); the model has not "
+                f"changed, so the earlier one recorded "
+                f"{newest[0].time_text()} keeps its label.")
         else:
             self._note.setText(
                 f"Recorded {shot.time_text()} ({shot.size_text()}).")

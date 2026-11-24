@@ -313,11 +313,13 @@ class HistoryStore:
         `data` lets a caller snapshot bytes it already holds (a save that has
         not hit disk yet); otherwise the file is read.
 
-        A label on identical bytes re-labels the newest version instead of
-        creating a duplicate snapshot, so `--snapshot --label` on an
-        unchanged file still does the useful thing. A description on
-        identical bytes is likewise set on the newest version (a blank one
-        leaves the existing description alone).
+        A label or description on identical bytes names the newest version
+        when that adds to it (it has none yet, or the same one). When the
+        newest version already carries a *different* label or description,
+        nothing is overwritten: a new version is added instead, with its own
+        copy of the (identical) bytes. The copy is the simplest safe
+        choice: every entry owns its file, so pruning or deleting one can
+        never remove a file another entry still names.
         """
         path = Path(file)
         try:
@@ -329,14 +331,17 @@ class HistoryStore:
         description = clean_description(description)
         with self._lock, _file_lock(self._folder(path) / "index.lock"):
             existing = self.snapshots(path)
-            if existing and existing[0].sha256 == digest:
-                latest = existing[0]
-                new_label = label if label and latest.label != label \
-                    else latest.label
-                new_desc = description if description \
-                    and latest.description != description \
-                    else latest.description
-                if (new_label, new_desc) != (latest.label, latest.description):
+            latest = existing[0] if existing else None
+            if latest is not None and latest.sha256 == digest:
+                clash = ((label and latest.label and latest.label != label)
+                         or (description and latest.description
+                             and latest.description != description))
+                if not clash:
+                    new_label = label or latest.label
+                    new_desc = description or latest.description
+                    if (new_label, new_desc) == (latest.label,
+                                                 latest.description):
+                        return None
                     doc = self._read_index(path)
                     for entry in doc.get("snapshots", []):
                         if isinstance(entry, dict) and \
@@ -350,7 +355,6 @@ class HistoryStore:
                         reason=latest.reason, label=new_label,
                         bytes=latest.bytes, sha256=latest.sha256,
                         path=latest.path, description=new_desc)
-                return None
             now = datetime.now(UTC)
             # The id is also the filename stem; two saves in one second get
             # a short content suffix so they cannot overwrite each other.

@@ -217,3 +217,104 @@ def test_saving_after_a_new_run_does_not_keep_the_old_runs_files(
     finally:
         win._dirty = False
         win.close()
+
+
+# -- an open archive: Save records versions; a new run makes it unsaved ----
+@pytest.fixture
+def archive_window(qapp, two_runs, tmp_path, monkeypatch):
+    """A window with a temp .rbdz opened through the real open path, and a
+    history store that is not the user's."""
+    import raptor.api.history as api_history
+    from raptor.core.fileio import rbds as rbds_io
+    from raptor.core.history import HistoryStore
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    store = HistoryStore(tmp_path / "history")
+    monkeypatch.setattr(api_history, "default_store", lambda: store)
+    rbd, live = two_runs
+    archive = tmp_path / "plant.rbdz"
+    rbdz.write_archive(archive, rbds_io.render_for_save(load_rbd(FIXTURE)),
+                       results=live.archive_payload())
+    settings.set_value("startup/show_start_page", False)
+    win = MainWindow()
+    win._open_path(str(archive))
+    yield win, archive, store, rbd
+    win._dirty = False
+    win.close()
+
+
+def _new_run(win, rbd, runs=1):
+    report_data: list = []
+    _logs, eor, fin = run_simulation_with_reports(
+        load_rbd(FIXTURE), num_runs=runs, date="fixed",
+        report_sink=report_data)
+    win._results.set_results([], eor, fin, report_data=report_data,
+                             units="hours", rbd=rbd)
+
+
+def test_viewing_a_freshly_opened_archive_is_not_unsaved(archive_window):
+    win, archive, store, _rbd = archive_window
+    assert win._results._archive_source
+    assert win._dirty is False
+    assert "*" not in win.windowTitle()
+    assert [s.reason for s in store.snapshots(archive)] == ["opened"]
+
+
+def test_saving_an_archive_records_a_version(archive_window):
+    win, archive, store, _rbd = archive_window
+    assert win._write_model(str(archive))
+    assert [s.reason for s in store.snapshots(archive)] == ["save", "opened"]
+
+
+def test_a_new_run_makes_an_open_archive_unsaved(archive_window):
+    win, _archive, _store, rbd = archive_window
+    _new_run(win, rbd)
+    assert win._dirty is True
+    assert "*" in win.windowTitle()
+
+
+def test_clearing_the_results_of_an_open_archive_makes_it_unsaved(
+        archive_window):
+    win, _archive, _store, _rbd = archive_window
+    win._results.clear()
+    assert win._dirty is True
+
+
+def test_save_version_now_after_a_new_run_captures_the_new_results(
+        archive_window, monkeypatch):
+    """open -> Save version now "A" -> run again -> "B" used to rename A and
+    record nothing; the new results never reached the history."""
+    from raptor.gui.ui import history_dialog as history_ui
+    win, archive, store, rbd = archive_window
+    dialog = history_ui.HistoryDialog(
+        win, str(archive), store, current_model=win._rbd,
+        save_current=win._save_for_history)
+    answers = iter(["A", "B"])
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: (next(answers), True)))
+    dialog._snapshot_now()
+    dialog._desc.cancel()
+    _new_run(win, rbd, runs=1)
+    dialog._snapshot_now()
+    shots = store.snapshots(archive)
+    labels = [s.label for s in shots]
+    assert labels[:2] == ["B", "A"], labels
+    old = json.loads(rbdz.read_results(shots[1].path).results["summary.json"])
+    new = json.loads(rbdz.read_results(shots[0].path).results["summary.json"])
+    assert old["num_runs"] == 2 and new["num_runs"] == 1
+    assert win._dirty is False
+
+
+def test_plain_models_are_unaffected_by_results(qapp, tmp_path, two_runs):
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    rbd, _live = two_runs
+    settings.set_value("startup/show_start_page", False)
+    win = MainWindow()
+    try:
+        win._load_into_app(load_rbd(FIXTURE), None)
+        _new_run(win, rbd)
+        assert win._dirty is False
+    finally:
+        win._dirty = False
+        win.close()

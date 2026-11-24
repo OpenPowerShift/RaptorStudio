@@ -118,7 +118,7 @@ def test_save_version_now_saves_unsaved_edits_first(
     assert saved
     shots = store.snapshots(model)
     assert len(shots) == 2 and shots[0].label == "checkpoint"
-    assert "Labelled the version" in dialog._note.text()
+    assert "Named the newest version" in dialog._note.text()
 
     monkeypatch.setattr(history_ui.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("", True)))
@@ -529,3 +529,25 @@ def test_description_strings_are_translated_in_pt_br(qapp, tmp_path):
         assert panel.hint.text().startswith("Markdown compat")
     finally:
         i18n.install(qapp, "en")
+
+
+def test_save_version_now_never_overwrites_an_existing_label(
+        qapp, tmp_path, monkeypatch):
+    from raptor.gui.ui import history_dialog as history_ui
+    model = tmp_path / "plant.rbds"
+    model.write_text(DC1.read_text(encoding="utf-8"), encoding="utf-8")
+    store = HistoryStore(tmp_path / "history")
+    store.record(model, reason="save")
+    dialog = HistoryDialog(None, model, store, save_current=lambda: True)
+    answers = iter(["A", "B"])
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: (next(answers), True)))
+    dialog._snapshot_now()
+    assert "Named the newest version" in dialog._note.text()
+    dialog._desc.cancel()
+    dialog._snapshot_now()
+    assert "Added a version" in dialog._note.text()
+    assert "keeps its label" in dialog._note.text()
+    shots = store.snapshots(model)
+    assert [s.label for s in shots] == ["B", "A"]
+    assert dialog._selected_id() == shots[0].id

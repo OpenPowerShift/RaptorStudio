@@ -163,16 +163,56 @@ def test_histories_are_per_file_even_for_identical_content(tmp_path):
     assert len(store.snapshots(a)) == 1
 
 
-def test_a_label_on_unchanged_bytes_relabels_the_newest_version(tmp_path):
+def test_a_label_on_unchanged_bytes_names_an_unlabelled_newest_version(tmp_path):
     path = _model(tmp_path)
     store = HistoryStore(tmp_path / "history")
-    shot = store.record(path, label="first")
-    again = store.record(path, label="before upgrade")
-    assert again is not None and again.id == shot.id
+    shot = store.record(path)
+    named = store.record(path, label="before upgrade")
+    assert named is not None and named.id == shot.id
     assert [s.label for s in store.snapshots(path)] == ["before upgrade"]
+    # the same label again changes nothing
     assert store.record(path, label="before upgrade") is None
     assert store.set_label(path, shot.id, "")
     assert store.snapshots(path)[0].label == ""
+
+
+def test_a_different_label_on_unchanged_bytes_adds_a_version_and_keeps_the_old(
+        tmp_path):
+    """Overwriting the newest label destroyed the user's earlier name."""
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, label="A", reason="save")
+    second = store.record(path, label="B", reason="manual")
+    assert second is not None and second.id != first.id
+    shots = store.snapshots(path)
+    assert [(s.label, s.reason) for s in shots] == [("B", "manual"),
+                                                    ("A", "save")]
+    assert shots[0].sha256 == shots[1].sha256
+    assert shots[0].path != shots[1].path
+    assert shots[0].path.read_bytes() == shots[1].path.read_bytes()
+    # a repeat of the newest label is still a no-op
+    assert store.record(path, label="B") is None
+
+
+def test_a_different_description_on_unchanged_bytes_adds_a_version(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, description="one")
+    second = store.record(path, description="two")
+    assert second is not None and second.id != first.id
+    assert [s.description for s in store.snapshots(path)] == ["two", "one"]
+
+
+def test_deleting_or_pruning_one_of_two_identical_versions_keeps_the_other(
+        tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=30)
+    first = store.record(path, label="A")
+    second = store.record(path, label="B")
+    assert store.discard(path, second.id)
+    assert first.path.is_file()
+    assert store.restore(store.snapshot(path, first.id),
+                         tmp_path / "back.rbds").read_text() == "model-v1"
 
 
 def test_the_byte_cap_keeps_the_newest_versions_and_removes_the_rest(tmp_path):
@@ -311,14 +351,19 @@ def test_a_description_on_unchanged_bytes_describes_the_newest_version(tmp_path)
     # a blank description leaves the note alone and adds nothing
     assert store.record(path) is None
     assert store.snapshots(path)[0].description == "first note"
-    again = store.record(path, description="second note")
-    assert again is not None and again.id == shot.id
-    assert again.description == "second note"
-    assert len(store.snapshots(path)) == 1
+    # a different note is not allowed to overwrite the first: new version
+    other = store.record(path, description="second note")
+    assert other is not None and other.id != shot.id
+    assert [s.description for s in store.snapshots(path)] == [
+        "second note", "first note"]
     assert store.record(path, description="second note") is None
+    store.set_description(path, other.id, "")
+    named = store.record(path, description="third note")   # newest has none
+    assert named is not None and named.id == other.id
+    assert len(store.snapshots(path)) == 2
     # a label alone keeps the description
     relabel = store.record(path, label="named")
-    assert relabel is not None and relabel.description == "second note"
+    assert relabel is not None and relabel.description == "third note"
 
 
 def test_a_described_version_is_pinned_like_a_labelled_one(tmp_path):

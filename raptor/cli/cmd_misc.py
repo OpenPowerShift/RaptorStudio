@@ -51,7 +51,8 @@ def add_parser(sub: Any) -> None:
                    help="record the file as it is now")
     h.add_argument("--label", metavar="TEXT",
                    help="label the snapshot (with --snapshot); an unchanged "
-                        "file re-labels its newest version")
+                        "file names its newest version if that has no "
+                        "label, otherwise a new version is added")
     h.add_argument("--description", metavar="TEXT",
                    help="Markdown description for the snapshot (with "
                         "--snapshot), or with --describe for that version")

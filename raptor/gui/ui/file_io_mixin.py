@@ -88,6 +88,7 @@ class FileIoMixin(_Base):
         _inspector: raptor.gui.ui.inspector.InspectorDock
         def _invalidate_step_session(self) -> Any: ...
         _loading_model: bool
+        _archive_baseline_file: str | None
         def _migrate_report_stream_settings(self) -> None: ...
         def _open_path(self, path: str) -> Any: ...
         def _spawn_window(self) -> Any: ...
@@ -353,6 +354,9 @@ class FileIoMixin(_Base):
         # Inspector front, Live Log parked.
         self._reset_right_docks()
         self._current_file = path
+        #: The archive whose own results are on screen; see
+        #: `_archive_results_diverged`. Set once the open has finished.
+        self._archive_baseline_file = None
         # Retention rule: a file opened as legacy .rbd keeps saving as
         # .rbd; new models and .rbds files default to .rbds.
         self._opened_legacy_format = bool(path) and \
@@ -672,6 +676,10 @@ class FileIoMixin(_Base):
             write_archive(path, rbds_io.render_for_save(rbd),
                           results=sources, manifest=manifest,
                           created=created)
+            # Like an .rbds save: the archive is a version, and the
+            # results it carries are now saved with it.
+            self._archive_had_results = bool(sources)
+            self._record_history(path, reason="save")
             return True
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
@@ -918,6 +926,28 @@ class FileIoMixin(_Base):
             self._statusbar.showMessage(
                 f"Restored version from {snapshot.time_text()}", 8000)
 
+    def _archive_results_diverged(self) -> None:
+        """Results are part of an `.rbdz` document: when the ones on screen
+        stop being the archive's own (a new run, or cleared), the document
+        has unsaved changes, so Save, the close prompt and Save version now
+        write the archive with the current results first. Plain .rbds never
+        stores results and is untouched. Runs from the Results dock's
+        `contents_changed`; ignored while a file is being opened.
+        """
+        current = getattr(self, "_current_file", None)
+        if (not current or not str(current).lower().endswith(".rbdz")
+                or getattr(self, "_archive_baseline_file", None) != current
+                or getattr(self, "_loading_model", False)):
+            return
+        results = self._results
+        shown = results.has_results()
+        own = bool(getattr(results, "_archive_source", ""))
+        if (shown and not own) or (
+                not shown and getattr(self, "_archive_had_results", False)):
+            if not self._dirty:
+                self._dirty = True
+                self._update_title()
+
     def _clear_archive_results_temp(self) -> None:
         """Drop the extracted result files of a previously opened `.rbdz`."""
         temp = getattr(self, "_archive_temp", None)
@@ -967,7 +997,9 @@ class FileIoMixin(_Base):
         self._archive_files = dict(files)
         self._archive_had_results = True
         shown = self._results.set_archive_results(
-            files, summary if isinstance(summary, dict) else {}, rbd=self._rbd)
+            files, summary if isinstance(summary, dict) else {}, rbd=self._rbd,
+            source_name=str(summary.get("model_name") or Path(path).name)
+            if isinstance(summary, dict) else Path(path).name)
         if shown:
             self._results_show_action.setEnabled(True)
             self._results_float_action.setEnabled(True)
@@ -1074,6 +1106,8 @@ class FileIoMixin(_Base):
             msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
             return
         self._current_file = path
+        self._archive_baseline_file = (
+            path if str(path).lower().endswith(".rbdz") else None)
         self._undo_stack.setClean()
         self._dirty = False
         # A model saved for the first time now has a file: Save becomes

@@ -217,8 +217,10 @@ def snapshot_version(model_id: str, label: str = "",
 
     The desktop application does this on every save; this does it on demand,
     with an optional `label` to find it again and an optional Markdown
-    `description` (up to 20,000 characters). An unchanged file re-labels and
-    re-describes its newest version instead of adding a duplicate.
+    `description` (up to 20,000 characters). An unchanged file names its
+    newest version when that has no label (or description) yet; if it
+    already has a different one, a new version is added and the earlier
+    one keeps its own.
     """
     context.require_write()
     ws = context.workspace()
