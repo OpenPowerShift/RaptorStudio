@@ -4537,6 +4537,10 @@ Salvá-las?</translation>
       <translation>O conteúdo do modelo é igual ao da versão mais recente (exceto o layout).</translation>
     </message>
     <message>
+      <source>Saving — the dialog can be closed when it finishes.</source>
+      <translation>Salvando — a janela pode ser fechada quando terminar.</translation>
+    </message>
+    <message>
       <source>Same as the model that is open now (layout aside).</source>
       <translation>Igual ao modelo aberto agora (exceto o layout).</translation>
     </message>
@@ -4607,6 +4611,10 @@ Salvá-las?</translation>
     <message>
       <source>This version could not be read as a model:</source>
       <translation>Esta versão não pôde ser lida como modelo:</translation>
+    </message>
+    <message>
+      <source>Could not save the version: %1</source>
+      <translation>Não foi possível salvar a versão: %1</translation>
     </message>
     <message>
       <source>The model has not changed since the version saved %1; that version is selected. Type a label to name it.</source>
@@ -5455,6 +5463,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Escape — parada solicitada</translation>
     </message>
     <message>
+      <source>Saving — wait for the save to finish</source>
+      <translation>Salvando — aguarde o salvamento terminar</translation>
+    </message>
+    <message>
       <source>Early-terminate results discarded — model changed</source>
       <translation>Resultados de encerramento antecipado descartados — modelo alterado</translation>
     </message>
@@ -5481,6 +5493,10 @@ Continuar?</translation>
     <message>
       <source>Collapse: select at least one block, node, or event first</source>
       <translation>Recolher: selecione primeiro pelo menos um bloco, nó ou evento</translation>
+    </message>
+    <message>
+      <source>Finishing the save, then closing</source>
+      <translation>Concluindo o salvamento e depois fechando</translation>
     </message>
     <message>
       <source>Escape — paused (Esc again to stop, or Pause/Resume to continue)</source>
@@ -6721,6 +6737,26 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Preparing importance measures…</source>
       <translation>Preparando medidas de importância…</translation>
+    </message>
+    <message>
+      <source>Saving {name}… {percent} %</source>
+      <translation>Salvando {name}… {percent} %</translation>
+    </message>
+    <message>
+      <source>Saving {name}…</source>
+      <translation>Salvando {name}…</translation>
+    </message>
+    <message>
+      <source>Saving version… {percent} %</source>
+      <translation>Salvando versão… {percent} %</translation>
+    </message>
+    <message>
+      <source>Saving version…</source>
+      <translation>Salvando versão…</translation>
+    </message>
+    <message>
+      <source>Saving — editing resumes when the save finishes</source>
+      <translation>Salvando — a edição volta quando o salvamento terminar</translation>
     </message>
     <message>
       <source>Invalid stream — independent 1..110, system A..J (antithetic stored as negative)</source>
