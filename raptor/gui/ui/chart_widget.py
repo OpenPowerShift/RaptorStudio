@@ -319,8 +319,9 @@ class ChartWidget(QWidget):
         self._detail_hits = []
         self._probe = None
         self._caption_in_body = True       # no caption strip under the plot
-        area = QRectF(PAD, PAD / 2, max(1.0, self.width() - 2 * PAD),
-                      max(1.0, self.height() - PAD))
+        pad = PAD / 2
+        area = QRectF(pad, pad / 2, max(1.0, self.width() - 2 * pad),
+                      max(1.0, self.height() - pad))
         draw = getattr(self, f"_paint_{spec.kind}", self._paint_none)
         draw(painter, spec, palette, area)
         painter.end()

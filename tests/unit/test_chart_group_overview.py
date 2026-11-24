@@ -155,26 +155,26 @@ def test_pictures_are_drawn_lazily_then_cached(page):
     page.nav.setCurrentItem(heading(page, "Over time"))
     page.nav.setCurrentItem(heading(page, "The answer"))
     assert overview.pending() == 0
-    assert page._thumb_cached("trial-outcome") is first
+    assert page._thumb_cached("trial-outcome", page.overview._render_width) is first
 
 
 def test_pictures_are_redrawn_for_new_inputs_and_theme(page):
     page.nav.setCurrentItem(heading(page, "The answer"))
     page.overview.flush()
-    first = page._thumb_cached("trial-outcome")
+    first = page._thumb_cached("trial-outcome", page.overview._render_width)
     assert first is not None
     page.set_inputs(per_run=_inputs()[0], units="hours", run_id="r_2")
-    assert page._thumb_cached("trial-outcome") is None
+    assert page._thumb_cached("trial-outcome", page.overview._render_width) is None
     page.nav.setCurrentItem(heading(page, "The answer"))
     page.overview.flush()
-    second = page._thumb_cached("trial-outcome")
+    second = page._thumb_cached("trial-outcome", page.overview._render_width)
     assert second is not None
     # the theme changes the look, so a held picture is not reused
     manager = ThemeManager.instance()
     dark = manager.is_dark
     try:
         manager.set_dark(not dark)
-        assert page._thumb_cached("trial-outcome") is None
+        assert page._thumb_cached("trial-outcome", page.overview._render_width) is None
     finally:
         manager.set_dark(dark)
 
@@ -207,9 +207,9 @@ def test_the_overview_reads_in_portuguese(page):
         assert page.overview.heading.text() == "A resposta"
         card = page.overview.cards[0]
         assert card.data.title == "Resultado de execução a execução"
-        assert card.text.text().startswith("Como o resultado varia")
+        assert card.text.text().startswith("Um ponto por execução")
         page.overview.flush()
-        assert page._thumb_cached("trial-outcome") is not None
+        assert page._thumb_cached("trial-outcome", page.overview._render_width) is not None
     finally:
         i18n.install(QApplication.instance(), "en")
 
@@ -220,3 +220,65 @@ def test_scope_controls_do_not_apply_to_the_overview(page):
     for widget in (page.floor_button, page.target_button, page.compare_button,
                    page.run_box, page.capacity_axis_button):
         assert not widget.isVisible()
+
+
+def _reasons(page):
+    return [e.missing for e in page._entries.values() if e.missing]
+
+
+def test_every_reason_and_action_reads_in_portuguese(qapp):
+    per_run, attribution, importance = _inputs()
+    scenarios = [
+        {},
+        {"per_run": per_run, "units": "hours"},
+        {"per_run": per_run, "units": "hours", "drivers": "pending",
+         "model_hierarchies": True, "model_phases": True},
+        {"per_run": per_run, "units": "hours", "drivers": "unavailable",
+         "model_hierarchies": True},
+        {"per_run": per_run, "units": "minutes", "attribution": attribution,
+         "importance": importance, "model_hierarchies": True},
+        {"per_run": per_run, "units": "hours", "attribution": attribution,
+         "model_phases": True},
+    ]
+    try:
+        i18n.install(QApplication.instance(), "pt_BR")
+        for kwargs in scenarios:
+            page = ChartsPage()
+            page.set_inputs(**kwargs)
+            page.set_series(*_series() if kwargs.get("attribution") else ([], []))
+            for entry in page._entries.values():
+                for text in (entry.missing, entry.action):
+                    if text:
+                        assert i18n.translate_source(text) != text, text
+            page.close()
+    finally:
+        i18n.install(QApplication.instance(), "en")
+
+
+def test_the_explanation_panel_is_translated_and_english_is_unchanged(page):
+    page.set_inputs(per_run=_inputs()[0], units="hours")
+    page.select("cost-pareto")
+    english = page.missing_text.text()
+    assert "Needs the cost analysis" in english
+    try:
+        i18n.install(QApplication.instance(), "pt_BR")
+        page.select("cost-pareto")
+        assert "Precisa da análise de custo" in page.missing_text.text()
+    finally:
+        i18n.install(QApplication.instance(), "en")
+
+
+def test_pictures_are_drawn_at_the_size_they_are_shown(page):
+    page.nav.setCurrentItem(heading(page, "The answer"))
+    page.resize(1300, 600)
+    page.overview.resize(1000, 500)
+    page.overview._reflow()
+    page.overview.flush()
+    wide = page.overview._render_width
+    picture = page._thumb_cached("trial-outcome", wide)
+    assert picture is not None
+    assert picture.width() == round(wide * picture.devicePixelRatio())
+    page.overview.resize(260, 500)
+    page.overview._reflow()
+    assert page.overview._render_width < wide
+    assert page.overview._render_width >= 200

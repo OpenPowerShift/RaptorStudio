@@ -41,7 +41,7 @@ from raptor.api import run_needs
 from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_descriptions, chart_export, chart_i18n
-from raptor.gui.ui.chart_group_overview import CardData, ChartGroupOverview
+from raptor.gui.ui.chart_group_overview import ASPECT, CardData, ChartGroupOverview
 from raptor.gui.ui.chart_widget import ChartWidget
 from raptor.gui.ui.flow_layout import FlowLayout
 from raptor.gui.ui.hierarchy_tree_popup import HierarchyTreePopup
@@ -1586,13 +1586,11 @@ class ChartsPage(QWidget):
 
     # -- the overview's pictures ------------------------------------------
 
-    #: the size a picture is drawn at (logical px); the card scales it down
-    THUMB_SIZE = (480, 300)
-
-    def _thumb_look(self) -> tuple:
-        """What a picture depends on besides its chart: theme, scale, language."""
+    def _thumb_look(self, width: int) -> tuple:
+        """What a picture depends on besides its chart: its size, the theme,
+        the UI scale and the language."""
         colour = active_colour()
-        return (colour["surface"], colour["text"],
+        return (width, colour["surface"], colour["text"],
                 round(self.font().pointSizeF(), 1),
                 round(self.devicePixelRatioF(), 2), i18n.current_locale())
 
@@ -1607,31 +1605,36 @@ class ChartsPage(QWidget):
             return self._time_cache.get((key, run, self._y_floor))
         return self._specs.get(entry.title)
 
-    def _thumb_cached(self, key: str) -> QPixmap | None:
+    def _thumb_cached(self, key: str, width: int) -> QPixmap | None:
         """The picture already drawn from the chart as it stands, if any."""
         held = self._thumbs.get(key)
         spec = self._thumb_spec(key, build=False)
         if held is None or spec is None or held[0] is not spec \
-                or held[1] != self._thumb_look():
+                or held[1] != self._thumb_look(width):
             return None
         return held[2]
 
-    def _thumb_render(self, key: str) -> QPixmap | None:
-        """Draw a chart small: its plot alone, in the GUI language."""
+    def _thumb_render(self, key: str, width: int) -> QPixmap | None:
+        """Draw a chart small: its plot alone, in the GUI language, at the
+        size it will be shown (not a big picture scaled down, which thins
+        every line and shrinks every label)."""
         spec = self._thumb_spec(key, build=True)
         if spec is None:
             return None
+        height = int(width * ASPECT)
         if self._thumb_widget is None:
             self._thumb_widget = ChartWidget()
             self._thumb_widget.thumbnail = True
-            self._thumb_widget.resize(*self.THUMB_SIZE)
         widget = self._thumb_widget
         widget.setFont(self.font())
+        widget.resize(width, height)
         widget.set_spec(chart_i18n.translate_spec(spec))
-        pixmap = QPixmap(*self.THUMB_SIZE)
+        ratio = self.devicePixelRatioF()
+        pixmap = QPixmap(int(width * ratio), int(height * ratio))
+        pixmap.setDevicePixelRatio(ratio)
         widget.render(pixmap)
         widget.set_spec(None)
-        self._thumbs[key] = (spec, self._thumb_look(), pixmap)
+        self._thumbs[key] = (spec, self._thumb_look(width), pixmap)
         return pixmap
 
     def _on_missing_action(self) -> None:
@@ -1723,8 +1726,8 @@ class ChartsPage(QWidget):
     def _show_missing(self, title: str, text: str, action: str) -> None:
         self.chart.set_spec(None)
         self.missing_title.setText(title)
-        self.missing_text.setText(text)
-        self.missing_action.setText(action)
+        self.missing_text.setText(i18n.translate_source(text))
+        self.missing_action.setText(i18n.translate_source(action))
         self.missing_action.setVisible(bool(action))
         self.stack.setCurrentIndex(1)
 

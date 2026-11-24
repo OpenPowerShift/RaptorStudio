@@ -29,6 +29,12 @@ from raptor.gui.resources.design_tokens import RADIUS, SPACING, active_colour
 ASPECT = 0.625
 #: the narrowest a card gets, in line heights (so it follows the UI scale)
 MIN_CARD_LINES = 17
+#: the narrowest a picture is drawn (logical px); a narrower card scales it
+#: down a little, so its labels stay readable
+MIN_RENDER = 200
+#: pictures are drawn at multiples of this width, so resizing does not redraw
+#: them on every pixel
+RENDER_STEP = 20
 #: the most columns, so a very wide window does not stretch cards thin
 MAX_COLUMNS = 4
 
@@ -220,10 +226,12 @@ class ChartGroupOverview(QScrollArea):
         self.group = ""
         self._columns = 0
         self._card_width = 0
-        self._cached: Callable[[str], QPixmap | None] = lambda _key: None
-        self._render: Callable[[str], QPixmap | None] = lambda _key: None
+        self._render_width = MIN_RENDER
+        self._cached: Callable[[str, int], QPixmap | None] = lambda _k, _w: None
+        self._render: Callable[[str, int], QPixmap | None] = lambda _k, _w: None
         self._queue: list[ChartCard] = []
         self._generation = 0
+        self._generation_shown = False
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(0)
@@ -232,10 +240,11 @@ class ChartGroupOverview(QScrollArea):
 
     # -- content ----------------------------------------------------------
 
-    def set_providers(self, cached: Callable[[str], QPixmap | None],
-                      render: Callable[[str], QPixmap | None]) -> None:
-        """`cached(key)`: a picture already drawn for this result, or None;
-        `render(key)`: draw it now (None when the chart has no picture)."""
+    def set_providers(self, cached: Callable[[str, int], QPixmap | None],
+                      render: Callable[[str, int], QPixmap | None]) -> None:
+        """`cached(key, width)`: a picture already drawn for this result at
+        that logical width (its height follows `ASPECT`), or None;
+        `render(key, width)`: draw it now (None when there is no picture)."""
         self._cached = cached
         self._render = render
 
@@ -243,6 +252,7 @@ class ChartGroupOverview(QScrollArea):
                    cards: list[CardData]) -> None:
         """Replace the page's content; the pictures fill in one per turn."""
         self._generation += 1
+        self._generation_shown = False
         self._timer.stop()
         self._queue = []
         self.group = group
@@ -262,16 +272,25 @@ class ChartGroupOverview(QScrollArea):
             self.cards.append(card)
             self.setTabOrder(previous, card)
             previous = card
-            if data.missing:
+        self._columns = 0
+        self._reflow()
+        self._generation_shown = True
+        self._refresh_pictures()
+
+    def _refresh_pictures(self) -> None:
+        """Show the pictures held for the current width; queue the rest."""
+        self._timer.stop()
+        self._queue = []
+        for card in self.cards:
+            if card.data.missing:
                 continue
-            picture = self._cached(data.key)
+            picture = self._cached(card.data.key, self._render_width)
             if picture is not None:
                 card.thumb.set_pixmap(picture)
             else:
-                card.thumb.set_pixmap(None, "…")
+                if not card.thumb.has_picture():
+                    card.thumb.set_pixmap(None, "\u2026")
                 self._queue.append(card)
-        self._columns = 0
-        self._reflow()
         if self._queue:
             self._timer.start()
 
@@ -290,7 +309,7 @@ class ChartGroupOverview(QScrollArea):
         if not self._queue:
             return
         card = self._queue.pop(0)
-        picture = self._render(card.data.key)
+        picture = self._render(card.data.key, self._render_width)
         if generation != self._generation:
             return
         card.thumb.set_pixmap(picture, "" if picture is not None
@@ -321,6 +340,10 @@ class ChartGroupOverview(QScrollArea):
         if (cols, card_w) == (self._columns, self._card_width) and self._grid.count():
             return
         self._columns, self._card_width = cols, card_w
+        inner_w = card_w - 2 * SPACING["sm"]
+        width = max(MIN_RENDER, round(inner_w / RENDER_STEP) * RENDER_STEP)
+        redraw = width != self._render_width and bool(self.cards)
+        self._render_width = width
         for card in self.cards:
             self._grid.removeWidget(card)
         inner = card_w - 2 * SPACING["sm"]
@@ -339,6 +362,8 @@ class ChartGroupOverview(QScrollArea):
         for col in range(cols):
             self._grid.setColumnStretch(col, 0)
         self._grid.setColumnStretch(cols, 1)
+        if redraw and self._generation_shown:
+            self._refresh_pictures()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt name
         super().resizeEvent(event)
