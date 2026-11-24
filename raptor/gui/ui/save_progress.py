@@ -22,7 +22,8 @@ from typing import Any
 
 from PySide6.QtCore import QEvent, QEventLoop, QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
-    QApplication, QLabel, QProgressBar, QScrollBar, QWidget)
+    QAbstractSpinBox, QApplication, QComboBox, QLabel, QProgressBar,
+    QScrollBar, QSlider, QWidget)
 
 from raptor.gui import i18n
 
@@ -39,6 +40,10 @@ _BLOCKED = (
 )
 
 
+#: Widgets a stray wheel turn would edit while the save runs.
+_WHEEL_EDITABLE = (QAbstractSpinBox, QComboBox, QSlider)
+
+
 class WorkerJob(QThread):
     """Runs ``fn(progress)`` on a worker thread; ``progress(done, total)``
     is throttled and re-emitted as :attr:`progressed` on the GUI thread."""
@@ -52,12 +57,17 @@ class WorkerJob(QThread):
         self.result: Any = None
         self.error: BaseException | None = None
         self._last = 0.0
+        self._sent_final = False
 
     def progress(self, done: int, total: int | None) -> None:
         now = time.monotonic()
-        if now - self._last >= _EMIT_EVERY or (total is not None
-                                               and done >= total):
+        # Past the (possibly estimated) total, the throttle still applies:
+        # an estimate that is too low must not flood the GUI thread.
+        finished = total is not None and done >= total
+        if now - self._last >= _EMIT_EVERY or (
+                finished and not self._sent_final):
             self._last = now
+            self._sent_final = self._sent_final or finished
             self.progressed.emit(done, total)
 
     def run(self) -> None:                    # worker thread
@@ -71,7 +81,9 @@ class InputLock(QObject):
     """While a save runs: swallow the input that edits or starts things.
 
     Wheel, mouse movement, scroll-bar clicks and releases still pass, so
-    the canvas can be scrolled and zoomed and the window repaints.  Applies
+    the canvas can be scrolled and zoomed and the window repaints. A wheel
+    turn over a spin box, combo box or slider is held back: those change
+    a value the save may be writing.  Applies
     to the owner window and the windows parented to it (floating docks).
     """
 
@@ -90,6 +102,14 @@ class InputLock(QObject):
         return False
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.Wheel and self._mine(obj):
+            w = obj if isinstance(obj, QWidget) else None
+            while w is not None and w is not self._owner:
+                if isinstance(w, _WHEEL_EDITABLE):
+                    self.blocked.emit()
+                    return True
+                w = w.parentWidget()
+            return False
         if event.type() not in _BLOCKED or not self._mine(obj):
             return False
         if event.type() == QEvent.Type.MouseButtonPress:
@@ -156,8 +176,11 @@ class _Presenter:
     dialog that offers ``add_progress_widget`` / ``remove_progress_widget``."""
 
     def __init__(self, host: Any, owner: QWidget, job: WorkerJob, name: str,
-                 kind: str, sinks: list[Callable[[int, int | None], None]]) -> None:
+                 kind: str, sinks: list[Callable[[int, int | None], None]],
+                 quiet: bool = False) -> None:
         self.host, self.name, self.kind = host, name, kind
+        #: True when another view (the History dialog) shows the progress.
+        self.quiet = quiet
         self.bar: SaveProgressBar | None = None
         self._latest: list[Any] = [0, None]
         self._last_note = 0.0
@@ -174,6 +197,8 @@ class _Presenter:
             sink(done, total)
 
     def _show(self) -> None:
+        if self.quiet:
+            return
         bar = SaveProgressBar(self.name, kind=self.kind)
         self.bar = bar
         self.host.add_progress_widget(bar)
@@ -193,6 +218,7 @@ class _Presenter:
         if self.bar is not None:
             self.host.remove_progress_widget(self.bar)
             self.bar.deleteLater()
+        self.timer.deleteLater()
 
 
 class _WindowHost:
@@ -217,17 +243,19 @@ class _WindowHost:
 def run_blocking(owner: QWidget, host: Any, fn: Callable[..., Any], *,
                  name: str = "", kind: str = "save",
                  sinks: list[Callable[[int, int | None], None]] | None = None,
-                 flag: str = "_save_in_progress") -> Any:
+                 flag: str = "_save_in_progress",
+                 quiet: bool = False) -> Any:
     """Run ``fn(progress)`` on a worker and return its result when done.
 
     The call waits in a local event loop, so the window keeps painting;
     :class:`InputLock` holds back editing/shortcut input to *owner* and its
     child windows meanwhile.  Raises what *fn* raised.  *flag* is set True on
-    *owner* for the duration (guards elsewhere read it).
+    *owner* for the duration (guards elsewhere read it).  *quiet* leaves the
+    bar to another view (the sinks still get the progress).
     """
     job = WorkerJob(fn, owner)
     lock = InputLock(owner)
-    present = _Presenter(host, owner, job, name, kind, sinks or [])
+    present = _Presenter(host, owner, job, name, kind, sinks or [], quiet)
     lock.blocked.connect(present.note_blocked)
     loop = QEventLoop(owner)
     job.finished.connect(loop.quit)
@@ -251,6 +279,15 @@ def run_blocking(owner: QWidget, host: Any, fn: Callable[..., Any], *,
     return job.result
 
 
+def save_progress_sinks(window: Any) -> list[Callable[[int, int | None], None]]:
+    """The window's list of progress listeners, created on first use."""
+    sinks = getattr(window, "_save_progress_sinks", None)
+    if sinks is None:
+        sinks = []
+        window._save_progress_sinks = sinks
+    return sinks
+
+
 def save_archive_blocking(window: Any, path: str, model_text: str,
                           sources: dict[str, Any],
                           manifest: dict[str, Any], created: str) -> None:
@@ -265,8 +302,7 @@ def save_archive_blocking(window: Any, path: str, model_text: str,
     # fixed snapshot even if the dock rebinds its own lists meanwhile.
     snap = {k: (list(v) if isinstance(v, list) else v)
             for k, v in sources.items()}
-    if not hasattr(window, "_save_progress_sinks"):
-        window._save_progress_sinks = []
+    sinks = save_progress_sinks(window)
 
     def work(progress: Callable[[int, int | None], None]) -> None:
         from raptor.core.fileio.rbdz import write_archive
@@ -275,7 +311,9 @@ def save_archive_blocking(window: Any, path: str, model_text: str,
 
     try:
         run_blocking(window, _WindowHost(window), work, name=Path(path).name,
-                     sinks=getattr(window, "_save_progress_sinks", []))
+                     sinks=sinks,
+                     # A dialog that mirrors the progress shows it once.
+                     quiet=bool(sinks))
     finally:
         pending_close = getattr(window, "_close_after_save", False)
         window._close_after_save = False

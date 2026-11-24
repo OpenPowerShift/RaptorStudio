@@ -49,7 +49,8 @@ def test_dialog_lists_previews_and_chooses_a_version(qapp, tmp_path):
                            current_model=load_rbds(str(model)))
     assert dialog._list.count() == 3             # Current + two versions
     assert dialog._list.item(0).text().startswith("Current")
-    assert dialog._list.item(1).text().startswith(newer.time_text())
+    assert dialog._list.item(1).text().startswith("before edit")
+    assert newer.time_text() in dialog._list.item(1).text()
     dialog._list.setCurrentRow(1)
     assert dialog._stats.text().startswith("Model: ")
     assert "block" in dialog._stats.text()
@@ -170,13 +171,13 @@ def test_dialog_empty_state_snapshot_label_and_current_row(
     dialog._snapshot_now()
     assert dialog._list.count() == 2
     assert "baseline" in dialog._list.item(1).text()
-    assert "matches the version saved" in dialog._list.item(0).text()
+    assert "same as the version saved" in dialog._list.item(0).text()
     assert dialog.current_id() == store.snapshots(model)[0].id
 
     model.write_text(_renamed_copy(text, _first_block_name(model), "Changed"),
                      encoding="utf-8")
     dialog = HistoryDialog(None, model, store)
-    assert "not checkpointed" in dialog._list.item(0).text()
+    assert "not saved as a version" in dialog._list.item(0).text()
     assert dialog.current_id() is None
 
     dialog._list.setCurrentRow(1)
@@ -408,8 +409,9 @@ def test_description_is_rendered_until_edit_and_saved_with_the_api(
     assert not panel.editing
     assert store.snapshot(model, older.id).description == "## Revised\n\n*text*"
     assert "Revised" in panel.view.toPlainText()
-    assert "¶" in dialog._list.item(2).text()
-    assert "¶" not in dialog._list.item(1).text()
+    from raptor.gui.ui.history_dialog import _ROW_ROLE
+    assert dialog._list.item(2).data(_ROW_ROLE)["has_description"]
+    assert not dialog._list.item(1).data(_ROW_ROLE)["has_description"]
     assert "Revised" in dialog._list.item(2).toolTip()
 
 

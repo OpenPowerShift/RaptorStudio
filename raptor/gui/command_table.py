@@ -89,6 +89,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_open_history_dialog",
         enabled_when="has_file"),
     CommandSpec(
+        id="file.save_version",
+        attr="_save_version_action",
+        text="Save Version Now…",
+        icon="history_clock_icon:text",
+        tooltip=(
+            "Save the current state as a named version you can come back "
+            "to (Ctrl+Alt+S)"),
+        handler="_save_version_now",
+        shortcut="Ctrl+Alt+S",
+        enabled_when="has_file"),
+    CommandSpec(
         id="file.close_file",
         shortcut="Ctrl+W",
         attr="_close_file_action",
@@ -1573,7 +1584,8 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save",
-              "file.save_as", "file.history", "file.close_file",
+              "file.save_as", "file.save_version", "file.history",
+              "file.close_file",
               "file.quit", "home.diff")),
     # Other tools' files: one tile per format, so a new importer is one
     # more id here. Availability Workbench opens a new model; a data table

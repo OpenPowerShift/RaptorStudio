@@ -549,3 +549,148 @@ def test_record_streams_the_file_with_progress_and_leaves_no_temp(tmp_path):
         store.record(src, reason="manual", progress=boom)
     assert not list((tmp_path / "hist").rglob("*.part"))
     assert len(store.snapshots(src)) == 1
+
+
+# -- robustness: lock, transient errors, pending deletions, orphans ---------
+
+def test_the_windows_lock_fallback_excludes_and_breaks_stale_locks(
+        tmp_path, monkeypatch):
+    import os
+    import time
+
+    from raptor.core import history
+    monkeypatch.setattr(history, "_fcntl", None)          # as on Windows
+    lock = tmp_path / "h" / "index.lock"
+    marker = lock.with_name("index.lock.excl")
+    with history._file_lock(lock):
+        assert marker.exists()                            # really held
+    assert not marker.exists()                            # released
+    # A lock file left by a crashed process is broken once it is stale.
+    marker.write_text("")
+    old = time.time() - history.LOCK_STALE_SECONDS - 5
+    os.utime(marker, (old, old))
+    with history._file_lock(lock):
+        assert marker.exists()
+    assert not marker.exists()
+    # A fresh one is waited for, then taken after the timeout.
+    marker.write_text("")
+    monkeypatch.setattr(history, "LOCK_TIMEOUT_SECONDS", 0.2)
+    started = time.monotonic()
+    with history._file_lock(lock):
+        pass
+    assert time.monotonic() - started >= 0.15
+
+
+def test_the_windows_fallback_serialises_record(tmp_path, monkeypatch):
+    from raptor.core import history
+    monkeypatch.setattr(history, "_fcntl", None)
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    assert store.record(path, reason="manual") is not None
+    assert len(store.snapshots(path)) == 1
+
+
+def test_a_transient_read_error_never_rebuilds_or_loses_labels(
+        tmp_path, monkeypatch):
+    from raptor.core import history
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    store.record(path, reason="manual", label="keep me")
+    index = store._index_path(path)
+    real = Path.read_text
+
+    def flaky(self, *a, **k):
+        if self == index:
+            raise PermissionError("locked by a scanner")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(Path, "read_text", flaky)
+    monkeypatch.setattr(history.time, "sleep", lambda s: None)
+    with pytest.raises(history.HistoryError, match="cannot read"):
+        store.snapshots(path)
+    monkeypatch.setattr(Path, "read_text", real)
+    assert not list(index.parent.glob("index.json.corrupt-*"))
+    assert [s.label for s in store.snapshots(path)] == ["keep me"]
+
+
+def test_a_transient_error_that_clears_is_retried(tmp_path, monkeypatch):
+    from raptor.core import history
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    store.record(path, reason="manual", label="kept")
+    index = store._index_path(path)
+    real = Path.read_text
+    calls = {"n": 0}
+
+    def once(self, *a, **k):
+        if self == index and calls["n"] < 2:
+            calls["n"] += 1
+            raise OSError("share hiccup")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(Path, "read_text", once)
+    monkeypatch.setattr(history.time, "sleep", lambda s: None)
+    assert [s.label for s in store.snapshots(path)] == ["kept"]
+
+
+def test_a_badly_shaped_index_is_quarantined(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    store.record(path, reason="manual", label="x")
+    store._index_path(path).write_text("[1, 2]", encoding="utf-8")
+    assert len(store.snapshots(path)) == 1                # rebuilt
+    assert list(store._index_path(path).parent.glob("index.json.corrupt-*"))
+
+
+def test_a_deleted_last_version_is_not_resurrected_when_unlink_fails(
+        tmp_path, monkeypatch):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, reason="manual", label="only")
+    real = Path.unlink
+
+    def locked(self, *a, **k):
+        if self == shot.path:
+            raise PermissionError("open in another process")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(Path, "unlink", locked)
+    assert store.discard(path, shot.id)
+    assert store.snapshots(path) == []                    # not re-added
+    assert store.snapshots(path) == []
+    monkeypatch.setattr(Path, "unlink", real)
+    # The next write retries the deletion and clears the record.
+    path.write_text("model-v2", encoding="utf-8")
+    store.record(path, reason="manual")
+    assert not shot.path.exists()
+    assert "deleted" not in json.loads(
+        store._index_path(path).read_text(encoding="utf-8"))
+
+
+def test_re_saving_deleted_bytes_makes_a_version_again(tmp_path, monkeypatch):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, reason="manual")
+    real = Path.unlink
+    monkeypatch.setattr(Path, "unlink", lambda self, *a, **k: (_ for _ in ()).throw(
+        PermissionError("busy")) if self == shot.path else real(self, *a, **k))
+    store.discard(path, shot.id)
+    again = store.record(path, reason="manual", label="back")
+    assert again is not None
+    assert [s.label for s in store.snapshots(path)] == ["back"]
+
+
+def test_old_orphan_part_files_are_swept_on_open(tmp_path):
+    import os
+    import time
+    root = tmp_path / "history"
+    folder = root / "abc"
+    folder.mkdir(parents=True)
+    old = folder / "stage.old.part"
+    new = folder / "stage.new.part"
+    for p in (old, new):
+        p.write_bytes(b"x")
+    stale = time.time() - 7200
+    os.utime(old, (stale, stale))
+    HistoryStore(root)
+    assert not old.exists() and new.exists()

@@ -7,21 +7,120 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer
+from PySide6.QtGui import QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QDialogButtonBox, QHBoxLayout, QInputDialog,
-    QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
+    QAbstractItemView, QApplication, QDialog, QDialogButtonBox, QHBoxLayout,
+    QInputDialog, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit,
+    QPushButton, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
     QVBoxLayout,
 )
 
 from raptor.gui import i18n
 from raptor.api.history import store as history_store
-from raptor.core.history import HistoryStore, Snapshot, format_bytes
+from raptor.core.history import (
+    HistoryError, HistoryStore, Snapshot, format_bytes)
 from raptor.gui.ui.history_description import DescriptionPanel
 
 
 _CANCELLED: Any = object()
+#: Item data for a version row: what the delegate paints.
+_ROW_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class _VersionDelegate(QStyledItemDelegate):
+    """Paints a version as two lines: label and right-aligned size, then the
+    date, an "auto" tag when the program took it and a paragraph mark when it
+    has a description. The Current row (no row data) is the stock text row
+    with a separator under it."""
+
+    _PAD = 5
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: Any) -> QSize:  # noqa: N802
+        data = index.data(_ROW_ROLE)
+        if data is None:
+            base = super().sizeHint(option, index)
+            return QSize(base.width(), base.height() + 2 * self._PAD)
+        height = option.fontMetrics.height() * 2 + 2 * self._PAD + 2
+        return QSize(option.rect.width(), height)
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem,
+              index: Any) -> None:
+        data = index.data(_ROW_ROLE)
+        if data is None:
+            super().paint(painter, option, index)
+            painter.save()
+            rule = option.palette.color(
+                option.palette.ColorRole.PlaceholderText)
+            rule.setAlpha(110)
+            painter.setPen(QPen(rule, 1))
+            y = option.rect.bottom()
+            painter.drawLine(option.rect.left(), y, option.rect.right(), y)
+            painter.restore()
+            return
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.text = ""
+        widget = opt.widget
+        style = widget.style() if widget is not None else QApplication.style()
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter,
+                          widget)
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        group = opt.palette.currentColorGroup()
+        strong = opt.palette.color(
+            group, opt.palette.ColorRole.HighlightedText if selected
+            else opt.palette.ColorRole.Text)
+        muted = opt.palette.color(
+            group, opt.palette.ColorRole.HighlightedText if selected
+            else opt.palette.ColorRole.PlaceholderText)
+        if selected:
+            muted.setAlpha(190)
+        self._paint_texts(painter, opt, data, strong, muted)
+
+    def _paint_texts(self, painter: QPainter, opt: QStyleOptionViewItem,
+                     data: dict[str, Any], strong: Any, muted: Any) -> None:
+        painter.save()
+        fm = opt.fontMetrics
+        box = opt.rect.adjusted(8, self._PAD, -8, -self._PAD)
+        line = fm.height()
+        size_w = fm.horizontalAdvance(data["size"])
+        painter.setPen(muted)
+        painter.drawText(QRect(box.right() - size_w, box.top(), size_w, line),
+                         int(Qt.AlignmentFlag.AlignRight
+                             | Qt.AlignmentFlag.AlignVCenter), data["size"])
+        right = box.right() - size_w - 8
+        if data["has_description"]:
+            mark_w = fm.horizontalAdvance("¶")
+            painter.drawText(QRect(right - mark_w, box.top(), mark_w, line),
+                             int(Qt.AlignmentFlag.AlignCenter), "¶")
+            right -= mark_w + 6
+        font = QFont(opt.font)
+        font.setBold(bool(data["label"]))
+        font.setItalic(not data["label"])
+        painter.setFont(font)
+        painter.setPen(strong if data["label"] else muted)
+        label = data["label"] or i18n.tr("(no label)")
+        painter.drawText(
+            QRect(box.left(), box.top(), max(10, right - box.left()), line),
+            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+            fm.elidedText(label, Qt.TextElideMode.ElideRight,
+                          max(10, right - box.left())))
+        painter.setFont(opt.font)
+        painter.setPen(muted)
+        top2 = box.top() + line + 2
+        when_w = fm.horizontalAdvance(data["when"])
+        painter.drawText(QRect(box.left(), top2, when_w + 4, line),
+                         int(Qt.AlignmentFlag.AlignLeft
+                             | Qt.AlignmentFlag.AlignVCenter), data["when"])
+        if data["auto"]:
+            tag = i18n.tr("auto")
+            tag_w = fm.horizontalAdvance(tag) + 10
+            tag_rect = QRect(box.left() + when_w + 12, top2 + 1, tag_w,
+                             line - 2)
+            painter.setPen(QPen(muted, 1))
+            painter.drawRoundedRect(tag_rect, 3, 3)
+            painter.drawText(tag_rect, int(Qt.AlignmentFlag.AlignCenter), tag)
+        painter.restore()
 
 
 @dataclass
@@ -54,8 +153,12 @@ class HistoryDialog(QDialog):
                  store: HistoryStore | None = None, *,
                  current_model: Any = None,
                  save_current: Callable[[], bool] | None = None,
-                 current_state: Callable[[], CurrentState | None] | None = None):
+                 current_state: Callable[[], CurrentState | None] | None = None,
+                 start_save: bool = False):
         super().__init__(parent)
+        #: The error from reading the history index, shown in the dialog.
+        self._index_error = ""
+        self._start_save = start_save
         self._current_state_fn = current_state
         self._state: CurrentState | None = None
         self._current_matches = False
@@ -76,18 +179,24 @@ class HistoryDialog(QDialog):
         self._busy = False                      # `run_blocking`'s flag
         self._phase_bar: Any = None
         self.snapshot: Snapshot | None = None
-        self.setWindowTitle(f"Version History — {Path(file).name}")
+        self.setWindowTitle(i18n.tr("Version History — {name}").format(
+            name=Path(file).name))
         self.setMinimumSize(860, 520)
         self._build()
         self.reload()
+        if start_save:
+            # The "Save Version Now" command: go straight to the save.
+            QTimer.singleShot(0, self._snapshot_now)
 
     def _build(self) -> None:
         lay = QVBoxLayout(self)
         lay.setSpacing(8)
         intro = QLabel(
-            "Versions are checkpoints you save with Save version now; "
-            "saving the model does not add one. They live in your private "
-            "application folder, not beside the model.")
+            "Versions are snapshots you save yourself; saving the model "
+            "does not add one.")
+        intro.setToolTip(
+            "Versions live in your private application folder, not beside "
+            "the model.")
         intro.setWordWrap(True)
         lay.addWidget(intro)
 
@@ -96,6 +205,7 @@ class HistoryDialog(QDialog):
         self._list = QListWidget()
         self._list.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection)
+        self._list.setItemDelegate(_VersionDelegate(self._list))
         self._list.setWordWrap(True)       # a long Current line wraps
         self._list.setTextElideMode(Qt.TextElideMode.ElideNone)
         self._list.setHorizontalScrollBarPolicy(
@@ -114,6 +224,14 @@ class HistoryDialog(QDialog):
         box.rejected.connect(self.reject)
         self._close_box = box
         lay.addWidget(box)
+        # Enter must only ever close: no action button (and not the
+        # description's Edit) may be the default.
+        for button in self.findChildren(QPushButton):
+            button.setAutoDefault(False)
+            button.setDefault(False)
+        close = box.button(QDialogButtonBox.StandardButton.Close)
+        close.setAutoDefault(True)
+        close.setDefault(True)
         if not Path(self.file).is_file():
             self._snapshot_btn.setEnabled(False)
             self._snapshot_btn.setToolTip(
@@ -126,6 +244,8 @@ class HistoryDialog(QDialog):
         right.addWidget(self._details)
         self._note = QLabel("")
         self._note.setWordWrap(True)
+        # Exception text lands here: never interpret it as rich text.
+        self._note.setTextFormat(Qt.TextFormat.PlainText)
         right.addWidget(self._note)
         # Model statistics, then this version's Markdown description, then
         # the results and the comparison with the open model.
@@ -161,6 +281,14 @@ class HistoryDialog(QDialog):
     def _build_list_column(self) -> QVBoxLayout:
         left = QVBoxLayout()
         left.addWidget(self._list, 1)
+        self._empty_hint = QLabel(self._list.viewport())
+        self._empty_hint.setWordWrap(True)
+        self._empty_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_hint.setObjectName("SectionNote")
+        self._empty_hint.setText(i18n.tr(
+            "No versions yet. Save version now keeps the current state."))
+        self._empty_hint.hide()
+        self._list.viewport().installEventFilter(self)
         self._total = QLabel("")
         self._total.setWordWrap(True)
         self._total.setAccessibleName("History size")
@@ -202,9 +330,34 @@ class HistoryDialog(QDialog):
             button.setEnabled(False)
         return row
 
+    def eventFilter(self, obj: Any, event: Any) -> bool:  # noqa: N802
+        if obj is self._list.viewport() and event.type() == QEvent.Type.Resize:
+            self._place_empty_hint()
+        return super().eventFilter(obj, event)
+
+    def _place_empty_hint(self) -> None:
+        """Centre the "no versions yet" hint in the space under Current."""
+        show = not self._snapshots and not self._index_error
+        self._empty_hint.setVisible(show)
+        if not show or self._list.count() == 0:
+            return
+        view = self._list.viewport()
+        top = self._list.visualItemRect(self._list.item(0)).bottom() + 12
+        self._empty_hint.setGeometry(
+            16, top, max(40, view.width() - 32), max(40, view.height() - top))
+
+    def showEvent(self, event: Any) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._place_empty_hint()
+
     def reload(self) -> None:
         selected = self._selected_id()
-        self._snapshots = self._store.snapshots(self.file)
+        self._index_error = ""
+        try:
+            self._snapshots = self._store.snapshots(self.file)
+        except HistoryError as exc:
+            self._snapshots = []
+            self._index_error = str(exc)
         self._refresh_state()
         self._list.blockSignals(True)
         self._list.clear()
@@ -214,35 +367,52 @@ class HistoryDialog(QDialog):
         head.setData(Qt.ItemDataRole.UserRole, None)
         head.setFont(bold)
         self._list.addItem(head)
+        # Seconds only where two versions would otherwise look identical.
+        minutes: dict[str, int] = {}
         for shot in self._snapshots:
-            label = (f"{shot.time_text()}   {_reason_word(shot.reason)}   "
-                     f"{shot.size_text()}")
-            if shot.label:
-                label += f"   {shot.label}"
-            if shot.description:
-                label += "   ¶"
-            item = QListWidgetItem(label)
+            key = shot.time_text(seconds=False)
+            minutes[key] = minutes.get(key, 0) + 1
+        for shot in self._snapshots:
+            when = shot.time_text(seconds=minutes[
+                shot.time_text(seconds=False)] > 1)
+            item = QListWidgetItem(
+                f"{shot.label or i18n.tr('(no label)')} · {when} · "
+                f"{shot.size_text()}")
             item.setData(Qt.ItemDataRole.UserRole, shot.id)
-            tip = f"{shot.size_text()} · {shot.sha256[:16]}"
+            item.setData(_ROW_ROLE, {
+                "label": shot.label, "when": when, "size": shot.size_text(),
+                "auto": shot.is_automatic(),
+                "has_description": bool(shot.description)})
+            tip = f"{shot.time_text()} · {shot.size_text()} · " \
+                  f"{shot.sha256[:16]}"
             if shot.description:
                 first = next((ln.strip() for ln in
                               shot.description.splitlines() if ln.strip()), "")
                 tip += "\n¶ " + first[:120]
             item.setToolTip(tip)
             self._list.addItem(item)
-        self._list.blockSignals(False)
         self._show_usage()
         row = next((i + 1 for i, s in enumerate(self._snapshots)
                     if s.id == selected), 0)
+        # One selection, one refresh: the comparison with the newest
+        # version is not cheap, so it must not run for each signal.
         self._list.setCurrentRow(row)
+        self._list.blockSignals(False)
+        self._place_empty_hint()
         self._show_selected(row)
 
     def _show_usage(self) -> None:
-        total = self._store.usage(self.file)
-        self._total.setText(
-            i18n.tr("History size: %1 for %2 version(s). Identical files "
-                    "are stored once.").replace("%1", format_bytes(total))
-            .replace("%2", str(len(self._snapshots))))
+        try:
+            total = self._store.usage(self.file)
+        except HistoryError:
+            total = 0
+        count = len(self._snapshots)
+        text = (i18n.tr("History size: %1 for %2 version. Identical files "
+                        "are stored once.") if count == 1 else
+                i18n.tr("History size: %1 for %2 versions. Identical files "
+                        "are stored once."))
+        self._total.setText(text.replace("%1", format_bytes(total))
+                            .replace("%2", str(count)))
         over = total > self._store.max_bytes
         self._warning.setVisible(over)
         if over:
@@ -296,14 +466,19 @@ class HistoryDialog(QDialog):
         return True
 
     def _current_text(self) -> str:
-        if self._current_matches:
+        if self._index_error:
+            text = i18n.tr("Current — the version list could not be read")
+        elif self._current_matches:
             newest = self._snapshots[0]
-            text = i18n.tr("Current — matches the version saved %1").replace(
+            text = i18n.tr("Current — same as the version saved %1").replace(
                 "%1", newest.time_text())
             if newest.label:
                 text += f" ({newest.label})"
+        elif not self._snapshots:
+            text = i18n.tr("Current — no versions yet. Use Save version now "
+                           "to keep this state.")
         else:
-            text = i18n.tr("Current — not checkpointed")
+            text = i18n.tr("Current — not saved as a version")
         if self._state is not None and self._state.dirty:
             text += " · " + i18n.tr("unsaved changes")
         return text
@@ -320,6 +495,9 @@ class HistoryDialog(QDialog):
                 "The open model could not be read for comparison."))
             return
         self._stats.setText(_contents_line(state.model))
+        if self._index_error:
+            self._preview.setPlainText(self._index_error)
+            return
         if not self._snapshots:
             self._preview.setPlainText(i18n.tr(
                 "No version to compare with yet. Save version now makes "
@@ -345,7 +523,7 @@ class HistoryDialog(QDialog):
         else:
             lines.append(i18n.tr("Changes from the newest version to the "
                                  "current model (%1):").replace(
-                "%1", str(diff["summary"]["connectivity"])))
+                "%1", _connectivity_text(diff["summary"]["connectivity"])))
             lines += _diff_lines(diff)
         self._preview.setPlainText("\n".join(lines).strip("\n"))
 
@@ -362,20 +540,20 @@ class HistoryDialog(QDialog):
         False discards it. A separate method so tests can replace it."""
         from raptor.gui.ui.dialogs import question_box
         return question_box(
-            self, "Unsaved Description",
-            "The description of this version has unsaved changes.\n\n"
-            "Save them?", yes_text="Save description",
-            no_text="Discard changes", default_yes=True)
+            self, i18n.tr("Unsaved Description"),
+            i18n.tr("The description of this version has unsaved changes."
+                    "\n\nSave them?"), yes_text=i18n.tr("Save description"),
+            no_text=i18n.tr("Discard changes"), default_yes=True)
 
     def _save_description(self, snapshot_id: str, text: str) -> bool:
         ok = self._store.set_description(self.file, snapshot_id, text)
         if not ok:
-            self._note.setText("That version no longer exists; the "
-                               "description was not saved.")
+            self._note.setText(i18n.tr("That version no longer exists; the "
+                                      "description was not saved."))
         return ok
 
     def _after_description_saved(self) -> None:
-        self._note.setText("Description saved.")
+        self._note.setText(i18n.tr("Description saved."))
         self.reload()
 
     def _settle_description(self, next_id: str | None) -> None:
@@ -417,10 +595,11 @@ class HistoryDialog(QDialog):
             self._desc.show_version(None, "")
             return
         shot = self._snapshots[index]
+        auto = f" · {html.escape(i18n.tr('auto'))}" if shot.is_automatic() \
+            else ""
         self._details.setText(
-            f"<b>{shot.time_text()}</b> · {html.escape(_reason_word(shot.reason))}"
-            f" · {shot.size_text()}"
-            + (f"<br>{html.escape(shot.label)}" if shot.label else ""))
+            (f"<b>{html.escape(shot.label)}</b><br>" if shot.label else "")
+            + f"{shot.time_text()} · {shot.size_text()}{auto}")
         stats, rest = self._describe_parts(shot)
         self._stats.setText(stats)
         self._preview.setPlainText(rest)
@@ -480,7 +659,7 @@ class HistoryDialog(QDialog):
         else:
             lines.append(i18n.tr("Changes from this version to the model "
                                  "open now (%1):").replace(
-                "%1", str(diff["summary"]["connectivity"])))
+                "%1", _connectivity_text(diff["summary"]["connectivity"])))
             lines += _diff_lines(diff)
         return stats, "\n".join(lines).strip("\n")
 
@@ -511,8 +690,9 @@ class HistoryDialog(QDialog):
         this dialog (the save itself runs on a worker; see `save_progress`)."""
         from PySide6.QtCore import QTimer
         from raptor.gui.ui.save_progress import SHOW_AFTER_MS, SaveProgressBar
+        from raptor.gui.ui.save_progress import save_progress_sinks
         host = self.parent()
-        sinks = getattr(host, "_save_progress_sinks", None)
+        sinks = save_progress_sinks(host) if host is not None else None
         latest: list[Any] = [0, None]
 
         def sink(done: int, total: int | None) -> None:
@@ -648,10 +828,11 @@ class HistoryDialog(QDialog):
             return
         from raptor.gui.ui.dialogs import question_box
         if not question_box(
-                self, "Delete Version",
-                f"Delete the version from {shot.time_text()}?\n\nThe model "
-                "file is not changed.", yes_text="Delete version",
-                no_text="Keep"):
+                self, i18n.tr("Delete Version"),
+                i18n.tr("Delete the version from %1?\n\nThe model file is "
+                        "not changed.").replace("%1", shot.time_text()),
+                yes_text=i18n.tr("Delete version"),
+                no_text=i18n.tr("Keep")):
             return
         self._store.discard(self.file, shot.id)
         self.reload()
@@ -659,25 +840,6 @@ class HistoryDialog(QDialog):
     def _selected_snapshot(self) -> Snapshot | None:
         row = self._list.currentRow() - 1        # row 0 is Current
         return self._snapshots[row] if 0 <= row < len(self._snapshots) else None
-
-
-def _reason_word(reason: str) -> str:
-    """Why a version exists, in the GUI language."""
-    if reason == "manual":
-        return i18n.tr("manual")
-    if reason == "snapshot":
-        return i18n.tr("snapshot")
-    if reason == "save":
-        return i18n.tr("save")
-    if reason == "before restore":
-        return i18n.tr("before restore")
-    if reason == "restored":
-        return i18n.tr("restored")
-    if reason == "opened":
-        return i18n.tr("opened")
-    if reason == "recovered":
-        return i18n.tr("recovered")
-    return reason
 
 
 def _contents_line(model: Any) -> str:
@@ -753,16 +915,43 @@ def _archive_results_line(path: Path) -> str:
     when = summary.get("run_at") if isinstance(summary, dict) else None
     bits = [i18n.tr("Archive with saved results")]
     if isinstance(runs, int):
-        bits.append(f"{runs:,} run{'' if runs == 1 else 's'}")
+        bits.append((i18n.tr("{n} run") if runs == 1
+                     else i18n.tr("{n} runs")).format(n=f"{runs:,}"))
     if isinstance(when, str) and when:
-        bits.append(f"run {when.replace('T', ' ')[:16]}")
+        bits.append(i18n.tr("run {when}").format(
+            when=when.replace("T", " ")[:16]))
     return ": ".join([bits[0], ", ".join(bits[1:])]) if len(bits) > 1 \
         else bits[0] + "."
 
 
+def _connectivity_text(text: Any) -> str:
+    return (i18n.tr("same wiring") if str(text) == "same wiring"
+            else str(text))
+
+
+def _diff_title(group: str) -> str:
+    """The comparison's group heading in the GUI language (literal tr()
+    calls, so the catalogue scan sees each one)."""
+    titles = {
+        "elements": i18n.tr("Elements"), "links": i18n.tr("Connections"),
+        "structure": i18n.tr("Structure"),
+        "system": i18n.tr("System settings"), "rates": i18n.tr("Rates"),
+        "spare_pools": i18n.tr("Spare pools"),
+        "resources": i18n.tr("Resources"), "triggers": i18n.tr("Triggers"),
+        "phases": i18n.tr("Phases"), "project": i18n.tr("Project")}
+    return titles.get(group, group)
+
+
+def _diff_word(text: str) -> str:
+    """The markers the comparison puts in a cell, in the GUI language."""
+    words = {"(added)": i18n.tr("(added)"), "(removed)": i18n.tr("(removed)"),
+             "(renamed)": i18n.tr("(renamed)"),
+             "present": i18n.tr("present")}
+    return words.get(text, text)
+
+
 def _diff_lines(diff: dict[str, Any]) -> list[str]:
     """One aligned table per changed group, headed in plain words."""
-    from raptor.api.markdown import _DIFF_TITLES
     from raptor.api.model_diff import GROUPS, flatten
     from raptor.cli.cmd_tools import _table_text
     rows = flatten(diff)
@@ -771,9 +960,10 @@ def _diff_lines(diff: dict[str, Any]) -> list[str]:
         mine = [r for r in rows if r["group"] == group]
         if not mine:
             continue
-        body = [[f"{r['kind']} {r['path']}".strip(), r["field"],
-                 r["a"] or "—", r["b"] or "—"] for r in mine]
-        out += ["", f"{_DIFF_TITLES[group]}:",
+        body = [[f"{r['kind']} {r['path']}".strip(), _diff_word(r["field"]),
+                 _diff_word(r["a"]) if r["a"] else "—",
+                 _diff_word(r["b"]) if r["b"] else "—"] for r in mine]
+        out += ["", f"{_diff_title(group)}:",
                 _table_text([i18n.tr("Element"), i18n.tr("Field"), i18n.tr("This version"),
                              i18n.tr("Open now")],
                             body)]
