@@ -8845,6 +8845,18 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>%1 membros · %2 interrupções iniciadas</translation>
     </message>
     <message>
+      <source>%1 member · %2 started outages</source>
+      <translation>%1 membro · %2 interrupções iniciadas</translation>
+    </message>
+    <message>
+      <source>%1 members · %2 started outage</source>
+      <translation>%1 membros · %2 interrupção iniciada</translation>
+    </message>
+    <message>
+      <source>%1 member · %2 started outage</source>
+      <translation>%1 membro · %2 interrupção iniciada</translation>
+    </message>
+    <message>
       <source>target %1</source>
       <translation>meta %1</translation>
     </message>
