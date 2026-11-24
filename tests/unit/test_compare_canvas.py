@@ -8,6 +8,7 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QToolButton
 
 from raptor.api.insight.hierarchy import SERIES_COLOURS
@@ -62,11 +63,12 @@ def test_chip_close_removes_one_and_menu_stays_in_sync(qapp):
     assert page.compare_button.text() == "Compare: top 4"
 
 
-def test_menu_pick_and_clear_emit(qapp):
+def test_picker_pick_and_clear_emit(qapp):
     page = _page()
     seen = []
     page.compare_changed.connect(seen.append)
-    page._toggle_compare(100, True)
+    picker = page.picker("compare")
+    picker._items[100].setCheckState(0, Qt.CheckState.Checked)
     assert seen[-1] == [100]
     page.set_compare([])
     assert seen[-1] == []

@@ -529,15 +529,17 @@ def _page():
     return page
 
 
-def test_rebuilt_compare_and_scope_menus_are_translated(pt, qapp):
+def test_compare_and_scope_pickers_are_translated(pt, qapp):
     page = _page()
-    page._update_compare_menu()
-    page._update_scope_menu()
-    first = [a.text() for a in page.compare_menu.actions() if a.text()]
-    assert first[0] == "Quatro principais por tempo de inatividade"
-    assert [a.text() for a in page.scope_menu.actions()][0] == "Sistema"
-    # model data in the same menus stays exactly as written
-    assert "Intake" in [a.text().strip() for a in page.scope_menu.actions()]
+    compare = page.picker("compare")
+    assert compare.top_button.text() == "Quatro principais por tempo de inatividade"
+    assert compare.search.placeholderText() == "Pesquisar hierarquias\u2026"
+    scope = page.picker("scope")
+    assert scope.tree.topLevelItem(0).text(0) == "Sistema"
+    # model data in the same picker stays exactly as written
+    names = [scope.tree.topLevelItem(i).text(0)
+             for i in range(scope.tree.topLevelItemCount())]
+    assert "Intake" in names
 
 
 def test_the_tool_row_wraps_instead_of_clipping_at_a_narrow_width(pt, qapp):

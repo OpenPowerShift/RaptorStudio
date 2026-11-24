@@ -40,6 +40,7 @@ from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_export, chart_i18n
 from raptor.gui.ui.chart_widget import ChartWidget
 from raptor.gui.ui.flow_layout import FlowLayout
+from raptor.gui.ui.hierarchy_tree_popup import HierarchyTreePopup
 
 _KEY = Qt.ItemDataRole.UserRole
 _GROUP = Qt.ItemDataRole.UserRole + 1
@@ -127,6 +128,9 @@ class ChartsPage(QWidget):
         self._depth = 0
         #: hierarchy ids picked for the overlay; empty means the top four
         self._selected: list[int] = []
+        self._pickers: dict[str, HierarchyTreePopup] = {}
+        self._picker_source: dict[str, tuple[int, str]] = {}
+        self._picker_attr: dict[str, Any] = {}
         #: a previous run's hierarchy rows, kept across a re-run
         self._baseline_rows: list[dict[str, Any]] | None = None
         self._baseline_label: str | None = None
@@ -214,8 +218,8 @@ class ChartsPage(QWidget):
         from raptor.gui.resources.design_tokens import ThemeManager
         ThemeManager.instance().on_changed(self._on_theme_changed)
         self._sync_controls(None)
-        self._update_scope_menu()
-        self._update_compare_menu()
+        self._update_scope_button()
+        self._update_compare_button()
         self._update_depth_menu()
 
     @staticmethod
@@ -236,13 +240,12 @@ class ChartsPage(QWidget):
         bar = FlowLayout(spacing=SPACING["sm"])
         self.scope_button = QToolButton()
         self.scope_button.setText("Scope: System")
-        self.scope_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.scope_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.scope_button.setToolTip(
             "Show the charts for the whole system or for one hierarchy. "
             "It follows the canvas unless you pick a scope here.")
-        self.scope_menu = QMenu(self.scope_button)
-        self.scope_button.setMenu(self.scope_menu)
+        self.scope_button.setAccessibleName("Chart scope")
+        self.scope_button.clicked.connect(lambda _c=False: self._open_picker("scope"))
         bar.addWidget(self.scope_button)
         self.follow_button = QToolButton()
         self.follow_button.setText("Follow canvas")
@@ -292,13 +295,11 @@ class ChartsPage(QWidget):
         self.compare_button = QToolButton()
         self.compare_button.setAccessibleName("Compare hierarchies")
         self.compare_button.setText("Compare: top 4")
-        self.compare_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.compare_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.compare_button.setToolTip(
             "Pick two to four hierarchies for the overlay. With none picked, "
             "the four with the most downtime are compared.")
-        self.compare_menu = QMenu(self.compare_button)
-        self.compare_button.setMenu(self.compare_menu)
+        self.compare_button.clicked.connect(lambda _c=False: self._open_picker("compare"))
         bar.addWidget(self.compare_button)
         self.baseline_button = QToolButton()
         self.baseline_button.setAccessibleName("Hierarchy baseline")
@@ -466,46 +467,53 @@ class ChartsPage(QWidget):
             return "Scope: System"
         return "Scope: " + " > ".join(str(part) for part in row.get("path") or [row["name"]])
 
-    def _update_scope_menu(self) -> None:
-        self.scope_menu.clear()
-        attribution = self._inputs.get("attribution")
-        # fixed menu words are translated here: the menu is rebuilt after the
-        # widget pass, and a hierarchy's own name must stay as written
-        system = self.scope_menu.addAction(i18n.tr("System"))
-        system.setCheckable(True)
-        system.setChecked(self._scope_row() is None)
-        system.triggered.connect(lambda _c=False: self.set_scope(None, follow=False))
-        for row in hier.rows(attribution):
-            text = "  " * max(0, int(row.get("depth") or 1) - 1) + str(row["name"])
-            action = self.scope_menu.addAction(text)
-            action.setCheckable(True)
-            action.setChecked((self._scope_row() or {}).get("id") == row.get("id"))
-            ref = int(row.get("id") or 0)
-            action.triggered.connect(
-                lambda _c=False, ref=ref: self.set_scope(ref, follow=False))
+    def _update_scope_button(self) -> None:
         self._retext(self.scope_button, self._scope_text())
+        picker = self._pickers.get("scope")
+        if picker is not None and picker.isVisible():
+            picker.set_current(self._scope_picker_current())
 
-    def _update_compare_menu(self) -> None:
-        self.compare_menu.clear()
-        attribution = self._inputs.get("attribution")
-        top = self.compare_menu.addAction(i18n.tr("Top four by downtime"))
-        top.setCheckable(True)
-        top.setChecked(not self._selected)
-        top.triggered.connect(lambda _c=False: self.set_compare([]))
-        self.compare_menu.addSeparator()
-        for row in hier.rows(attribution):
-            indent = "  " * max(0, int(row.get("depth") or 1) - 1)
-            action = self.compare_menu.addAction(indent + str(row["name"]))
-            action.setCheckable(True)
-            action.setChecked(int(row.get("id") or 0) in self._selected)
-            ref = int(row.get("id") or 0)
-            action.triggered.connect(
-                lambda checked=False, ref=ref: self._toggle_compare(ref, checked))
+    def _scope_picker_current(self) -> list[int]:
+        row = self._scope_row()
+        return [int(row.get("id") or 0)] if row is not None else []
+
+    def _update_compare_button(self) -> None:
         count = len(self._selected)
         self._retext(self.compare_button,
                      "Compare: top 4" if not count else
                      f"Compare: {count} selected")
+        picker = self._pickers.get("compare")
+        if picker is not None and picker.isVisible():
+            picker.set_current(list(self._selected))
         self._update_chips()
+
+    def picker(self, mode: str) -> HierarchyTreePopup:
+        """The scope or compare picker, built on first use and rebuilt only
+        when the hierarchies changed (a 3,000-row tree is not free)."""
+        picker = self._pickers.get(mode)
+        if picker is None:
+            picker = HierarchyTreePopup(mode, self)
+            picker.scope_chosen.connect(
+                lambda ref: self.set_scope(ref or None, follow=False))
+            picker.compare_chosen.connect(self.set_compare)
+            self._pickers[mode] = picker
+        attribution = self._inputs.get("attribution")
+        source = (id(attribution), i18n.current_locale())
+        if self._picker_source.get(mode) != source or self._picker_attr.get(mode) is not attribution:
+            current = (self._scope_picker_current() if mode == "scope"
+                       else list(self._selected))
+            picker.set_rows(hier.rows(attribution), current=current)
+            self._picker_source[mode] = source
+            self._picker_attr[mode] = attribution
+        else:
+            picker.set_current(self._scope_picker_current() if mode == "scope"
+                               else list(self._selected))
+        i18n.translate_widgets(picker)
+        return picker
+
+    def _open_picker(self, mode: str) -> None:
+        button = self.scope_button if mode == "scope" else self.compare_button
+        self.picker(mode).popup_below(button)
 
     def _update_chips(self) -> None:
         """One chip per explicitly compared hierarchy: swatch, name, close."""
@@ -573,19 +581,6 @@ class ChartsPage(QWidget):
             f" background: {c['border']}; }}"
             f"QToolButton#CompareChipClose:focus {{ border: 2px solid"
             f" {c['accent']}; }}")
-
-    def _toggle_compare(self, ref: int, checked: bool) -> None:
-        chosen = list(self._selected)
-        if checked and ref not in chosen:
-            if len(chosen) >= 4:
-                # The comparison charts take four branches; refuse the fifth
-                # rather than leave a selection that cannot be drawn.
-                self._update_compare_menu()
-                return
-            chosen.append(ref)
-        elif not checked and ref in chosen:
-            chosen.remove(ref)
-        self.set_compare(chosen)
 
     def _on_depth_changed(self, _index: int) -> None:
         self._depth = int(self.depth_box.currentData() or 0)
@@ -674,7 +669,7 @@ class ChartsPage(QWidget):
         self._follow_canvas = bool(on)
         if on:
             self._scope = self._canvas_hierarchy or None
-            self._update_scope_menu()
+            self._update_scope_button()
             self._time_cache.clear()
             self._rebuild()
 
@@ -687,7 +682,7 @@ class ChartsPage(QWidget):
         if ref == self._scope:
             return
         self._scope = ref
-        self._update_scope_menu()
+        self._update_scope_button()
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -700,7 +695,7 @@ class ChartsPage(QWidget):
             self.follow_button.setChecked(self._follow_canvas)
             self.follow_button.blockSignals(False)
         self._scope = scope if scope not in (0, "0", "") else None
-        self._update_scope_menu()
+        self._update_scope_button()
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -715,7 +710,7 @@ class ChartsPage(QWidget):
                 continue
         before = list(self._selected)
         self._selected = list(dict.fromkeys(chosen))[:4]
-        self._update_compare_menu()
+        self._update_compare_button()
         self._rebuild()
         if before != self._selected:
             self.compare_changed.emit(list(self._selected))
@@ -798,8 +793,8 @@ class ChartsPage(QWidget):
             self.compare_changed.emit(list(self._selected))
         if baseline is not None:
             self.set_baseline(baseline)
-        self._update_scope_menu()
-        self._update_compare_menu()
+        self._update_scope_button()
+        self._update_compare_button()
         self._update_depth_menu()
         self._time_cache.clear()
         self._rebuild()

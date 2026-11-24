@@ -761,15 +761,19 @@ def test_nested_scope_sunburst_and_treemap_draw_inside_one_hierarchy(qapp):
     assert any(row["name"] == "Pump house" for row in spec.series)
 
 
-def test_scope_menu_lists_nested_hierarchies_indented(qapp):
+def test_scope_picker_lists_nested_hierarchies_under_their_parent(qapp):
     page = ChartsPage()
     per_run, attribution, importance = _deep_hierarchy_inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, units="hours", run_id="r_1")
-    texts = [action.text() for action in page.scope_menu.actions()]
-    assert "System" in texts
-    assert any(text == "Intake" for text in texts)
-    assert any(text == "  Pump house" for text in texts)
+    tree = page.picker("scope").tree
+    top = [tree.topLevelItem(i).text(0) for i in range(tree.topLevelItemCount())]
+    assert top[0] == "System"
+    assert "Intake" in top
+    intake = next(tree.topLevelItem(i) for i in range(tree.topLevelItemCount())
+                  if tree.topLevelItem(i).text(0) == "Intake")
+    assert [intake.child(i).text(0) for i in range(intake.childCount())] == [
+        "Pump house"]
 
 
 def test_a_theme_change_keeps_the_chart_and_repaints_the_list(qapp):
