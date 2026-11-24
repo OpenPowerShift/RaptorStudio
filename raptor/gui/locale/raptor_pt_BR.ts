@@ -8597,6 +8597,22 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>todos os níveis</translation>
     </message>
     <message>
+      <source>Lost</source>
+      <translation>Perdida</translation>
+    </message>
+    <message>
+      <source>Generated energy</source>
+      <translation>Energia gerada</translation>
+    </message>
+    <message>
+      <source>Not attributed</source>
+      <translation>Não atribuída</translation>
+    </message>
+    <message>
+      <source>Not in this selection</source>
+      <translation>Fora desta seleção</translation>
+    </message>
+    <message>
       <source>Hands-on repair</source>
       <translation>Reparo direto</translation>
     </message>
