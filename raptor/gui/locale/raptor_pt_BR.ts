@@ -2061,6 +2061,14 @@
       <translation>Não comparável: a análise de capacidade difere entre os modelos.</translation>
     </message>
     <message>
+      <source>baseline %1</source>
+      <translation>a referência %1</translation>
+    </message>
+    <message>
+      <source>scope: %1</source>
+      <translation>escopo: %1</translation>
+    </message>
+    <message>
       <source>Copy image</source>
       <translation>Copiar imagem</translation>
     </message>
@@ -2114,7 +2122,7 @@
     </message>
     <message>
       <source>Scope: System</source>
-      <translation>Escopo: sistema</translation>
+      <translation>Escopo: Sistema</translation>
     </message>
     <message>
       <source>Show the charts for the whole system or for one hierarchy. It follows the canvas unless you pick a scope here.</source>
@@ -2277,14 +2285,6 @@
       <translation>Cada linha gravada, no formato de arquivo rpt_*_plot do Raptor</translation>
     </message>
     <message>
-      <source>System</source>
-      <translation>Sistema</translation>
-    </message>
-    <message>
-      <source>Top four by downtime</source>
-      <translation>Quatro principais por tempo de inatividade</translation>
-    </message>
-    <message>
       <source>All levels</source>
       <translation>Todos os níveis</translation>
     </message>
@@ -2303,6 +2303,14 @@
     <message>
       <source>A target availability drawn as a dashed line on these charts and judged in the Overview's Story (met or missed, and by how many runs). It is saved in the model file; it does not change the simulation.</source>
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
+    </message>
+    <message>
+      <source>System</source>
+      <translation>Sistema</translation>
+    </message>
+    <message>
+      <source>Top four by downtime</source>
+      <translation>Quatro principais por tempo de inatividade</translation>
     </message>
     <message>
       <source>Click to fold or unfold this group</source>
@@ -7901,10 +7909,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Quando %1 esteve inativa? (execução %2)</translation>
     </message>
     <message>
-      <source>scope: %1</source>
-      <translation>escopo: %1</translation>
-    </message>
-    <message>
       <source>level %1</source>
       <translation>nível %1</translation>
     </message>
@@ -7943,6 +7947,82 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>%1 of the %2 runs, evenly through the ranking, sorted by downtime</source>
       <translation>%1 das %2 execuções, distribuídas uniformemente pelo ranking, ordenadas por inatividade</translation>
+    </message>
+    <message>
+      <source>Outage paths inside %1</source>
+      <translation>Caminhos de indisponibilidade dentro de %1</translation>
+    </message>
+    <message>
+      <source>▼ %1 pts better</source>
+      <translation>▼ %1 pts melhor</translation>
+    </message>
+    <message>
+      <source>▲ %1 pts worse</source>
+      <translation>▲ %1 pts pior</translation>
+    </message>
+    <message>
+      <source>± %1 pts</source>
+      <translation>± %1 pts</translation>
+    </message>
+    <message>
+      <source>%1 members · %2 started outages</source>
+      <translation>%1 membros · %2 iniciadores</translation>
+    </message>
+    <message>
+      <source>target %1</source>
+      <translation>meta %1</translation>
+    </message>
+    <message>
+      <source>median %1</source>
+      <translation>mediana %1</translation>
+    </message>
+    <message>
+      <source>target %1: %2 of runs reach it</source>
+      <translation>meta %1: %2 das execuções a atingem</translation>
+    </message>
+    <message>
+      <source>then (step %1)</source>
+      <translation>depois (etapa %1)</translation>
+    </message>
+    <message>
+      <source>%1 (log scale)</source>
+      <translation>%1 (escala logarítmica)</translation>
+    </message>
+    <message>
+      <source>%1 · drag across or Ctrl+wheel to zoom in</source>
+      <translation>%1 · arraste ou use Ctrl+roda para ampliar</translation>
+    </message>
+    <message>
+      <source>%1 · drag across or Ctrl+wheel to zoom in, double-click for the whole run</source>
+      <translation>%1 · arraste ou use Ctrl+roda para ampliar, clique duas vezes para ver a execução inteira</translation>
+    </message>
+    <message>
+      <source>%1 of %2 shown</source>
+      <translation>%1 de %2 exibidos</translation>
+    </message>
+    <message>
+      <source>%1 of %2 shown: make the panel taller to see more</source>
+      <translation>%1 de %2 exibidos: aumente a altura do painel para ver mais</translation>
+    </message>
+    <message>
+      <source>%1 more not shown: make the panel taller</source>
+      <translation>mais %1 não exibidos: aumente a altura do painel</translation>
+    </message>
+    <message>
+      <source>%1 of %2 runs, best at the top</source>
+      <translation>%1 de %2 execuções, as melhores no topo</translation>
+    </message>
+    <message>
+      <source>%1 run, best at the top</source>
+      <translation>%1 execução, a melhor no topo</translation>
+    </message>
+    <message>
+      <source>%1 runs, best at the top</source>
+      <translation>%1 execuções, as melhores no topo</translation>
+    </message>
+    <message>
+      <source>%1 (non-mission)</source>
+      <translation>%1 (fora da missão)</translation>
     </message>
     <message>
       <source>Baseline: none</source>
@@ -8517,6 +8597,594 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>todos os níveis</translation>
     </message>
     <message>
+      <source>Hands-on repair</source>
+      <translation>Reparo direto</translation>
+    </message>
+    <message>
+      <source>Waiting for a spare</source>
+      <translation>Aguardando um sobressalente</translation>
+    </message>
+    <message>
+      <source>Waiting for people or equipment</source>
+      <translation>Aguardando pessoas ou equipamentos</translation>
+    </message>
+    <message>
+      <source>Logistics delay</source>
+      <translation>Atraso logístico</translation>
+    </message>
+    <message>
+      <source>Planned maintenance</source>
+      <translation>Manutenção planejada</translation>
+    </message>
+    <message>
+      <source>Waiting to start maintenance</source>
+      <translation>Aguardando o início da manutenção</translation>
+    </message>
+    <message>
+      <source>Held by another element</source>
+      <translation>Retido por outro elemento</translation>
+    </message>
+    <message>
+      <source>Not repairable</source>
+      <translation>Não reparável</translation>
+    </message>
+    <message>
+      <source>Other</source>
+      <translation>Outra</translation>
+    </message>
+    <message>
+      <source>and</source>
+      <translation>e</translation>
+    </message>
+    <message>
+      <source>more</source>
+      <translation>mais</translation>
+    </message>
+    <message>
+      <source>%1 caused %2</source>
+      <translation>%1 causou %2</translation>
+    </message>
+    <message>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+    <message>
+      <source>, mean %1</source>
+      <translation>, média %1</translation>
+    </message>
+    <message>
+      <source>; the middle half of the runs lie between %1 and %2 (Q1 to Q3)</source>
+      <translation>; a metade central das execuções fica entre %1 e %2 (Q1 a Q3)</translation>
+    </message>
+    <message>
+      <source>; %1 of %2 (%3) met the target</source>
+      <translation>; %1 de %2 (%3) atingiram a meta</translation>
+    </message>
+    <message>
+      <source>system</source>
+      <translation>sistema</translation>
+    </message>
+    <message>
+      <source>runs</source>
+      <translation>execuções</translation>
+    </message>
+    <message>
+      <source>time</source>
+      <translation>tempo</translation>
+    </message>
+    <message>
+      <source>simulated time</source>
+      <translation>tempo simulado</translation>
+    </message>
+    <message>
+      <source>cumulative downtime</source>
+      <translation>inatividade acumulada</translation>
+    </message>
+    <message>
+      <source>change in downtime</source>
+      <translation>variação da inatividade</translation>
+    </message>
+    <message>
+      <source>share of runs</source>
+      <translation>parcela das execuções</translation>
+    </message>
+    <message>
+      <source>share of downtime</source>
+      <translation>parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>share of loss</source>
+      <translation>parcela da perda</translation>
+    </message>
+    <message>
+      <source>fraction</source>
+      <translation>fração</translation>
+    </message>
+    <message>
+      <source>cause</source>
+      <translation>causa</translation>
+    </message>
+    <message>
+      <source>hierarchy</source>
+      <translation>hierarquia</translation>
+    </message>
+    <message>
+      <source>hierarchies</source>
+      <translation>hierarquias</translation>
+    </message>
+    <message>
+      <source>element</source>
+      <translation>elemento</translation>
+    </message>
+    <message>
+      <source>phase</source>
+      <translation>fase</translation>
+    </message>
+    <message>
+      <source>step</source>
+      <translation>etapa</translation>
+    </message>
+    <message>
+      <source>year</source>
+      <translation>ano</translation>
+    </message>
+    <message>
+      <source>duration</source>
+      <translation>duração</translation>
+    </message>
+    <message>
+      <source>outages</source>
+      <translation>indisponibilidades</translation>
+    </message>
+    <message>
+      <source>width</source>
+      <translation>largura</translation>
+    </message>
+    <message>
+      <source>height</source>
+      <translation>altura</translation>
+    </message>
+    <message>
+      <source>reliability</source>
+      <translation>confiabilidade</translation>
+    </message>
+    <message>
+      <source>component failures a run</source>
+      <translation>falhas de componentes por execução</translation>
+    </message>
+    <message>
+      <source>outages it started a run</source>
+      <translation>indisponibilidades iniciadas por execução</translation>
+    </message>
+    <message>
+      <source>mean outage length</source>
+      <translation>duração média da indisponibilidade</translation>
+    </message>
+    <message>
+      <source>run-years</source>
+      <translation>execuções-ano</translation>
+    </message>
+    <message>
+      <source>operating cost a year</source>
+      <translation>custo operacional por ano</translation>
+    </message>
+    <message>
+      <source>operating cost</source>
+      <translation>custo operacional</translation>
+    </message>
+    <message>
+      <source>running mean</source>
+      <translation>média acumulada</translation>
+    </message>
+    <message>
+      <source>share of the total</source>
+      <translation>parcela do total</translation>
+    </message>
+    <message>
+      <source>availability (axis zoomed)</source>
+      <translation>disponibilidade (eixo ampliado)</translation>
+    </message>
+    <message>
+      <source>Q1</source>
+      <translation>Q1</translation>
+    </message>
+    <message>
+      <source>Q3</source>
+      <translation>Q3</translation>
+    </message>
+    <message>
+      <source>median</source>
+      <translation>mediana</translation>
+    </message>
+    <message>
+      <source>1 in 4</source>
+      <translation>1 em 4</translation>
+    </message>
+    <message>
+      <source>3 in 4</source>
+      <translation>3 em 4</translation>
+    </message>
+    <message>
+      <source>half</source>
+      <translation>metade</translation>
+    </message>
+    <message>
+      <source>Q1, median, Q3</source>
+      <translation>Q1, mediana, Q3</translation>
+    </message>
+    <message>
+      <source>lost capacity</source>
+      <translation>capacidade perdida</translation>
+    </message>
+    <message>
+      <source>downtime</source>
+      <translation>inatividade</translation>
+    </message>
+    <message>
+      <source>system up</source>
+      <translation>sistema operando</translation>
+    </message>
+    <message>
+      <source>system down</source>
+      <translation>sistema parado</translation>
+    </message>
+    <message>
+      <source>± 2 standard errors</source>
+      <translation>± 2 erros padrão</translation>
+    </message>
+    <message>
+      <source>= no change</source>
+      <translation>= sem alteração</translation>
+    </message>
+    <message>
+      <source>new (not in baseline)</source>
+      <translation>novo (fora da referência)</translation>
+    </message>
+    <message>
+      <source>no spread to judge</source>
+      <translation>sem dispersão para avaliar</translation>
+    </message>
+    <message>
+      <source>each dot a run</source>
+      <translation>cada ponto, uma execução</translation>
+    </message>
+    <message>
+      <source>first</source>
+      <translation>primeira</translation>
+    </message>
+    <message>
+      <source>No chart for this result.</source>
+      <translation>Nenhum gráfico para este resultado.</translation>
+    </message>
+    <message>
+      <source>Nothing to show for this run.</source>
+      <translation>Nada a mostrar para esta execução.</translation>
+    </message>
+    <message>
+      <source>Make this panel taller (or float it) to see the chart.</source>
+      <translation>Aumente a altura deste painel (ou destaque-o) para ver o gráfico.</translation>
+    </message>
+    <message>
+      <source>non-mission</source>
+      <translation>fora da missão</translation>
+    </message>
+    <message>
+      <source>the baseline</source>
+      <translation>a referência</translation>
+    </message>
+    <message>
+      <source>at least</source>
+      <translation>pelo menos</translation>
+    </message>
+    <message>
+      <source>at most</source>
+      <translation>no máximo</translation>
+    </message>
+    <message>
+      <source>planned maintenance</source>
+      <translation>manutenção planejada</translation>
+    </message>
+    <message>
+      <source>logistics, spares, crews</source>
+      <translation>logística, sobressalentes, equipes</translation>
+    </message>
+    <message>
+      <source>Inherent (repair only)</source>
+      <translation>Inerente (somente reparo)</translation>
+    </message>
+    <message>
+      <source>Achieved (+ planned maintenance)</source>
+      <translation>Alcançada (+ manutenção planejada)</translation>
+    </message>
+    <message>
+      <source>Operational (+ logistics, spares, crews)</source>
+      <translation>Operacional (+ logística, sobressalentes, equipes)</translation>
+    </message>
+    <message>
+      <source>%1 run</source>
+      <translation>%1 execução</translation>
+    </message>
+    <message>
+      <source>%1 runs</source>
+      <translation>%1 execuções</translation>
+    </message>
+    <message>
+      <source>%1 hierarchy</source>
+      <translation>%1 hierarquia</translation>
+    </message>
+    <message>
+      <source>%1 hierarchies</source>
+      <translation>%1 hierarquias</translation>
+    </message>
+    <message>
+      <source>%1 part</source>
+      <translation>%1 parte</translation>
+    </message>
+    <message>
+      <source>%1 parts</source>
+      <translation>%1 partes</translation>
+    </message>
+    <message>
+      <source>%1 holds the largest share of system downtime (%2).</source>
+      <translation>%1 concentra a maior parcela do tempo de inatividade do sistema (%2).</translation>
+    </message>
+    <message>
+      <source>No hierarchy has downtime in these runs.</source>
+      <translation>Nenhuma hierarquia tem inatividade nestas execuções.</translation>
+    </message>
+    <message>
+      <source>This model has no hierarchy roll-up.</source>
+      <translation>Este modelo não tem consolidação por hierarquia.</translation>
+    </message>
+    <message>
+      <source>%1 of system downtime is not inside a hierarchy.</source>
+      <translation>%1 do tempo de inatividade do sistema não está dentro de uma hierarquia.</translation>
+    </message>
+    <message>
+      <source>Showing %1 of %2 hierarchies.</source>
+      <translation>Exibindo %1 de %2 hierarquias.</translation>
+    </message>
+    <message>
+      <source>Showing %1 of %2 parts.</source>
+      <translation>Exibindo %1 de %2 partes.</translation>
+    </message>
+    <message>
+      <source>No downtime in %1.</source>
+      <translation>Sem inatividade em %1.</translation>
+    </message>
+    <message>
+      <source>%1 had no downtime.</source>
+      <translation>%1 não teve inatividade.</translation>
+    </message>
+    <message>
+      <source>%1 causes the largest share (%2 of system downtime).</source>
+      <translation>%1 causa a maior parcela (%2 do tempo de inatividade do sistema).</translation>
+    </message>
+    <message>
+      <source>%1 causes the largest share (%2 of %3's downtime).</source>
+      <translation>%1 causa a maior parcela (%2 da inatividade de %3).</translation>
+    </message>
+    <message>
+      <source>%1 causes the largest share (%2).</source>
+      <translation>%1 causa a maior parcela (%2).</translation>
+    </message>
+    <message>
+      <source>%1 of the downtime was started by no single element.</source>
+      <translation>%1 da inatividade não foi iniciada por um único elemento.</translation>
+    </message>
+    <message>
+      <source>No single element is behind the downtime.</source>
+      <translation>Nenhum elemento isolado é responsável pela inatividade.</translation>
+    </message>
+    <message>
+      <source>No element inside %1 caused downtime.</source>
+      <translation>Nenhum elemento dentro de %1 causou inatividade.</translation>
+    </message>
+    <message>
+      <source>Inside %1: %2 is the largest part (%3).</source>
+      <translation>Dentro de %1: %2 é a maior parte (%3).</translation>
+    </message>
+    <message>
+      <source>%1 has no downtime below it in this run.</source>
+      <translation>%1 não tem inatividade abaixo dele nesta execução.</translation>
+    </message>
+    <message>
+      <source>Most system downtime is not inside a hierarchy.</source>
+      <translation>A maior parte da inatividade do sistema não está dentro de uma hierarquia.</translation>
+    </message>
+    <message>
+      <source>%1 is the largest hierarchy (%2 of system downtime).</source>
+      <translation>%1 é a maior hierarquia (%2 do tempo de inatividade do sistema).</translation>
+    </message>
+    <message>
+      <source>By the end of the run, %1.</source>
+      <translation>Ao final da execução, %1.</translation>
+    </message>
+    <message>
+      <source>Showing the top %1 of %2 hierarchies; use Compare to choose.</source>
+      <translation>Exibindo as %1 principais de %2 hierarquias; use Comparar para escolher.</translation>
+    </message>
+    <message>
+      <source>%1; each dot is one run's share of system downtime.</source>
+      <translation>%1; cada ponto é a parcela de uma execução no tempo de inatividade do sistema.</translation>
+    </message>
+    <message>
+      <source>%1 causes the most downtime in %2 of %3 runs.</source>
+      <translation>%1 causa a maior inatividade em %2 de %3 execuções.</translation>
+    </message>
+    <message>
+      <source>%1: mean share of system downtime %2 over %3 runs.</source>
+      <translation>%1: parcela média do tempo de inatividade do sistema %2 em %3 execuções.</translation>
+    </message>
+    <message>
+      <source>Run %1 of %2: %3.</source>
+      <translation>Execução %1 de %2: %3.</translation>
+    </message>
+    <message>
+      <source>%1 is down %2 a run more than %3 (± %4).</source>
+      <translation>%1 fica parado %2 por execução a mais que %3 (± %4).</translation>
+    </message>
+    <message>
+      <source>%1 is down %2 a run more than %3.</source>
+      <translation>%1 fica parado %2 por execução a mais que %3.</translation>
+    </message>
+    <message>
+      <source>%1 is down %2 a run less than %3 (± %4).</source>
+      <translation>%1 fica parado %2 por execução a menos que %3 (± %4).</translation>
+    </message>
+    <message>
+      <source>%1 is down %2 a run less than %3.</source>
+      <translation>%1 fica parado %2 por execução a menos que %3.</translation>
+    </message>
+    <message>
+      <source>%1 has the same downtime as %2 (± %3).</source>
+      <translation>%1 tem a mesma inatividade que %2 (± %3).</translation>
+    </message>
+    <message>
+      <source>%1 has the same downtime as %2.</source>
+      <translation>%1 tem a mesma inatividade que %2.</translation>
+    </message>
+    <message>
+      <source>%1 is mostly %2.</source>
+      <translation>%1 é principalmente %2.</translation>
+    </message>
+    <message>
+      <source>%1 holds the most hierarchy downtime; all of it is in %2 (%3 of its downtime).</source>
+      <translation>%1 concentra a maior inatividade entre as hierarquias; toda ela está em %2 (%3 da sua inatividade).</translation>
+    </message>
+    <message>
+      <source>%1 holds the most hierarchy downtime; most of it is in %2 (%3 of its downtime).</source>
+      <translation>%1 concentra a maior inatividade entre as hierarquias; a maior parte está em %2 (%3 da sua inatividade).</translation>
+    </message>
+    <message>
+      <source>No hierarchy with downtime in this run has a per-phase breakdown; rerun with phases and attribution on.</source>
+      <translation>Nenhuma hierarquia com inatividade nesta execução tem detalhamento por fase; execute novamente com fases e atribuição ativadas.</translation>
+    </message>
+    <message>
+      <source>No downtime inside %1 is split by phase.</source>
+      <translation>Nenhuma inatividade dentro de %1 é dividida por fase.</translation>
+    </message>
+    <message>
+      <source>%1 starts the largest share (%2 of downtime).</source>
+      <translation>%1 inicia a maior parcela (%2 da inatividade).</translation>
+    </message>
+    <message>
+      <source>The commonest start is %1 (%2 of downtime).</source>
+      <translation>O início mais comum é %1 (%2 da inatividade).</translation>
+    </message>
+    <message>
+      <source>No outage was recorded.</source>
+      <translation>Nenhuma indisponibilidade foi registrada.</translation>
+    </message>
+    <message>
+      <source>%1; %2 of downtime attributed to them (system down %3).</source>
+      <translation>%1; %2 de inatividade atribuída a elas (sistema parado %3).</translation>
+    </message>
+    <message>
+      <source>%1; %2 of downtime attributed to them.</source>
+      <translation>%1; %2 de inatividade atribuída a elas.</translation>
+    </message>
+    <message>
+      <source>No downtime in this run is attributed to the named hierarchies; the unassigned row is the %1 the system was down.</source>
+      <translation>Nenhuma inatividade desta execução é atribuída às hierarquias nomeadas; a linha não atribuída corresponde aos %1 em que o sistema ficou parado.</translation>
+    </message>
+    <message>
+      <source>The one run reached %1.</source>
+      <translation>A única execução atingiu %1.</translation>
+    </message>
+    <message>
+      <source>Every run reached %1.</source>
+      <translation>Todas as execuções atingiram %1.</translation>
+    </message>
+    <message>
+      <source>All %1 runs reached %2 %3; the best reached %4.</source>
+      <translation>Todas as %1 execuções atingiram %2 %3; a melhor atingiu %4.</translation>
+    </message>
+    <message>
+      <source>9 runs in 10 reached %1 %2; half reached %3 %4.</source>
+      <translation>9 em cada 10 execuções atingiram %1 %2; metade atingiu %3 %4.</translation>
+    </message>
+    <message>
+      <source>%1 of runs reached the target %2.</source>
+      <translation>%1 das execuções atingiram a meta %2.</translation>
+    </message>
+    <message>
+      <source>No runs.</source>
+      <translation>Nenhuma execução.</translation>
+    </message>
+    <message>
+      <source>From %1, Kaplan–Meier estimate.</source>
+      <translation>De %1, estimativa de Kaplan–Meier.</translation>
+    </message>
+    <message>
+      <source>From %1, Kaplan–Meier estimate; %2 ended before a failure and are censored.</source>
+      <translation>De %1, estimativa de Kaplan–Meier; %2 terminaram antes de uma falha e são censuradas.</translation>
+    </message>
+    <message>
+      <source>Reliability is %1 or less by %2 and %3 or less by %4.</source>
+      <translation>A confiabilidade é de %1 ou menos até %2 e de %3 ou menos até %4.</translation>
+    </message>
+    <message>
+      <source>Reliability is %1 or less by %2.</source>
+      <translation>A confiabilidade é de %1 ou menos até %2.</translation>
+    </message>
+    <message>
+      <source>The last failure was at %1.</source>
+      <translation>A última falha ocorreu em %1.</translation>
+    </message>
+    <message>
+      <source>%1 runs first went down at exactly %2: a scheduled outage such as planned maintenance, not a random failure.</source>
+      <translation>%1 execuções pararam pela primeira vez exatamente em %2: uma indisponibilidade programada, como a manutenção planejada, e não uma falha aleatória.</translation>
+    </message>
+    <message>
+      <source>No run failed.</source>
+      <translation>Nenhuma execução falhou.</translation>
+    </message>
+    <message>
+      <source>No run recorded a time to first failure.</source>
+      <translation>Nenhuma execução registrou um tempo até a primeira falha.</translation>
+    </message>
+    <message>
+      <source>After %1 runs the mean %2 is %3 ± %4 points (2 standard errors, about 95 %).</source>
+      <translation>Após %1 execuções, a média de %2 é %3 ± %4 pontos (2 erros padrão, cerca de 95 %).</translation>
+    </message>
+    <message>
+      <source>After %1 runs the mean %2 is %3 ± %4 (2 standard errors, about 95 %).</source>
+      <translation>Após %1 execuções, a média de %2 é %3 ± %4 (2 erros padrão, cerca de 95 %).</translation>
+    </message>
+    <message>
+      <source>Median %1.</source>
+      <translation>Mediana %1.</translation>
+    </message>
+    <message>
+      <source>Not enough runs to estimate the error.</source>
+      <translation>Não há execuções suficientes para estimar o erro.</translation>
+    </message>
+    <message>
+      <source>The system never went down in %1, so there is nothing to show.</source>
+      <translation>O sistema nunca parou em %1, então não há nada a mostrar.</translation>
+    </message>
+    <message>
+      <source>The system never went down, so there is nothing to show.</source>
+      <translation>O sistema nunca parou, então não há nada a mostrar.</translation>
+    </message>
+    <message>
+      <source>The largest single loss is %1 (%2 points).</source>
+      <translation>A maior perda isolada é %1 (%2 pontos).</translation>
+    </message>
+    <message>
+      <source>The steps use the same Red-time split as the availability ladder.</source>
+      <translation>As etapas usam a mesma divisão do tempo parado que a escada de disponibilidade.</translation>
+    </message>
+    <message>
+      <source>%1 took nothing away in these runs.</source>
+      <translation>%1 não tirou nada nestas execuções.</translation>
+    </message>
+    <message>
+      <source>No availability reported.</source>
+      <translation>Nenhuma disponibilidade informada.</translation>
+    </message>
+    <message>
       <source>seconds</source>
       <translation>segundos</translation>
     </message>
@@ -8963,10 +9631,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Weak link</source>
       <translation>Elo fraco</translation>
-    </message>
-    <message>
-      <source>reliability</source>
-      <translation>confiabilidade</translation>
     </message>
     <message>
       <source>states</source>
