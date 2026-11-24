@@ -22,7 +22,7 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPointF, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPolygonF,
 )
@@ -235,6 +235,46 @@ class ChartWidget(QWidget):
             else:
                 self._paint_event(event)
 
+    def _text_heights(self, spec: ChartSpec, compact: bool, caption_h: int,
+                      fm: QFontMetrics) -> tuple[int, float]:
+        """The caption strip's height and the subtitle's: a caption or
+        subtitle that wraps to more lines than the strip holds grows it (the
+        plot gives way) instead of clipping the last line or ending in an
+        ellipsis."""
+        sub_h = 16.0
+        if compact:
+            return caption_h, sub_h
+        width = max(40, self.width() - 2 * PAD)
+        if spec.caption:
+            need = fm.boundingRect(
+                QRect(0, 0, width, 4000),
+                int(Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap),
+                spec.caption).height() + 6
+            caption_h = min(max(caption_h, need), max(caption_h, self.height() // 3))
+        if spec.subtitle:
+            wrapped = fm.boundingRect(
+                QRect(0, 0, width, 4000),
+                int(Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap),
+                spec.subtitle).height()
+            sub_h = float(min(max(16, wrapped), 3 * fm.height()))
+        return caption_h, sub_h
+
+    def _paint_caption(self, painter: QPainter, spec: ChartSpec,
+                       palette: dict[str, str], caption_h: int, compact: bool,
+                       fm: QFontMetrics) -> None:
+        if not spec.caption or self._caption_in_body:
+            return
+        painter.setPen(QColor(palette["text"]))
+        rect = QRectF(PAD, self.height() - caption_h + 2,
+                      self.width() - 2 * PAD, caption_h - 4)
+        if compact:
+            painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                             fm.elidedText(spec.caption, Qt.TextElideMode.ElideRight,
+                                           int(rect.width())))
+        else:
+            painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
+                             spec.caption)
+
     def _paint_event(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -254,6 +294,8 @@ class ChartWidget(QWidget):
         title_h = 30 if compact else TITLE_H
         caption_h = 20 if compact else CAPTION_H
         fm = QFontMetrics(self.font())
+        caption_h, sub_h = self._text_heights(spec, compact, caption_h, fm)
+        title_h += int(sub_h - 16)
         title_font = QFont(self.font())
         title_font.setPointSizeF(title_font.pointSizeF() + (1 if compact else 2))
         title_font.setBold(True)
@@ -267,10 +309,9 @@ class ChartWidget(QWidget):
         painter.setFont(self.font())
         if not compact:
             painter.setPen(QColor(palette["muted"]))
-            painter.drawText(QRectF(PAD, 28, self.width() - 2 * PAD, 16),
-                             Qt.AlignmentFlag.AlignHCenter,
-                             fm.elidedText(spec.subtitle, Qt.TextElideMode.ElideRight,
-                                           self.width() - 2 * PAD))
+            painter.drawText(QRectF(PAD, 28, self.width() - 2 * PAD, sub_h),
+                             Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap,
+                             spec.subtitle)
         self._hits, self._tips = [], []
         self._detail_hits = []
         self._probe = None
@@ -296,17 +337,7 @@ class ChartWidget(QWidget):
                              chart_i18n.word(
                                  "Make this panel taller (or float it) to "
                                  "see the chart."))
-        if spec.caption and not self._caption_in_body:
-            painter.setPen(QColor(palette["text"]))
-            rect = QRectF(PAD, self.height() - caption_h + 2,
-                          self.width() - 2 * PAD, caption_h - 4)
-            if compact:
-                painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                                 fm.elidedText(spec.caption, Qt.TextElideMode.ElideRight,
-                                               int(rect.width())))
-            else:
-                painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
-                                 spec.caption)
+        self._paint_caption(painter, spec, palette, caption_h, compact, fm)
         painter.end()
 
     def _paint_thumb_event(self, spec: ChartSpec) -> None:
@@ -444,7 +475,7 @@ class ChartWidget(QWidget):
 
     # The common frame.
 
-    def _frame(self, painter: QPainter, spec: ChartSpec,
+    def _frame(self, painter: QPainter, spec: ChartSpec,  # noqa: C901 - one frame
                palette: dict[str, str], area: QRectF, *,
                x_range: tuple[float, float], y_range: tuple[float, float],
                x_fmt: str = "", y_fmt: str = "", x_log: bool = False,
@@ -453,8 +484,11 @@ class ChartWidget(QWidget):
                x_label: str | None = None, y_label: str | None = None,
                y_axis: bool = True) -> _Frame:
         fm = QFontMetrics(self.font())
-        yt = list(y_ticks) if y_ticks is not None else nice_ticks(*y_range, 5)
-        xt = list(x_ticks) if x_ticks is not None else nice_ticks(*x_range, 6)
+        # a thumbnail is a glance: fewer ticks, no axis titles
+        yt = list(y_ticks) if y_ticks is not None else nice_ticks(
+            *y_range, 3 if self.thumbnail else 5)
+        xt = list(x_ticks) if x_ticks is not None else nice_ticks(
+            *x_range, 3 if self.thumbnail else 6)
         y_text = [tick_text(t, yt, fmt=y_fmt) for t in yt]
         x_text = ([_short(t) for t in xt] if x_log
                   else [tick_text(t, xt, fmt=x_fmt) for t in xt])
@@ -463,8 +497,10 @@ class ChartWidget(QWidget):
             (y_label if y_label is not None else spec.y_label) or "")
         x_title = chart_i18n.word(
             (x_label if x_label is not None else spec.x_label) or "")
-        if self.height() < COMPACT_H:
+        if self.height() < COMPACT_H or self.thumbnail:
             x_title = ""          # the plot needs the line more than the title
+        if self.thumbnail:
+            y_title = ""
         left = area.left() + gutter + (fm.height() + 4 if y_title else 0)
         bottom = area.bottom() - fm.height() - 4 - (fm.height() + 2 if x_title else 0)
         rect = QRectF(left, area.top() + fm.height() / 2,
@@ -576,6 +612,8 @@ class ChartWidget(QWidget):
             x = frame.x(float(mark["share"]) if at_share else float(mark["value"]))
             painter.setPen(QPen(muted, 1.0, Qt.PenStyle.DotLine))
             painter.drawLine(QPointF(x, r.top()), QPointF(x, r.bottom()))
+            if self.thumbnail:
+                continue          # the dotted line is enough at this size
             label = (f"{mark.get('label', '')}: " if at_share else f"{mark.get('label', '')} ") \
                 + self._value(float(mark["value"]), 4)
             w = fm.horizontalAdvance(label) + 6
@@ -613,10 +651,12 @@ class ChartWidget(QWidget):
         """As many bar rows as the height can label (16 px a row), and how
         many were left out: in a short panel ten names were drawn on top
         of each other."""
-        room = max(1, int((area.height() - 40) // 16))
+        room = max(1, int((area.height() - 40) // (20 if self.thumbnail else 16)))
         return (rows, 0) if len(rows) <= room else (rows[:room], len(rows) - room)
 
     def _more_rows(self, painter, palette, frame: _Frame, hidden: int) -> None:
+        if self.thumbnail:
+            return          # the card says what it holds; no room for a note
         spec = self._spec
         items = spec.provenance.get("items") if spec is not None else None
         shown = len(spec.series) - hidden if spec is not None else 0
@@ -1059,6 +1099,8 @@ class ChartWidget(QWidget):
                       items: list[tuple[float, float, float, str]]) -> None:
         """Label every point without two labels on top of each other: a
         crowded label moves out and a thin leader joins it to its dot."""
+        if self.thumbnail:
+            items = items[:3]       # a few names; the rest would pile up
         fm = QFontMetrics(self.font())
         r = frame.rect
         placed = place_labels([(x, y, radius) for x, y, radius, _t in items],
@@ -1269,7 +1311,11 @@ class ChartWidget(QWidget):
                 y = top + j * (bar_h + 2)
                 painter.fillRect(QRectF(r.left(), y, frame.x(value) - r.left(), bar_h),
                                  QColor(colour))
-                # the values go on after every bar, so no bar covers a label
+                # the values go on after every bar, so no bar covers a label;
+                # a thumbnail labels the lost-capacity bar only (two labels
+                # per row would touch)
+                if self.thumbnail and j == 1:
+                    continue
                 labels.append((QRectF(frame.x(value) + 4, y - 3, value_w + 20, bar_h + 6),
                                format_value(value, "percent", 3)))
             painter.setPen(QColor(palette["text"]))
@@ -1712,15 +1758,14 @@ class ChartWidget(QWidget):
         foot = rect.adjusted(8, 0, -8, -6)
         if row.get("dots") and height >= 64:
             foot.setRight(rect.left() + rect.width() * 0.5 - 6)
+        # wrapped (two lines at most), never cut off with an ellipsis
         painter.drawText(foot,
-                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
-                         QFontMetrics(self.font()).elidedText(
-                             chart_i18n.fmt(
-                                 "%1 members · %2 started outages",
-                                 int(row.get('members') or 0),
-                                 int(row.get('starters') or 0)),
-                             Qt.TextElideMode.ElideRight,
-                             int(max(1.0, foot.width()))))
+                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom
+                         | Qt.TextFlag.TextWordWrap,
+                         chart_i18n.fmt(
+                             "%1 members · %2 started outages",
+                             int(row.get('members') or 0),
+                             int(row.get('starters') or 0)))
 
     def _scorecard_strip(self, painter: QPainter, palette: dict[str, str],
                          row: dict, rect: QRectF, dot_max: float) -> None:
@@ -1744,7 +1789,10 @@ class ChartWidget(QWidget):
             mx = left + float(row.get("value") or 0.0) / dot_max * (right - left)
             painter.setPen(QPen(QColor(palette["text"]), 1.4))
             painter.drawLine(QPointF(mx, base - 22), QPointF(mx, base + 3))
-        painter.setPen(QColor(palette["muted"]))
+        # the scale's words are small: the full text colour keeps them at
+        # 4.5:1 or better on the tile (the muted token measured 3.8:1 once
+        # anti-aliased at this size)
+        painter.setPen(QColor(palette["text"]))
         small = QFont(self.font())
         small.setPointSizeF(max(6.0, small.pointSizeF() - 1.5))
         painter.setFont(small)
@@ -1989,6 +2037,16 @@ class ChartWidget(QWidget):
                 text += f" ({pct(raw / lost_total)})"
             return text
 
+        unit = chart_i18n.word(str(spec.provenance.get("units") or ""))
+
+        def amounts_of(raw: float, node: dict) -> list[str]:
+            """A node's amount, richest first: the headline nodes (generated,
+            delivered, lost) carry the unit, the first thing to go when tight."""
+            plain = amount_of(raw, node)
+            if unit and str(node.get("id")) in ("generated", "delivered", "lost"):
+                return [f"{plain} {unit}", plain, amount_of(raw)]
+            return [plain, amount_of(raw)]
+
         first_labels = [str(n.get("name") or "") for n in nodes
                         if int(n.get("column") or 0) == columns[0]]
         last_labels = [f"{n.get('name') or ''} · "
@@ -2019,7 +2077,8 @@ class ChartWidget(QWidget):
                  for i, col in enumerate(columns)}
         from raptor.api.insight.sankey_layout import layout as flow_layout
         from raptor.api.insight.sankey_layout import spread_labels
-        boxes, bands = flow_layout(nodes, links, area.height())
+        # a few pixels of air above the caption: labels never touch it
+        boxes, bands = flow_layout(nodes, links, area.height() - 6)
         placed = {str(node["id"]): (col_x[int(node.get("column") or 0)],
                                     area.top() + boxes[str(node["id"])][0],
                                     boxes[str(node["id"])][1]) for node in nodes}
@@ -2060,7 +2119,7 @@ class ChartWidget(QWidget):
                 return fit_lines(label_of(node), [], left_pad - 10,
                                  fm.horizontalAdvance)
             step = max(1.0, gap_after(node) - 20)
-            return fit_lines(label_of(node), [amount_of(raw, node), amount_of(raw)],
+            return fit_lines(label_of(node), amounts_of(raw, node),
                              step, fm.horizontalAdvance)
 
         def two_lines(node: dict) -> bool:
@@ -2072,7 +2131,7 @@ class ChartWidget(QWidget):
             if nh >= line_h * 2 + 4:
                 return True
             raw = float(node.get("value") or 0)
-            full = f"{label_of(node)} · {amount_of(raw, node)}"
+            full = f"{label_of(node)} · {amounts_of(raw, node)[-2]}"
             return fm.horizontalAdvance(full) > max(1.0, right_pad - 24)
         centre_of: dict[str, float] = {}
         for col in columns:
@@ -2086,7 +2145,7 @@ class ChartWidget(QWidget):
                 else:
                     count = len(side_lines(node))
                 wanted.append((str(node["id"]), ny + nh / 2, line_h * count))
-            centre_of.update(spread_labels(wanted, area.top(), area.bottom()))
+            centre_of.update(spread_labels(wanted, area.top(), area.bottom() - 6))
         for node in nodes:
             x, y, h = placed[str(node["id"])]
             cy = centre_of[str(node["id"])]
@@ -2129,7 +2188,7 @@ class ChartWidget(QWidget):
                     # a sliver node at the foot of the column centred its
                     # one-line label half below the chart: keep it inside;
                     # the share goes before the name is shortened
-                    text = fit_label(label, [amount, amount_of(raw)], width,
+                    text = fit_label(label, amounts_of(raw, node), width,
                                      fm.horizontalAdvance)
                     painter.drawText(
                         QRectF(x + 18, cy - line_h / 2, width, line_h),

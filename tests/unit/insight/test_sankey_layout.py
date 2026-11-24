@@ -268,3 +268,18 @@ def test_the_narrow_painter_draws_every_middle_name():
     for name in ("Lost", "Delivered"):
         assert name in text, name
     assert any(part.startswith("Generated") for part in drawn)
+
+
+def test_a_tiny_node_still_gets_a_visible_band():
+    nodes = [{"id": "a", "column": 0, "value": 10000.0},
+             {"id": "big", "column": 1, "value": 9999.0},
+             {"id": "tiny", "column": 1, "value": 1.0}]
+    links = [{"source": "a", "target": "big", "value": 9999.0},
+             {"source": "a", "target": "tiny", "value": 1.0}]
+    boxes, _bands = layout(nodes, links, HEIGHT)
+    assert boxes["tiny"][1] >= 4.0
+
+
+def test_svg_headline_nodes_carry_the_unit():
+    svg = render(charts.capacity_sankey(_attribution()))
+    assert "flow × time" in svg

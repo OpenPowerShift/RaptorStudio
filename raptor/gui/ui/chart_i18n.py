@@ -109,7 +109,14 @@ def _piece(text: str) -> str:
         if done != parts:
             return "; ".join(done)
         return text
-    return i18n.tr(text)
+    got = i18n.tr(text)
+    if got == text and ": " in text:
+        # "across the runs: the box holds ...": each side is its own entry
+        head, _, tail = text.partition(": ")
+        head2, tail2 = _exact(head), _exact(tail)
+        if (head2, tail2) != (head, tail):
+            return f"{head2}: {tail2}"
+    return got
 
 
 def translate_subtitle(text: str, scope: dict[str, Any] | None = None) -> str:
@@ -127,7 +134,10 @@ def translate_subtitle(text: str, scope: dict[str, Any] | None = None) -> str:
             done.append(part)
             continue
         done.append(_piece(part))
-    return " · ".join(done)
+    out = " · ".join(done)
+    if " failures a run" in out:      # "... the other 3 together 0.2 failures a run"
+        out = out.replace(" failures a run", " " + word("failures a run"))
+    return out
 
 
 def translate_title(text: str) -> str:
@@ -346,7 +356,16 @@ def translate_caption(text: str) -> str:
 # -- the spec ------------------------------------------------------------
 
 
-def _translate_series(spec: Any) -> tuple[list[dict[str, Any]], bool]:
+#: Series names that are the app's own words (never a hierarchy or element).
+_SERIES_WORDS = frozenset({
+    "capacity lost", "flow delivered", "flow generated", "capacity available",
+    "every run (lowest to highest)", "8 runs in 10", "mean flow", "flow",
+    "Availability"})
+_LONGER = re.compile(r"^1 in 10 longer \((?P<q>.+)\)$")
+_YEAR = re.compile(r"^year (?P<n>\d+)$")
+
+
+def _translate_series(spec: Any) -> tuple[list[dict[str, Any]], bool]:  # noqa: C901 - one branch per series kind
     """The app's own words inside the series: the availability ladder's rung
     names, the cause named by a waterfall step, the dashed system line.  A
     hierarchy or element name is never touched."""
@@ -359,6 +378,15 @@ def _translate_series(spec: Any) -> tuple[list[dict[str, Any]], bool]:
             got = word(item["name"])
             if got != item["name"]:
                 new = {**item, "name": got}
+        elif (isinstance(item.get("name"), str)
+              and item["name"] in _SERIES_WORDS):
+            # the legend of the capacity-over-time charts and the like
+            got = word(item["name"])
+            if got != item["name"]:
+                new = {**item, "name": got}
+        elif (spec.kind == "fan" and isinstance(item.get("name"), str)
+              and (year := _YEAR.match(item["name"])) is not None):
+            new = {**item, "name": fmt("year %1", year["n"])}
         elif spec.kind == "waterfall" and isinstance(item.get("name"), str):
             from raptor.api.insight.attribution import CAUSE_LABELS
             if item["name"] == CAUSE_LABELS.get(str(item.get("cause"))):
@@ -385,8 +413,13 @@ def _translate_marks(spec: Any) -> tuple[list[dict[str, Any]], bool]:
     for mark in marks:
         new = mark
         label = mark.get("label")
-        if (mark.get("kind") in ("quartile", "median") and isinstance(label, str)):
+        if (mark.get("kind") in ("quartile", "median", "target", "quantile")
+                and isinstance(label, str)):
             got = word(label)
+            longer = _LONGER.match(label)
+            if longer is not None:
+                got = fmt("1 in 10 longer (%1)",
+                          _quantity_piece(longer["q"]))
             if got != label:
                 new = {**mark, "label": got}
                 changed = True

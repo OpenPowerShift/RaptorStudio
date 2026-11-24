@@ -8,9 +8,9 @@ tree, so it stays a fixed size however big the model is:
   open and the choice itself selected and scrolled into view;
 * typing filters by name or by full path (``Intake > Pumps``), keeps each
   match's ancestors visible and open, and shows ``N of M`` (debounced);
-* siblings keep the order of the attribution rows, which is largest share of
-  downtime first, so the likely targets are on top without a second sort that
-  would disagree with the tables;
+* siblings are sorted by their share of downtime, largest first (System
+  stays on top), so the likely targets are on top; the sort is stable, so
+  equal shares keep the attribution order;
 * the tree is one QTreeWidget item per hierarchy, never one QAction.
 
 Two modes: ``scope`` picks one hierarchy (or the whole system) and closes;
@@ -78,6 +78,16 @@ class HierarchyTreePopup(QFrame):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(*(SPACING["sm"],) * 4)
         lay.setSpacing(SPACING["sm"])
+        self.header_label = QLabel("")
+        if mode == SCOPE:
+            self.header_label.setText("Show a hierarchy")
+        else:
+            self.header_label.setText("Compare up to four hierarchies")
+        self.header_label.setObjectName("PickerHeader")
+        font = self.header_label.font()
+        font.setBold(True)
+        self.header_label.setFont(font)
+        lay.addWidget(self.header_label)
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search hierarchies…")
         self.search.setAccessibleName("Search hierarchies")
@@ -117,7 +127,13 @@ class HierarchyTreePopup(QFrame):
             # No separate "Clear": an empty comparison already means the
             # top four, so it would do exactly what this button does.
             foot.addWidget(self.top_button, 1)
-        lay.addWidget(self.count_label)
+        self.ticked_label = QLabel("")
+        self.ticked_label.setObjectName("SectionNote")
+        counts = QHBoxLayout()
+        counts.addWidget(self.count_label)
+        counts.addStretch(1)
+        counts.addWidget(self.ticked_label)
+        lay.addLayout(counts)
         if mode == COMPARE:
             lay.addLayout(foot)
         lay.addWidget(self.note_label)
@@ -183,7 +199,9 @@ class HierarchyTreePopup(QFrame):
                     item.setCheckState(0, Qt.CheckState.Unchecked)
                 self._items[ref] = item
                 self._all.append(item)
-            for row in self._rows:
+            # siblings by share of downtime, largest first (stable)
+            for row in sorted(self._rows, key=lambda r: -float(
+                    (r.get("dtci") or {}).get("mean") or 0.0)):
                 ref = int(row.get("id") or 0)
                 item = self._items[ref]
                 parent = self._items.get(int(row.get("parent") or 0))
@@ -336,6 +354,9 @@ class HierarchyTreePopup(QFrame):
         self.compare_chosen.emit(list(chosen))
 
     def _update_note(self, *, refused: bool = False) -> None:
+        if self.mode == COMPARE:
+            self.ticked_label.setText(i18n.tr("%1 ticked").replace(
+                "%1", str(len(self._current))))
         full = len(self._current) >= COMPARE_LIMIT
         if refused or full:
             self.note_label.setText(i18n.tr(

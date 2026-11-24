@@ -23,11 +23,12 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
-def _page():
+def _page(chart="hierarchy-overlay"):
     page = ChartsPage()
     per_run, attribution, importance = _hierarchy_inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, units="hours", run_id="r_1")
+    page.select(chart)      # the chips show only where Compare applies
     return page
 
 
@@ -166,3 +167,16 @@ def test_links_fade_with_their_faded_ends_and_restore(qapp):
     finally:
         w._dirty = False
         w.close()
+
+
+def test_chips_hide_where_compare_does_not_apply(qapp):
+    page = _page()
+    page.set_compare([100, 200])
+    assert not page.chip_row.isHidden()
+    page.select("hierarchy-scorecard")       # not a comparison chart
+    assert page.chip_row.isHidden()
+    assert page.compare_button.isHidden()
+    page.select("hierarchy-overlay")
+    assert not page.chip_row.isHidden()
+    page.nav.setCurrentItem(page.nav.topLevelItem(0))   # a group overview
+    assert page.chip_row.isHidden()

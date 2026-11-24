@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from typing import Any
 
 MIN_LINK = 1.0
-MIN_NODE = 2.0
+MIN_NODE = 4.0  # a labelled node is never a hairline
 
 
 def _col(node: dict[str, Any]) -> int:

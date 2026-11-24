@@ -241,3 +241,33 @@ def test_a_few_hierarchies_get_a_short_list_and_many_get_the_scroll_cap(qapp):
     before = many.tree.height()
     many.apply_filter("unit")
     assert many.tree.height() == before
+
+
+def test_the_pickers_say_what_they_are_for(qapp):
+    assert _picker(SCOPE).header_label.text() == "Show a hierarchy"
+    assert _picker(COMPARE).header_label.text() == "Compare up to four hierarchies"
+
+
+def test_compare_counts_the_ticked_rows_and_opens_their_ancestors(qapp):
+    rows = _rows()
+    deep = next(r for r in rows if r["depth"] == 3)
+    picker = _picker(COMPARE, rows=rows, current=[deep["id"]])
+    picker.show()
+    assert picker.ticked_label.text() == "1 ticked"
+    item = picker._items[deep["id"]]
+    assert item.parent().isExpanded() and item.parent().parent().isExpanded()
+    picker.set_current([])
+    assert picker.ticked_label.text() == "0 ticked"
+
+
+def test_siblings_are_sorted_by_downtime_share_largest_first(qapp):
+    rows = [{"id": 1, "name": "Small", "path": ["Small"], "depth": 1, "parent": 0,
+             "dtci": {"mean": 0.1}},
+            {"id": 2, "name": "Big", "path": ["Big"], "depth": 1, "parent": 0,
+             "dtci": {"mean": 0.7}},
+            {"id": 3, "name": "Mid", "path": ["Mid"], "depth": 1, "parent": 0,
+             "dtci": {"mean": 0.3}}]
+    picker = _picker(SCOPE, rows=rows)
+    names = [picker.tree.topLevelItem(i).text(0)
+             for i in range(picker.tree.topLevelItemCount())]
+    assert names == ["System", "Big", "Mid", "Small"]
