@@ -1594,15 +1594,24 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
     last = [f"{n.get('name') or ''} · "
             f"{share_of(n, amount_of(float(n.get('value') or 0)))}"
             for n in nodes if int(n.get("column") or 0) == columns[-1]]
+    def label_of(node: dict) -> str:
+        name = str(node.get("name") or "")
+        if str(node.get("id") or "").startswith("cause-"):
+            return CAUSE_LABELS.get(str(node["id"])[6:], name)
+        return name
+
     from raptor.api.insight.sankey_layout import fit_label as _fit_label
+    from raptor.api.insight.sankey_layout import fit_lines as _fit_lines
     from raptor.api.insight.sankey_layout import horizontal as _horizontal
-    left_pad, right_pad, span = _horizontal(
+    left_pad, right_pad, span, fracs = _horizontal(
         area.width, len(columns), max((_width(x) for x in first), default=0),
         max((_width(x) for x in last), default=0),
-        max((_width(amount_of(float(n.get('value') or 0)))
+        max((min(_width(label_of(n)), 66.0)
              for n in nodes if columns[0] < int(n.get('column') or 0) < columns[-1]),
-            default=0))
-    col_x = {col: area.left + left_pad + span * i / max(1, len(columns) - 1)
+            default=0),
+        max((_width(w) for n in nodes if int(n.get('column') or 0) == columns[0]
+             for w in label_of(n).split()), default=0))
+    col_x = {col: area.left + left_pad + span * fracs[i]
              for i, col in enumerate(columns)}
     from raptor.api.insight.sankey_layout import layout as _flow_layout
     from raptor.api.insight.sankey_layout import spread_labels as _spread_labels
@@ -1629,11 +1638,19 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
             f"C{_fmt(cx)},{_fmt(yb + thickness)} {_fmt(cx)},{_fmt(ya + thickness)} "
             f"{_fmt(x0 + 14)},{_fmt(ya + thickness)} Z' "
             f"fill='{colour}' fill-opacity='0.34'/>")
-    def label_of(node: dict) -> str:
-        name = str(node.get("name") or "")
-        if str(node.get("id") or "").startswith("cause-"):
-            return CAUSE_LABELS.get(str(node["id"])[6:], name)
-        return name
+    def gap_after(node: dict) -> float:
+        """Room from this node's column to the next one."""
+        i = columns.index(int(node.get("column") or 0))
+        return (col_x[columns[i + 1]] - col_x[columns[i]]) if i + 1 < len(columns) else span
+
+    def side_lines(node: dict) -> list[str]:
+        """First and middle column labels: the name survives the amount."""
+        if int(node.get("column") or 0) == columns[0]:
+            return _fit_lines(label_of(node), [], left_pad - 12, _width)
+        raw = float(node.get("value") or 0)
+        return _fit_lines(label_of(node), [share_of(node, amount_of(raw)),
+                                           amount_of(raw)],
+                          gap_after(node) - 20, _width)
 
     def two_lines(node: dict) -> bool:
         """A last-column label that would have to cut its name goes on two."""
@@ -1646,7 +1663,9 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
     for col in columns:
         centre_of.update(_spread_labels(
             [(str(n["id"]), placed[str(n["id"])][1] + placed[str(n["id"])][2] / 2,
-              24.0 if two_lines(n) else 12.0)
+              (24.0 if two_lines(n) else 12.0)
+              if int(n.get("column") or 0) == columns[-1]
+              else 12.0 * len(side_lines(n)))
              for n in nodes if int(n.get("column") or 0) == col],
             area.top, area.bottom))
     for node in nodes:
@@ -1657,9 +1676,10 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
         raw = float(node.get('value') or 0)
         amount = share_of(node, amount_of(raw))
         if int(node.get("column") or 0) == 0:
-            out.append(_text(x - 6, cy + 4,
-                             _shrink(label, left_pad - 12), size=10,
-                             anchor="end"))
+            shown = side_lines(node)
+            for n, text in enumerate(shown):
+                out.append(_text(x - 6, cy + 4 - 6 * (len(shown) - 1) + 12 * n,
+                                 text, size=10, anchor="end"))
         elif two_lines(node):
             out.append(_text(x + 18, cy - 2, _shrink(label, right_pad - 20), size=9))
             out.append(_text(x + 18, cy + 10, _shrink(
@@ -1669,9 +1689,10 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
             out.append(_text(x + 18, cy + 4, _fit_label(
                 label, [amount, amount_of(raw)], right_pad - 20, _width), size=9))
         else:
-            out.append(_text(x + 18, cy + 4, _fit_label(
-                label, [amount, amount_of(raw)],
-                span / max(1, len(columns) - 1) - 20, _width), size=9))
+            shown = side_lines(node)
+            for n, text in enumerate(shown):
+                out.append(_text(x + 18, cy + 4 - 6 * (len(shown) - 1) + 12 * n,
+                                 text, size=9))
     return out
 
 

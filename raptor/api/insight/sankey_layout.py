@@ -158,25 +158,32 @@ def spread_labels(entries: Sequence[tuple[str, float, float]], lo: float,
 
 
 NODE_W = 14.0
-MIN_RUN = 40.0  # least horizontal run of a link between two columns
+MIN_RUN = 28.0  # least horizontal run of a link between two columns
 
 
 def horizontal(width: float, columns: int, first_w: float, last_w: float,
-               mid_w: float = 0.0) -> tuple[float, float, float]:
-    """(left pad, right pad, span) for a chart `width` wide.
+               mid_w: float = 0.0, first_min: float = 0.0
+               ) -> tuple[float, float, float, list[float]]:
+    """(left pad, right pad, span, column positions as fractions of span).
 
     The pads follow the widest label of the first and last columns but are
-    capped as a share of the width; when that leaves less than a node plus
-    `MIN_RUN` per gap (more where a middle column's amount must fit) between columns, the right pad (then the left) gives
-    way, so columns never overlap and every link keeps a run."""
+    capped as a share of the width.  Each gap needs a node plus `MIN_RUN`;
+    the gap after a middle column also needs `mid_w` for that column's
+    label (the first gap does not: the first column labels on its left).
+    When the chart is tight the right pad, then the left, give way (the
+    left keeps room for the longest word of its labels, `first_min`), so
+    columns never overlap and every link keeps a run."""
     left = min(max(first_w + 18.0, 56.0), width * 0.24)
     right = min(max(last_w + 22.0, 90.0), width * 0.50)
-    # a middle column's label sits in the gap after it: room for its amount
-    step = max(NODE_W + MIN_RUN, mid_w + 24.0 if columns > 2 else 0.0)
-    need = step * max(1, columns - 1)
+    gaps = max(1, columns - 1)
+    mins = [NODE_W + MIN_RUN] * gaps
+    for j in range(1, gaps):
+        mins[j] = max(mins[j], mid_w + 24.0)
+    need = sum(mins)
     over = left + right + need - width
-    # give way in turn: the left pad to 64, the right to 110, then both
-    for which, floor in (("l", 64.0), ("r", 110.0), ("l", 48.0), ("r", 80.0)):
+    left_floor = min(max(64.0, first_min + 18.0), width * 0.3)
+    for which, floor in (("l", left_floor), ("r", 110.0), ("r", 84.0),
+                         ("l", 48.0), ("r", 70.0)):
         if over <= 0:
             break
         cur = left if which == "l" else right
@@ -190,7 +197,15 @@ def horizontal(width: float, columns: int, first_w: float, last_w: float,
         scale = max(0.0, 1.0 - over / max(1.0, left + right))
         left *= scale
         right *= scale
-    return left, right, max(1.0, width - left - right)
+    span = max(1.0, width - left - right)
+    total = sum(mins)
+    gap_w = [m * span / total for m in mins]  # extra room shared in proportion
+    fracs = [0.0]
+    for g in gap_w:
+        fracs.append(fracs[-1] + g / span)
+    if columns < 2:
+        fracs = [0.0]
+    return left, right, span, fracs
 
 
 def fit_label(label: str, amounts: Sequence[str], width: float, width_of) -> str:
@@ -207,3 +222,36 @@ def fit_label(label: str, amounts: Sequence[str], width: float, width_of) -> str
     while name and width_of(name + tail) > width:
         name = name[:-1]
     return (name + tail) if name else amount
+
+
+def _wrap2(label: str, width: float, width_of) -> list[str] | None:
+    """`label` on two lines that each fit, split at a space, or None."""
+    words = label.split()
+    best: tuple[float, list[str]] | None = None
+    for i in range(1, len(words)):
+        lines = [" ".join(words[:i]), " ".join(words[i:])]
+        widest = max(width_of(line) for line in lines)
+        if widest <= width and (best is None or widest < best[0]):
+            best = (widest, lines)
+    return best[1] if best else None
+
+
+def fit_lines(label: str, amounts: Sequence[str], width: float, width_of,
+              min_chars: int = 6) -> list[str]:
+    """The lines of a node label for `width`, name first.  The name is what
+    identifies the node, so it outlives the amount: the share goes first,
+    then the amount, then the name wraps onto two lines, and only then is
+    it cut (keeping `min_chars` letters when it can)."""
+    for amount in amounts:
+        text = f"{label} · {amount}"
+        if width_of(text) <= width:
+            return [text]
+    if width_of(label) <= width:
+        return [label]
+    two = _wrap2(label, width, width_of)
+    if two:
+        return two
+    name = label
+    while len(name) > 1 and width_of(name + "…") > width:
+        name = name[:-1]
+    return [name + "…"]

@@ -1964,16 +1964,27 @@ class ChartWidget(QWidget):
                        f"{amount_of(float(n.get('value') or 0), n)}"
                        for n in nodes
                        if int(n.get("column") or 0) == columns[-1]]
-        from raptor.api.insight.sankey_layout import fit_label, horizontal
-        left_pad, right_pad, span = horizontal(
+        def label_of(node: dict) -> str:
+            name = str(node.get("name") or "")
+            if str(node.get("id") or "").startswith("cause-"):
+                from raptor.api.insight.attribution import CAUSE_LABELS
+                key = str(node["id"])[6:]
+                return chart_i18n.cause_label(key) if key in CAUSE_LABELS else name
+            return name
+
+        from raptor.api.insight.sankey_layout import fit_label, fit_lines, horizontal
+        left_pad, right_pad, span, fracs = horizontal(
             area.width(), len(columns),
             max((fm.horizontalAdvance(x) for x in first_labels), default=0),
             max((fm.horizontalAdvance(x) for x in last_labels), default=0),
-            max((fm.horizontalAdvance(amount_of(float(n.get('value') or 0)))
+            max((min(fm.horizontalAdvance(label_of(n)), 66)
                  for n in nodes
                  if columns[0] < int(n.get('column') or 0) < columns[-1]),
-                default=0))
-        col_x = {col: area.left() + left_pad + span * i / max(1, len(columns) - 1)
+                default=0),
+            max((fm.horizontalAdvance(w) for n in nodes
+                 if int(n.get('column') or 0) == columns[0]
+                 for w in label_of(n).split()), default=0))
+        col_x = {col: area.left() + left_pad + span * fracs[i]
                  for i, col in enumerate(columns)}
         from raptor.api.insight.sankey_layout import layout as flow_layout
         from raptor.api.insight.sankey_layout import spread_labels
@@ -2005,13 +2016,21 @@ class ChartWidget(QWidget):
             painter.drawPath(path)
         line_h = float(fm.height())
 
-        def label_of(node: dict) -> str:
-            name = str(node.get("name") or "")
-            if str(node.get("id") or "").startswith("cause-"):
-                from raptor.api.insight.attribution import CAUSE_LABELS
-                key = str(node["id"])[6:]
-                return chart_i18n.cause_label(key) if key in CAUSE_LABELS else name
-            return name
+        def gap_after(node: dict) -> float:
+            i = columns.index(int(node.get("column") or 0))
+            return (col_x[columns[i + 1]] - col_x[columns[i]]
+                    if i + 1 < len(columns) else span)
+
+        def side_lines(node: dict) -> list[str]:
+            """First and middle column labels: the name survives the amount."""
+            col = int(node.get("column") or 0)
+            raw = float(node.get("value") or 0)
+            if col == columns[0]:
+                return fit_lines(label_of(node), [], left_pad - 10,
+                                 fm.horizontalAdvance)
+            step = max(1.0, gap_after(node) - 20)
+            return fit_lines(label_of(node), [amount_of(raw, node), amount_of(raw)],
+                             step, fm.horizontalAdvance)
 
         def two_lines(node: dict) -> bool:
             """Last-column label on two lines: the node is tall, or the one
@@ -2031,9 +2050,11 @@ class ChartWidget(QWidget):
                 if int(node.get("column") or 0) != col:
                     continue
                 _x, ny, nh = placed[str(node["id"])]
-                two = two_lines(node)
-                wanted.append((str(node["id"]), ny + nh / 2,
-                               line_h * 2 if two else line_h))
+                if col == columns[-1]:
+                    count = 2 if two_lines(node) else 1
+                else:
+                    count = len(side_lines(node))
+                wanted.append((str(node["id"]), ny + nh / 2, line_h * count))
             centre_of.update(spread_labels(wanted, area.top(), area.bottom()))
         for node in nodes:
             x, y, h = placed[str(node["id"])]
@@ -2049,11 +2070,14 @@ class ChartWidget(QWidget):
             raw = float(node.get('value') or 0)
             amount = amount_of(raw, node)
             if int(node.get("column") or 0) == 0:
-                painter.drawText(QRectF(x - left_pad + 2, cy - line_h / 2,
-                                        left_pad - 8, line_h),
-                                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                                 fm.elidedText(label, Qt.TextElideMode.ElideRight,
-                                               int(left_pad - 10)))
+                shown = side_lines(node)
+                for n, text in enumerate(shown):
+                    painter.drawText(
+                        QRectF(x - left_pad + 2,
+                               cy - line_h * len(shown) / 2 + n * line_h,
+                               left_pad - 8, line_h),
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                        text)
             elif int(node.get("column") or 0) == max(columns):
                 width = max(1.0, right_pad - 24)
                 if two_lines(node):
@@ -2081,11 +2105,14 @@ class ChartWidget(QWidget):
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         text)
             else:
-                step = span / max(1, len(columns) - 1) - 20
-                painter.drawText(QRectF(x + 18, cy - line_h / 2, max(1.0, step), line_h),
-                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                                 fit_label(label, [amount, amount_of(raw)], step,
-                                           fm.horizontalAdvance))
+                shown = side_lines(node)
+                step = max(1.0, gap_after(node) - 20)
+                for n, text in enumerate(shown):
+                    painter.drawText(
+                        QRectF(x + 18, cy - line_h * len(shown) / 2 + n * line_h,
+                               step, line_h),
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                        text)
 
     def _paint_sunburst(self, painter, spec, palette, area) -> None:  # noqa: PLR0915
         from raptor.api.insight.hierarchy import SERIES_COLOURS, sunburst_layout

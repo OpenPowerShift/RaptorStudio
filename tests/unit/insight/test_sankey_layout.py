@@ -162,9 +162,10 @@ def test_a_short_downstream_column_hangs_near_its_sources():
 @pytest.mark.parametrize("columns", [2, 3, 4])
 def test_columns_never_overlap_and_links_keep_a_run(width, columns):
     from raptor.api.insight.sankey_layout import MIN_RUN, NODE_W, horizontal
-    left, right, span = horizontal(width, columns, 400.0, 400.0, 60.0)
+    left, right, span, fracs = horizontal(width, columns, 400.0, 400.0, 60.0, 50.0)
     assert left >= 0 and right >= 0 and left + right + span == pytest.approx(width)
-    xs = [left + span * i / max(1, columns - 1) for i in range(columns)]
+    assert len(fracs) == columns
+    xs = [left + span * f for f in fracs]
     assert all(b - a >= NODE_W + MIN_RUN - 1e-6 for a, b in itertools.pairwise(xs))
     assert xs[-1] + NODE_W <= width
 
@@ -215,3 +216,55 @@ def test_narrow_labels_neither_overlap_nor_leave_the_area():
             if a.width() > 1 and b.width() > 1:
                 inter = a.intersected(b)
                 assert inter.width() <= 1 or inter.height() <= 1
+
+
+def test_middle_column_labels_keep_the_node_name_at_400_px():
+    from raptor.api.insight.sankey_layout import fit_lines
+    adv = lambda text: 6.0 * len(text)  # noqa: E731 - a fixed-pitch measure
+    # name + amount, then the name alone, then two lines, then cut (>= 6 chars)
+    assert fit_lines("Intake", ["82,748 (64 %)", "82,748"], 200, adv) == ["Intake · 82,748 (64 %)"]
+    assert fit_lines("Intake", ["82,748 (64 %)", "82,748"], 100, adv) == ["Intake · 82,748"]
+    assert fit_lines("Intake", ["82,748 (64 %)", "82,748"], 40, adv) == ["Intake"]
+    assert fit_lines("Generated energy", [], 70, adv) == ["Generated", "energy"]
+    cut = fit_lines("Manutencao planejada", [], 48, adv)
+    assert len(cut) == 1 and cut[0].startswith("Manute") and cut[0].endswith("…")
+
+
+def test_the_narrow_painter_draws_every_middle_name():
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtGui import QImage, QPainter
+    from PySide6.QtWidgets import QApplication
+
+    from raptor.gui.ui.chart_widget import ChartWidget
+    QApplication.instance() or QApplication([])
+    spec = charts.capacity_sankey(_attribution())
+    widget = ChartWidget()
+    widget.resize(400, 560)
+    drawn: list[str] = []
+    original = QPainter.drawText
+    inside = {"on": False}
+    paint = widget._paint_sankey
+
+    def wrapped(*a, **k):
+        inside["on"] = True
+        try:
+            return paint(*a, **k)
+        finally:
+            inside["on"] = False
+    widget._paint_sankey = wrapped
+
+    def spy(self, *args):
+        if inside["on"] and len(args) >= 3 and isinstance(args[2], str):
+            drawn.append(args[2])
+        return original(self, *args)
+    QPainter.drawText = spy  # type: ignore[method-assign]
+    try:
+        widget.set_spec(spec)
+        widget.render(QImage(400, 560, QImage.Format.Format_ARGB32))
+    finally:
+        QPainter.drawText = original  # type: ignore[method-assign]
+    text = " ".join(drawn)
+    for name in ("Lost", "Delivered"):
+        assert name in text, name
+    assert any(part.startswith("Generated") for part in drawn)
