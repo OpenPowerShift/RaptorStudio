@@ -302,7 +302,10 @@ SWEEP_IGNORE = frozenset({
 })
 
 #: UI text the filter cannot tell from a key (a lower-case first letter).
-SWEEP_EXTRA = ("k* Target", "not a number", "a priority from 1 to 99")
+SWEEP_EXTRA = ("k* Target", "not a number", "a priority from 1 to 99",
+               # the ribbon's canvas-overlay combo, filled from a table
+               "No canvas overlay", "Share of downtime", "Lost capacity",
+               "Weak link (own availability)", "Advisor findings")
 
 
 def _sweep_text(value: str) -> bool:

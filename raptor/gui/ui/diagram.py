@@ -3216,6 +3216,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                         kind, oid, item, self._group_keeps(kind, oid)))
                 except RuntimeError:
                     continue
+        self._fade_links()
 
     def set_focus_threshold(self, fraction: float) -> None:
         """Keep, in focus mode, what holds at least `fraction` (0 to 1) of
@@ -3245,6 +3246,26 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                     item.setOpacity(self._opacity_for(kind, oid, item, keep))
                 except RuntimeError:
                     continue
+        self._fade_links()
+
+    def _view_fade(self, item) -> float:
+        """The view-state fade of an end item (its opacity net of the
+        out-of-service dimming, which belongs to the element alone)."""
+        try:
+            base = self._base_opacity(item)
+            return min(1.0, item.opacity() / base) if base else 1.0
+        except (RuntimeError, AttributeError):
+            return 1.0
+
+    def _fade_links(self) -> None:
+        """Fade each link to the more faded of its two ends, so a link never
+        stands out at full strength beside faded elements.  View state only."""
+        for link in self._links:
+            try:
+                link.setOpacity(min(self._view_fade(link._from),
+                                    self._view_fade(link._to)))
+            except RuntimeError:
+                continue
 
     def show_quick_add(self, at_scene: Any = None) -> None:
         """Open the Quick Add popup at the cursor or a scene point."""

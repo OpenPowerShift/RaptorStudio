@@ -287,3 +287,56 @@ def test_a_checkbox_wraps_instead_of_forcing_the_dock_wider(qapp):
     assert box.heightForWidth(150) > box.heightForWidth(600)
     assert box.text().startswith("Include node")      # still a real checkbox
     box.close()
+
+
+def _costs_texts(dock):
+    page = dock._scroll_costs.widget()
+    labels = [lbl.text() for lbl in page.findChildren(QLabel)]
+    boxes = [b.text() for b in page.findChildren(QAbstractButton)]
+    return labels, boxes
+
+
+def test_costs_tab_is_fully_translated_and_keeps_units_together(qapp, pt, dock):
+    _show_block(dock)
+    labels, boxes = _costs_texts(dock)
+    assert "Sempre adicionar custo de conclusão ao final da execução" in boxes
+    assert not any("Done" in b for b in boxes)
+    units = [t for t in labels if "(/" in t]
+    assert units
+    for text in units:
+        # no break opportunity between "/" and the unit word
+        assert "(/⁠tempo)" in text, text
+
+
+def test_costs_unit_labels_are_english_again_in_english(qapp, dock):
+    _show_block(dock)
+    labels, _boxes = _costs_texts(dock)
+    assert any(t.startswith("Running (/") for t in labels)
+
+
+def test_empty_inspector_heading_and_results_banner_translate(qapp, dock):
+    i18n.install(qapp, "pt_BR")
+    try:
+        _show_block(dock)
+        dock.clear_selection()
+        assert dock._header.text() == "Nenhuma seleção"
+        dock.set_results_notice(True)
+        assert dock._lock_text.text().startswith("Há resultados na tela")
+    finally:
+        i18n.install(qapp, "en")
+    dock.clear_selection()
+    assert dock._header.text() == "No selection"
+    dock.set_results_notice(False)
+    dock.set_results_notice(True)
+    assert dock._lock_text.text().startswith("Results are on screen")
+
+
+def test_canvas_overlay_combo_is_translated():
+    i18n.install(QApplication.instance() or QApplication([]), "pt_BR")
+    try:
+        for source, want in (("No canvas overlay", "Sem sobreposição no diagrama"),
+                             ("Share of downtime", "Parcela da inatividade"),
+                             ("Advisor findings", "Constatações do Advisor")):
+            assert i18n.translate_source(source) == want
+    finally:
+        i18n.install(QApplication.instance(), "en")

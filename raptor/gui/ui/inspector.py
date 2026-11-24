@@ -716,6 +716,8 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         # pending draft must reach the model first.
         self.flush_pending_comment()
         self._header.setText("No selection")
+        if i18n.needs_pass():
+            i18n.translate_widgets(self._header)
         self._show_tabs(False)
         self._current_block_id = None
         self._current_node_id = None
@@ -911,6 +913,8 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         elif notice:
             self._lock_text.setText(self._RESULTS_NOTICE_TEXT)
             self._lock_icon_lbl.clear()
+        if (read_only or notice) and i18n.needs_pass():
+            i18n.translate_widgets(self._lock_text)
         # A wrapped label's height depends on its width: make the banner
         # re-measure so a third line is not clipped.
         self._lock_icon_lbl.setVisible(read_only)

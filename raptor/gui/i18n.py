@@ -257,7 +257,10 @@ def _install_focus_hook(app: QApplication) -> None:
 #: left exactly as written -- a block called "Mean" is a name, not a word.
 #: A piece listed as 1 must translate or the template is skipped (so a
 #: label that merely starts with "Failure" is left alone); -1 is a unit,
-#: translated when known and kept otherwise.
+#: translated when known and kept otherwise; 100 is a number, or the template
+#: is skipped ("Phase 2" is the app's words, "Phase Alpha" is somebody's).
+#: A widget that shows model data is marked `raptor_i18n_data` and its text
+#: is never read as a template at all.
 TEMPLATES: dict[str, tuple[int, ...]] = {
     "Block: %1  (ID %2)": (),
     "Node: %1  (ID %2)": (),
@@ -281,8 +284,8 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
     "Use a saved rate or formula for %1": (1,),
     "Unknown (%1)": (),
     "Unknown distribution code #%1 \u2014 pick one to fix it": (),
-    "Phase %1": (),
-    " of %1": (),
+    "Phase %1": (100,),
+    " of %1": (100,),
     "Flow generated = %1": (),
     "Random number stream. System A..J are shared streams; independent "
     "streams draw from seeds 1..%1.": (),
@@ -401,6 +404,10 @@ def _from_template(context: str, source: str) -> str | None:
         pieces = list(match.groups())
         complete = True
         for index in translated:
+            if index == 100:
+                if not _is_number(pieces[0]):
+                    complete = False
+                continue
             at = abs(index) - 1
             if at >= len(pieces):
                 continue
@@ -701,7 +708,8 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
             if isinstance(widget, QGroupBox):
                 _translate_property(widget, "title", widget.title,
                                     widget.setTitle, context=WIDGET_CONTEXT)
-            if isinstance(widget, (QLabel, QAbstractButton)):
+            shows_data = bool(widget.property("raptor_i18n_data"))
+            if isinstance(widget, (QLabel, QAbstractButton)) and not shows_data:
                 _translate_property(widget, "text", widget.text,
                                     widget.setText, context=WIDGET_CONTEXT)
             if isinstance(widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
@@ -711,7 +719,7 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
                                     context=WIDGET_CONTEXT)
             if isinstance(widget, QTabWidget):
                 _translate_tabs(widget)
-            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and not shows_data:
                 _translate_property(widget, "suffix", widget.suffix,
                                     widget.setSuffix, context=WIDGET_CONTEXT)
             if isinstance(widget, QComboBox):

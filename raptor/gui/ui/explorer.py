@@ -282,7 +282,7 @@ class ExplorerDock(QWidget):
         combo.addItem(i18n.tr("Manage groups and tags…"), self._MANAGE)
         combo.setItemData(
             combo.count() - 1,
-            "Create groups, tag elements, and choose their colours",
+            i18n.tr("Create groups, tag elements, and choose their colours"),
             Qt.ItemDataRole.ToolTipRole)
         combo.setCurrentIndex(wanted)
         self._group_index = wanted
