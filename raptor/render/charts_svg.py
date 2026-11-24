@@ -1064,6 +1064,17 @@ def _fan_bands(out: list[str], rows: list[dict[str, Any]], frame: Any) -> None:
     out.append(_polyline([pt(i, mids[i]) for i in range(n)], ACCENT))
 
 
+def _timeline_target_label(spec: ChartSpec, target: float, fmt: str) -> str:
+    """"target 99 %", or for a capacity target (a line on the flow axis)
+    "capacity target 95 % = 475"."""
+    share = next((float(m["share"]) for m in spec.marks
+                  if m.get("kind") == "target" and _number(m.get("share"))), None)
+    if share is None:
+        return f"target {format_value(target, fmt, 5)}"
+    return (f"capacity target {format_value(share, 'percent', 5)} = "
+            f"{format_value(target, fmt, 5)}")
+
+
 def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pass per layer kind
     """Areas and lines over simulated time (`raptor.api.insight.timecharts`)."""
     layers = [layer for layer in spec.series if layer.get("t")]
@@ -1122,7 +1133,7 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
     target = _target(spec)
     if target is not None and low <= target <= high:
         _target_line(out, frame, target, horizontal=True,
-                     label=f"target {format_value(target, fmt, 5)}")
+                     label=_timeline_target_label(spec, target, fmt))
     median = next((float(m["value"]) for m in spec.marks
                    if m.get("kind") == "median" and _number(m.get("value"))),
                   None)

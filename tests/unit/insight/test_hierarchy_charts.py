@@ -463,3 +463,16 @@ def test_overlay_labels_each_line_at_its_end_and_drops_the_key():
     svg = render(spec)
     for layer in spec.series:
         assert layer["end_text"] in svg
+
+
+def test_the_capacity_sankey_caption_judges_delivery_against_the_target():
+    # the fixture delivers 80 of 100
+    spec = charts.chart_named("capacity-sankey", attribution=_attribution(),
+                              capacity_target=0.75)
+    assert "Delivered 80 % of the generated flow: it met the capacity target 75 %." \
+        in spec.caption
+    spec = charts.chart_named("capacity-sankey", attribution=_attribution(),
+                              capacity_target=0.9)
+    assert "missed the capacity target 90 % by 10 points" in spec.caption
+    assert "capacity target" not in charts.chart_named(
+        "capacity-sankey", attribution=_attribution()).caption

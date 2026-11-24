@@ -2265,8 +2265,8 @@
       <translation>Meta de capacidade: nenhuma</translation>
     </message>
     <message>
-      <source>A target capacity-weighted availability drawn on the year-by-year capacity chart. Saved in the model file; the simulation does not change.</source>
-      <translation>Uma meta de disponibilidade ponderada por capacidade, desenhada no gráfico de capacidade ano a ano. Salva no arquivo do modelo; a simulação não muda.</translation>
+      <source>A target share of the generated flow that must be delivered, drawn as a dashed line on the capacity charts and judged (met or missed) in their captions. Saved in the model file; the simulation does not change.</source>
+      <translation>Uma meta de parcela do fluxo gerado que deve ser entregue, desenhada como linha tracejada nos gráficos de capacidade e julgada (atingida ou não) nas legendas. Salva no arquivo do modelo; a simulação não muda.</translation>
     </message>
     <message>
       <source>Gather the tail into one "N others" row or cell: keep the top 10 or 20, keep a quartile, or take the smallest items until they are the last 5 % of the total. On screen and in what you save; the caption names the folded items</source>
@@ -7977,6 +7977,10 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>mediana %1</translation>
     </message>
     <message>
+      <source>capacity target %1 = %2</source>
+      <translation>meta de capacidade %1 = %2</translation>
+    </message>
+    <message>
       <source>target %1: %2 of runs reach it</source>
       <translation>meta %1: %2 das execuções a atingem</translation>
     </message>
@@ -8889,6 +8893,14 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>logística, sobressalentes, equipes</translation>
     </message>
     <message>
+      <source>flow generated</source>
+      <translation>fluxo gerado</translation>
+    </message>
+    <message>
+      <source>full capacity (highest recorded)</source>
+      <translation>capacidade plena (maior registrada)</translation>
+    </message>
+    <message>
       <source>Inherent (repair only)</source>
       <translation>Inerente (somente reparo)</translation>
     </message>
@@ -9183,6 +9195,46 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>No availability reported.</source>
       <translation>Nenhuma disponibilidade informada.</translation>
+    </message>
+    <message>
+      <source>Run %1 delivered %2 of its %3; it ran below full %4 of the time, lowest flow %5 of %6.</source>
+      <translation>A execução %1 entregou %2 do total de referência (%3); operou abaixo do pleno em %4 do tempo, com fluxo mínimo de %5 de %6.</translation>
+    </message>
+    <message>
+      <source>Run %1: lowest flow %2.</source>
+      <translation>Execução %1: fluxo mínimo de %2.</translation>
+    </message>
+    <message>
+      <source>%1 delivered %2 of their %3; the mean flow fell as low as %4 of %5.</source>
+      <translation>%1 entregaram %2 do total de referência (%3); o fluxo médio chegou a cair a %4 de %5.</translation>
+    </message>
+    <message>
+      <source>It met the capacity target.</source>
+      <translation>Atingiu a meta de capacidade.</translation>
+    </message>
+    <message>
+      <source>It missed the capacity target %1.</source>
+      <translation>Não atingiu a meta de capacidade %1.</translation>
+    </message>
+    <message>
+      <source>%1 of the %2 runs delivered at or above the capacity target.</source>
+      <translation>%1 das %2 execuções entregaram a meta de capacidade ou mais.</translation>
+    </message>
+    <message>
+      <source>The largest loss is %1 (%2 of lost energy).</source>
+      <translation>A maior perda é %1 (%2 da energia perdida).</translation>
+    </message>
+    <message>
+      <source>The largest loss is %1 (%2 of the summed contributions).</source>
+      <translation>A maior perda é %1 (%2 das contribuições somadas).</translation>
+    </message>
+    <message>
+      <source>Delivered %1 of the generated flow: it met the capacity target %2.</source>
+      <translation>Entregou %1 do fluxo gerado: atingiu a meta de capacidade %2.</translation>
+    </message>
+    <message>
+      <source>Delivered %1 of the generated flow: it missed the capacity target %2 by %3 points (loss allowed %4, lost %5).</source>
+      <translation>Entregou %1 do fluxo gerado: não atingiu a meta de capacidade %2 por %3 pontos (perda admitida %4, perdida %5).</translation>
     </message>
     <message>
       <source>seconds</source>

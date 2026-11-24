@@ -1049,3 +1049,29 @@ def _amount(value: float) -> str:
     if abs(value) >= 100:
         return f"{value:,.0f}"
     return f"{value:.3g}"
+
+
+def delivered_share(capacity: Mapping[str, Any] | None) -> float | None:
+    """The share of the generated flow the runs delivered on average
+    (delivered / (delivered + lost)), or None without capacity analysis."""
+    if not capacity:
+        return None
+    delivered = (capacity.get("delivered_energy") or {}).get("mean")
+    lost = (capacity.get("lost_energy") or {}).get("mean")
+    if not isinstance(delivered, (int, float)) or not isinstance(lost, (int, float)):
+        return None
+    total = float(delivered) + float(lost)
+    return float(delivered) / total if total > 0 else None
+
+
+def target_sentence(share: float | None, target: float | None) -> str:
+    """One sentence judging the delivered share against the capacity
+    target, with the loss budget it allows ("" without both)."""
+    if share is None or target is None:
+        return ""
+    head = f"Delivered {pct(share)} of the generated flow: it "
+    if share >= target:
+        return head + f"met the capacity target {pct(target)}."
+    return (head + f"missed the capacity target {pct(target)} by "
+            f"{100.0 * (target - share):.3g} points (loss allowed "
+            f"{pct(1.0 - target)}, lost {pct(1.0 - share)}).")
