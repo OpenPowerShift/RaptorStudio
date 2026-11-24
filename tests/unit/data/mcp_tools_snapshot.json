@@ -1023,6 +1023,7 @@
  "run_chart": {
   "params": [
    "by_hierarchy",
+   "capacity_target",
    "chart",
    "compare_to",
    "depth",
