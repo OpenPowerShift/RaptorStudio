@@ -6203,8 +6203,8 @@ Continuar?</translation>
       <translation>Localizar</translation>
     </message>
     <message>
-      <source>A share-safe copy keeps the model's IDs, links, distributions and results inputs, but removes the labels and notes that describe what the system is. The original file is not changed.</source>
-      <translation>Uma cópia segura para compartilhamento mantém os ids, vínculos, distribuições e entradas de resultados do modelo, mas remove os rótulos e as notas que descrevem o que o sistema é. O arquivo original não é alterado.</translation>
+      <source>A share-safe copy keeps the model's IDs, links, distributions and results inputs, but removes the labels and notes that describe what the system is. Your own file is not changed.</source>
+      <translation>Uma cópia segura para compartilhamento mantém os ids, vínculos, distribuições e entradas de resultados do modelo, mas remove os rótulos e as notas que descrevem o que o sistema é. O seu arquivo não é alterado.</translation>
     </message>
     <message>
       <source>Replace element and hierarchy names</source>
@@ -7982,7 +7982,7 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     </message>
     <message>
       <source>Costs (edit all, then Apply)</source>
-      <translation>Custos (edite todos e depois clique em Aplicar)</translation>
+      <translation>Custos (edite e clique em Aplicar)</translation>
     </message>
     <message>
       <source>Always add Done cost at run end</source>
