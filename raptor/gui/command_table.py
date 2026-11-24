@@ -84,8 +84,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         text="Version History…",
         icon="history_clock_icon:text",
         tooltip=(
-            "Browse versions saved automatically on save; open one as a "
-            "copy or restore it to the file"),
+            "Browse the versions you saved with Save version now; open one "
+            "as a copy or restore it to the file"),
         handler="_open_history_dialog",
         enabled_when="has_file"),
     CommandSpec(

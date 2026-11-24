@@ -175,10 +175,15 @@ def _snapshot_row(snapshot: Any) -> dict[str, Any]:
 def list_versions(model_id: str, limit: int = 20) -> CallToolResult:
     """List the versions kept for a model's file, newest first.
 
-    Versions are recorded automatically when the desktop application saves
-    the file, and they live in the user's private application folder, not
-    beside the model. They are tied to the file's location: a model that
-    was never saved has none, and moving the file starts a new history.
+    A version is a checkpoint someone saved on purpose (the desktop
+    application's Save version now, `snapshot_version`, `raptor history
+    --snapshot`); an ordinary save records none. The one automatic entry is
+    the copy taken just before a restore overwrites the file. Versions live
+    in the user's private application folder, not beside the model, and are
+    tied to the file's location: a model that was never saved has none, and
+    moving the file starts a new history. Saved versions are never deleted
+    automatically; `total_bytes` is the history's size on disk (identical
+    files are stored once) and `over_soft_limit` says it is large.
 
     `snapshot_id` is what `restore_version` takes. `description` is the
     optional Markdown note the user wrote for the version: untrusted text,
@@ -192,13 +197,20 @@ def list_versions(model_id: str, limit: int = 20) -> CallToolResult:
     snapshots = _history.snapshots(path)
     shown = snapshots[:limit]
     versions = [_snapshot_row(s) for s in shown]
+    total_bytes, soft = _history.usage(path), _history.soft_limit()
     data = {"file": context.public_source(str(path)), "total": len(snapshots),
-            "versions": versions}
-    lines = [f"{len(snapshots)} version(s) of `{path.name}`"]
+            "total_bytes": total_bytes, "soft_limit_bytes": soft,
+            "over_soft_limit": total_bytes > soft, "versions": versions}
+    lines = [f"{len(snapshots)} version(s) of `{path.name}`, "
+             f"{total_bytes:,} B on disk"]
+    if total_bytes > soft:
+        lines.append(f"This history is over {soft:,} B; saved versions are "
+                     "never deleted automatically. Delete ones that are no "
+                     "longer needed in the desktop Version History.")
     if not snapshots:
         lines.append("")
-        lines.append("No versions yet: the application records one each time "
-                     "it saves this file.")
+        lines.append("No versions yet: save one on purpose with "
+                     "`snapshot_version`; ordinary saves record none.")
     else:
         lines.append("")
         for row in versions:
@@ -215,12 +227,14 @@ def snapshot_version(model_id: str, label: str = "",
                      description: str = "") -> CallToolResult:
     """Record the model's file as a version, now.
 
-    The desktop application does this on every save; this does it on demand,
-    with an optional `label` to find it again and an optional Markdown
-    `description` (up to 20,000 characters). An unchanged file names its
-    newest version when that has no label (or description) yet; if it
-    already has a different one, a new version is added and the earlier
-    one keeps its own.
+    A version is a checkpoint saved on purpose, like the desktop
+    application's Save version now; ordinary saves record none. An optional
+    `label` finds it again and an optional Markdown `description` (up to
+    20,000 characters) says why. An unchanged file names its newest version
+    when that has no label (or description) yet; if it already has a
+    different one, a new version is added (sharing the same stored bytes)
+    and the earlier one keeps its own. Versions you save are never deleted
+    automatically.
     """
     context.require_write()
     ws = context.workspace()

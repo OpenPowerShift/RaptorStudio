@@ -201,6 +201,23 @@ def test_history_snapshot_list_restore_and_exit_codes(capsys, tmp_path, monkeypa
     assert code == X.USAGE and "not found" in err
 
 
+def test_history_listing_shows_sizes_total_and_a_large_history_warning(
+        capsys, tmp_path, monkeypatch):
+    store = _history_store(tmp_path, monkeypatch)
+    store.max_bytes = 10
+    model = tmp_path / "m.rbds"
+    model.write_text("0123456789abcdef", encoding="utf-8")
+    run_cli(capsys, "history", str(model), "--snapshot", "--label", "a")
+    run_cli(capsys, "history", str(model), "--snapshot", "--label", "b")
+    code, out, _ = run_cli(capsys, "history", str(model))
+    assert code == X.OK
+    assert "2 version(s), 16 B on disk" in out and "warning" in out
+    code, out, _ = run_cli(capsys, "history", str(model), "-f", "json")
+    doc = json.loads(out)
+    assert doc["total_bytes"] == 16 and doc["soft_limit_bytes"] == 10
+    assert len(doc["snapshots"]) == 2
+
+
 def test_history_restore_of_a_damaged_version_is_1_and_writes_nothing(
         capsys, tmp_path, monkeypatch):
     store = _history_store(tmp_path, monkeypatch)

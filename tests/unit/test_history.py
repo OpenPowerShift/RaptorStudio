@@ -135,7 +135,7 @@ def test_a_corrupt_index_is_recovered_from_snapshot_files(tmp_path):
     second = store.record(path)
     store._index_path(path).write_text("not json", encoding="utf-8")
     shots = store.snapshots(path)
-    assert {s.id for s in shots} == {first.id, second.id}
+    assert {s.sha256 for s in shots} == {first.sha256, second.sha256}
     assert all(s.reason == "recovered" for s in shots)
 
 
@@ -146,7 +146,8 @@ def test_recovered_versions_still_verify_their_checksum(tmp_path):
     path.write_text("model-v2", encoding="utf-8")
     store.record(path)
     store._index_path(path).write_text("not json", encoding="utf-8")
-    recovered = next(s for s in store.snapshots(path) if s.id == first.id)
+    recovered = next(s for s in store.snapshots(path)
+                     if s.sha256 == first.sha256)
     assert recovered.sha256                     # computed during recovery
     store.restore(recovered)
     assert path.read_text() == "model-v1"
@@ -188,7 +189,7 @@ def test_a_different_label_on_unchanged_bytes_adds_a_version_and_keeps_the_old(
     assert [(s.label, s.reason) for s in shots] == [("B", "manual"),
                                                     ("A", "save")]
     assert shots[0].sha256 == shots[1].sha256
-    assert shots[0].path != shots[1].path
+    assert shots[0].path == shots[1].path        # one stored file
     assert shots[0].path.read_bytes() == shots[1].path.read_bytes()
     # a repeat of the newest label is still a no-op
     assert store.record(path, label="B") is None
@@ -258,12 +259,12 @@ def test_recovered_index_survives_repeated_lists_and_a_new_record(tmp_path):
     path.write_text("model-v2", encoding="utf-8")
     second = store.record(path)
     store._index_path(path).write_text("not json", encoding="utf-8")
-    assert {s.id for s in store.snapshots(path)} == {first.id, second.id}
-    assert {s.id for s in store.snapshots(path)} == {first.id, second.id}
+    want = {first.sha256, second.sha256}
+    assert {s.sha256 for s in store.snapshots(path)} == want
+    assert {s.sha256 for s in store.snapshots(path)} == want
     path.write_text("model-v3", encoding="utf-8")
     store.record(path)
-    ids = {s.id for s in store.snapshots(path)}
-    assert {first.id, second.id} <= ids
+    assert want <= {s.sha256 for s in store.snapshots(path)}
 
 
 def test_a_labelled_version_is_pinned_against_the_retention_caps(tmp_path):
@@ -285,26 +286,6 @@ def test_a_labelled_version_is_pinned_against_the_retention_caps(tmp_path):
     path.write_text("model-v8", encoding="utf-8")
     store.record(path)
     assert first.id not in {s.id for s in store.snapshots(path)}
-
-
-def test_the_byte_cap_still_applies_to_labelled_versions(tmp_path):
-    path = _model(tmp_path)
-    store = HistoryStore(tmp_path / "history", keep=10, max_bytes=120)
-    first = store.record(path, label="keep me")
-    assert first is not None
-    ids = {first.id}
-    for n in range(2, 8):
-        path.write_text("x" * 80 + f"-v{n}", encoding="utf-8")
-        shot = store.record(path)
-        if shot is not None:
-            ids.add(shot.id)
-    kept = store.snapshots(path)
-    # the store stays inside its ceiling even though labels are pinned ...
-    folder = store._folder(path)
-    assert sum(p.stat().st_size for p in folder.glob("*.rb*")) <= 120 or \
-        len(kept) == 1
-    # ... and the pin only ever protected it from the COUNT
-    assert len(kept) <= 2
 
 
 def test_a_description_is_metadata_that_survives_relabel_and_recovery(tmp_path):
@@ -418,3 +399,125 @@ def test_the_cli_describes_and_lists_a_description(tmp_path, monkeypatch, capsys
         assert main(["history", str(path), *argv]) == 2
     assert main(["history", str(path), "--describe", "nope",
                  "--description", "x"]) == 2
+
+
+# -- explicit checkpoints, shared storage, retention ---------------------------
+
+def _stored_files(store, path):
+    return sorted(p.name for p in store._folder(path).iterdir()
+                  if p.suffix in (".rbds", ".rbd", ".rbdz"))
+
+
+def test_identical_bytes_are_stored_once_for_two_entries(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, reason="manual", label="A")
+    second = store.record(path, reason="manual", label="B")
+    assert second is not None and second.id != first.id
+    assert len(store.snapshots(path)) == 2
+    assert len(_stored_files(store, path)) == 1
+    assert store.usage(path) == len(b"model-v1")        # counted once
+
+
+def test_deleting_one_of_two_sharing_entries_keeps_the_file(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, reason="manual", label="A")
+    second = store.record(path, reason="manual", label="B")
+    assert store.discard(path, second.id)
+    assert len(_stored_files(store, path)) == 1
+    assert store.read(store.snapshot(path, first.id)) == b"model-v1"
+    assert store.discard(path, first.id)
+    assert _stored_files(store, path) == []
+
+
+def test_pruning_an_automatic_entry_keeps_a_file_a_checkpoint_shares(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=1)
+    store.record(path, reason="before restore")
+    kept = store.record(path, reason="manual", label="same bytes")
+    for n in range(3):
+        path.write_text(f"other-{n}", encoding="utf-8")
+        store.record(path, reason="before restore")
+    assert store.read(store.snapshot(path, kept.id)) == b"model-v1"
+
+
+def test_explicit_versions_survive_beyond_keep_and_the_byte_cap(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=2, max_bytes=300)
+    ids = []
+    for n in range(6):
+        path.write_text(f"{n}" * 200, encoding="utf-8")
+        shot = store.record(path, reason="manual" if n % 2 else "snapshot",
+                            label="x" if n < 3 else "")
+        ids.append(shot.id)
+    assert {s.id for s in store.snapshots(path)} == set(ids)
+    assert store.usage(path) > store.max_bytes     # reported, not deleted
+
+
+def test_before_restore_copies_are_pruned_by_count_and_bytes(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=2, max_bytes=10_000)
+    keep = store.record(path, reason="manual")
+    auto = []
+    for n in range(4):
+        path.write_text(f"auto-{n}", encoding="utf-8")
+        auto.append(store.record(path, reason="before restore").id)
+    ids = [s.id for s in store.snapshots(path)]
+    assert keep.id in ids
+    assert [i for i in ids if i != keep.id] == [auto[3], auto[2]]
+    small = HistoryStore(tmp_path / "h2", keep=30, max_bytes=2_500)
+    out = []
+    for i in range(3):
+        path.write_text(f"{i}" * 1_000, encoding="utf-8")
+        out.append(small.record(path, reason="before restore").id)
+    assert [s.id for s in small.snapshots(path)] == [out[2], out[1]]
+
+
+def test_a_legacy_index_keeps_its_names_and_old_saves_are_prunable(tmp_path):
+    """An index written before content-addressing: own stored names, reason
+    "save" entries are automatic, a labelled one is not."""
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=1)
+    folder = store._folder(path)
+    folder.mkdir(parents=True)
+    entries = []
+    for n, (reason, label) in enumerate(
+            [("save", "named"), ("save", ""), ("save", ""), ("manual", "")]):
+        sid = f"2026010{n + 1}T000000000000-abc{n:03d}"
+        data = f"legacy-{n}".encode()
+        (folder / f"{sid}.rbds").write_bytes(data)
+        import hashlib
+        entries.append({"id": sid, "file": str(path),
+                        "created": f"2026-01-0{n + 1}T00:00:00",
+                        "reason": reason, "label": label,
+                        "bytes": len(data),
+                        "sha256": hashlib.sha256(data).hexdigest(),
+                        "stored": f"{sid}.rbds"})
+    (folder / "index.json").write_text(json.dumps(
+        {"version": 1, "file": str(path), "snapshots": entries}))
+    assert len(store.snapshots(path)) == 4
+    path.write_text("new", encoding="utf-8")
+    store.record(path, reason="manual")
+    reasons = [(s.reason, s.label) for s in store.snapshots(path)]
+    # unlabelled legacy saves pruned down to keep=1 (the newest of them)
+    assert reasons.count(("save", "")) == 1
+    assert ("save", "named") in reasons and ("manual", "") in reasons
+    assert store.snapshot(path, entries[0]["id"]).path.name == \
+        entries[0]["stored"]
+
+
+def test_a_rebuilt_index_finds_shared_and_archive_files(tmp_path):
+    path = tmp_path / "plant.rbdz"
+    path.write_bytes(b"PK-archive-1")
+    store = HistoryStore(tmp_path / "history")
+    store.record(path, reason="manual", label="A")
+    store.record(path, reason="manual", label="B")
+    path.write_bytes(b"PK-archive-2")
+    store.record(path, reason="manual")
+    store._index_path(path).write_text("not json", encoding="utf-8")
+    shots = store.snapshots(path)
+    assert len(shots) == 2                      # one entry per stored file
+    assert {store.read(s) for s in shots} == {b"PK-archive-1",
+                                              b"PK-archive-2"}
+    assert all(s.sha256 and s.created for s in shots)

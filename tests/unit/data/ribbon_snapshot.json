@@ -899,7 +899,7 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Version History\u2026",
-   "tooltip": "Browse versions saved automatically on save; open one as a copy or restore it to the file\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
+   "tooltip": "Browse the versions you saved with Save version now; open one as a copy or restore it to the file\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
   },
   "_import_awb_action": {
    "checkable": false,

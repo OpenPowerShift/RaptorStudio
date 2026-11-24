@@ -212,13 +212,16 @@ def _history_list(model: Path, fmt: str) -> int:
     from raptor.core.history import file_digest
     if not model.is_file():
         raise CliError(f"file not found: {model}", X.USAGE)
+    from raptor.core.history import format_bytes
     shots = history.snapshots(model)
+    total, limit = history.usage(model), history.soft_limit()
     digest = file_digest(model)
     current = [s.id for s in shots if s.sha256 and s.sha256 == digest]
     if fmt == "json":
         emit_json({"schema": "raptor-history/1", "model": str(model),
                    "current": digest or None,
                    "current_id": current[0] if current else None,
+                   "total_bytes": total, "soft_limit_bytes": limit,
                    "snapshots": [
                        {"id": s.id, "created": s.created, "reason": s.reason,
                         "label": s.label, "description": s.description,
@@ -236,6 +239,12 @@ def _history_list(model: Path, fmt: str) -> int:
         mark = "*" if shot.id in current else " "
         print(f"{mark} {shot.id}  {shot.time_text()}  {shot.reason:<8} "
               f"{shot.size_text():>9}{label}")
+    print(f"{len(shots)} version(s), {format_bytes(total)} on disk "
+          "(identical files are stored once)")
+    if total > limit:
+        print(f"warning: this history is over {format_bytes(limit)}. Versions "
+              "you saved are never deleted automatically; remove ones you no "
+              "longer need in the app's Version History (Delete version).")
     return X.OK
 
 

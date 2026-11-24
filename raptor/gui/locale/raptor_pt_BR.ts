@@ -214,8 +214,8 @@
       <translation>Histórico de versões…</translation>
     </message>
     <message>
-      <source>Browse versions saved automatically on save; open one as a copy or restore it to the file</source>
-      <translation>Navegue pelas versões salvas automaticamente ao salvar; abra uma como cópia ou restaure-a no arquivo</translation>
+      <source>Browse the versions you saved with Save version now; open one as a copy or restore it to the file</source>
+      <translation>Veja as versões que você salvou com Salvar versão agora; abra uma como cópia ou restaure-a no arquivo</translation>
     </message>
     <message>
       <source>Close</source>
@@ -4313,8 +4313,8 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Nenhuma descrição. Pressione Editar para adicionar uma (Markdown compatível).</translation>
     </message>
     <message>
-      <source>Versions are written automatically when you save. They live in your private application folder, not beside the model.</source>
-      <translation>As versões são gravadas automaticamente ao salvar. Elas ficam na sua pasta privada do aplicativo, não ao lado do modelo.</translation>
+      <source>Versions are checkpoints you save with Save version now; saving the model does not add one. They live in your private application folder, not beside the model.</source>
+      <translation>As versões são pontos de controle que você salva com Salvar versão agora; salvar o modelo não adiciona uma. Elas ficam na sua pasta privada do aplicativo, não ao lado do modelo.</translation>
     </message>
     <message>
       <source>Select a version.</source>
@@ -4325,8 +4325,20 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Estatísticas do modelo</translation>
     </message>
     <message>
+      <source>Add a description when you save a version.</source>
+      <translation>Adicione uma descrição ao salvar uma versão.</translation>
+    </message>
+    <message>
       <source>What this version contains</source>
       <translation>O que esta versão contém</translation>
+    </message>
+    <message>
+      <source>History size</source>
+      <translation>Tamanho do histórico</translation>
+    </message>
+    <message>
+      <source>History size warning</source>
+      <translation>Aviso sobre o tamanho do histórico</translation>
     </message>
     <message>
       <source>Open as copy</source>
@@ -4357,8 +4369,8 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Salvar versão agora…</translation>
     </message>
     <message>
-      <source>Record the file as it is now, without waiting for the next save</source>
-      <translation>Registrar o arquivo como está agora, sem esperar o próximo salvamento</translation>
+      <source>Save the current state as a version (saves unsaved edits first)</source>
+      <translation>Salvar o estado atual como uma versão (salva antes as edições não salvas)</translation>
     </message>
     <message>
       <source>Delete version</source>
@@ -4381,6 +4393,34 @@ Salvá-las?</translation>
       <translation>Descrição salva.</translation>
     </message>
     <message>
+      <source>manual</source>
+      <translation>manual</translation>
+    </message>
+    <message>
+      <source>snapshot</source>
+      <translation>instantâneo</translation>
+    </message>
+    <message>
+      <source>save</source>
+      <translation>salvar</translation>
+    </message>
+    <message>
+      <source>before restore</source>
+      <translation>antes de restaurar</translation>
+    </message>
+    <message>
+      <source>restored</source>
+      <translation>restaurada</translation>
+    </message>
+    <message>
+      <source>opened</source>
+      <translation>aberta</translation>
+    </message>
+    <message>
+      <source>recovered</source>
+      <translation>recuperada</translation>
+    </message>
+    <message>
       <source>Archive with saved results</source>
       <translation>Arquivo com resultados salvos</translation>
     </message>
@@ -4389,8 +4429,92 @@ Salvá-las?</translation>
       <translation>O arquivo do modelo está ausente; não há nada para registrar</translation>
     </message>
     <message>
+      <source>Current — not checkpointed</source>
+      <translation>Atual — sem ponto de controle</translation>
+    </message>
+    <message>
       <source>That version no longer exists; the description was not saved.</source>
       <translation>Essa versão não existe mais; a descrição não foi salva.</translation>
+    </message>
+    <message>
+      <source>Save Version</source>
+      <translation>Salvar versão</translation>
+    </message>
+    <message>
+      <source>Label for the new version (optional):</source>
+      <translation>Rótulo da nova versão (opcional):</translation>
+    </message>
+    <message>
+      <source>Label Version</source>
+      <translation>Rotular versão</translation>
+    </message>
+    <message>
+      <source>Label (leave empty to clear):</source>
+      <translation>Rótulo (deixe vazio para limpar):</translation>
+    </message>
+    <message>
+      <source>Delete Version</source>
+      <translation>Excluir versão</translation>
+    </message>
+    <message>
+      <source>block</source>
+      <translation>bloco</translation>
+    </message>
+    <message>
+      <source>blocks</source>
+      <translation>blocos</translation>
+    </message>
+    <message>
+      <source>node</source>
+      <translation>nó</translation>
+    </message>
+    <message>
+      <source>nodes</source>
+      <translation>nós</translation>
+    </message>
+    <message>
+      <source>event</source>
+      <translation>evento</translation>
+    </message>
+    <message>
+      <source>events</source>
+      <translation>eventos</translation>
+    </message>
+    <message>
+      <source>hierarchy</source>
+      <translation>hierarquia</translation>
+    </message>
+    <message>
+      <source>hierarchies</source>
+      <translation>hierarquias</translation>
+    </message>
+    <message>
+      <source>Model:</source>
+      <translation>Modelo:</translation>
+    </message>
+    <message>
+      <source>Archive: the saved results could not be read.</source>
+      <translation>Arquivo: não foi possível ler os resultados salvos.</translation>
+    </message>
+    <message>
+      <source>unsaved changes</source>
+      <translation>alterações não salvas</translation>
+    </message>
+    <message>
+      <source>The open model could not be read for comparison.</source>
+      <translation>Não foi possível ler o modelo aberto para comparação.</translation>
+    </message>
+    <message>
+      <source>No version to compare with yet. Save version now makes this the first one.</source>
+      <translation>Ainda não há versão para comparar. Salvar versão agora cria a primeira.</translation>
+    </message>
+    <message>
+      <source>The model content is the same as the newest version (layout aside).</source>
+      <translation>O conteúdo do modelo é igual ao da versão mais recente (exceto o layout).</translation>
+    </message>
+    <message>
+      <source>Same as the model that is open now (layout aside).</source>
+      <translation>Igual ao modelo aberto agora (exceto o layout).</translation>
     </message>
     <message>
       <source>Saving was cancelled; no version recorded.</source>
@@ -4401,28 +4525,24 @@ Salvá-las?</translation>
       <translation>Rótulo atualizado.</translation>
     </message>
     <message>
-      <source>Delete Version</source>
-      <translation>Excluir versão</translation>
-    </message>
-    <message>
-      <source>Archive: the saved results could not be read.</source>
-      <translation>Arquivo: não foi possível ler os resultados salvos.</translation>
-    </message>
-    <message>
       <source>Archive without saved results.</source>
       <translation>Arquivo sem resultados salvos.</translation>
     </message>
     <message>
-      <source>No versions and no model file: the file has been moved or deleted. History is tied to the file's location.</source>
-      <translation>Sem versões e sem arquivo do modelo: o arquivo foi movido ou excluído. O histórico está vinculado ao local do arquivo.</translation>
+      <source>Current — matches the version saved %1</source>
+      <translation>Atual — igual à versão salva em %1</translation>
     </message>
     <message>
-      <source>No versions yet. Versions are recorded when you save; use &lt;b&gt;Save version now…&lt;/b&gt; to record one immediately.</source>
-      <translation>Nenhuma versão ainda. As versões são registradas ao salvar; use &lt;b&gt;Salvar versão agora…&lt;/b&gt; para registrar uma imediatamente.</translation>
+      <source>Only the layout or the saved results differ.</source>
+      <translation>Só o layout ou os resultados salvos diferem.</translation>
     </message>
     <message>
       <source>The model has not changed; no version was added.</source>
       <translation>O modelo não foi alterado; nenhuma versão foi adicionada.</translation>
+    </message>
+    <message>
+      <source>Field</source>
+      <translation>Campo</translation>
     </message>
     <message>
       <source>This version</source>
@@ -4433,16 +4553,60 @@ Salvá-las?</translation>
       <translation>Aberto agora</translation>
     </message>
     <message>
+      <source>This history is over %1. Versions you save are never deleted automatically; remove ones you no longer need with Delete version.</source>
+      <translation>Este histórico passou de %1. As versões que você salva nunca são apagadas automaticamente; remova as que não precisa mais com Excluir versão.</translation>
+    </message>
+    <message>
+      <source>Could not compare with the newest version:</source>
+      <translation>Não foi possível comparar com a versão mais recente:</translation>
+    </message>
+    <message>
+      <source>Changes from the newest version to the current model (%1):</source>
+      <translation>Alterações da versão mais recente para o modelo atual (%1):</translation>
+    </message>
+    <message>
+      <source>It is kept unchanged; Open as copy or Restore will report the same problem.</source>
+      <translation>Ela foi mantida sem alterações; Abrir como cópia ou Restaurar informarão o mesmo problema.</translation>
+    </message>
+    <message>
+      <source>Could not compare with the open model:</source>
+      <translation>Não foi possível comparar com o modelo aberto:</translation>
+    </message>
+    <message>
+      <source>Changes from this version to the model open now (%1):</source>
+      <translation>Alterações desta versão para o modelo aberto agora (%1):</translation>
+    </message>
+    <message>
+      <source>History size: %1 for %2 version(s). Identical files are stored once.</source>
+      <translation>Tamanho do histórico: %1 em %2 versão(ões). Arquivos idênticos são guardados uma só vez.</translation>
+    </message>
+    <message>
+      <source>This version could not be read as a model:</source>
+      <translation>Esta versão não pôde ser lida como modelo:</translation>
+    </message>
+    <message>
+      <source>The model has not changed since the version saved %1; that version is selected. Type a label to name it.</source>
+      <translation>O modelo não mudou desde a versão salva em %1; essa versão está selecionada. Digite um rótulo para nomeá-la.</translation>
+    </message>
+    <message>
+      <source>Named the newest version saved %1.</source>
+      <translation>Nomeada a versão mais recente, salva em %1.</translation>
+    </message>
+    <message>
+      <source>Added a version (%1); the model has not changed, so the earlier one saved %2 keeps its label.</source>
+      <translation>Versão adicionada (%1); o modelo não mudou, então a anterior, salva em %2, mantém o rótulo.</translation>
+    </message>
+    <message>
+      <source>Saved %1 (%2).</source>
+      <translation>Salva em %1 (%2).</translation>
+    </message>
+    <message>
       <source>Apply import</source>
       <translation>Aplicar importação</translation>
     </message>
     <message>
       <source>Row</source>
       <translation>Linha</translation>
-    </message>
-    <message>
-      <source>Field</source>
-      <translation>Campo</translation>
     </message>
     <message>
       <source>Current</source>
@@ -8787,14 +8951,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>cause</source>
       <translation>causa</translation>
-    </message>
-    <message>
-      <source>hierarchy</source>
-      <translation>hierarquia</translation>
-    </message>
-    <message>
-      <source>hierarchies</source>
-      <translation>hierarquias</translation>
     </message>
     <message>
       <source>element</source>
