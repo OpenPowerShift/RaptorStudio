@@ -3769,6 +3769,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Gerenciar grupos e etiquetas…</translation>
     </message>
     <message>
+      <source>Create groups, tag elements, and choose their colours</source>
+      <translation>Crie grupos, etiquete elementos e escolha suas cores</translation>
+    </message>
+    <message>
       <source>Save Reduced RAPTOR Model</source>
       <translation>Salvar modelo RAPTOR reduzido</translation>
     </message>
@@ -4309,6 +4313,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Excluir versão</translation>
     </message>
     <message>
+      <source>Archive with saved results</source>
+      <translation>Arquivo com resultados salvos</translation>
+    </message>
+    <message>
       <source>The model file is missing; there is nothing to record</source>
       <translation>O arquivo do modelo está ausente; não há nada para registrar</translation>
     </message>
@@ -4325,12 +4333,32 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Excluir versão</translation>
     </message>
     <message>
+      <source>Archive: the saved results could not be read.</source>
+      <translation>Arquivo: não foi possível ler os resultados salvos.</translation>
+    </message>
+    <message>
+      <source>Archive without saved results.</source>
+      <translation>Arquivo sem resultados salvos.</translation>
+    </message>
+    <message>
       <source>No versions and no model file: the file has been moved or deleted. History is tied to the file's location.</source>
       <translation>Sem versões e sem arquivo do modelo: o arquivo foi movido ou excluído. O histórico está vinculado ao local do arquivo.</translation>
     </message>
     <message>
       <source>No versions yet. Versions are recorded when you save; use &lt;b&gt;Save version now…&lt;/b&gt; to record one immediately.</source>
       <translation>Nenhuma versão ainda. As versões são registradas ao salvar; use &lt;b&gt;Salvar versão agora…&lt;/b&gt; para registrar uma imediatamente.</translation>
+    </message>
+    <message>
+      <source>The model has not changed; no version was added.</source>
+      <translation>O modelo não foi alterado; nenhuma versão foi adicionada.</translation>
+    </message>
+    <message>
+      <source>This version</source>
+      <translation>Esta versão</translation>
+    </message>
+    <message>
+      <source>Open now</source>
+      <translation>Aberto agora</translation>
     </message>
     <message>
       <source>Apply import</source>
@@ -7073,48 +7101,48 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
       <translation>Aquisição inicial</translation>
     </message>
     <message>
-      <source>Running (/time)</source>
-      <translation>Em operação (/tempo)</translation>
+      <source>Running (/⁠time)</source>
+      <translation>Em operação (/⁠tempo)</translation>
     </message>
     <message>
-      <source>Standby (/time)</source>
-      <translation>Em espera (/tempo)</translation>
+      <source>Standby (/⁠time)</source>
+      <translation>Em espera (/⁠tempo)</translation>
     </message>
     <message>
-      <source>Idle downtime (/time)</source>
-      <translation>Parada ociosa (/tempo)</translation>
+      <source>Idle downtime (/⁠time)</source>
+      <translation>Parada ociosa (/⁠tempo)</translation>
     </message>
     <message>
       <source>Hands-on maintenance, fixed cost</source>
       <translation>Manutenção direta, custo fixo</translation>
     </message>
     <message>
-      <source>Hands-on maintenance (/time)</source>
-      <translation>Manutenção direta (/tempo)</translation>
+      <source>Hands-on maintenance (/⁠time)</source>
+      <translation>Manutenção direta (/⁠tempo)</translation>
     </message>
     <message>
-      <source>Logistical hold (/time)</source>
-      <translation>Espera logística (/tempo)</translation>
+      <source>Logistical hold (/⁠time)</source>
+      <translation>Espera logística (/⁠tempo)</translation>
     </message>
     <message>
       <source>Preventive maintenance, fixed cost</source>
       <translation>Manutenção preventiva, custo fixo</translation>
     </message>
     <message>
-      <source>Preventive maintenance (/time)</source>
-      <translation>Manutenção preventiva (/tempo)</translation>
+      <source>Preventive maintenance (/⁠time)</source>
+      <translation>Manutenção preventiva (/⁠tempo)</translation>
     </message>
     <message>
-      <source>Preventive maintenance hold (/time)</source>
-      <translation>Espera da manutenção preventiva (/tempo)</translation>
+      <source>Preventive maintenance hold (/⁠time)</source>
+      <translation>Espera da manutenção preventiva (/⁠tempo)</translation>
     </message>
     <message>
       <source>Rebate or disposal, fixed cost</source>
       <translation>Abatimento ou descarte, custo fixo</translation>
     </message>
     <message>
-      <source>Permanently done (/time)</source>
-      <translation>Encerrado em definitivo (/tempo)</translation>
+      <source>Permanently done (/⁠time)</source>
+      <translation>Encerrado em definitivo (/⁠tempo)</translation>
     </message>
     <message>
       <source>Recurring spare</source>
@@ -7130,7 +7158,7 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     </message>
     <message>
       <source>Always add Done cost at run end</source>
-      <translation>Sempre adicionar custo Done ao final da execução</translation>
+      <translation>Sempre adicionar custo de conclusão ao final da execução</translation>
     </message>
     <message>
       <source>X</source>
@@ -7647,6 +7675,26 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     <message>
       <source>a priority from 1 to 99</source>
       <translation>uma prioridade de 1 a 99</translation>
+    </message>
+    <message>
+      <source>No canvas overlay</source>
+      <translation>Sem sobreposição no diagrama</translation>
+    </message>
+    <message>
+      <source>Share of downtime</source>
+      <translation>Parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>Lost capacity</source>
+      <translation>Capacidade perdida</translation>
+    </message>
+    <message>
+      <source>Weak link (own availability)</source>
+      <translation>Elo fraco (disponibilidade própria)</translation>
+    </message>
+    <message>
+      <source>Advisor findings</source>
+      <translation>Constatações do Advisor</translation>
     </message>
     <message>
       <source>This block draws from a spare pool -- its cost comes from the POOL's own fields (Spares tab -&gt; Manage Spare Pools…), not this one.</source>
