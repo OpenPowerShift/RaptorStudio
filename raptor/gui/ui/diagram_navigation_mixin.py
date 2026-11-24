@@ -49,6 +49,7 @@ class NavigationMixin(_Base):
         # `x: Any  # really T | None` marks an attribute the host sets to None first and
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
+        _history_jump_level: int | None
         _DEP_TARGET_KINDS: Any
         _LOCATE: dict[str, tuple[str, str, str]]
         _LOG_ELEMENT_KINDS: dict[str, tuple[str, str, str]]

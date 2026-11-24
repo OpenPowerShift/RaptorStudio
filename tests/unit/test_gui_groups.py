@@ -316,3 +316,43 @@ def test_typing_tags_then_ok_keeps_them(win):
     dialog.accept()
     tags, _groups = dialog.result_data()
     assert tags[ref] == ["duty", "rotating"]
+
+
+def test_groups_are_reachable_from_the_explorer_and_the_canvas(win):
+    """Groups / Tags lived only on the Data tab: the Explorer selector was
+    greyed out until a group existed, and the canvas had no entry."""
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QMouseEvent
+    combo = win._explorer._group_combo
+    assert combo.isEnabled()
+    manage = [i for i in range(combo.count())
+              if combo.itemData(i) == win._explorer._MANAGE]
+    assert manage, "the selector offers no way to create a group"
+    asked: list = []
+    win._explorer.manage_groups_requested.connect(lambda: asked.append(1))
+    win._explorer.manage_groups_requested.disconnect(win._open_groups_dialog)
+    combo.setCurrentIndex(manage[0])
+    QApplication.processEvents()
+    assert asked and combo.currentIndex() == 0
+
+    view = win._diagram_dock.view
+    requested: list = []
+    view.groups_requested.disconnect(win._open_groups_dialog)
+    view.groups_requested.connect(lambda: requested.append(1))
+    item = next(iter(view._block_items.values()))
+
+    def choose(menu, _event):
+        return next(a for a in menu.actions() if a.text() == "Groups / Tags…")
+    view._exec_menu = choose
+    point = view.mapFromScene(item.sceneBoundingRect().center())
+    event = QMouseEvent(QMouseEvent.Type.MouseButtonPress, QPointF(point),
+                        QPointF(point), Qt.MouseButton.RightButton,
+                        Qt.MouseButton.RightButton,
+                        Qt.KeyboardModifier.NoModifier)
+    view._show_context_menu(event)
+    assert requested
+
+
+def test_import_table_is_in_the_file_views_import_section():
+    from raptor.gui.command_table import BACKSTAGE
+    assert "data.import_table" in dict(BACKSTAGE)["Import"]

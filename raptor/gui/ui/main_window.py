@@ -448,6 +448,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._tooltip_keeper.install(QApplication.instance())
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
+        # Appearance was applied before the docks existed: let every widget
+        # that registered since then style itself for the theme in force.
+        ThemeManager.instance().notify()
         # Appearance was applied before the ribbon was built. Seed the one
         # piece of state that `_on_theme_changed` normally mirrors: the
         # View menu action, or a dark-mode launch left it unchecked and
@@ -1034,6 +1037,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_annotations_may_be_invisible)
         self._diagram_dock.view.properties_requested.connect(
             lambda: self._show_inspector_dock(expand_minimized=True))
+        self._diagram_dock.view.groups_requested.connect(
+            self._open_groups_dialog)
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -1217,6 +1222,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda hid: self._diagram_dock.view.enter_level(hid))
         self._explorer.ascend_requested.connect(
             self._diagram_dock.view.go_up)
+        self._explorer.manage_groups_requested.connect(
+            self._open_groups_dialog)
         self._explorer.group_view_changed.connect(
             self._diagram_dock.view.set_group_view)
         # Re-parents the ribbon-built Find combo into this dock's own
@@ -3449,7 +3456,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
             dialog.finished.connect(
                 lambda _result: setattr(self, "_undo_history_dialog", None))
-            self._undo_history_dialog = dialog
+            self._undo_history_dialog: Any = dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
@@ -3464,6 +3471,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         except RuntimeError:             # already deleted by Qt
             pass
         self._undo_history_dialog = None
+
     def _open_project_health(self):
         """Model ▸ Project Health: statistics, findings and sharing."""
         if self._rbd is None:
@@ -3567,6 +3575,30 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._statusbar.showMessage(
             f"Imported {changed} change(s) on {len(before)} block(s) from "
             f"{Path(path).name} — Ctrl+Z to undo", 8000)
+
+    def _export_import_template(self):
+        """File ▸ Import ▸ Data Table Template: the sheet Import Table reads."""
+        if self._rbd is None:
+            return
+        from raptor.gui.ui import filedialogs as fdg
+        base = Path(self._current_file).stem if self._current_file else "model"
+        path, chosen = fdg.getSaveFileName(
+            self, "Save Data Table Template", f"{base}_data_table.xlsx",
+            "Excel workbook (*.xlsx);;OpenDocument spreadsheet (*.ods)")
+        if not path:
+            return
+        if not path.lower().endswith((".xlsx", ".ods")):
+            path += ".ods" if "ods" in (chosen or "") else ".xlsx"
+        from raptor.core.import_tables import write_template
+        try:
+            written = write_template(self._rbd, path)
+        except OSError as exc:
+            msgbox.critical(self, "Template Not Saved",
+                            f"Could not write {path}:\n\n{exc}")
+            return
+        self._statusbar.showMessage(
+            f"Template saved: {written} — edit it, then File ▸ Import ▸ "
+            "Import Table", 10000)
 
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs

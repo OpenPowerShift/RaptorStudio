@@ -117,6 +117,9 @@ class ContextMenuMixin:
                 comment_act0.setEnabled(self.has_convertible_comment(
                     kind0, oid0))
             remove_links_act0 = menu.addAction("Remove Links")
+            groups_act0 = menu.addAction("Groups / Tags…")
+            groups_act0.setToolTip(
+                "Put the selected elements in a component group or tag them")
             # The count includes the annotations -- the delete takes
             # them along now, so the number has to (and `sel_count`
             # alone misses arrows, which are not ItemIsMovable).
@@ -129,6 +132,8 @@ class ContextMenuMixin:
                 self.comment_to_annotation(kind0, oid0)
             elif chosen0 is remove_links_act0:
                 self.remove_links_selected()
+            elif chosen0 is groups_act0:
+                self.groups_requested.emit()
             elif chosen0 is del_act:
                 self.delete_selected()
             elif chosen0 is out_act:
@@ -156,6 +161,7 @@ class ContextMenuMixin:
                 hid_menu.addSeparator()
                 from raptor.gui.ui.diagram_out_of_service import add_submenu
                 add_submenu(self, hid_menu, [("hier", int(it2._hier_id))])
+                groups_h = hid_menu.addAction("Groups / Tags…")
                 hid_menu.addSeparator()
                 del_h = hid_menu.addAction("Delete hierarchy")
                 chosen_h = self._exec_menu(hid_menu, event)
@@ -177,6 +183,10 @@ class ContextMenuMixin:
                     self._scene.clearSelection()
                     it2.setSelected(True)
                     self.comment_to_annotation("hier", it2._hier_id)
+                elif chosen_h is groups_h:
+                    self._scene.clearSelection()
+                    it2.setSelected(True)
+                    self.groups_requested.emit()
                 elif chosen_h is del_h:
                     self._scene.clearSelection()
                     it2.setSelected(True)
@@ -381,6 +391,12 @@ class ContextMenuMixin:
         # the Inspector's content -- `properties_requested` only needs to
         # make MainWindow actually show/raise the dock itself.
         props_action = None
+        groups_action = None
+        if kind != "Link":
+            menu.addSeparator()
+            groups_action = menu.addAction("Groups / Tags…")
+            groups_action.setToolTip(
+                "Put this element in a component group or tag it")
         if _properties_offered(kind, n_sel):
             menu.addSeparator()
             props_action = menu.addAction("Properties")
@@ -450,6 +466,8 @@ class ContextMenuMixin:
             self.delete_selected()
         elif chosen is props_action:
             self.properties_requested.emit()
+        elif groups_action is not None and chosen is groups_action:
+            self.groups_requested.emit()
         elif chosen is dep_action:
             self._on_dep_click(clicked)
         else:

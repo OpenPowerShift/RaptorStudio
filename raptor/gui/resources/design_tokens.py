@@ -330,6 +330,18 @@ class ThemeManager:
         self._apply()
         self._fire()
 
+    def notify(self) -> None:
+        """Run every registered theme callback for the current theme.
+
+        The window settles dark/contrast/scale before it builds its docks
+        (the ribbon's geometry depends on the scale), so the widgets that
+        style themselves in their theme callback register too late for
+        that change. Calling this once the window exists styles them for
+        the theme already in force -- without it a dark launch left the
+        Explorer, Inspector and Find box on their light stylesheets.
+        """
+        self._fire()
+
     def _fire(self):
         dead = []
         for ref in list(self._callbacks):

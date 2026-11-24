@@ -32,6 +32,8 @@ class ExplorerDock(QWidget):
     ascend_requested = Signal(int)  # leave this hierarchy (the marker's own)
     #: The group/tag view changed: a set of element refs, or None for all.
     group_view_changed = Signal(object)
+    #: The selector's "Manage groups and tags…" entry was chosen.
+    manage_groups_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,12 +75,17 @@ class ExplorerDock(QWidget):
         # A group/tag view. Groups are navigation metadata, not a second
         # hierarchy: this filters the same whole-model tree.
         self._group_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._group_combo.setProperty("raptor_i18n_data_items", True)
         self._group_combo.setToolTip(
             "Show only the elements in a component group or tag")
         self._group_combo.setAccessibleName("Filter by group or tag")
         self._group_combo.setMinimumWidth(120)
         self._group_combo.setMaximumWidth(200)
-        self._group_combo.setEnabled(False)
+        # Wide enough for its current entry ("Todos os elementos" was cut
+        # off at the minimum width), never wider than the cap above.
+        self._group_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToContents)
         self._group_combo.currentIndexChanged.connect(
             self._on_group_filter_changed)
         bar.addWidget(self._group_combo)
@@ -112,6 +119,12 @@ class ExplorerDock(QWidget):
         colour = active_colour()["text"]
         self._expand_button.setIcon(icons.expand_all_icon(colour))
         self._collapse_button.setIcon(icons.collapse_all_icon(colour))
+        # An active search paints rows in the theme's accent/muted brushes;
+        # repaint them in the new theme's colours.
+        sw = getattr(self, "_search_widget", None)
+        if getattr(self, "_tree", None) is not None and sw is not None \
+                and sw.text():
+            self.filter_items(sw.text())
 
     def set_search_widget(self, widget) -> None:
         """Install `widget` (MainWindow's own Find combo, built and wired
@@ -178,8 +191,20 @@ class ExplorerDock(QWidget):
             return str(data[0]), str(data[1])
         return None
 
+    #: Item data of the selector's last entry, which opens the editor.
+    _MANAGE = "manage"
+
     def _on_group_filter_changed(self, _index: int = 0) -> None:
         """A different group/tag view: rebuild, then re-apply Find."""
+        combo = self._group_combo
+        if combo.currentData() == self._MANAGE:
+            # An action, not a view: put the previous choice back first.
+            combo.blockSignals(True)
+            combo.setCurrentIndex(getattr(self, "_group_index", 0))
+            combo.blockSignals(False)
+            self.manage_groups_requested.emit()
+            return
+        self._group_index = combo.currentIndex()
         self._refresh()
         # Clearing the selector must also un-dim the canvas; `_refresh`
         # only emits while a group is active.
@@ -235,7 +260,10 @@ class ExplorerDock(QWidget):
         current = self._selected_group()
         combo.blockSignals(True)
         combo.clear()
-        combo.addItem("All elements", None)
+        from raptor.gui import i18n
+        # The entries are model names, so the widget pass leaves them
+        # alone: translate the two fixed ones here.
+        combo.addItem(i18n.tr("All elements"), None)
         combo.setItemData(0, "Show the whole model", Qt.ItemDataRole.ToolTipRole)
         for label, kind, value in choices:
             combo.addItem(label, (kind, value))
@@ -250,8 +278,15 @@ class ExplorerDock(QWidget):
                 if isinstance(data, (tuple, list)) and tuple(data) == current:
                     wanted = i
                     break
+        combo.insertSeparator(combo.count())
+        combo.addItem(i18n.tr("Manage groups and tags…"), self._MANAGE)
+        combo.setItemData(
+            combo.count() - 1,
+            "Create groups, tag elements, and choose their colours",
+            Qt.ItemDataRole.ToolTipRole)
         combo.setCurrentIndex(wanted)
-        combo.setEnabled(bool(choices))
+        self._group_index = wanted
+        combo.setEnabled(rbd is not None)
         combo.blockSignals(False)
 
     def filter_items(self, text: str) -> None:
@@ -288,7 +323,10 @@ class ExplorerDock(QWidget):
         if not text and group is None:
             def show_all(item):
                 item.setHidden(False)
-                item.setForeground(0, normal)
+                # No explicit colour: the row follows the palette, so a
+                # later theme switch repaints it (a stored brush kept the
+                # light theme's dark text on the dark background).
+                item.setData(0, Qt.ItemDataRole.ForegroundRole, None)
                 for i in range(item.childCount()):
                     show_all(item.child(i))
             show_all(root)
@@ -323,11 +361,11 @@ class ExplorerDock(QWidget):
                                       else normal if role == "root" else muted)
                     item.setExpanded(True)
                 else:
-                    item.setForeground(0, normal)
+                    item.setData(0, Qt.ItemDataRole.ForegroundRole, None)
             return visible
 
         keep(root)
-        root.setForeground(0, normal)
+        root.setData(0, Qt.ItemDataRole.ForegroundRole, None)
         root.setExpanded(True)
         # A view with nothing in it used to leave an empty panel: the user
         # could not tell "no members" from a failed filter.

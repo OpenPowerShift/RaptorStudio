@@ -222,6 +222,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: context menu was shown; this just tells MainWindow to raise/show
     #: the dock itself.
     properties_requested = Signal()
+    #: Right-click > Groups / Tags: edit the selection's groups and tags.
+    groups_requested = Signal()
     #: Emitted after ANY selection change, with no payload -- the one
     #: hook for UI whose enabled state depends only on "what is
     #: selected" rather than on which element it is. The z-order ribbon
@@ -282,7 +284,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         #: While a history jump replays commands, level switches are
         #: recorded and applied once at the end, not rebuilt per step.
         self._history_jump = False
-        self._history_jump_level: int | None = None
+        self._history_jump_level = None   # int | None: the level to end on
         #: With a result layer on, focus keeps what holds at least this
         #: fraction of the largest share (7.6.6); the Yellow band's edge.
         self._focus_threshold = 1 / 3
@@ -873,8 +875,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # in-model reload (Quick Add, paste data, library apply) must keep
         # the Explorer filter and the canvas in step.
         if rbd is not getattr(self, "_group_model", None):
-            self._group_view = None
-            self._group_hiers = set()
+            self._group_view: set[str] | None = None
+            self._group_hiers: set[str] = set()
             self._group_model = rbd
         self._live_state_cache = None
         self._hier_boundary_cache = None

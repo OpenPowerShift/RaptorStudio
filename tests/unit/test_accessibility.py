@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -413,3 +414,52 @@ def test_the_canvas_description_states_what_the_diagram_holds(qapp):
     finally:
         view.deleteLater()
         QApplication.processEvents()
+
+
+def test_a_dark_launch_paints_the_docks_dark(qapp):
+    """Dark is applied before the docks exist; the docks that style
+    themselves in a theme callback must still come up dark. They used to
+    keep their light stylesheets: a white Explorer tree and Inspector
+    header in an otherwise dark window."""
+    from PySide6.QtGui import QColor
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.explorer import ExplorerDock
+    from raptor.gui.ui.main_window import MainWindow
+    theme = D.ThemeManager.instance()
+    old_dark = settings.get_bool("appearance/dark_mode", False)
+    old_start = settings.get("startup/show_start_page", None)
+    theme.set_dark(False)
+    settings.set_value("startup/show_start_page", False)
+    settings.set_value("appearance/dark_mode", True)
+    fixture = (Path(__file__).resolve().parents[2]
+               / "tests/golden/HierarchyExample/input.rbd")
+    try:
+        w = MainWindow()
+        try:
+            w.resize(1400, 900)
+            w.show()
+            w._load_into_app(load_rbd(str(fixture)), None)
+            w._inspector.show_block(4)
+            for _ in range(10):
+                qapp.processEvents()
+            explorer = w.findChildren(ExplorerDock)[0]
+            tree = explorer._tree.viewport().grab().toImage()
+            inspector = w._inspector.grab().toImage()
+
+            def lightness(image, x, y) -> float:
+                return QColor(image.pixel(x, y)).lightnessF()
+
+            assert lightness(tree, tree.width() // 2,
+                             tree.height() - 5) < 0.5
+            assert lightness(inspector, inspector.width() - 10, 40) < 0.5
+        finally:
+            w._dirty = False
+            w.close()
+    finally:
+        settings.set_value("appearance/dark_mode", old_dark)
+        if old_start is None:
+            settings.remove("startup/show_start_page")
+        else:
+            settings.set_value("startup/show_start_page", old_start)
+        theme.set_dark(old_dark)
