@@ -1587,6 +1587,14 @@ def _mix_colour(colour: str, other: str, amount: float) -> str:
     return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
 
 
+def _aria_label(spec: ChartSpec) -> str:
+    """The title, with the hierarchy scope when the chart has one."""
+    if not spec.scope:
+        return spec.title
+    from raptor.api.insight.hierarchy import scope_label
+    return f"{spec.title} (scope: {scope_label(spec.scope)})"
+
+
 def _sunburst(spec: ChartSpec, area: _Box) -> list[str]:
     from raptor.api.insight.hierarchy import SERIES_COLOURS, sunburst_layout
     nodes = sunburst_layout(spec.series)
@@ -1785,7 +1793,7 @@ def _render(spec: ChartSpec, *, width: int, height: int, page: str | None,
     body: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' {size} "
         f"viewBox='0 0 {width} {height}' "
-        f"role='img' aria-label='{_esc(spec.title)}'>",
+        f"role='img' aria-label='{_esc(_aria_label(spec))}'>",
         f"<rect width='{width}' height='{height}' fill='{background}'/>",
         _lines(width / 2, 22, title, size=15, anchor="middle", weight="600",
                colour=text_colour, step=19),

@@ -230,3 +230,18 @@ def test_a_cell_with_no_cause_puts_other_in_the_key():
     assert "Other" in labels
     from raptor.gui.ui.chart_widget import ChartWidget
     assert ChartWidget._causes(spec) == ["repair", "other"]
+
+
+def test_the_aria_label_names_the_hierarchy_scope():
+    """The better-visualisation spec (P0.1): the scope goes in the title
+    block and the SVG aria-label, so a screen reader hears it too."""
+    from raptor.api.insight.charts import ChartSpec
+    from raptor.render.charts_svg import render
+    spec = ChartSpec("pareto", "Hierarchy Pareto", "", "", "",
+                     series=[{"name": "Pump", "value": 0.4}],
+                     scope={"kind": "hierarchy", "id": 2,
+                            "name": "Pump house",
+                            "path": ["Intake", "Pump house"]})
+    assert "aria-label='Hierarchy Pareto (scope: Intake &gt; Pump house)'" in render(spec)
+    spec.scope = None
+    assert "aria-label='Hierarchy Pareto'" in render(spec)

@@ -818,6 +818,10 @@ class ChartsPage(QWidget):
         periods = i.get("periods")
         report_data = i.get("report_data") or []
         target, units = i.get("target"), i.get("units") or ""
+        if attribution and units and not attribution.get("units"):
+            # captions such as the overlay's "Intake caused 42.8 h" read the
+            # units from the attribution; the GUI passes them separately
+            attribution = {**attribution, "units": units}
         row = self._scope_row()
         source = hier.scoped(attribution, row) if row is not None else (attribution or {})
         scope_reason = ("This chart is system-wide and has no per-hierarchy "

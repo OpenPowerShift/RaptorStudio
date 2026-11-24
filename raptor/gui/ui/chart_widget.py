@@ -486,18 +486,21 @@ class ChartWidget(QWidget):
             painter.drawText(plate, Qt.AlignmentFlag.AlignCenter, label)
 
     def _quartile_lines(self, painter, spec, palette, frame: _Frame, *,
-                        at_share: bool) -> None:
+                        at_share: bool) -> float:
         """U16: quiet dotted lines at the quartiles, labelled along the top
         under the target's label; a label that would overlap the one
-        before it drops a line."""
+        before it drops a line.  Returns the bottom of the lowest label
+        (the plot top when there are none), so marks drawn after it can
+        stay clear of the labels."""
         marks = [m for m in spec.marks
                  if m.get("kind") == "quartile" and _number(m.get("value"))]
         if not marks:
-            return
+            return frame.rect.top()
         fm = QFontMetrics(self.font())
         r = frame.rect
         muted = QColor(palette["muted"])
         last_right, row = -1e9, 0
+        lowest = r.top()
         for mark in marks:
             x = frame.x(float(mark["share"]) if at_share else float(mark["value"]))
             painter.setPen(QPen(muted, 1.0, Qt.PenStyle.DotLine))
@@ -512,6 +515,8 @@ class ChartWidget(QWidget):
             painter.setPen(muted)
             painter.drawText(plate, Qt.AlignmentFlag.AlignCenter, label)
             last_right = left + w
+            lowest = max(lowest, plate.bottom())
+        return lowest
 
     def _hit(self, rect: QRectF, kind: str, name: str, tip: str) -> None:
         self._hits.append((rect, kind, name))
@@ -580,8 +585,10 @@ class ChartWidget(QWidget):
                             y_range=(0, 1), x_fmt=fmt, y_ticks=[], y_label="",
                             y_axis=False)
         r = frame.rect
-        self._quartile_lines(painter, spec, palette, frame, at_share=False)
-        diameter, levels = fit_dots([frame.x(v) for v in values], r.height() * 0.85)
+        labels = self._quartile_lines(painter, spec, palette, frame, at_share=False)
+        # a tall stack used to paint over the quartile labels ("Q3 9_9 %")
+        room = min(r.height() * 0.85, r.bottom() - labels - 2)
+        diameter, levels = fit_dots([frame.x(v) for v in values], max(room, 8.0))
         accent, stop = QColor(palette["accent"]), QColor(palette["stop"])
         radius = diameter / 2 - 0.6
         for value, (x, level) in zip(values, levels, strict=True):
