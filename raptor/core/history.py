@@ -1,9 +1,13 @@
 """Version history for model files.
 
-Every successful save appends an immutable snapshot of the file. The
-snapshots live in a private per-user folder, not beside the model, so a
-project folder stays clean and a read-only network share still gets
-history. The index and each snapshot are written atomically; a crash
+A version is an explicit checkpoint: the user saves one ("Save version
+now", `raptor history --snapshot`, the MCP `snapshot_version` tool). An
+ordinary save records nothing. The one automatic copy is the file as it was
+just before a restore overwrites it. Versions are immutable snapshots in a
+private per-user folder, not beside the model, so a project folder stays
+clean and a read-only network share still gets history. Identical bytes are
+stored once (the stored name is the content hash), however many entries
+name them. The index and each snapshot are written atomically; a crash
 mid-save leaves either the old version or the new one, never a truncated
 entry.
 
@@ -15,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import tempfile
 import threading
@@ -26,10 +31,19 @@ from typing import Any
 
 from raptor.core.state_dir import state_dir
 
-#: Keep this many versions per file...
+#: Automatic copies only (see AUTOMATIC_REASONS): keep this many per file...
 DEFAULT_KEEP = 30
-#: ... and never let one file's history exceed this many bytes.
+#: ... and let them use up to this many bytes. Explicit versions are never
+#: deleted automatically; this is also the size above which the dialog warns
+#: that a model's history is large.
 DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+#: Reasons that mark a version as taken by the program, not the user: the
+#: copy before a restore, and the entries older releases wrote on every save
+#: ("save"), after a restore ("restored") and on open ("opened"). Only these
+#: are pruned by the limits; a label or description makes any of them the
+#: user's, and it is then kept.
+AUTOMATIC_REASONS = frozenset({"before restore", "save", "restored",
+                               "opened"})
 INDEX_VERSION = 1
 #: Longest label accepted; labels are metadata, not part of the snapshot.
 MAX_LABEL = 200
@@ -54,6 +68,14 @@ def file_digest(path: str | Path) -> str:
     except OSError:
         return ""
     return digest.hexdigest()
+
+
+def format_bytes(size: int) -> str:
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size / (1024 * 1024):.1f} MB"
 
 
 def clean_label(label: str | None) -> str:
@@ -119,11 +141,12 @@ class Snapshot:
         return stamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
     def size_text(self) -> str:
-        if self.bytes < 1024:
-            return f"{self.bytes} B"
-        if self.bytes < 1024 * 1024:
-            return f"{self.bytes / 1024:.1f} KB"
-        return f"{self.bytes / (1024 * 1024):.1f} MB"
+        return format_bytes(self.bytes)
+
+    def is_automatic(self) -> bool:
+        """Taken by the program and not named by the user: prunable."""
+        return _is_automatic({"reason": self.reason, "label": self.label,
+                              "description": self.description})
 
 
 def _new_file_mode() -> int:
@@ -181,6 +204,12 @@ def _atomic_write(path: Path, data: bytes) -> None:
         except OSError:
             pass
         raise
+
+
+def _is_automatic(entry: dict[str, Any]) -> bool:
+    return (str(entry.get("reason") or "") in AUTOMATIC_REASONS
+            and not clean_label(entry.get("label"))
+            and not clean_description(entry.get("description")))
 
 
 class HistoryStore:
@@ -243,19 +272,21 @@ class HistoryStore:
         entries = []
         folder = self._folder(file)
         for path in sorted(folder.glob("*.rb*")):
-            if path.suffix not in (".rbds", ".rbd"):
+            if path.suffix not in (".rbds", ".rbd", ".rbdz"):
                 continue
             sid = path.stem
-            stamp = sid.split("-", 1)[0]
-            try:
-                created = f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T" \
-                          f"{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}"
-            except Exception:  # noqa: BLE001
-                created = ""
             try:
                 size = path.stat().st_size
             except OSError:
                 continue
+            stamp = sid.split("-", 1)[0]
+            if re.fullmatch(r"\d{8}T\d{6,}", stamp):
+                created = f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T" \
+                          f"{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}"
+            else:
+                # Content-addressed name: the file's own time is all there is.
+                created = datetime.fromtimestamp(
+                    path.stat().st_mtime, UTC).isoformat(timespec="seconds")
             entries.append({"id": sid, "file": str(file), "created": created,
                             "reason": "recovered", "label": "",
                             "description": "",
@@ -308,7 +339,11 @@ class HistoryStore:
     def record(self, file: str | Path, *, reason: str = "save",
                label: str = "", data: bytes | None = None,
                description: str = "") -> Snapshot | None:
-        """Snapshot the file as it is now. Returns None when unchanged.
+        """Checkpoint the file as it is now. Returns None when unchanged.
+
+        `reason` says who took it: "manual"/"snapshot" are the user's (kept
+        until deleted); "before restore" is the one automatic copy. The
+        default "save" is the legacy automatic reason and is pruned.
 
         `data` lets a caller snapshot bytes it already holds (a save that has
         not hit disk yet); otherwise the file is read.
@@ -316,10 +351,8 @@ class HistoryStore:
         A label or description on identical bytes names the newest version
         when that adds to it (it has none yet, or the same one). When the
         newest version already carries a *different* label or description,
-        nothing is overwritten: a new version is added instead, with its own
-        copy of the (identical) bytes. The copy is the simplest safe
-        choice: every entry owns its file, so pruning or deleting one can
-        never remove a file another entry still names.
+        nothing is overwritten: a new entry is added. It names the same
+        stored file, so the bytes cost no further disk.
         """
         path = Path(file)
         try:
@@ -356,14 +389,16 @@ class HistoryStore:
                         bytes=latest.bytes, sha256=latest.sha256,
                         path=latest.path, description=new_desc)
             now = datetime.now(UTC)
-            # The id is also the filename stem; two saves in one second get
-            # a short content suffix so they cannot overwrite each other.
+            # The id is unique per entry; the stored name is the content
+            # hash, so identical bytes share one file.
             sid = now.strftime("%Y%m%dT%H%M%S%f") + "-" + digest[:6]
             suffix = path.suffix or ".rbds"
-            stored = sid + suffix
+            stored = digest + suffix
             folder = self._folder(path)
             target = folder / stored
-            _atomic_write(target, payload)
+            if not (target.is_file() and target.stat().st_size == len(payload)
+                    and file_digest(target) == digest):
+                _atomic_write(target, payload)
             doc = self._read_index(path)
             entries = [e for e in doc.get("snapshots", [])
                        if isinstance(e, dict)]
@@ -380,7 +415,7 @@ class HistoryStore:
             # unreferenced snapshot (recoverable) rather than an index
             # entry whose file is gone.
             self._write_index(path, doc)
-            self._unlink(path, removed)
+            self._unlink(path, removed, doc["snapshots"])
             return Snapshot(
                 id=sid, file=str(path),
                 created=now.isoformat(timespec="seconds"),
@@ -400,50 +435,70 @@ class HistoryStore:
         except OSError:
             return 0
 
+    def usage(self, file: str | Path) -> int:
+        """Bytes this model's history occupies on disk (shared files once)."""
+        folder = self._folder(file)
+        seen: dict[str, int] = {}
+        for entry in self._read_index(file).get("snapshots", []):
+            name = str(entry.get("stored") or "")
+            if name and name not in seen and (folder / name).is_file():
+                seen[name] = self._entry_size(folder, entry)
+        return sum(seen.values())
+
     def _prune(self, file: str | Path, entries: list[dict[str, Any]]
                ) -> tuple[dict[str, Any], list[str]]:
-        """Keep the newest versions within both limits.
+        """Drop automatic copies beyond the limits; never an explicit one.
 
-        A labelled or described version is pinned against `keep`: it is not
-        counted, so naming or describing one keeps it until the user deletes it
-        or clears both.
-        The byte cap is still a ceiling for the whole store (pinned files
-        included), checked between versions; the newest version is always
-        kept even when it alone is larger than the cap. Returns the new
-        index and the stored names to delete after it is written.
+        Only entries `_is_automatic` says so are candidates: the newest
+        `keep` of them survive, and they are dropped (oldest first) while
+        the history's total, counting each stored file once, is over the
+        byte cap. The newest automatic copy is always kept. Explicit
+        versions are untouched however large the history gets; the dialog
+        reports the size instead. Returns the new index and the stored
+        names no remaining entry references, to delete after it is written.
         """
         folder = self._folder(file)
         entries = sorted(
             entries, key=lambda e: (str(e.get("created") or ""),
                                     str(e.get("id") or "")), reverse=True)
-        kept: list[dict[str, Any]] = []
-        removed: list[str] = []
-        total = 0
-        unpinned_kept = 0
+        sizes: dict[str, int] = {}
         for entry in entries:
             name = str(entry.get("stored") or "")
-            size = self._entry_size(folder, entry)
-            pinned = bool(clean_label(entry.get("label"))
-                          or clean_description(entry.get("description")))
-            too_many = not pinned and unpinned_kept >= self.keep
-            # A label pins against the count, not against the disk: the
-            # byte cap is a ceiling for the store as a whole.
-            too_big = (total + size > self.max_bytes
-                       and (pinned or unpinned_kept))
-            if too_many or too_big:
-                if name:
-                    removed.append(name)
+            if name and not _is_automatic(entry):
+                sizes.setdefault(name, self._entry_size(folder, entry))
+        kept: list[dict[str, Any]] = []
+        automatic_kept = 0
+        for entry in entries:
+            if not _is_automatic(entry):
+                kept.append(entry)
                 continue
+            name = str(entry.get("stored") or "")
+            extra = 0 if name in sizes else self._entry_size(folder, entry)
+            too_many = automatic_kept >= self.keep
+            too_big = (sum(sizes.values()) + extra > self.max_bytes
+                       and automatic_kept)
+            if too_many or too_big:
+                continue
+            if name:
+                sizes.setdefault(name, extra)
             kept.append(entry)
-            total += size
-            if not pinned:
-                unpinned_kept += 1
-        return {"version": INDEX_VERSION, "file": str(file),
-                "snapshots": kept}, removed
+            automatic_kept += 1
+        keep_ids = {id(e) for e in kept}
+        dropped = [e for e in entries if id(e) not in keep_ids]
+        return ({"version": INDEX_VERSION, "file": str(file),
+                 "snapshots": kept},
+                [str(e.get("stored") or "") for e in dropped
+                 if e.get("stored")])
 
-    def _unlink(self, file: str | Path, names: list[str]) -> None:
+    def _unlink(self, file: str | Path, names: list[str],
+                remaining: list[dict[str, Any]]) -> None:
+        """Delete stored files that no remaining entry still names."""
         folder = self._folder(file)
+        in_use = {str(e.get("stored") or "") for e in remaining
+                  if isinstance(e, dict)}
         for name in names:
+            if name in in_use:
+                continue
             try:
                 (folder / name).unlink()
             except OSError:
@@ -521,10 +576,7 @@ class HistoryStore:
             self._write_index(file, doc)
             name = str(removed.get("stored") or "")
             if name:
-                try:
-                    (self._folder(file) / name).unlink()
-                except OSError:
-                    pass
+                self._unlink(file, [name], kept)
             return True
 
 

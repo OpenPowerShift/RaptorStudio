@@ -24,8 +24,10 @@ def _text(result) -> str:
 
 
 @pytest.fixture
-def workspace():
+def workspace(monkeypatch, tmp_path):
     from raptor.mcp.server import mcp
+    # Version history goes to a throwaway state folder, never the user's.
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     with tempfile.TemporaryDirectory() as tmpdir:
         mcp._raptor_args = type("A", (), {"workspace": tmpdir})()
         mcp._raptor_ws = None
@@ -247,3 +249,22 @@ def test_restore_refuses_an_existing_target_unless_forced(workspace):
     forced = restore_version(mid, version, "copy.rbds", force=True)
     assert not forced.is_error
     assert out.read_bytes() != b"already here"
+
+
+def test_saving_through_mcp_records_no_version_and_listing_reports_size(
+        workspace):
+    from raptor.mcp.tools_model import save_model_as
+    from raptor.mcp.tools_project import list_versions, snapshot_version
+    model_id = _open(workspace)
+    assert not save_model_as(model_id, "saved.rbds").is_error
+    assert not save_model_as(model_id, "block2.rbd", format="rbd").is_error
+    empty = _sc(list_versions(model_id))
+    assert empty["versions"] == [] and empty["total_bytes"] == 0
+    assert empty["over_soft_limit"] is False
+    _sc(snapshot_version(model_id, label="one"))
+    _sc(snapshot_version(model_id, label="two"))       # same bytes, new entry
+    listed = _sc(list_versions(model_id))
+    size = listed["versions"][0]["bytes"]
+    assert len(listed["versions"]) == 2 and size > 0
+    assert listed["total_bytes"] == size                # stored once
+    assert listed["soft_limit_bytes"] > 0

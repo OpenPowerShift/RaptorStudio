@@ -1349,6 +1349,15 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     # ---- `.rbdz` archive --------------------------------------------------
 
+    def run_id(self) -> str | None:
+        """Identity of the result set on screen (None: none), the digest an
+        archive records as `run_id`; cheap, unlike `archive_payload`."""
+        if not self.has_results():
+            return None
+        from raptor.core.run_manifest import manifest_digest
+        manifest = self._manifest or {}
+        return manifest_digest(manifest) if manifest else None
+
     def archive_payload(self) -> dict[str, Any] | None:
         """The result files and summary an `.rbdz` save should carry.
 

@@ -21,6 +21,16 @@ def snapshots(path: str | Path) -> list[Snapshot]:
     return default_store().snapshots(path)
 
 
+def usage(path: str | Path) -> int:
+    """Bytes the model's history occupies on disk (shared files counted once)."""
+    return default_store().usage(path)
+
+
+def soft_limit() -> int:
+    """The size above which a model's history is reported as large."""
+    return default_store().max_bytes
+
+
 def restore(path: str | Path, snapshot_id: str,
             target: str | Path | None = None) -> Path:
     store_ = default_store()

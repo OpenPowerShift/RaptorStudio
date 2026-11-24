@@ -219,7 +219,7 @@ def test_saving_after_a_new_run_does_not_keep_the_old_runs_files(
         win.close()
 
 
-# -- an open archive: Save records versions; a new run makes it unsaved ----
+# -- an open archive: Save records no version; a new run makes it unsaved ----
 @pytest.fixture
 def archive_window(qapp, two_runs, tmp_path, monkeypatch):
     """A window with a temp .rbdz opened through the real open path, and a
@@ -257,13 +257,13 @@ def test_viewing_a_freshly_opened_archive_is_not_unsaved(archive_window):
     assert win._results._archive_source
     assert win._dirty is False
     assert "*" not in win.windowTitle()
-    assert [s.reason for s in store.snapshots(archive)] == ["opened"]
+    assert [s.reason for s in store.snapshots(archive)] == []
 
 
-def test_saving_an_archive_records_a_version(archive_window):
+def test_saving_an_archive_records_no_version(archive_window):
     win, archive, store, _rbd = archive_window
     assert win._write_model(str(archive))
-    assert [s.reason for s in store.snapshots(archive)] == ["save", "opened"]
+    assert store.snapshots(archive) == []
 
 
 def test_a_new_run_makes_an_open_archive_unsaved(archive_window):
@@ -318,3 +318,23 @@ def test_plain_models_are_unaffected_by_results(qapp, tmp_path, two_runs):
     finally:
         win._dirty = False
         win.close()
+
+
+def test_current_row_of_an_archive_tracks_the_results_on_screen(
+        archive_window):
+    """The archive's results are part of its state: a new run makes Current
+    differ from the checkpoint even though the model is unchanged."""
+    from raptor.gui.ui import history_dialog as history_ui
+    win, archive, store, rbd = archive_window
+    store.record(archive, reason="manual")
+
+    def dialog():
+        return history_ui.HistoryDialog(
+            win, str(archive), store, current_model=win._rbd,
+            current_state=win._history_current_state)
+
+    first = dialog()._list.item(0).text()
+    assert "matches the version saved" in first and "unsaved" not in first
+    _new_run(win, rbd, runs=1)
+    text = dialog()._list.item(0).text()
+    assert "not checkpointed" in text and "unsaved changes" in text

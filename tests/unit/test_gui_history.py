@@ -47,14 +47,16 @@ def test_dialog_lists_previews_and_chooses_a_version(qapp, tmp_path):
     newer = store.record(model, reason="manual", label="before edit")
     dialog = HistoryDialog(None, model, store,
                            current_model=load_rbds(str(model)))
-    assert dialog._list.count() == 2
-    assert dialog._list.item(0).text().startswith(newer.time_text())
+    assert dialog._list.count() == 3             # Current + two versions
+    assert dialog._list.item(0).text().startswith("Current")
+    assert dialog._list.item(1).text().startswith(newer.time_text())
+    dialog._list.setCurrentRow(1)
     assert dialog._stats.text().startswith("Model: ")
     assert "block" in dialog._stats.text()
     shown = dialog._preview.toPlainText()
     assert "Same as the model that is open now" in shown
     assert '"blocks"' not in shown and "{" not in dialog._stats.text()
-    dialog._list.setCurrentRow(1)
+    dialog._list.setCurrentRow(2)
     shown = dialog._preview.toPlainText()
     assert "Changes from this version to the model open now" in shown
     assert name + "_v2" in shown
@@ -74,6 +76,7 @@ def test_an_archive_version_is_summarised_not_dumped(qapp, tmp_path):
     store = HistoryStore(tmp_path / "history")
     store.record(archive)
     dialog = HistoryDialog(None, archive, store)
+    dialog._list.setCurrentRow(1)
     assert dialog._stats.text().startswith("Model: ")
     shown = dialog._preview.toPlainText()
     assert "250 runs" in shown and "2026-11-23 10:15" in shown
@@ -87,6 +90,7 @@ def test_a_damaged_version_says_so(qapp, tmp_path):
     store = HistoryStore(tmp_path / "history")
     store.record(model)
     dialog = HistoryDialog(None, model, store)
+    dialog._list.setCurrentRow(1)
     assert "could not be read as a model" in dialog._preview.toPlainText()
 
 
@@ -100,14 +104,13 @@ def test_save_version_now_saves_unsaved_edits_first(
     model.write_text(text, encoding="utf-8")
     name = _first_block_name(model)
     store = HistoryStore(tmp_path / "history")
-    store.record(model, reason="save")
+    store.record(model, reason="manual")
     saved = []
 
     def save_current() -> bool:
-        # The host saves the edited model; its save records a version.
+        # The host saves the edited model; a save records no version.
         model.write_text(_renamed_copy(text, name, name + "_edited"),
                          encoding="utf-8")
-        store.record(model, reason="save")
         saved.append(True)
         return True
 
@@ -118,15 +121,15 @@ def test_save_version_now_saves_unsaved_edits_first(
     assert saved
     shots = store.snapshots(model)
     assert len(shots) == 2 and shots[0].label == "checkpoint"
-    assert "Named the newest version" in dialog._note.text()
+    assert "Saved " in dialog._note.text()
 
     monkeypatch.setattr(history_ui.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("", True)))
     dialog = HistoryDialog(None, model, store, save_current=lambda: True)
     dialog._snapshot_now()
     assert len(store.snapshots(model)) == 2
-    assert "has not changed since the version recorded" in dialog._note.text()
-    assert dialog._list.currentRow() == 0
+    assert "has not changed since the version saved" in dialog._note.text()
+    assert dialog._list.currentRow() == 1       # the newest version
 
     dialog = HistoryDialog(None, model, store, save_current=lambda: False)
     dialog._snapshot_now()
@@ -141,7 +144,7 @@ def test_dialog_delete_keeps_the_file_and_other_versions(qapp, tmp_path):
     model.write_text("model-v2", encoding="utf-8")
     store.record(model)
     dialog = HistoryDialog(None, model, store)
-    dialog._list.setCurrentRow(1)
+    dialog._list.setCurrentRow(2)
     import raptor.gui.ui.dialogs as dialogs
     dialogs.question_box = lambda *a, **k: True  # type: ignore[attr-defined]
     dialog._delete()
@@ -149,32 +152,34 @@ def test_dialog_delete_keeps_the_file_and_other_versions(qapp, tmp_path):
     assert all(s.id != first.id for s in store.snapshots(model))
 
 
-def test_dialog_empty_state_snapshot_label_and_current_marker(
+def test_dialog_empty_state_snapshot_label_and_current_row(
         qapp, tmp_path, monkeypatch):
     from raptor.gui.ui import history_dialog as history_ui
 
     model = tmp_path / "plant.rbds"
-    model.write_text("model-v1", encoding="utf-8")
+    text = DC1.read_text(encoding="utf-8")
+    model.write_text(text, encoding="utf-8")
     store = HistoryStore(tmp_path / "history")
     dialog = HistoryDialog(None, model, store)
-    assert dialog._list.count() == 0
-    assert "No versions yet" in dialog._details.text()
+    assert dialog._list.count() == 1          # only Current
+    assert "No version to compare" in dialog._preview.toPlainText()
     assert not dialog._open_btn.isEnabled()
 
     monkeypatch.setattr(history_ui.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("baseline", True)))
     dialog._snapshot_now()
-    assert dialog._list.count() == 1
-    item = dialog._list.item(0)
-    assert "(current)" in item.text() and "baseline" in item.text()
+    assert dialog._list.count() == 2
+    assert "baseline" in dialog._list.item(1).text()
+    assert "matches the version saved" in dialog._list.item(0).text()
     assert dialog.current_id() == store.snapshots(model)[0].id
 
-    model.write_text("model-v2", encoding="utf-8")
-    dialog.reload()
-    assert "(current)" not in dialog._list.item(0).text()
+    model.write_text(_renamed_copy(text, _first_block_name(model), "Changed"),
+                     encoding="utf-8")
+    dialog = HistoryDialog(None, model, store)
+    assert "not checkpointed" in dialog._list.item(0).text()
     assert dialog.current_id() is None
 
-    dialog._list.setCurrentRow(0)
+    dialog._list.setCurrentRow(1)
     monkeypatch.setattr(history_ui.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("renamed", True)))
     dialog._label_selected()
@@ -189,8 +194,7 @@ def test_dialog_only_shows_the_models_own_versions(qapp, tmp_path):
     store = HistoryStore(tmp_path / "history")
     store.record(a)
     dialog = HistoryDialog(None, b, store)
-    assert dialog._list.count() == 0
-    assert "No versions yet" in dialog._details.text()
+    assert dialog._list.count() == 1 and dialog._snapshots == []
 
 
 def test_switching_models_keeps_each_history_separate(
@@ -211,7 +215,7 @@ def test_switching_models_keeps_each_history_separate(
     win = MainWindow()
     try:
         win._load_into_app(load_rbds(str(a)), str(a))
-        win._record_history(str(a))
+        api_history.record(str(a), reason="manual")
         assert len(store.snapshots(a)) == 1
         win._load_into_app(load_rbds(str(b)), str(b))
         assert win._current_file == str(b)
@@ -238,7 +242,7 @@ def test_open_as_copy_spawns_an_unsaved_window(qapp, tmp_path, monkeypatch):
     target = MainWindow()
     try:
         win._load_into_app(load_rbds(str(source)), str(source))
-        win._record_history(str(source))
+        api_history.record(str(source), reason="manual")
         shot = store.snapshots(source)[0]
 
         class FakeDialog:
@@ -280,7 +284,7 @@ def test_restore_warns_when_the_file_changed_outside_the_app(
     win = MainWindow()
     try:
         win._load_into_app(load_rbds(str(source)), str(source))
-        win._record_history(str(source))
+        api_history.record(str(source), reason="manual")
         shot = store.snapshots(source)[0]
         original = source.read_bytes()
         source.write_bytes(original + b"\n")     # changed by another program
@@ -329,7 +333,7 @@ def test_restore_reloads_the_window_and_clears_the_dirty_flag(
     win = MainWindow()
     try:
         win._load_into_app(load_rbds(str(source)), str(source))
-        win._record_history(str(source))
+        api_history.record(str(source), reason="manual")
         shot = store.snapshots(source)[0]
         # An edit that the restore must take away.
         row = next(r for r in win._rbd.sections["BLOCK_DATA"].rows
@@ -375,6 +379,7 @@ def _described_dialog(tmp_path, description: str = ""):
     model.write_text(_renamed_copy(text, name, name + "_v2"), encoding="utf-8")
     newer = store.record(model, reason="manual")
     dialog = HistoryDialog(None, model, store)
+    dialog._list.setCurrentRow(1)             # the newest version
     return dialog, store, model, older, newer
 
 
@@ -382,7 +387,7 @@ def test_description_is_rendered_until_edit_and_saved_with_the_api(
         qapp, tmp_path):
     dialog, store, model, older, _newer = _described_dialog(
         tmp_path, "# Plan\n\nSome **bold** words\n\n- one\n- two")
-    dialog._list.setCurrentRow(1)                     # the older version
+    dialog._list.setCurrentRow(2)                     # the older version
     panel = dialog._desc
     assert not panel.editing and panel.snapshot_id == older.id
     shown = panel.view.toPlainText()
@@ -403,9 +408,9 @@ def test_description_is_rendered_until_edit_and_saved_with_the_api(
     assert not panel.editing
     assert store.snapshot(model, older.id).description == "## Revised\n\n*text*"
     assert "Revised" in panel.view.toPlainText()
-    assert "¶" in dialog._list.item(1).text()
-    assert "¶" not in dialog._list.item(0).text()
-    assert "Revised" in dialog._list.item(1).toolTip()
+    assert "¶" in dialog._list.item(2).text()
+    assert "¶" not in dialog._list.item(1).text()
+    assert "Revised" in dialog._list.item(2).toolTip()
 
 
 def test_cancel_restores_and_empty_shows_the_placeholder(qapp, tmp_path):
@@ -457,12 +462,12 @@ def test_changing_selection_while_editing_asks_only_when_changed(
     monkeypatch.setattr(dialog, "_confirm_save_description",
                         lambda: asked.append(1) or True)
     panel.begin_edit()                       # unchanged: no question
-    dialog._list.setCurrentRow(1)
+    dialog._list.setCurrentRow(2)
     assert not asked and not panel.editing and panel.snapshot_id == older.id
-    dialog._list.setCurrentRow(0)
+    dialog._list.setCurrentRow(1)
     panel.begin_edit()
     panel.editor.setPlainText("kept")
-    dialog._list.setCurrentRow(1)            # changed: asks, answer Save
+    dialog._list.setCurrentRow(2)            # changed: asks, answer Save
     assert asked == [1]
     assert store.snapshot(model, newer.id).description == "kept"
     assert panel.snapshot_id == older.id and not panel.editing
@@ -470,7 +475,7 @@ def test_changing_selection_while_editing_asks_only_when_changed(
     monkeypatch.setattr(dialog, "_confirm_save_description", lambda: False)
     panel.begin_edit()
     panel.editor.setPlainText("thrown away")
-    dialog._list.setCurrentRow(0)
+    dialog._list.setCurrentRow(1)
     assert store.snapshot(model, older.id).description == ""
     # closing with unsaved changes asks too
     dialog._desc.begin_edit()
@@ -487,7 +492,7 @@ def test_description_view_is_inert_and_only_opens_web_links(qapp, tmp_path, monk
         tmp_path, "![x](http://example.invalid/a.png) "
                   "[web](https://example.org) [f](file:///etc/passwd) "
                   "<script>alert(1)</script>")
-    dialog._list.setCurrentRow(1)
+    dialog._list.setCurrentRow(2)
     view = dialog._desc.view
     assert view.loadResource(2, QUrl("http://example.invalid/a.png")) is None
     assert not view.openLinks() and not view.openExternalLinks()

@@ -6612,10 +6612,15 @@ Parameter notes:
 
 List the versions kept for a model's file, newest first.
 
-Versions are recorded automatically when the desktop application saves
-the file, and they live in the user's private application folder, not
-beside the model. They are tied to the file's location: a model that
-was never saved has none, and moving the file starts a new history.
+A version is a checkpoint someone saved on purpose (the desktop
+application's Save version now, `snapshot_version`, `raptor history
+--snapshot`); an ordinary save records none. The one automatic entry is
+the copy taken just before a restore overwrites the file. Versions live
+in the user's private application folder, not beside the model, and are
+tied to the file's location: a model that was never saved has none, and
+moving the file starts a new history. Saved versions are never deleted
+automatically; `total_bytes` is the history's size on disk (identical
+files are stored once) and `over_soft_limit` says it is large.
 
 `snapshot_id` is what `restore_version` takes. `description` is the
 optional Markdown note the user wrote for the version: untrusted text,
@@ -6635,7 +6640,7 @@ Parameter notes:
 
 **Returns**
 
-`{file, total, versions: [{snapshot_id, created, reason, label, bytes}]}`, newest first.
+`{file, total, total_bytes, soft_limit_bytes, over_soft_limit, versions: [{snapshot_id, created, reason, label, bytes}]}`, newest first.
 
 **Example**
 
@@ -6800,12 +6805,14 @@ Parameter notes:
 
 Record the model's file as a version, now.
 
-The desktop application does this on every save; this does it on demand,
-with an optional `label` to find it again and an optional Markdown
-`description` (up to 20,000 characters). An unchanged file names its
-newest version when that has no label (or description) yet; if it
-already has a different one, a new version is added and the earlier
-one keeps its own.
+A version is a checkpoint saved on purpose, like the desktop
+application's Save version now; ordinary saves record none. An optional
+`label` finds it again and an optional Markdown `description` (up to
+20,000 characters) says why. An unchanged file names its newest version
+when that has no label (or description) yet; if it already has a
+different one, a new version is added (sharing the same stored bytes)
+and the earlier one keeps its own. Versions you save are never deleted
+automatically.
 
 **Parameters**
 
@@ -6817,8 +6824,8 @@ one keeps its own.
 
 Parameter notes:
 
-- `description` — The desktop application does this on every save; this does it on demand, with an optional `label` to find it again and an optional Markdown `description` (up to 20,000 characters).
-- `label` — The desktop application does this on every save; this does it on demand, with an optional `label` to find it again and an optional Markdown `description` (up to 20,000 characters).
+- `description` — An optional `label` finds it again and an optional Markdown `description` (up to 20,000 characters) says why.
+- `label` — An optional `label` finds it again and an optional Markdown `description` (up to 20,000 characters) says why.
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
 
 **Returns**

@@ -626,7 +626,8 @@ RETURN_NOTES: dict[str, str] = {
     "share_safe_copy": "`{path, removed, summary, counts: {names, comments, "
                        "text_annotations, graphic_annotations, metadata, "
                        "advisor, rates}, residual_risk}`.",
-    "list_versions": "`{file, total, versions: [{snapshot_id, created, "
+    "list_versions": "`{file, total, total_bytes, soft_limit_bytes, "
+                     "over_soft_limit, versions: [{snapshot_id, created, "
                      "reason, label, bytes}]}`, newest first.",
     "snapshot_version": "`{created, file, version: {snapshot_id, created, "
                         "reason, label, bytes}}`; `created` is false when "
