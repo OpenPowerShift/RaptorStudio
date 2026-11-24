@@ -52,6 +52,15 @@ def add_parser(sub: Any) -> None:
     h.add_argument("--label", metavar="TEXT",
                    help="label the snapshot (with --snapshot); an unchanged "
                         "file re-labels its newest version")
+    h.add_argument("--description", metavar="TEXT",
+                   help="Markdown description for the snapshot (with "
+                        "--snapshot), or with --describe for that version")
+    h.add_argument("--description-file", metavar="PATH",
+                   help="read the Markdown description from a file ('-' "
+                        "is standard input)")
+    h.add_argument("--describe", metavar="SNAPSHOT",
+                   help="set (or with an empty description, clear) the "
+                        "description of an existing snapshot")
     h.add_argument("--restore", metavar="SNAPSHOT",
                    help="write this snapshot to --output (or --force over MODEL)")
     h.add_argument("-o", "--output", metavar="PATH",
@@ -114,19 +123,56 @@ def _history_check_options(args: Any) -> None:
         raise CliError("--snapshot and --restore are separate actions", X.USAGE)
     if args.label and not args.snapshot:
         raise CliError("--label needs --snapshot", X.USAGE)
+    if args.description is not None and args.description_file:
+        raise CliError("use --description or --description-file, not both",
+                       X.USAGE)
+    has_text = args.description is not None or args.description_file
+    if has_text and not (args.snapshot or args.describe):
+        raise CliError("--description needs --snapshot or --describe",
+                       X.USAGE)
+    if args.describe and (args.snapshot or args.restore):
+        raise CliError("--describe is a separate action", X.USAGE)
+    if args.describe and not has_text:
+        raise CliError("--describe needs --description or "
+                       "--description-file", X.USAGE)
     if args.output and not args.restore:
         raise CliError("-o/--output needs --restore", X.USAGE)
     if args.force and not args.restore:
         raise CliError("--force needs --restore", X.USAGE)
 
 
-def _history_snapshot(model: Path, label: str) -> int:
+def _description_text(args: Any) -> str:
+    if args.description_file:
+        try:
+            if args.description_file == "-":
+                return sys.stdin.read()
+            return Path(args.description_file).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise CliError(f"could not read {args.description_file}: {exc}",
+                           X.USAGE) from exc
+    return args.description or ""
+
+
+def _history_describe(model: Path, args: Any) -> int:
+    from raptor.api import history
+    if not model.is_file():
+        raise CliError(f"file not found: {model}", X.USAGE)
+    text = _description_text(args)
+    if not history.set_description(model, args.describe, text):
+        raise CliError(f"no version {args.describe!r} for {model}", X.USAGE)
+    print(f"described {args.describe}" if text.strip()
+          else f"cleared the description of {args.describe}")
+    return X.OK
+
+
+def _history_snapshot(model: Path, label: str, description: str = "") -> int:
     from raptor.api import history
     from raptor.core.history import HistoryError
     if not model.is_file():
         raise CliError(f"file not found: {model}", X.USAGE)
     try:
-        shot = history.record(model, reason="manual", label=label)
+        shot = history.record(model, reason="manual", label=label,
+                              description=description)
     except HistoryError as exc:
         raise CliError(str(exc), X.RUNTIME) from exc
     if shot is None:
@@ -174,7 +220,8 @@ def _history_list(model: Path, fmt: str) -> int:
                    "current_id": current[0] if current else None,
                    "snapshots": [
                        {"id": s.id, "created": s.created, "reason": s.reason,
-                        "label": s.label, "bytes": s.bytes, "sha256": s.sha256,
+                        "label": s.label, "description": s.description,
+                        "bytes": s.bytes, "sha256": s.sha256,
                         "current": s.id in current}
                        for s in shots]}, None)
         return X.OK
@@ -183,6 +230,8 @@ def _history_list(model: Path, fmt: str) -> int:
         return X.OK
     for shot in shots:
         label = f"  {shot.label}" if shot.label else ""
+        if shot.description:
+            label += "  [described]"
         mark = "*" if shot.id in current else " "
         print(f"{mark} {shot.id}  {shot.time_text()}  {shot.reason:<8} "
               f"{shot.size_text():>9}{label}")
@@ -193,7 +242,10 @@ def history_command(args: Any) -> int:
     _history_check_options(args)
     model = Path(args.model)
     if args.snapshot:
-        return _history_snapshot(model, args.label or "")
+        return _history_snapshot(model, args.label or "",
+                                 _description_text(args))
+    if args.describe:
+        return _history_describe(model, args)
     if args.restore:
         return _history_restore(model, args)
     return _history_list(model, args.format)

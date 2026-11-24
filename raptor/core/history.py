@@ -33,6 +33,9 @@ DEFAULT_MAX_BYTES = 50 * 1024 * 1024
 INDEX_VERSION = 1
 #: Longest label accepted; labels are metadata, not part of the snapshot.
 MAX_LABEL = 200
+#: Longest Markdown description accepted (characters). Like the label it is
+#: metadata in the index, never part of the snapshot bytes or their hash.
+MAX_DESCRIPTION = 20_000
 
 _umask_lock = threading.Lock()
 
@@ -57,6 +60,18 @@ def clean_label(label: str | None) -> str:
     """One line, bounded length: labels are shown in lists and messages."""
     text = " ".join(str(label or "").split())
     return text[:MAX_LABEL]
+
+
+def clean_description(text: str | None) -> str:
+    """Multi-line Markdown, bounded: newlines kept, control characters not.
+
+    Line endings are normalised to LF and trailing blank space trimmed; the
+    text is stored and shown as data, never interpreted.
+    """
+    raw = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    raw = "".join(ch for ch in raw
+                  if ch in "\n\t" or (ch >= " " and ch != "\x7f"))
+    return raw.strip()[:MAX_DESCRIPTION].rstrip()
 
 
 @contextmanager
@@ -93,6 +108,8 @@ class Snapshot:
     bytes: int
     sha256: str
     path: Path
+    #: Optional Markdown note about this version (metadata only).
+    description: str = ""
 
     def time_text(self) -> str:
         try:
@@ -241,6 +258,7 @@ class HistoryStore:
                 continue
             entries.append({"id": sid, "file": str(file), "created": created,
                             "reason": "recovered", "label": "",
+                            "description": "",
                             "bytes": size, "sha256": file_digest(path),
                             "stored": path.name})
         return {"version": INDEX_VERSION, "file": str(file),
@@ -281,13 +299,15 @@ class HistoryStore:
                 reason=str(entry.get("reason") or ""),
                 label=str(entry.get("label") or ""),
                 bytes=size, sha256=str(entry.get("sha256") or ""),
-                path=path))
+                path=path,
+                description=clean_description(entry.get("description"))))
         out.sort(key=lambda s: (s.created, s.id), reverse=True)
         return out
 
     # -- writing --------------------------------------------------------
     def record(self, file: str | Path, *, reason: str = "save",
-               label: str = "", data: bytes | None = None) -> Snapshot | None:
+               label: str = "", data: bytes | None = None,
+               description: str = "") -> Snapshot | None:
         """Snapshot the file as it is now. Returns None when unchanged.
 
         `data` lets a caller snapshot bytes it already holds (a save that has
@@ -295,7 +315,9 @@ class HistoryStore:
 
         A label on identical bytes re-labels the newest version instead of
         creating a duplicate snapshot, so `--snapshot --label` on an
-        unchanged file still does the useful thing.
+        unchanged file still does the useful thing. A description on
+        identical bytes is likewise set on the newest version (a blank one
+        leaves the existing description alone).
         """
         path = Path(file)
         try:
@@ -304,21 +326,30 @@ class HistoryStore:
             raise HistoryError(f"cannot read {path}: {exc}") from exc
         digest = hashlib.sha256(payload).hexdigest()
         label = clean_label(label)
+        description = clean_description(description)
         with self._lock, _file_lock(self._folder(path) / "index.lock"):
             existing = self.snapshots(path)
             if existing and existing[0].sha256 == digest:
-                if label and existing[0].label != label:
+                latest = existing[0]
+                new_label = label if label and latest.label != label \
+                    else latest.label
+                new_desc = description if description \
+                    and latest.description != description \
+                    else latest.description
+                if (new_label, new_desc) != (latest.label, latest.description):
                     doc = self._read_index(path)
                     for entry in doc.get("snapshots", []):
                         if isinstance(entry, dict) and \
-                                entry.get("id") == existing[0].id:
-                            entry["label"] = label
+                                entry.get("id") == latest.id:
+                            entry["label"] = new_label
+                            if new_desc:
+                                entry["description"] = new_desc
                     self._write_index(path, doc)
-                    latest = existing[0]
                     return Snapshot(
                         id=latest.id, file=latest.file, created=latest.created,
-                        reason=latest.reason, label=label, bytes=latest.bytes,
-                        sha256=latest.sha256, path=latest.path)
+                        reason=latest.reason, label=new_label,
+                        bytes=latest.bytes, sha256=latest.sha256,
+                        path=latest.path, description=new_desc)
                 return None
             now = datetime.now(UTC)
             # The id is also the filename stem; two saves in one second get
@@ -337,6 +368,7 @@ class HistoryStore:
                     timespec="seconds"),
                 "reason": str(reason or "save"), "label": label,
                 "bytes": len(payload), "sha256": digest, "stored": stored,
+                **({"description": description} if description else {}),
             })
             doc, removed = self._prune(path, entries)
             # The index is the truth: commit it first, then delete the
@@ -349,7 +381,8 @@ class HistoryStore:
                 id=sid, file=str(path),
                 created=now.isoformat(timespec="seconds"),
                 reason=str(reason or "save"), label=label,
-                bytes=len(payload), sha256=digest, path=target)
+                bytes=len(payload), sha256=digest, path=target,
+                description=description)
 
     def _entry_size(self, folder: Path, entry: dict[str, Any]) -> int:
         try:
@@ -367,8 +400,9 @@ class HistoryStore:
                ) -> tuple[dict[str, Any], list[str]]:
         """Keep the newest versions within both limits.
 
-        A labelled version is pinned against `keep`: it is not counted, so
-        naming one keeps it until the user deletes it or clears its label.
+        A labelled or described version is pinned against `keep`: it is not
+        counted, so naming or describing one keeps it until the user deletes it
+        or clears both.
         The byte cap is still a ceiling for the whole store (pinned files
         included), checked between versions; the newest version is always
         kept even when it alone is larger than the cap. Returns the new
@@ -385,7 +419,8 @@ class HistoryStore:
         for entry in entries:
             name = str(entry.get("stored") or "")
             size = self._entry_size(folder, entry)
-            pinned = bool(clean_label(entry.get("label")))
+            pinned = bool(clean_label(entry.get("label"))
+                          or clean_description(entry.get("description")))
             too_many = not pinned and unpinned_kept >= self.keep
             # A label pins against the count, not against the disk: the
             # byte cap is a ceiling for the store as a whole.
@@ -418,6 +453,25 @@ class HistoryStore:
             for entry in doc.get("snapshots", []):
                 if isinstance(entry, dict) and entry.get("id") == snapshot_id:
                     entry["label"] = text
+                    self._write_index(file, doc)
+                    return True
+            return False
+
+    def set_description(self, file: str | Path, snapshot_id: str,
+                        text: str) -> bool:
+        """Set or clear the Markdown description of one snapshot.
+
+        Metadata only: the snapshot bytes and their checksum are untouched.
+        """
+        clean = clean_description(text)
+        with self._lock, _file_lock(self._folder(file) / "index.lock"):
+            doc = self._read_index(file)
+            for entry in doc.get("snapshots", []):
+                if isinstance(entry, dict) and entry.get("id") == snapshot_id:
+                    if clean:
+                        entry["description"] = clean
+                    else:
+                        entry.pop("description", None)
                     self._write_index(file, doc)
                     return True
             return False

@@ -24,6 +24,20 @@ Open **File ▸ Version History…**:
   rather than adding a duplicate. A labelled version is pinned: it is not
   deleted by the ordinary retention caps until you clear the label or
   delete it yourself.
+- **Description** (under the model statistics) is an optional, multi-line
+  Markdown note about the selected version: why it was saved, what changed,
+  what to check. It is shown rendered (headings, bold, lists, links) until
+  you press **Edit**, which shows the raw Markdown; **Save** (Ctrl+Enter)
+  stores it and renders it again, **Cancel** (Esc) discards the edit. If
+  you pick another version or close the window with unsaved changes, you
+  are asked whether to save them. After **Save version now…** the editor
+  opens on the new version so you can describe it straight away. Like the
+  label it is metadata: it does not change the snapshot's content or
+  checksum, is limited to 20,000 characters, and a described version is
+  pinned like a labelled one. A `¶` in the list marks a described version
+  (hover for its first line). The text is only displayed: nothing in it is
+  executed, remote images are never loaded, and a clicked link opens in
+  your browser only if it is a web or mail address.
 - **Delete version** removes one snapshot; the model file is untouched.
 
 The list shows time, reason (`save`, `opened`, `manual`, `restored`), size
@@ -39,13 +53,17 @@ The command line has the same store:
 raptor history plant.rbds                       # list versions
 raptor history plant.rbds --snapshot            # record the file as it is now
 raptor history plant.rbds --snapshot --label "before upgrade"
+raptor history plant.rbds --snapshot --description-file notes.md
+raptor history plant.rbds --describe ID --description "Checked **spares**"
+raptor history plant.rbds --describe ID --description ""   # clear it
 raptor history plant.rbds --restore ID -o plant-old.rbds
 raptor history plant.rbds --restore ID --force  # overwrite plant.rbds
 ```
 
 The listed versions are newest first; the current one carries a leading
 `*`. `-f json` adds `current` and `current_id` alongside each snapshot's
-id, time, reason, label, size and checksum.
+id, time, reason, label, description (Markdown), size and checksum.
+`--description-file -` reads the description from standard input.
 
 The CLI refuses to restore over an existing output without `--force`, and
 never writes a missing model's history. Exit codes: `0` success, `2` a bad

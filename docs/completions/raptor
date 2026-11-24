@@ -28,7 +28,7 @@ _raptor() {
     gui) opts="--help --new --theme" ;;
     health) opts="--format --help" ;;
     help) opts="--help" ;;
-    history) opts="--force --format --help --label --output --restore --snapshot" ;;
+    history) opts="--describe --description --description-file --force --format --help --label --output --restore --snapshot" ;;
     import-table) opts="--format --help --in-place --sheet" ;;
     info) opts="--element --format --help" ;;
     library) opts="--help" ;;
