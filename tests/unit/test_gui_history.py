@@ -49,10 +49,11 @@ def test_dialog_lists_previews_and_chooses_a_version(qapp, tmp_path):
                            current_model=load_rbds(str(model)))
     assert dialog._list.count() == 2
     assert dialog._list.item(0).text().startswith(newer.time_text())
+    assert dialog._stats.text().startswith("Model: ")
+    assert "block" in dialog._stats.text()
     shown = dialog._preview.toPlainText()
-    assert shown.startswith("Model: ") and "block" in shown
     assert "Same as the model that is open now" in shown
-    assert '"blocks"' not in shown and "{" not in shown.splitlines()[0]
+    assert '"blocks"' not in shown and "{" not in dialog._stats.text()
     dialog._list.setCurrentRow(1)
     shown = dialog._preview.toPlainText()
     assert "Changes from this version to the model open now" in shown
@@ -73,8 +74,8 @@ def test_an_archive_version_is_summarised_not_dumped(qapp, tmp_path):
     store = HistoryStore(tmp_path / "history")
     store.record(archive)
     dialog = HistoryDialog(None, archive, store)
+    assert dialog._stats.text().startswith("Model: ")
     shown = dialog._preview.toPlainText()
-    assert shown.startswith("Model: ")
     assert "250 runs" in shown and "2026-11-23 10:15" in shown
     assert "PK" not in shown and "\ufffd" not in shown
     assert not any(0x0700 <= ord(ch) < 0x0800 for ch in shown)
@@ -117,7 +118,7 @@ def test_save_version_now_saves_unsaved_edits_first(
     assert saved
     shots = store.snapshots(model)
     assert len(shots) == 2 and shots[0].label == "checkpoint"
-    assert "Labelled the version" in dialog._note.text()
+    assert "Named the newest version" in dialog._note.text()
 
     monkeypatch.setattr(history_ui.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("", True)))
@@ -361,3 +362,192 @@ def test_restore_reloads_the_window_and_clears_the_dirty_flag(
     finally:
         win._dirty = False
         win.close()
+
+
+# -- Markdown description ------------------------------------------------
+def _described_dialog(tmp_path, description: str = ""):
+    model = tmp_path / "plant.rbds"
+    text = DC1.read_text(encoding="utf-8")
+    model.write_text(text, encoding="utf-8")
+    store = HistoryStore(tmp_path / "history")
+    older = store.record(model, reason="save", description=description)
+    name = _first_block_name(model)
+    model.write_text(_renamed_copy(text, name, name + "_v2"), encoding="utf-8")
+    newer = store.record(model, reason="manual")
+    dialog = HistoryDialog(None, model, store)
+    return dialog, store, model, older, newer
+
+
+def test_description_is_rendered_until_edit_and_saved_with_the_api(
+        qapp, tmp_path):
+    dialog, store, model, older, _newer = _described_dialog(
+        tmp_path, "# Plan\n\nSome **bold** words\n\n- one\n- two")
+    dialog._list.setCurrentRow(1)                     # the older version
+    panel = dialog._desc
+    assert not panel.editing and panel.snapshot_id == older.id
+    shown = panel.view.toPlainText()
+    assert "Plan" in shown and "bold" in shown and "**" not in shown
+    assert "#" not in shown
+    assert panel.edit_btn.isVisibleTo(dialog) and \
+        not panel.save_btn.isVisibleTo(dialog)
+    assert panel._stack.currentWidget() is panel.view
+
+    panel.edit_btn.click()
+    assert panel.editing and panel._stack.currentWidget() is panel.editor
+    assert panel.editor.toPlainText().startswith("# Plan")     # raw source
+    assert panel.save_btn.isVisibleTo(dialog)
+    assert not panel.edit_btn.isVisibleTo(dialog)
+    panel.editor.setPlainText("## Revised\n\n*text*")
+    assert panel.is_dirty()
+    panel.save_btn.click()
+    assert not panel.editing
+    assert store.snapshot(model, older.id).description == "## Revised\n\n*text*"
+    assert "Revised" in panel.view.toPlainText()
+    assert "¶" in dialog._list.item(1).text()
+    assert "¶" not in dialog._list.item(0).text()
+    assert "Revised" in dialog._list.item(1).toolTip()
+
+
+def test_cancel_restores_and_empty_shows_the_placeholder(qapp, tmp_path):
+    dialog, store, model, _older, newer = _described_dialog(tmp_path)
+    panel = dialog._desc
+    assert panel.snapshot_id == newer.id
+    assert "No description" in panel.view.toPlainText()
+    panel.begin_edit()
+    panel.editor.setPlainText("draft")
+    panel.cancel_btn.click()
+    assert not panel.editing
+    assert store.snapshot(model, newer.id).description == ""
+    assert "No description" in panel.view.toPlainText()
+    # an empty save clears
+    panel.begin_edit()
+    panel.editor.setPlainText("")
+    assert not panel.is_dirty()
+    assert panel.save()
+    assert store.snapshot(model, newer.id).description == ""
+
+
+def test_ctrl_enter_saves_and_escape_cancels_without_closing(qapp, tmp_path):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent
+    dialog, store, model, _older, newer = _described_dialog(tmp_path)
+    dialog.show()
+    panel = dialog._desc
+    panel.begin_edit()
+    panel.editor.setPlainText("typed")
+    qapp.sendEvent(panel.editor, QKeyEvent(
+        QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier))
+    assert dialog.isVisible() and not panel.editing
+    assert store.snapshot(model, newer.id).description == ""
+    panel.begin_edit()
+    panel.editor.setPlainText("saved by keys")
+    qapp.sendEvent(panel.editor, QKeyEvent(
+        QEvent.Type.KeyPress, Qt.Key.Key_Return,
+        Qt.KeyboardModifier.ControlModifier))
+    assert not panel.editing and dialog.isVisible()
+    assert store.snapshot(model, newer.id).description == "saved by keys"
+    dialog.close()
+
+
+def test_changing_selection_while_editing_asks_only_when_changed(
+        qapp, tmp_path, monkeypatch):
+    dialog, store, model, older, newer = _described_dialog(tmp_path)
+    panel = dialog._desc
+    asked = []
+    monkeypatch.setattr(dialog, "_confirm_save_description",
+                        lambda: asked.append(1) or True)
+    panel.begin_edit()                       # unchanged: no question
+    dialog._list.setCurrentRow(1)
+    assert not asked and not panel.editing and panel.snapshot_id == older.id
+    dialog._list.setCurrentRow(0)
+    panel.begin_edit()
+    panel.editor.setPlainText("kept")
+    dialog._list.setCurrentRow(1)            # changed: asks, answer Save
+    assert asked == [1]
+    assert store.snapshot(model, newer.id).description == "kept"
+    assert panel.snapshot_id == older.id and not panel.editing
+    # answer Discard
+    monkeypatch.setattr(dialog, "_confirm_save_description", lambda: False)
+    panel.begin_edit()
+    panel.editor.setPlainText("thrown away")
+    dialog._list.setCurrentRow(0)
+    assert store.snapshot(model, older.id).description == ""
+    # closing with unsaved changes asks too
+    dialog._desc.begin_edit()
+    dialog._desc.editor.setPlainText("on close")
+    monkeypatch.setattr(dialog, "_confirm_save_description", lambda: True)
+    dialog.reject()
+    assert store.snapshot(model, newer.id).description == "on close"
+
+
+def test_description_view_is_inert_and_only_opens_web_links(qapp, tmp_path, monkeypatch):
+    from PySide6.QtCore import QUrl
+    from raptor.gui.ui import history_description as hd
+    dialog, *_ = _described_dialog(
+        tmp_path, "![x](http://example.invalid/a.png) "
+                  "[web](https://example.org) [f](file:///etc/passwd) "
+                  "<script>alert(1)</script>")
+    dialog._list.setCurrentRow(1)
+    view = dialog._desc.view
+    assert view.loadResource(2, QUrl("http://example.invalid/a.png")) is None
+    assert not view.openLinks() and not view.openExternalLinks()
+    opened = []
+    monkeypatch.setattr(hd.QDesktopServices, "openUrl",
+                        staticmethod(lambda u: opened.append(u.toString()) or True))
+    assert hd.open_link(QUrl("https://example.org"))
+    assert not hd.open_link(QUrl("file:///etc/passwd"))
+    assert not hd.open_link(QUrl("javascript:alert(1)"))
+    assert opened == ["https://example.org"]
+
+
+def test_save_version_now_opens_the_description_editor(
+        qapp, tmp_path, monkeypatch):
+    from raptor.gui.ui import history_dialog as history_ui
+    dialog, store, model, _older, newer = _described_dialog(tmp_path)
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("named", True)))
+    dialog._snapshot_now()                  # unchanged: labels the newest
+    assert dialog._desc.editing and dialog._desc.snapshot_id == newer.id
+    dialog._desc.editor.setPlainText("why I saved this")
+    assert dialog._desc.save()
+    assert store.snapshot(model, newer.id).description == "why I saved this"
+
+
+def test_description_strings_are_translated_in_pt_br(qapp, tmp_path):
+    from raptor.gui import i18n
+    i18n.install(qapp, "pt_BR")
+    try:
+        dialog, *_ = _described_dialog(tmp_path)
+        i18n.translate_widgets(dialog)
+        panel = dialog._desc
+        assert panel.edit_btn.text() != "Edit"
+        assert panel.save_btn.text() != "Save"
+        assert "Nenhuma descrição" in panel.view.toPlainText()
+        assert "Markdown" in panel.editor.placeholderText()
+        assert panel.editor.placeholderText() != \
+            "Markdown supported: **bold**, *italic*, lists, links…"
+        assert panel.hint.text().startswith("Markdown compat")
+    finally:
+        i18n.install(qapp, "en")
+
+
+def test_save_version_now_never_overwrites_an_existing_label(
+        qapp, tmp_path, monkeypatch):
+    from raptor.gui.ui import history_dialog as history_ui
+    model = tmp_path / "plant.rbds"
+    model.write_text(DC1.read_text(encoding="utf-8"), encoding="utf-8")
+    store = HistoryStore(tmp_path / "history")
+    store.record(model, reason="save")
+    dialog = HistoryDialog(None, model, store, save_current=lambda: True)
+    answers = iter(["A", "B"])
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: (next(answers), True)))
+    dialog._snapshot_now()
+    assert "Named the newest version" in dialog._note.text()
+    dialog._desc.cancel()
+    dialog._snapshot_now()
+    assert "Added a version" in dialog._note.text()
+    assert "keeps its label" in dialog._note.text()
+    shots = store.snapshots(model)
+    assert [s.label for s in shots] == ["B", "A"]
+    assert dialog._selected_id() == shots[0].id

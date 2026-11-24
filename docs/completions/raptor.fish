@@ -183,6 +183,9 @@ complete -c raptor -n '__fish_seen_subcommand_from health' -l help
 complete -c raptor -n '__fish_use_subcommand' -a help
 complete -c raptor -n '__fish_seen_subcommand_from help' -l help
 complete -c raptor -n '__fish_use_subcommand' -a history
+complete -c raptor -n '__fish_seen_subcommand_from history' -l describe
+complete -c raptor -n '__fish_seen_subcommand_from history' -l description
+complete -c raptor -n '__fish_seen_subcommand_from history' -l description-file
 complete -c raptor -n '__fish_seen_subcommand_from history' -l force
 complete -c raptor -n '__fish_seen_subcommand_from history' -l format
 complete -c raptor -n '__fish_seen_subcommand_from history' -l help

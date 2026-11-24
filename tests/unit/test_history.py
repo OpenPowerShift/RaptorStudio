@@ -163,16 +163,56 @@ def test_histories_are_per_file_even_for_identical_content(tmp_path):
     assert len(store.snapshots(a)) == 1
 
 
-def test_a_label_on_unchanged_bytes_relabels_the_newest_version(tmp_path):
+def test_a_label_on_unchanged_bytes_names_an_unlabelled_newest_version(tmp_path):
     path = _model(tmp_path)
     store = HistoryStore(tmp_path / "history")
-    shot = store.record(path, label="first")
-    again = store.record(path, label="before upgrade")
-    assert again is not None and again.id == shot.id
+    shot = store.record(path)
+    named = store.record(path, label="before upgrade")
+    assert named is not None and named.id == shot.id
     assert [s.label for s in store.snapshots(path)] == ["before upgrade"]
+    # the same label again changes nothing
     assert store.record(path, label="before upgrade") is None
     assert store.set_label(path, shot.id, "")
     assert store.snapshots(path)[0].label == ""
+
+
+def test_a_different_label_on_unchanged_bytes_adds_a_version_and_keeps_the_old(
+        tmp_path):
+    """Overwriting the newest label destroyed the user's earlier name."""
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, label="A", reason="save")
+    second = store.record(path, label="B", reason="manual")
+    assert second is not None and second.id != first.id
+    shots = store.snapshots(path)
+    assert [(s.label, s.reason) for s in shots] == [("B", "manual"),
+                                                    ("A", "save")]
+    assert shots[0].sha256 == shots[1].sha256
+    assert shots[0].path != shots[1].path
+    assert shots[0].path.read_bytes() == shots[1].path.read_bytes()
+    # a repeat of the newest label is still a no-op
+    assert store.record(path, label="B") is None
+
+
+def test_a_different_description_on_unchanged_bytes_adds_a_version(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    first = store.record(path, description="one")
+    second = store.record(path, description="two")
+    assert second is not None and second.id != first.id
+    assert [s.description for s in store.snapshots(path)] == ["two", "one"]
+
+
+def test_deleting_or_pruning_one_of_two_identical_versions_keeps_the_other(
+        tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=30)
+    first = store.record(path, label="A")
+    second = store.record(path, label="B")
+    assert store.discard(path, second.id)
+    assert first.path.is_file()
+    assert store.restore(store.snapshot(path, first.id),
+                         tmp_path / "back.rbds").read_text() == "model-v1"
 
 
 def test_the_byte_cap_keeps_the_newest_versions_and_removes_the_rest(tmp_path):
@@ -265,3 +305,116 @@ def test_the_byte_cap_still_applies_to_labelled_versions(tmp_path):
         len(kept) == 1
     # ... and the pin only ever protected it from the COUNT
     assert len(kept) <= 2
+
+
+def test_a_description_is_metadata_that_survives_relabel_and_recovery(tmp_path):
+    from raptor.core.history import MAX_DESCRIPTION
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, label="v1", description="# Why\n\n- one\r\n- two")
+    assert shot.description == "# Why\n\n- one\n- two"
+    assert store.snapshots(path)[0].description == shot.description
+    # metadata only: the bytes and checksum are untouched
+    assert shot.path.read_text() == "model-v1"
+    before = shot.sha256
+    assert store.set_description(path, shot.id, "changed **note**")
+    assert store.snapshots(path)[0].description == "changed **note**"
+    assert store.snapshots(path)[0].sha256 == before
+    store.set_label(path, shot.id, "renamed")
+    assert store.snapshots(path)[0].description == "changed **note**"
+    assert not store.set_description(path, "nope", "x")
+    assert store.set_description(path, shot.id, "  \n ")
+    assert store.snapshots(path)[0].description == ""
+    import json
+    assert all("description" not in e for e in json.loads(
+        store._index_path(path).read_text())["snapshots"])
+    store.set_description(path, shot.id, "x" * (MAX_DESCRIPTION + 50))
+    assert len(store.snapshots(path)[0].description) == MAX_DESCRIPTION
+
+
+def test_an_index_without_descriptions_still_loads(tmp_path):
+    import json
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, label="old")
+    index = store._index_path(path)
+    doc = json.loads(index.read_text())
+    assert all("description" not in e for e in doc["snapshots"])
+    assert store.snapshots(path)[0].description == ""
+    assert store.snapshots(path)[0].id == shot.id
+
+
+def test_a_description_on_unchanged_bytes_describes_the_newest_version(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    shot = store.record(path, description="first note")
+    # a blank description leaves the note alone and adds nothing
+    assert store.record(path) is None
+    assert store.snapshots(path)[0].description == "first note"
+    # a different note is not allowed to overwrite the first: new version
+    other = store.record(path, description="second note")
+    assert other is not None and other.id != shot.id
+    assert [s.description for s in store.snapshots(path)] == [
+        "second note", "first note"]
+    assert store.record(path, description="second note") is None
+    store.set_description(path, other.id, "")
+    named = store.record(path, description="third note")   # newest has none
+    assert named is not None and named.id == other.id
+    assert len(store.snapshots(path)) == 2
+    # a label alone keeps the description
+    relabel = store.record(path, label="named")
+    assert relabel is not None and relabel.description == "third note"
+
+
+def test_a_described_version_is_pinned_like_a_labelled_one(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history", keep=2)
+    first = store.record(path, description="keep me")
+    for n in range(4):
+        path.write_text(f"model-{n}")
+        store.record(path)
+    assert first.id in [s.id for s in store.snapshots(path)]
+
+
+def test_a_recovered_index_keeps_rebuilding_without_descriptions(tmp_path):
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    store.record(path, description="lost with the index")
+    store._index_path(path).write_text("{ not json")
+    shots = store.snapshots(path)
+    assert len(shots) == 1 and shots[0].description == ""
+
+
+def test_the_cli_describes_and_lists_a_description(tmp_path, monkeypatch, capsys):
+    import json
+    from raptor.cli.main import main
+    import raptor.api.history as api_history
+    path = _model(tmp_path)
+    store = HistoryStore(tmp_path / "history")
+    monkeypatch.setattr(api_history, "default_store", lambda: store)
+    notes = tmp_path / "notes.md"
+    notes.write_text("## Notes\n\n- checked", encoding="utf-8")
+    assert main(["history", str(path), "--snapshot",
+                 "--description-file", str(notes)]) == 0
+    shot = store.snapshots(path)[0]
+    assert shot.description == "## Notes\n\n- checked"
+    assert main(["history", str(path), "--describe", shot.id,
+                 "--description", "inline **text**"]) == 0
+    assert store.snapshots(path)[0].description == "inline **text**"
+    capsys.readouterr()
+    assert main(["history", str(path), "-f", "json"]) == 0
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["snapshots"][0]["description"] == "inline **text**"
+    assert main(["history", str(path)]) == 0
+    assert "[described]" in capsys.readouterr().out
+    assert main(["history", str(path), "--describe", shot.id,
+                 "--description", ""]) == 0
+    assert store.snapshots(path)[0].description == ""
+    # option misuse and unknown versions
+    for argv in (["--description", "x"],
+                 ["--describe", shot.id],
+                 ["--describe", shot.id, "--description", "a",
+                  "--description-file", str(notes)]):
+        assert main(["history", str(path), *argv]) == 2
+    assert main(["history", str(path), "--describe", "nope",
+                 "--description", "x"]) == 2

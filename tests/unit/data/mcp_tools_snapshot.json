@@ -702,12 +702,12 @@
  },
  "label_version": {
   "params": [
+   "description",
    "label",
    "model_id",
    "snapshot_id"
   ],
   "required": [
-   "label",
    "model_id",
    "snapshot_id"
   ]
@@ -1192,6 +1192,7 @@
  },
  "snapshot_version": {
   "params": [
+   "description",
    "label",
    "model_id"
   ],

@@ -126,15 +126,37 @@ def test_versions_round_trip(workspace):
     assert context.workspace().get(model_id).effective_path.exists()
 
 
-def test_an_unchanged_file_is_relabelled_not_duplicated(workspace):
+def test_versions_carry_a_markdown_description(workspace):
+    from raptor.mcp.tools_project import (
+        label_version, list_versions, snapshot_version)
+    model_id = _open(workspace)
+    first = _sc(snapshot_version(model_id, label="a", description="# Why\n\n- x"))
+    version = first["version"]["snapshot_id"]
+    assert first["version"]["description"] == "# Why\n\n- x"
+    assert _sc(list_versions(model_id))["versions"][0]["description"] == "# Why\n\n- x"
+    # description only: the label is kept
+    out = _sc(label_version(model_id, version, description="new **note**"))
+    assert out["label"] == "a" and out["description"] == "new **note**"
+    # label only: the description is kept
+    out = _sc(label_version(model_id, version, "b"))
+    assert out["label"] == "b" and out["description"] == "new **note**"
+    out = _sc(label_version(model_id, version, description=""))
+    assert out["description"] == ""
+    assert label_version(model_id, version).is_error
+    assert label_version(model_id, "nope", description="x").is_error
+
+
+def test_an_unchanged_file_names_an_unlabelled_version_but_keeps_a_label(workspace):
     from raptor.mcp.tools_project import list_versions, snapshot_version
     model_id = _open(workspace)
-    _sc(snapshot_version(model_id, label="one"))
+    _sc(snapshot_version(model_id))
+    named = _sc(snapshot_version(model_id, label="one"))
+    assert named["created"] is False
+    assert len(_sc(list_versions(model_id))["versions"]) == 1
     again = _sc(snapshot_version(model_id, label="two"))
-    assert again["created"] is False
+    assert again["created"] is True          # "one" is not overwritten
     versions = _sc(list_versions(model_id))["versions"]
-    assert len(versions) == 1
-    assert versions[0]["label"] == "two"
+    assert [v["label"] for v in versions] == ["two", "one"]
 
 
 def test_restore_refuses_a_managed_path(workspace):
@@ -172,7 +194,7 @@ def test_read_only_refuses_the_share_safe_copy(workspace):
 def test_an_unchanged_snapshot_keeps_the_documented_shape(workspace):
     from raptor.mcp.tools_project import snapshot_version
     mid = _open(workspace)
-    first = _sc(snapshot_version(mid, label="one"))
+    first = _sc(snapshot_version(mid))
     again = _sc(snapshot_version(mid, label="two"))
     assert set(first) == set(again) == {"created", "file", "version"}
     assert again["created"] is False

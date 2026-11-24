@@ -19,19 +19,41 @@ Open **File ▸ Version History…**:
 - **Save version now…** records the file immediately instead of waiting
   for the next save. The optional label is one line; it is metadata, so it
   does not change the snapshot's content or checksum.
-- **Label…** names the selected version, or clears its label. Labelling
-  the newest version when the file is unchanged updates that version
-  rather than adding a duplicate. A labelled version is pinned: it is not
+- **Label…** names the selected version, or clears its label. **Save
+  version now…** on an unchanged file names the newest version when it has
+  no label; if it already has a different label (or description), a new
+  version is added instead (it holds its own copy of the same content) and
+  the earlier one keeps its label. A labelled version is pinned: it is not
   deleted by the ordinary retention caps until you clear the label or
   delete it yourself.
+- **Description** (under the model statistics) is an optional, multi-line
+  Markdown note about the selected version: why it was saved, what changed,
+  what to check. It is shown rendered (headings, bold, lists, links) until
+  you press **Edit**, which shows the raw Markdown; **Save** (Ctrl+Enter)
+  stores it and renders it again, **Cancel** (Esc) discards the edit. If
+  you pick another version or close the window with unsaved changes, you
+  are asked whether to save them. After **Save version now…** the editor
+  opens on the new version so you can describe it straight away. Like the
+  label it is metadata: it does not change the snapshot's content or
+  checksum, is limited to 20,000 characters, and a described version is
+  pinned like a labelled one. A `¶` in the list marks a described version
+  (hover for its first line). The text is only displayed: nothing in it is
+  executed, remote images are never loaded, and a clicked link opens in
+  your browser only if it is a web or mail address.
 - **Delete version** removes one snapshot; the model file is untouched.
 
 The list shows time, reason (`save`, `opened`, `manual`, `restored`), size
 and an optional label. The version that matches the file on disk right now
 is marked **(current)** and shown in bold. With no versions yet, the dialog
 says so and points at **Save version now…**; if the model file itself has
-been moved or deleted, it says that instead. A preview shows the first
-200 KB of the version.
+been moved or deleted, it says that instead. The preview shows the model's
+statistics, the description, the saved results of an archive and how the
+version differs from the open model.
+
+For an `.rbdz` archive the saved results are part of the document: Save
+records a version like any other format, and a new run (or clearing the
+results) marks the open archive as having unsaved changes, so Save and
+**Save version now…** write the archive with the current results first.
 
 The command line has the same store:
 
@@ -39,13 +61,17 @@ The command line has the same store:
 raptor history plant.rbds                       # list versions
 raptor history plant.rbds --snapshot            # record the file as it is now
 raptor history plant.rbds --snapshot --label "before upgrade"
+raptor history plant.rbds --snapshot --description-file notes.md
+raptor history plant.rbds --describe ID --description "Checked **spares**"
+raptor history plant.rbds --describe ID --description ""   # clear it
 raptor history plant.rbds --restore ID -o plant-old.rbds
 raptor history plant.rbds --restore ID --force  # overwrite plant.rbds
 ```
 
 The listed versions are newest first; the current one carries a leading
 `*`. `-f json` adds `current` and `current_id` alongside each snapshot's
-id, time, reason, label, size and checksum.
+id, time, reason, label, description (Markdown), size and checksum.
+`--description-file -` reads the description from standard input.
 
 The CLI refuses to restore over an existing output without `--force`, and
 never writes a missing model's history. Exit codes: `0` success, `2` a bad
@@ -53,7 +79,8 @@ command line or unknown snapshot (including a missing model for `--snapshot`
 or the plain listing), `1` a damaged snapshot (checksum mismatch) or an
 unreadable store, `6` a destination that could not be written.
 
-Snapshots are content-deduplicated: saving an unchanged file adds nothing.
+Snapshots are content-deduplicated: saving an unchanged file adds nothing
+(only an explicit label or description can add an identical-content version, see above).
 The default retention is 30 versions or 50 MB per file, whichever is reached
 first; the oldest versions beyond that are deleted. Labelled versions are
 pinned against the version count, so "save this one" survives later

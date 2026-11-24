@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from raptor.gui import i18n
 from raptor.api.history import store as history_store
 from raptor.core.history import HistoryStore, Snapshot, file_digest
+from raptor.gui.ui.history_description import DescriptionPanel
 
 
 class HistoryDialog(QDialog):
@@ -75,6 +76,20 @@ class HistoryDialog(QDialog):
         self._note = QLabel("")
         self._note.setWordWrap(True)
         right.addWidget(self._note)
+        # Model statistics, then this version's Markdown description, then
+        # the results and the comparison with the open model.
+        self._stats = QLabel("")
+        self._stats.setWordWrap(True)
+        self._stats.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._stats.setAccessibleName("Model statistics")
+        mono_stats = QFont("monospace")
+        mono_stats.setStyleHint(QFont.StyleHint.Monospace)
+        self._stats.setFont(mono_stats)
+        right.addWidget(self._stats)
+        self._desc = DescriptionPanel(self._save_description)
+        self._desc.saved.connect(lambda _id: self._after_description_saved())
+        right.addWidget(self._desc, 2)
         self._preview = QPlainTextEdit()
         self._preview.setReadOnly(True)
         self._preview.setAccessibleName("What this version contains")
@@ -83,7 +98,7 @@ class HistoryDialog(QDialog):
         self._preview.setFont(mono)
         self._preview.setLineWrapMode(
             QPlainTextEdit.LineWrapMode.NoWrap)
-        right.addWidget(self._preview, 1)
+        right.addWidget(self._preview, 3)
         body.addLayout(right, 3)
         lay.addLayout(body, 1)
         lay.addLayout(self._build_actions())
@@ -139,11 +154,18 @@ class HistoryDialog(QDialog):
             label = f"{shot.time_text()}   {shot.reason}"
             if shot.label:
                 label += f"   {shot.label}"
+            if shot.description:
+                label += "   ¶"
             if current:
                 label += "   (current)"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, shot.id)
-            item.setToolTip(f"{shot.size_text()} · {shot.sha256[:16]}")
+            tip = f"{shot.size_text()} · {shot.sha256[:16]}"
+            if shot.description:
+                first = next((ln.strip() for ln in
+                              shot.description.splitlines() if ln.strip()), "")
+                tip += "\n¶ " + first[:120]
+            item.setToolTip(tip)
             if current:
                 item.setFont(bold)
             self._list.addItem(item)
@@ -166,8 +188,43 @@ class HistoryDialog(QDialog):
         item = self._list.currentItem()
         return item.data(Qt.ItemDataRole.UserRole) if item else None
 
+    def _confirm_save_description(self) -> bool:
+        """Ask what to do with an unsaved description edit: True saves it,
+        False discards it. A separate method so tests can replace it."""
+        from raptor.gui.ui.dialogs import question_box
+        return question_box(
+            self, "Unsaved Description",
+            "The description of this version has unsaved changes.\n\n"
+            "Save them?", yes_text="Save description",
+            no_text="Discard changes", default_yes=True)
+
+    def _save_description(self, snapshot_id: str, text: str) -> bool:
+        ok = self._store.set_description(self.file, snapshot_id, text)
+        if not ok:
+            self._note.setText("That version no longer exists; the "
+                               "description was not saved.")
+        return ok
+
+    def _after_description_saved(self) -> None:
+        self._note.setText("Description saved.")
+        self.reload()
+
+    def _settle_description(self, next_id: str | None) -> None:
+        """Before another version is shown, save or drop a pending edit."""
+        desc = self._desc
+        if not desc.editing or desc.snapshot_id == next_id:
+            return
+        if desc.is_dirty() and self._confirm_save_description():
+            desc.save()
+
+    def done(self, result: int) -> None:
+        self._settle_description(None)
+        super().done(result)
+
     def _show_selected(self, row: int) -> None:
         exists = 0 <= row < len(self._snapshots)
+        self._settle_description(
+            self._snapshots[row].id if exists else None)
         for button in (self._open_btn, self._restore_btn, self._label_btn,
                        self._delete_btn):
             button.setEnabled(exists)
@@ -183,6 +240,8 @@ class HistoryDialog(QDialog):
                     "No versions yet. Versions are recorded when you save; "
                     "use <b>Save version now…</b> to record one immediately.")
             self._preview.clear()
+            self._stats.clear()
+            self._desc.show_version(None, "")
             return
         shot = self._snapshots[row]
         current = bool(shot.sha256) and shot.sha256 == self._current_digest
@@ -190,7 +249,13 @@ class HistoryDialog(QDialog):
             f"<b>{shot.time_text()}</b> · {shot.reason} · {shot.size_text()}"
             + (" · <i>current version</i>" if current else "")
             + (f"<br>{html.escape(shot.label)}" if shot.label else ""))
-        self._preview.setPlainText(self._describe(shot))
+        stats, rest = self._describe_parts(shot)
+        self._stats.setText(stats)
+        self._preview.setPlainText(rest)
+        if self._desc.snapshot_id == shot.id:
+            self._desc.update_text(shot.description)
+        else:
+            self._desc.show_version(shot.id, shot.description)
 
     def _load_snapshot(self, shot: Snapshot) -> Any:
         """The snapshot as a model, read once; raises on a damaged file."""
@@ -200,7 +265,13 @@ class HistoryDialog(QDialog):
         return self._loaded[shot.id]
 
     def _describe(self, shot: Snapshot) -> str:
-        """What a version holds and how it differs from the open model.
+        stats, rest = self._describe_parts(shot)
+        return stats + ("\n" + rest if rest else "")
+
+    def _describe_parts(self, shot: Snapshot) -> tuple[str, str]:
+        """(statistics line, results and comparison) for one version.
+
+        What a version holds and how it differs from the open model.
 
         Never the raw file: an `.rbdz` is a zip, and its bytes decoded as
         text were shown as noise (and made Qt search every installed font
@@ -209,23 +280,25 @@ class HistoryDialog(QDialog):
         try:
             model = self._load_snapshot(shot)
         except Exception as exc:  # noqa: BLE001 - a damaged snapshot is shown, not raised
-            return (f"This version could not be read as a model: {exc}\n\n"
-                    "It is kept unchanged; Open as copy or Restore will "
-                    "report the same problem.")
-        lines = [_contents_line(model)]
+            return "", (f"This version could not be read as a model: {exc}\n\n"
+                        "It is kept unchanged; Open as copy or Restore will "
+                        "report the same problem.")
+        stats = _contents_line(model)
+        lines: list[str] = []
         results = _archive_results_line(shot.path)
         if results:
             lines.append(results)
         current = self._current_model
         if current is None:
-            return "\n".join(lines)
+            return stats, "\n".join(lines)
         try:
             from raptor.api.model_diff import diff_models
             diff = diff_models(model, current)
         except Exception as exc:  # noqa: BLE001 - the comparison is an extra
             lines += ["", f"Could not compare with the open model: {exc}"]
-            return "\n".join(lines)
-        lines.append("")
+            return stats, "\n".join(lines)
+        if lines:
+            lines.append("")
         if diff.get("identical"):
             lines.append("Same as the model that is open now (layout "
                          "aside).")
@@ -233,7 +306,7 @@ class HistoryDialog(QDialog):
             lines.append("Changes from this version to the model open now "
                          f"({diff['summary']['connectivity']}):")
             lines += _diff_lines(diff)
-        return "\n".join(lines)
+        return stats, "\n".join(lines).strip("\n")
 
     def _snapshot_now(self) -> None:
         """Record the model as it is now, with an optional label.
@@ -264,7 +337,12 @@ class HistoryDialog(QDialog):
                 i18n.tr("The model has not changed; no version was added."))
         elif newest and newest[0].id == shot.id:
             self._note.setText(
-                f"Labelled the version recorded {shot.time_text()}.")
+                f"Named the newest version recorded {shot.time_text()}.")
+        elif newest and newest[0].sha256 == shot.sha256:
+            self._note.setText(
+                f"Added a version ({shot.size_text()}); the model has not "
+                f"changed, so the earlier one recorded "
+                f"{newest[0].time_text()} keeps its label.")
         else:
             self._note.setText(
                 f"Recorded {shot.time_text()} ({shot.size_text()}).")
@@ -273,6 +351,10 @@ class HistoryDialog(QDialog):
                     if shot is not None and s.id == shot.id), -1)
         if row >= 0:
             self._list.setCurrentRow(row)
+            # Offer the description right away: the person who just
+            # recorded a version usually has a reason to note why.
+            if shot is not None and not shot.description:
+                self._desc.begin_edit()
 
     def _label_selected(self) -> None:
         shot = self._selected_snapshot()
