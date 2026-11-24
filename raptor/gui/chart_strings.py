@@ -110,6 +110,38 @@ SOURCES: tuple[str, ...] = (
     "generated flow → delivered and lost → cause",
     "generated flow → delivered and lost → hierarchy → cause",
     "top level", "every level",
+    # the causes an outage is charged to (`CAUSE_LABELS` in the API)
+    "Hands-on repair", "Waiting for a spare",
+    "Waiting for people or equipment", "Logistics delay",
+    "Planned maintenance", "Waiting to start maintenance",
+    "Held by another element", "Not repairable", "Other",
+    # axis titles (a trailing "(hours)" is a unit and is translated apart)
+    "and", "more", "baseline %1", "%1 caused %2",
+    # clauses of the run-to-run caption, read apart from the others
+    "%1: %2", ", mean %1",
+    "; the middle half of the runs lie between %1 and %2 (Q1 to Q3)",
+    "; %1 of %2 (%3) met the target", "system", "runs", "time", "simulated time", "cumulative downtime",
+    "change in downtime", "share of runs", "share of downtime", "share of loss",
+    "fraction", "cause", "hierarchy", "hierarchies", "element", "phase", "step",
+    "year", "duration", "outages", "width", "height", "reliability",
+    "component failures a run", "outages it started a run",
+    "mean outage length", "run-years", "operating cost a year",
+    "operating cost", "running mean", "share of the total",
+    "availability (axis zoomed)",
+    # marks and key words drawn inside the chart
+    "Q1", "Q3", "median", "1 in 4", "3 in 4", "half", "Q1, median, Q3",
+    "lost capacity", "downtime", "system up", "system down",
+    "± 2 standard errors", "= no change", "new (not in baseline)",
+    "no spread to judge", "each dot a run", "first",
+    "No chart for this result.", "Nothing to show for this run.",
+    "Make this panel taller (or float it) to see the chart.",
+    "non-mission", "the baseline", "at least", "at most",
+    "planned maintenance", "logistics, spares, crews",
+    "Inherent (repair only)", "Achieved (+ planned maintenance)",
+    "Operational (+ logistics, spares, crews)",
+    # counted nouns in a caption
+    "%1 run", "%1 runs", "%1 hierarchy", "%1 hierarchies", "%1 part",
+    "%1 parts",
 )
 
 #: Titles and subtitle pieces built from model data or a number.  `%1` ..
@@ -144,4 +176,115 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
     "each dot is %1 of the %2 run-years": (),
     "area = share of %1": (),
     "%1 of the %2 runs, evenly through the ranking, sorted by downtime": (),
+    "Outage paths inside %1": (),
+    # drawn by the chart widget
+    "\u25bc %1 pts better": (), "\u25b2 %1 pts worse": (),
+    "\u00b1 %1 pts": (),
+    "%1 members \u00b7 %2 started outages": (),
+    "target %1": (), "median %1": (),
+    "target %1: %2 of runs reach it": (),
+    "then (step %1)": (),
+    "%1 (log scale)": (),
+    "%1 \u00b7 drag across or Ctrl+wheel to zoom in": (),
+    "%1 \u00b7 drag across or Ctrl+wheel to zoom in, double-click for the "
+    "whole run": (),
+    "%1 of %2 shown": (),
+    "%1 of %2 shown: make the panel taller to see more": (),
+    "%1 more not shown: make the panel taller": (),
+    "%1 of %2 runs, best at the top": (),
+    "%1 run, best at the top": (),
+    "%1 runs, best at the top": (),
+    "%1 (non-mission)": (),
+}
+
+#: Caption sentences, built in `raptor.api.insight.charts` from model data.
+#: Each value says what the pieces are, one letter per `%N`: ``d`` data (a
+#: name or a number, kept as written), ``q`` a quantity (a number, and a unit
+#: word that is translated), ``w`` an app word (translated, or the caption
+#: stays English), ``a`` "at least" or "at most", ``m`` a measure word
+#: (translated when known), ``c`` a counted noun ("3 hierarchies"), ``b`` a
+#: baseline phrase, ``l`` a list of "NAME caused QTY".  A caption is read
+#: sentence by sentence; one sentence that matches no template leaves the
+#: whole caption in English.
+CAPTIONS: dict[str, str] = {
+    # hierarchy scorecard, Pareto, treemap, map
+    "%1 holds the largest share of system downtime (%2).": "dd",
+    "No hierarchy has downtime in these runs.": "",
+    "This model has no hierarchy roll-up.": "",
+    "%1 of system downtime is not inside a hierarchy.": "d",
+    "Showing %1 of %2 hierarchies.": "dd",
+    "Showing %1 of %2 parts.": "dd",
+    "No downtime in %1.": "d",
+    "%1 had no downtime.": "d",
+    "%1 causes the largest share (%2 of system downtime).": "dd",
+    "%1 causes the largest share (%2 of %3's downtime).": "ddd",
+    "%1 causes the largest share (%2).": "dd",
+    "%1 of the downtime was started by no single element.": "d",
+    "No single element is behind the downtime.": "",
+    "No element inside %1 caused downtime.": "d",
+    "Inside %1: %2 is the largest part (%3).": "ddd",
+    "%1 has no downtime below it in this run.": "d",
+    "Most system downtime is not inside a hierarchy.": "",
+    "%1 is the largest hierarchy (%2 of system downtime).": "dd",
+    # overlay and small multiples
+    "By the end of the run, %1.": "l",
+    "Showing the top %1 of %2 hierarchies; use Compare to choose.": "dd",
+    "%1; each dot is one run's share of system downtime.": "c",
+    # HOPs
+    "%1 causes the most downtime in %2 of %3 runs.": "ddd",
+    "%1: mean share of system downtime %2 over %3 runs.": "ddd",
+    "Run %1 of %2: %3.": "ddd",
+    # delta
+    "%1 is down %2 a run more than %3 (\u00b1 %4).": "dqbq",
+    "%1 is down %2 a run more than %3.": "dqb",
+    "%1 is down %2 a run less than %3 (\u00b1 %4).": "dqbq",
+    "%1 is down %2 a run less than %3.": "dqb",
+    "%1 has the same downtime as %2 (\u00b1 %3).": "dbq",
+    "%1 has the same downtime as %2.": "db",
+    # heatmaps
+    "%1 is mostly %2.": "dw",
+    "%1 holds the most hierarchy downtime; all of it is in %2 (%3 of its "
+    "downtime).": "ddd",
+    "%1 holds the most hierarchy downtime; most of it is in %2 (%3 of its "
+    "downtime).": "ddd",
+    "No hierarchy with downtime in this run has a per-phase breakdown; rerun "
+    "with phases and attribution on.": "",
+    "No downtime inside %1 is split by phase.": "d",
+    # outage paths and ribbon
+    "%1 starts the largest share (%2 of downtime).": "dd",
+    "The commonest start is %1 (%2 of downtime).": "dd",
+    "No outage was recorded.": "",
+    "%1; %2 of downtime attributed to them (system down %3).": "cdq",
+    "%1; %2 of downtime attributed to them.": "cd",
+    "No downtime in this run is attributed to the named hierarchies; the "
+    "unassigned row is the %1 the system was down.": "q",
+    # the answer: run-to-run, chance of reaching, reliability, convergence
+    "The one run reached %1.": "d",
+    "Every run reached %1.": "d",
+    "All %1 runs reached %2 %3; the best reached %4.": "dadd",
+    "9 runs in 10 reached %1 %2; half reached %3 %4.": "adad",
+    "%1 of runs reached the target %2.": "dd",
+    "No runs.": "",
+    "From %1, Kaplan\u2013Meier estimate.": "c",
+    "From %1, Kaplan\u2013Meier estimate; %2 ended before a failure and are "
+    "censored.": "cd",
+    "Reliability is %1 or less by %2 and %3 or less by %4.": "dqdq",
+    "Reliability is %1 or less by %2.": "dq",
+    "The last failure was at %1.": "q",
+    "%1 runs first went down at exactly %2: a scheduled outage such as "
+    "planned maintenance, not a random failure.": "dq",
+    "No run failed.": "",
+    "No run recorded a time to first failure.": "",
+    "After %1 runs the mean %2 is %3 \u00b1 %4 points (2 standard errors, "
+    "about 95 %).": "dmdd",
+    "After %1 runs the mean %2 is %3 \u00b1 %4 (2 standard errors, about "
+    "95 %).": "dmdd",
+    "Median %1.": "d",
+    "Not enough runs to estimate the error.": "",
+    "The system never went down in %1, so there is nothing to show.": "c",
+    "The system never went down, so there is nothing to show.": "",
+    "The largest single loss is %1 (%2 points).": "wd",
+    "The steps use the same Red-time split as the availability ladder.": "",
+    "%1 took nothing away in these runs.": "d",
+    "No availability reported.": "",
 }
