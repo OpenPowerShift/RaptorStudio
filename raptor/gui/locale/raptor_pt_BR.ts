@@ -2061,6 +2061,18 @@
       <translation>Não comparável: a análise de capacidade difere entre os modelos.</translation>
     </message>
     <message>
+      <source>Charts in this group</source>
+      <translation>Gráficos deste grupo</translation>
+    </message>
+    <message>
+      <source>Not available</source>
+      <translation>Indisponível</translation>
+    </message>
+    <message>
+      <source>No preview</source>
+      <translation>Sem miniatura</translation>
+    </message>
+    <message>
       <source>baseline %1</source>
       <translation>a referência %1</translation>
     </message>
@@ -2309,8 +2321,8 @@
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
     </message>
     <message>
-      <source>Click to fold or unfold this group</source>
-      <translation>Clique para recolher ou expandir este grupo</translation>
+      <source>Click to see this group's charts; click the arrow to fold or unfold it</source>
+      <translation>Clique para ver os gráficos deste grupo; clique na seta para recolher ou expandir</translation>
     </message>
     <message>
       <source>Y axis</source>
@@ -9495,6 +9507,218 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Delivered %1 of the generated flow: it missed the capacity target %2 by %3 points (loss allowed %4, lost %5).</source>
       <translation>Entregou %1 do fluxo gerado: não atingiu a meta de capacidade %2 por %3 pontos (perda admitida %4, perdida %5).</translation>
+    </message>
+    <message>
+      <source>How the result varies from one run to the next, against the target.</source>
+      <translation>Como o resultado varia de uma execução para outra, em relação à meta.</translation>
+    </message>
+    <message>
+      <source>The chance that a run reaches or beats any given value.</source>
+      <translation>A chance de uma execução atingir ou superar cada valor.</translation>
+    </message>
+    <message>
+      <source>The chance the system is still running without failing, as time passes.</source>
+      <translation>A chance de o sistema continuar funcionando sem falhar com o passar do tempo.</translation>
+    </message>
+    <message>
+      <source>Availability from the repair-only ideal down to what the run achieved.</source>
+      <translation>A disponibilidade do ideal só com reparo até o que a execução alcançou.</translation>
+    </message>
+    <message>
+      <source>Whether more runs would still change the average.</source>
+      <translation>Se mais execuções ainda mudariam a média.</translation>
+    </message>
+    <message>
+      <source>Each hierarchy's availability and downtime side by side.</source>
+      <translation>A disponibilidade e a inatividade de cada hierarquia lado a lado.</translation>
+    </message>
+    <message>
+      <source>Hierarchies ranked by the downtime they cause.</source>
+      <translation>Hierarquias ordenadas pela inatividade que causam.</translation>
+    </message>
+    <message>
+      <source>Where the downtime sits in the hierarchy, as nested areas.</source>
+      <translation>Onde está a inatividade na hierarquia, em áreas aninhadas.</translation>
+    </message>
+    <message>
+      <source>How each chosen hierarchy's downtime builds up over the run.</source>
+      <translation>Como a inatividade de cada hierarquia escolhida se acumula ao longo da execução.</translation>
+    </message>
+    <message>
+      <source>Whether the ranking of hierarchies holds from run to run.</source>
+      <translation>Se a ordem das hierarquias se mantém de uma execução para outra.</translation>
+    </message>
+    <message>
+      <source>Which hierarchy is worse in each run, one run at a time.</source>
+      <translation>Qual hierarquia é pior em cada execução, uma por vez.</translation>
+    </message>
+    <message>
+      <source>How each hierarchy's downtime changed against a saved baseline.</source>
+      <translation>Como a inatividade de cada hierarquia mudou em relação a uma linha de base salva.</translation>
+    </message>
+    <message>
+      <source>Which causes hurt each hierarchy most.</source>
+      <translation>Quais causas mais prejudicam cada hierarquia.</translation>
+    </message>
+    <message>
+      <source>Which mission phases hurt each hierarchy most.</source>
+      <translation>Quais fases da missão mais prejudicam cada hierarquia.</translation>
+    </message>
+    <message>
+      <source>The paths an outage takes up through the hierarchies.</source>
+      <translation>Os caminhos que uma indisponibilidade percorre pelas hierarquias.</translation>
+    </message>
+    <message>
+      <source>When each hierarchy was down during one run.</source>
+      <translation>Quando cada hierarquia ficou parada durante uma execução.</translation>
+    </message>
+    <message>
+      <source>Availability across the length of one run.</source>
+      <translation>A disponibilidade ao longo de uma execução.</translation>
+    </message>
+    <message>
+      <source>Availability in each recording interval of a run.</source>
+      <translation>A disponibilidade em cada intervalo de registro de uma execução.</translation>
+    </message>
+    <message>
+      <source>The spread of availability over time across every run.</source>
+      <translation>A dispersão da disponibilidade ao longo do tempo em todas as execuções.</translation>
+    </message>
+    <message>
+      <source>Delivered capacity across the length of one run.</source>
+      <translation>A capacidade entregue ao longo de uma execução.</translation>
+    </message>
+    <message>
+      <source>The spread of delivered capacity over time across every run.</source>
+      <translation>A dispersão da capacidade entregue ao longo do tempo em todas as execuções.</translation>
+    </message>
+    <message>
+      <source>Which components fail most often.</source>
+      <translation>Quais componentes falham com mais frequência.</translation>
+    </message>
+    <message>
+      <source>The elements that cause the most downtime.</source>
+      <translation>Os elementos que mais causam inatividade.</translation>
+    </message>
+    <message>
+      <source>Where availability is lost, step by step, from the ideal.</source>
+      <translation>Onde a disponibilidade é perdida, passo a passo, a partir do ideal.</translation>
+    </message>
+    <message>
+      <source>Downtime by element, as areas.</source>
+      <translation>A inatividade por elemento, em áreas.</translation>
+    </message>
+    <message>
+      <source>How much downtime falls in each mission phase.</source>
+      <translation>Quanta inatividade ocorre em cada fase da missão.</translation>
+    </message>
+    <message>
+      <source>Which causes bite in which phase.</source>
+      <translation>Quais causas pesam em cada fase.</translation>
+    </message>
+    <message>
+      <source>What a typical outage looks like from start to finish.</source>
+      <translation>Como é uma indisponibilidade típica, do início ao fim.</translation>
+    </message>
+    <message>
+      <source>System state through time, one band per run.</source>
+      <translation>O estado do sistema ao longo do tempo, uma faixa por execução.</translation>
+    </message>
+    <message>
+      <source>How outage lengths are spread.</source>
+      <translation>Como as durações das indisponibilidades se distribuem.</translation>
+    </message>
+    <message>
+      <source>Whether downtime comes from frequent short outages or a few long ones.</source>
+      <translation>Se a inatividade vem de muitas paradas curtas ou de poucas longas.</translation>
+    </message>
+    <message>
+      <source>The elements that lose the most capacity.</source>
+      <translation>Os elementos que mais perdem capacidade.</translation>
+    </message>
+    <message>
+      <source>Whether an element's lost capacity follows its downtime.</source>
+      <translation>Se a capacidade perdida de um elemento acompanha a sua inatividade.</translation>
+    </message>
+    <message>
+      <source>Where capacity is lost, by cause, from the full rating.</source>
+      <translation>Onde a capacidade é perdida, por causa, a partir da capacidade total.</translation>
+    </message>
+    <message>
+      <source>Lost capacity by element, as areas.</source>
+      <translation>A capacidade perdida por elemento, em áreas.</translation>
+    </message>
+    <message>
+      <source>How lost capacity flows from hierarchy to cause.</source>
+      <translation>Como a capacidade perdida flui da hierarquia até a causa.</translation>
+    </message>
+    <message>
+      <source>Availability in each year of the run, with the spread across runs.</source>
+      <translation>A disponibilidade em cada ano da execução, com a dispersão entre execuções.</translation>
+    </message>
+    <message>
+      <source>How often a year falls below the target.</source>
+      <translation>Com que frequência um ano fica abaixo da meta.</translation>
+    </message>
+    <message>
+      <source>Capacity delivered in each year, with the spread across runs.</source>
+      <translation>A capacidade entregue em cada ano, com a dispersão entre execuções.</translation>
+    </message>
+    <message>
+      <source>The elements that cost the most.</source>
+      <translation>Os elementos que mais custam.</translation>
+    </message>
+    <message>
+      <source>Cost by element, as areas.</source>
+      <translation>O custo por elemento, em áreas.</translation>
+    </message>
+    <message>
+      <source>Operating cost split by category.</source>
+      <translation>O custo operacional dividido por categoria.</translation>
+    </message>
+    <message>
+      <source>Operating cost building up over the run.</source>
+      <translation>O custo operacional se acumulando ao longo da execução.</translation>
+    </message>
+    <message>
+      <source>Operating cost in each year.</source>
+      <translation>O custo operacional em cada ano.</translation>
+    </message>
+    <message>
+      <source>Which elements matter most to availability, and which would pay back.</source>
+      <translation>Quais elementos mais importam para a disponibilidade e quais compensariam o investimento.</translation>
+    </message>
+    <message>
+      <source>How the system did, over every run.</source>
+      <translation>Como o sistema se saiu, em todas as execuções.</translation>
+    </message>
+    <message>
+      <source>Where the downtime sits, hierarchy by hierarchy.</source>
+      <translation>Onde está a inatividade, hierarquia por hierarquia.</translation>
+    </message>
+    <message>
+      <source>How the system behaved as the run went on.</source>
+      <translation>Como o sistema se comportou ao longo da execução.</translation>
+    </message>
+    <message>
+      <source>Which elements and causes bring the system down.</source>
+      <translation>Quais elementos e causas derrubam o sistema.</translation>
+    </message>
+    <message>
+      <source>What the downtime cost in delivered capacity.</source>
+      <translation>O que a inatividade custou em capacidade entregue.</translation>
+    </message>
+    <message>
+      <source>How each year of the run fared.</source>
+      <translation>Como foi cada ano da execução.</translation>
+    </message>
+    <message>
+      <source>Where the money goes.</source>
+      <translation>Para onde vai o dinheiro.</translation>
+    </message>
+    <message>
+      <source>Which elements to look after first.</source>
+      <translation>Quais elementos cuidar primeiro.</translation>
     </message>
     <message>
       <source>seconds</source>
