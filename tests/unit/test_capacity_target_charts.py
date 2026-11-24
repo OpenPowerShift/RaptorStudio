@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from raptor.api import run as run_api
-from raptor.api.insight import charts, drivers
+from raptor.api.insight import drivers
 from raptor.api.insight.story import from_run
 from raptor.api.workspace import Workspace
 from raptor.cli.cmd_advise import _capacity_target, _chart_for

@@ -567,7 +567,7 @@ def test_the_tool_row_wraps_instead_of_clipping_at_a_narrow_width(pt, qapp):
 def test_the_capacity_target_line_is_labelled_in_the_gui_language(pt, qapp):
     from raptor.api.insight import timecharts
     from tests.unit.test_charts_page import _series
-    ao, cap = _series()
+    _ao, cap = _series()
     spec = timecharts.capacity_band(cap, generated=100.0, capacity_target=0.9)
     seen = []
     widget = ChartWidget()
