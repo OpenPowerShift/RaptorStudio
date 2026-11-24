@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import weakref
 from pathlib import Path
+from typing import cast
 
 from PySide6.QtCore import (
     QCoreApplication, QLibraryInfo, QLocale, QModelIndex, QTranslator, Qt,
@@ -36,6 +37,9 @@ _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
 _TRANSLATOR: QTranslator | None = None
 _QT_TRANSLATOR: QTranslator | None = None
 _CURRENT = "en"
+#: True once any non-English catalogue was installed in this process: an
+#: English pass is then needed to put the English source back on screen.
+_EVER_TRANSLATED = False
 _SUPPORTED = {
     "en": "English",
     "pt_BR": "Português (Brasil)",
@@ -96,7 +100,7 @@ def _coverage(code: str) -> tuple[int, int]:
     return done, total
 
 
-def coverage(code: str) -> dict[str, int | float | bool]:
+def coverage(code: str) -> dict[str, str | int | float | bool]:
     """Coverage of one shipped catalogue (a report, never a guess)."""
     done, total = _coverage(code)
     percent = round(100 * done / total, 1) if total else 0.0
@@ -104,7 +108,7 @@ def coverage(code: str) -> dict[str, int | float | bool]:
             "percent": percent, "complete": bool(total) and done == total}
 
 
-def coverage_report() -> list[dict[str, int | float | bool]]:
+def coverage_report() -> list[dict[str, str | int | float | bool]]:
     """`coverage()` for every non-English shipped catalogue."""
     report = []
     if _LOCALE_DIR.is_dir():
@@ -166,8 +170,8 @@ def install(app: QApplication | None = None,  # noqa: C901
     (`pt`). A bare Portuguese locale falls back to Brazilian Portuguese.
     English, or a missing catalogue, removes the translator.
     """
-    global _TRANSLATOR, _QT_TRANSLATOR, _CURRENT
-    app = app or QApplication.instance()
+    global _TRANSLATOR, _QT_TRANSLATOR, _CURRENT, _EVER_TRANSLATED
+    app = app or cast("QApplication | None", QApplication.instance())
     if app is None:
         return "en"
     wanted = (locale or _requested()).replace("-", "_")
@@ -208,6 +212,7 @@ def install(app: QApplication | None = None,  # noqa: C901
         # application claiming it is translated.
         chosen = "en"
     _CURRENT = chosen
+    _EVER_TRANSLATED = _EVER_TRANSLATED or chosen != "en"
     _TRANSLATED_WINDOWS.clear()
     app.setProperty("raptorLocale", chosen)
     _install_focus_hook(app)
@@ -366,14 +371,34 @@ def _translate_combo(box: QComboBox) -> None:
         box.blockSignals(blocked)
 
 
+def _translate_indexed(obj, key: str, current: str, set_) -> None:
+    """Translate one indexed entry (a combo item, a tab title).
+
+    The entry is tracked like a widget property: when the code has
+    replaced its text since this module last wrote it (a combo refilled
+    for a new model, the Details tabs rebuilt for a new result set), the
+    new text is the English source. Keying the source by position alone
+    put the FIRST text ever seen back on whatever now sits at that index.
+    """
+    originals = _originals(obj)
+    written = _written(obj)
+    source = originals.get(key)
+    if source is None or (key in written and current != written[key]):
+        source = current
+        originals[key] = current
+    target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
+              if _CURRENT != "en" else source)
+    if target and target != current:
+        set_(target)
+        current = target
+    written[key] = current
+
+
 def _translate_combo_items(box: QComboBox, originals: dict) -> None:
+    del originals
     for index in range(box.count()):
-        key = f"item:{index}"
-        source = originals.setdefault(key, box.itemText(index))
-        target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
-                  if _CURRENT != "en" else source)
-        if target and target != box.itemText(index):
-            box.setItemText(index, target)
+        _translate_indexed(box, f"item:{index}", box.itemText(index),
+                           lambda text, i=index: box.setItemText(i, text))
 
 
 def _translate_tabs(tabs: QTabWidget) -> None:
@@ -386,13 +411,10 @@ def _translate_tabs(tabs: QTabWidget) -> None:
 
 
 def _translate_tab_items(tabs: QTabWidget, originals: dict) -> None:
+    del originals
     for index in range(tabs.count()):
-        key = f"tab:{index}"
-        source = originals.setdefault(key, tabs.tabText(index))
-        target = (QCoreApplication.translate(WIDGET_CONTEXT, source)
-                  if _CURRENT != "en" else source)
-        if target and target != tabs.tabText(index):
-            tabs.setTabText(index, target)
+        _translate_indexed(tabs, f"tab:{index}", tabs.tabText(index),
+                           lambda text, i=index: tabs.setTabText(i, text))
 
 
 def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat pass
@@ -407,6 +429,12 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
     """
     global _TRANSLATING
     if root is None or _TRANSLATING or not isinstance(root, QWidget):
+        return
+    if _CURRENT == "en" and not _EVER_TRANSLATED:
+        # English is the source: a walk could only rewrite text with
+        # itself. Skipping it keeps an English session free of the pass
+        # entirely (it runs after every result set and on focus changes).
+        _TRANSLATED_WINDOWS.add(root.window())
         return
     _TRANSLATING = True
     try:
@@ -430,7 +458,11 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
                                     context=WIDGET_CONTEXT)
             if isinstance(widget, QTabWidget):
                 _translate_tabs(widget)
-            if isinstance(widget, QComboBox):
+            if isinstance(widget, QComboBox) and \
+                    not widget.property("raptor_i18n_data_items"):
+                # A combo listing model names (hierarchies, pools, groups)
+                # keeps its tooltip translated but never its items: a
+                # block called "Start" is a name, not the word "Start".
                 _translate_combo(widget)
             if isinstance(widget, QAbstractItemView):
                 _translate_headers(widget)
@@ -499,5 +531,5 @@ class TranslatingStatusBar(QStatusBar):
     which is the honest fallback rather than a half-substituted sentence.
     """
 
-    def showMessage(self, message: str, timeout: int = 0) -> None:  # noqa: N802
-        super().showMessage(tr(message, WIDGET_CONTEXT), timeout)
+    def showMessage(self, message: str, timeout: int | None = 0) -> None:  # noqa: N802
+        super().showMessage(tr(message, WIDGET_CONTEXT), timeout or 0)

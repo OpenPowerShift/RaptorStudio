@@ -457,6 +457,8 @@ class InspectorBlockMixin(_Base):
         fl.addRow("Type:", type_combo)
 
         pool_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        pool_combo.setProperty("raptor_i18n_data_items", True)
         pool_combo.addItem("(none)", "")
         pools_sec = (self._rbd.sections.get("SPARE_POOL_DATA")
                      if self._rbd else None)
@@ -606,6 +608,8 @@ class InspectorBlockMixin(_Base):
             "unlike a spare (consumed permanently). A block uses at "
             "most one resource pool.")
         res_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        res_combo.setProperty("raptor_i18n_data_items", True)
         res_combo.addItem("(none)", "")
         res_sec = (self._rbd.sections.get("RESOURCE_DATA")
                   if self._rbd else None)
@@ -698,6 +702,8 @@ class InspectorBlockMixin(_Base):
         trig_cb = _WordWrapCheckBox("Triggered by a PM trigger")
         trig_cb.setChecked(bool(block.pm_triggered))
         trig_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        trig_combo.setProperty("raptor_i18n_data_items", True)
         trig_combo.addItem("(none)", "")
         trig_sec = (self._rbd.sections.get("TRIGGERS")
                     if self._rbd else None)

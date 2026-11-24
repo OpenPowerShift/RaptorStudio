@@ -345,3 +345,55 @@ def test_model_data_in_a_combo_is_never_translated(qapp, pt):
     i18n.translate_widgets(combo)
     assert [combo.itemText(i) for i in range(combo.count())] == [
         "Run", "Total", "Idle"]
+
+
+def test_a_data_items_combo_keeps_its_names_and_translates_its_tooltip(
+        qapp, pt):
+    """`raptor_i18n_data_items` leaves the entries alone, not the chrome."""
+    combo = QComboBox()
+    combo.setProperty("raptor_i18n_data_items", True)
+    combo.setToolTip("Run")
+    combo.addItems(["Run", "B"])
+    i18n.translate_widgets(combo)
+    assert [combo.itemText(i) for i in range(combo.count())] == ["Run", "B"]
+    assert combo.toolTip() == i18n.tr("Run", i18n.WIDGET_CONTEXT)
+
+
+@pytest.mark.parametrize("locale", ["en", "pt_BR"])
+def test_refilled_combos_and_rebuilt_tabs_are_not_put_back(qapp, locale):
+    """A combo refilled, or a tab retitled, after a pass keeps the new text.
+
+    The Results dock rebuilds its Details tabs for every result set and
+    translates the dock again: the pass used to restore the first titles it
+    ever saw by position, so a second model's "Resources" tab read
+    "Extended results" and every later tab was off by one.
+    """
+    from PySide6.QtWidgets import QVBoxLayout, QWidget
+    i18n.install(qapp, locale)
+    try:
+        root = QWidget()
+        lay = QVBoxLayout(root)
+        combo = QComboBox()
+        combo.addItems(["Summary", "Sparing"])
+        tabs = QTabWidget()
+        tabs.addTab(QLabel("a"), "Summary")
+        tabs.addTab(QLabel("b"), "Sparing")
+        lay.addWidget(combo)
+        lay.addWidget(tabs)
+        i18n.translate_widgets(root)
+        combo.clear()
+        combo.addItems(["Summary", "Resources", "Sparing"])
+        tabs.setTabText(1, "Resources")
+        tabs.addTab(QLabel("c"), "Sparing")
+        i18n.translate_widgets(root)
+        tr = (lambda t: i18n.tr(t, i18n.WIDGET_CONTEXT)) if locale != "en" \
+            else (lambda t: t)
+        expected = [tr("Summary"), tr("Resources"), tr("Sparing")]
+        assert [combo.itemText(i) for i in range(combo.count())] == expected
+        assert [tabs.tabText(i) for i in range(tabs.count())] == expected
+        i18n.install(qapp, "en")
+        i18n.translate_widgets(root)
+        assert [tabs.tabText(i) for i in range(tabs.count())] == [
+            "Summary", "Resources", "Sparing"]
+    finally:
+        i18n.install(qapp, "en")

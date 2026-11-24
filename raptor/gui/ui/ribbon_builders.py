@@ -125,6 +125,8 @@ class RibbonBuilders(_Base):
         # The manual's "Goto Hierarchy drop down list box" (App. B
         # Navigate menu): jump straight to any hierarchy by name.
         self._goto_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._goto_combo.setProperty("raptor_i18n_data_items", True)
         self._goto_combo.setToolTip("Go to a hierarchy")
         # Without a placeholder this reads as a blank, broken widget; and
         # after a refresh it used to sit on the first hierarchy in the
@@ -409,6 +411,8 @@ class RibbonBuilders(_Base):
         group.add_widget(box)
 
         self._breakpoint_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._breakpoint_combo.setProperty("raptor_i18n_data_items", True)
         self._breakpoint_combo.addItem("No breakpoint", None)
         self._breakpoint_combo.setMinimumWidth(width)
         self._breakpoint_combo.setMaximumWidth(220)

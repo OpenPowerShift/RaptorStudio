@@ -493,6 +493,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         bar.addWidget(self._hier_filter_label)
         from PySide6.QtWidgets import QComboBox
         self._hier_filter_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._hier_filter_combo.setProperty("raptor_i18n_data_items", True)
         self._hier_filter_combo.addItem("All", 0)
         self._hier_filter_combo.setToolTip(
             "Show only results for elements inside the chosen "
