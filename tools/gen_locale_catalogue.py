@@ -52,6 +52,7 @@ CONSTRUCTORS: dict[str, tuple[int, ...]] = {
     "QTreeWidgetItem": (0,),
     "QProgressDialog": (0, 1),
     "QDialog": (0,),
+    "QDockWidget": (0,),
     "QFileDialog": (1, 3),
     "QMessageBox": (1, 2),
 }
@@ -77,6 +78,7 @@ SETTERS: dict[str, tuple[int, ...]] = {
     "addItem": (0,),
     "addItems": (0,),
     "addAction": (0,),
+    "addRow": (0,),              # QFormLayout.addRow("Label:", widget)
     "addSection": (0,),
     "showMessage": (0,),
     "setFormat": (0,),
@@ -290,7 +292,7 @@ def presentation_labels() -> list[str]:
 #: its own row helpers and data tables of labels, which no call whitelist can
 #: follow; its code is mostly UI text, so the filter below keeps the text and
 #: drops identifiers, section keys and style sheets.
-SWEEP_FILES = ("ui/inspector.py", "ui/inspector_block_mixin.py",
+SWEEP_FILES = ("ui/run_panel.py", "ui/inspector.py", "ui/inspector_block_mixin.py",
                "ui/inspector_node_mixin.py", "ui/inspector_rows_mixin.py",
                "ui/inspector_annotation_mixin.py", "ui/inspector_common.py")
 
@@ -302,7 +304,10 @@ SWEEP_IGNORE = frozenset({
 })
 
 #: UI text the filter cannot tell from a key (a lower-case first letter).
-SWEEP_EXTRA = ("k* Target", "not a number", "a priority from 1 to 99",
+SWEEP_EXTRA = (# the Results ribbon's weak-link threshold row, built from
+               # (label, widget) pairs the call whitelist cannot follow
+               "Metric", "Green \u2265", "Red <",
+               "k* Target", "not a number", "a priority from 1 to 99",
                # the ribbon's canvas-overlay combo, filled from a table
                "No canvas overlay", "Share of downtime", "Lost capacity",
                "Weak link (own availability)", "Advisor findings")

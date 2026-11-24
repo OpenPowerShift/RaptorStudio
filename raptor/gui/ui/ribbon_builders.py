@@ -16,11 +16,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QSize, QStringListModel, Qt
-from PySide6.QtGui import QAction, QUndoStack
+from PySide6.QtGui import QAction, QFontMetrics, QUndoStack
 from PySide6.QtWidgets import (
     QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
     QLineEdit, QMenu, QSpinBox, QWidget,
 )
+
+from raptor.gui import i18n
 
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
@@ -856,12 +858,19 @@ class RibbonBuilders(_Base):
             spin.valueChanged.connect(commit_bands)
         # Stacked three high with their labels lined up, like any other
         # column of small controls.
-        for text, widget in (("Metric", self._weak_type_combo),
-                             ("Green ≥", self._gy_spin),
-                             ("Red <", self._yr_spin)):
+        rows = (("Metric", self._weak_type_combo),
+                ("Green ≥", self._gy_spin), ("Red <", self._yr_spin))
+        # Wide enough for the longest label in the user's language
+        # ("Vermelho <" is longer than "Red <"; a fixed 48 px clipped it).
+        metrics = QFontMetrics(self.font())
+        label_width = max(_scaled(48), max(
+            metrics.horizontalAdvance(i18n.translate_source(text))
+            for text, _w in rows) + _scaled(6))
+        for text, widget in rows:
             if widget is not self._weak_type_combo:
                 widget.setFixedWidth(_scaled(118))
-            group.add_widget(_labeled_box(text, widget, label_width=_scaled(48)))
+            group.add_widget(_labeled_box(text, widget,
+                                          label_width=label_width))
 
     def _init_find_box(self) -> None:
         """The Find box. Not on the ribbon: _setup_docks re-parents it into the Explorer."""

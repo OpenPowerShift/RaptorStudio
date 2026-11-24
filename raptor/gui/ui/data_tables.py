@@ -19,6 +19,7 @@ from typing import Any, cast
 
 from raptor.gui.ui.qtcompat import req
 
+from raptor.gui import i18n
 from raptor.gui.ui import msgbox
 
 from PySide6.QtCore import Qt, Signal, QTimer, QEvent
@@ -1145,12 +1146,17 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             # viewport. Follow the viewport's own resizes.
             table.viewport().installEventFilter(self)
         idx = self._tabs.indexOf(table)
-        title = self._tabs.tabText(idx) if idx >= 0 else "rows"
+        # The English title: the tab may already read in the user's
+        # language, and the sentence is translated whole below.
+        title = (i18n.source_text(self._tabs, f"tab:{idx}",
+                                  self._tabs.tabText(idx))
+                 if idx >= 0 else "rows")
         if table is self._blocks_table or table is self._costs_table:
             label.setText("No blocks on this level — open a hierarchy "
                           "or use the model-wide level.")
         else:
-            label.setText(f"No {title.lower()} in this model.")
+            label.setText(i18n.translate_source(
+                f"No {title.lower()} in this model."))
         label.setGeometry(table.viewport().rect())
         label.raise_()
         label.show()

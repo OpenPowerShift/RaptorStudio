@@ -296,6 +296,33 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
     "Stream %1": (),
     "%1 block - %2": (),
     "Dependency percentages must sum to 100 (got %1)": (),
+    # The title bar's buttons name their dock ("Minimize Inspector"); the
+    # dock is the translated piece, so a window title that the code reads
+    # back already translated is never mistaken for English.
+    "Minimize %1": (201,),
+    "Restore %1": (201,),
+    "Close %1": (201,),
+    "Redock %1": (201,),
+    "Float %1 in its own window": (201,),
+    "Return %1 to the dock": (201,),
+    # The status bar after a model opens.
+    "Loaded: %1 \u2014 %2 blocks, %3 nodes, %4 events, %5 links": (),
+    # The cores the Run panel and the status bar report.
+    "%1/%2 cores": (),
+    "%1/%2 cores (Animate)": (),
+    "%1 cores": (100,),
+    "%1 core": (100,),
+    "Full speed \u2014 %1 of %2 cores": (),
+    "Full speed \u2014 %1 of %2 core": (),
+    "%1. Change it in the Run panel.": (1,),
+    "More options: %1": (),
+    "No %1 in this model.": (1,),
+    "Show %1 ignored": (100,),
+    "Hide %1 ignored": (100,),
+    "A full-speed run splits its trials across this many cores (this "
+    "machine has %1). Sweep and Compare use them too. Any number from 2 up "
+    "gives the same results; one core gives a different random sequence: "
+    "statistically the same answer but not bit-identical.": (),
     # Messages for an entry the Inspector refused.  The field is named by
     # its (translated) label; a column name or an engine message stays as
     # written.
@@ -328,6 +355,49 @@ UNIT_WORDS: tuple[str, ...] = (
 )
 
 
+def run_panel_sources() -> list[str]:
+    """The Run panel's words that live in `raptor.core` / `raptor.api`.
+
+    The check boxes under *Recording* take their labels and hints from
+    ``run_experiment.RECORDING_FIELDS``, and every note beside an option is
+    written from ``run_needs.FEEDS``; the catalogue scan reads only
+    ``raptor/gui``, so none of it was ever extracted (and the generator
+    still reported the catalogue complete).  Each sentence is spelt out
+    here, in full, so a translator sees exactly what the panel shows.
+    """
+    from raptor.api import run_needs
+    from raptor.core import run_experiment as rx
+    out: list[str] = ["events", "nodes", "phases", "preventive maintenance",
+                      "resources", "spare pools", "sparing", "triggers",
+                      "Whole model", "1 core (Animate)",
+                      "IEC 61078 Annex D importance factors, estimated by "
+                      "re-simulation.",
+                      "Statistics gathering starts here, so start-up "
+                      "transients are excluded from the reported numbers.",
+                      rx._STATS_START_TOOLTIP,
+                      # the recordings' size note (raptor.core.storage_estimate)
+                      "No recordings ticked: nothing extra is written.",
+                      "Size on disk depends on how long each run lasts (the "
+                      "run does not stop at a fixed time).",
+                      "Lengthen a sample interval or untick a recording to "
+                      "reduce it.",
+                      "Animate \u2014 1 core, every event shown"]
+    for _key, label, hint in rx.RECORDING_FIELDS:
+        out += [label, hint]
+    notes: list[str] = []
+    for what in run_needs.FEEDS.values():
+        notes += [f"For {what}.", f"Off: {what[0].lower() + what[1:]} will be empty."]
+    out += notes
+    for key, (_analysis, word) in rx.RECORDING_REQUIRES.items():
+        label = next(lbl for k, lbl, _h in rx.RECORDING_FIELDS if k == key)
+        out += [f"{label} (needs {word})", f"needs {word}"]
+        feeds = run_needs.FEEDS[key]
+        out += [f"Needs the {word} analysis, under Results to calculate. {note}"
+                for note in (f"For {feeds}.",
+                             f"Off: {feeds[0].lower() + feeds[1:]} will be empty.")]
+    return out
+
+
 def dynamic_sources() -> list[str]:
     """Every catalogue source that no literal in the code spells out.
 
@@ -346,6 +416,7 @@ def dynamic_sources() -> list[str]:
     out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()
                    for lab in labs if lab})
     out += ["Rate", "Mu", "Sigma", "None (unrepairable)"]
+    out += run_panel_sources()
     # The five laws a block carries, named in the sentences built around
     # them ("Enter data... (Failure)").  Spelt out, not composed: each
     # reads differently in other languages.
@@ -405,7 +476,7 @@ def _unit(context: str, unit: str) -> str:
     return unit
 
 
-def _from_template(context: str, source: str) -> str | None:
+def _from_template(context: str, source: str) -> str | None:  # noqa: C901
     """*source* read as one of the :data:`TEMPLATES`, or None."""
     for rx, template, translated in _template_patterns():
         match = rx.match(source)
@@ -417,6 +488,14 @@ def _from_template(context: str, source: str) -> str | None:
         pieces = list(match.groups())
         complete = True
         for index in translated:
+            if index >= 200:
+                # 201 = piece 1, translated when the catalogue knows it and
+                # kept as written otherwise (a dock named "Advisor" is
+                # "Advisor" in Portuguese too, which is not a miss).
+                at = index - 201
+                if at < len(pieces):
+                    pieces[at] = _lookup(context, pieces[at], _CURRENT)
+                continue
             if index == 100:
                 if not _is_number(pieces[0]):
                     complete = False
@@ -478,7 +557,36 @@ def _lookup(context: str, source: str, locale: str) -> str:
         if head != stem or _is_number(stem):
             return f"{head} ({_unit(context, unit)}){tail}"
     filled = _from_template(context, source)
-    return source if filled is None else filled
+    if filled is not None:
+        return filled
+    return _from_sentences(context, source)
+
+
+_SENTENCE_BREAK = re.compile(r"(\n+|(?<=[.!?]) )")
+
+
+def _from_sentences(context: str, source: str) -> str:
+    """A tooltip assembled from catalogued sentences, line by line.
+
+    The Run panel writes a note from one table and a hint from another and
+    joins them (``"Off: ... will be empty. Adds one batch ..."``); no one
+    entry spells the whole.  Every sentence or line must have its own entry,
+    or the text is left as written: half a tooltip in each language is worse
+    than none.
+    """
+    parts = _SENTENCE_BREAK.split(source)
+    if len(parts) < 3:
+        return source
+    out: list[str] = []
+    for index, part in enumerate(parts):
+        if index % 2 or not any(ch.isalpha() for ch in part):
+            out.append(part)
+            continue
+        got = _lookup(context, part, _CURRENT)
+        if got == part:
+            return source
+        out.append(got)
+    return "".join(out)
 
 
 def translate_source(source: str, context: str = WIDGET_CONTEXT) -> str:
