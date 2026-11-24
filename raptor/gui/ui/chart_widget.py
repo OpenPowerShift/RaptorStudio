@@ -51,6 +51,16 @@ def _number(value) -> bool:
         and math.isfinite(float(value))
 
 
+#: The scorecard tile footer, singular or plural for each count (pt-BR and
+#: English both inflect them); keyed by (one member, one started outage).
+_SCORECARD_FOOT = {
+    (False, False): "%1 members · %2 started outages",
+    (True, False): "%1 member · %2 started outages",
+    (False, True): "%1 members · %2 started outage",
+    (True, True): "%1 member · %2 started outage",
+}
+
+
 @dataclass
 class _Frame:
     """A plot rectangle and the data range it maps."""
@@ -1756,6 +1766,8 @@ class ChartWidget(QWidget):
         """The tile's member and outage counts, kept to the left of the dot
         strip (elided) rather than running under the strip's labels."""
         foot = rect.adjusted(8, 0, -8, -6)
+        members = int(row.get('members') or 0)
+        starters = int(row.get('starters') or 0)
         if row.get("dots") and height >= 64:
             foot.setRight(rect.left() + rect.width() * 0.5 - 6)
         # wrapped (two lines at most), never cut off with an ellipsis
@@ -1763,9 +1775,8 @@ class ChartWidget(QWidget):
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom
                          | Qt.TextFlag.TextWordWrap,
                          chart_i18n.fmt(
-                             "%1 members · %2 started outages",
-                             int(row.get('members') or 0),
-                             int(row.get('starters') or 0)))
+                             _SCORECARD_FOOT[(members == 1, starters == 1)],
+                             members, starters))
 
     def _scorecard_strip(self, painter: QPainter, palette: dict[str, str],
                          row: dict, rect: QRectF, dot_max: float) -> None:

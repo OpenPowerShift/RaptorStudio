@@ -658,3 +658,13 @@ def test_the_capacity_target_line_is_labelled_in_the_gui_language(pt, qapp):
     widget.set_spec(spec)
     widget.grab()
     assert seen == ["meta de capacidade 90 % = 90"]
+
+
+def test_the_scorecard_footer_is_singular_for_one(pt):
+    from raptor.gui.ui.chart_widget import _SCORECARD_FOOT
+    assert chart_i18n.fmt(_SCORECARD_FOOT[(True, True)], 1, 1) == \
+        "1 membro · 1 interrupção iniciada"
+    assert chart_i18n.fmt(_SCORECARD_FOOT[(False, True)], 4, 1) == \
+        "4 membros · 1 interrupção iniciada"
+    assert chart_i18n.fmt(_SCORECARD_FOOT[(False, False)], 4, 2) == \
+        "4 membros · 2 interrupções iniciadas"
