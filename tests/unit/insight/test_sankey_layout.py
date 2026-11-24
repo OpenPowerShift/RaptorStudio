@@ -1,6 +1,8 @@
 """The lost-capacity Sankey's shared layout: stacked links, one scale."""
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from raptor.api.insight import charts, hierarchy as hier
@@ -154,3 +156,62 @@ def test_a_short_downstream_column_hangs_near_its_sources():
     end = max(boxes[str(n["id"])][0] + boxes[str(n["id"])][1] for n in hier_nodes)
     mid = (top + end) / 2
     assert lost[0] <= mid <= lost[0] + lost[1]
+
+
+@pytest.mark.parametrize("width", [400.0, 620.0, 1300.0])
+@pytest.mark.parametrize("columns", [2, 3, 4])
+def test_columns_never_overlap_and_links_keep_a_run(width, columns):
+    from raptor.api.insight.sankey_layout import MIN_RUN, NODE_W, horizontal
+    left, right, span = horizontal(width, columns, 400.0, 400.0, 60.0)
+    assert left >= 0 and right >= 0 and left + right + span == pytest.approx(width)
+    xs = [left + span * i / max(1, columns - 1) for i in range(columns)]
+    assert all(b - a >= NODE_W + MIN_RUN - 1e-6 for a, b in itertools.pairwise(xs))
+    assert xs[-1] + NODE_W <= width
+
+
+def test_narrow_labels_neither_overlap_nor_leave_the_area():
+    """The Qt painter at ~400 px: every drawn label rectangle stays inside the
+    chart and none overlaps another."""
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtGui import QImage, QPainter
+    from PySide6.QtWidgets import QApplication
+
+    from raptor.gui.ui.chart_widget import ChartWidget
+    app = QApplication.instance() or QApplication([])
+    spec = charts.capacity_sankey(_attribution())
+    widget = ChartWidget()
+    widget.resize(400, 560)
+    rects: list = []
+    original = QPainter.drawText
+    inside = {"on": False}
+    paint = widget._paint_sankey
+
+    def wrapped(*a, **k):
+        inside["on"] = True
+        try:
+            return paint(*a, **k)
+        finally:
+            inside["on"] = False
+    widget._paint_sankey = wrapped
+
+    def spy(self, *args):
+        if inside["on"] and args and hasattr(args[0], "width") and len(args) >= 3 and isinstance(args[2], str):
+            rects.append((args[0], args[2]))
+        return original(self, *args)
+    QPainter.drawText = spy  # type: ignore[method-assign]
+    try:
+        widget.set_spec(spec)
+        image = QImage(400, 560, QImage.Format.Format_ARGB32)
+        widget.render(image)
+    finally:
+        QPainter.drawText = original  # type: ignore[method-assign]
+    app.processEvents()
+    assert rects, "the painter drew no labels"
+    texts = list(rects)
+    for i, (a, _ta) in enumerate(texts):
+        assert a.left() >= -1 and a.right() <= 401
+        for b, _tb in texts[i + 1:]:
+            if a.width() > 1 and b.width() > 1:
+                inter = a.intersected(b)
+                assert inter.width() <= 1 or inter.height() <= 1

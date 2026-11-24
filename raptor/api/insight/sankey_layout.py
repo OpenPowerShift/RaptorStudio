@@ -155,3 +155,55 @@ def spread_labels(entries: Sequence[tuple[str, float, float]], lo: float,
             limit = min(limit, pos[i + 1] - (size[i] + size[i + 1]) / 2)
         pos[i] = min(pos[i], limit)
     return {items[i][0]: pos[i] for i in range(len(items))}
+
+
+NODE_W = 14.0
+MIN_RUN = 40.0  # least horizontal run of a link between two columns
+
+
+def horizontal(width: float, columns: int, first_w: float, last_w: float,
+               mid_w: float = 0.0) -> tuple[float, float, float]:
+    """(left pad, right pad, span) for a chart `width` wide.
+
+    The pads follow the widest label of the first and last columns but are
+    capped as a share of the width; when that leaves less than a node plus
+    `MIN_RUN` per gap (more where a middle column's amount must fit) between columns, the right pad (then the left) gives
+    way, so columns never overlap and every link keeps a run."""
+    left = min(max(first_w + 18.0, 56.0), width * 0.24)
+    right = min(max(last_w + 22.0, 90.0), width * 0.50)
+    # a middle column's label sits in the gap after it: room for its amount
+    step = max(NODE_W + MIN_RUN, mid_w + 24.0 if columns > 2 else 0.0)
+    need = step * max(1, columns - 1)
+    over = left + right + need - width
+    # give way in turn: the left pad to 64, the right to 110, then both
+    for which, floor in (("l", 64.0), ("r", 110.0), ("l", 48.0), ("r", 80.0)):
+        if over <= 0:
+            break
+        cur = left if which == "l" else right
+        cut = min(over, max(0.0, cur - floor))
+        if which == "l":
+            left -= cut
+        else:
+            right -= cut
+        over -= cut
+    if over > 0:  # a very narrow chart: share what is left
+        scale = max(0.0, 1.0 - over / max(1.0, left + right))
+        left *= scale
+        right *= scale
+    return left, right, max(1.0, width - left - right)
+
+
+def fit_label(label: str, amounts: Sequence[str], width: float, width_of) -> str:
+    """`label · amount` for a one-line label: the amounts are tried in turn
+    (richest first, so the share goes before anything else); then the name
+    is shortened, never the amount."""
+    for amount in amounts:
+        text = f"{label} · {amount}"
+        if width_of(text) <= width:
+            return text
+    amount = amounts[-1]
+    tail = f"… · {amount}"
+    name = label
+    while name and width_of(name + tail) > width:
+        name = name[:-1]
+    return (name + tail) if name else amount
