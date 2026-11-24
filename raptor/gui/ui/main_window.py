@@ -1524,6 +1524,16 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _on_annotation_selected(self, anno_id: int):
         self._queue_inspector_selection("annotation", anno_id)
 
+    def _on_chart_compare_changed(self, refs: list) -> None:
+        """Ring the compared hierarchy ovals in their chart colours."""
+        from raptor.api.insight.hierarchy import SERIES_COLOURS
+        colours = {int(ref): SERIES_COLOURS[i % len(SERIES_COLOURS)]
+                   for i, ref in enumerate(refs or [])}
+        try:
+            self._diagram_dock.view.set_compare_emphasis(colours)
+        except RuntimeError:
+            return
+
     def _sync_chart_selection(self):
         """Two or more selected hierarchy ovals become the chart overlay."""
         try:
@@ -2342,6 +2352,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.element_clicked.connect(self._on_result_element_clicked)
         self._results.contents_changed.connect(self._sync_results_notice)
         self._results.enable_requested.connect(self._turn_on_and_run)
+        self._results.chart_compare_changed.connect(self._on_chart_compare_changed)
         # A run finishing, or its results being cleared, changes what the
         # Advisor can say (precision, what drives the downtime).
         self._results.contents_changed.connect(self._refresh_advisor)

@@ -6,7 +6,7 @@ from raptor.gui.ui.diagram_item_core import _phased_hatch, _snap_of, _snapped_x,
 from collections.abc import Callable, Mapping
 from typing import Any
 from PySide6.QtCore import (
-    Qt, QPointF,
+    Qt, QPointF, QRectF,
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QPainter, QPolygonF,
@@ -228,6 +228,8 @@ class _HierItem(QGraphicsEllipseItem):
         self._hier_id = hier_id
         self._on_moved = on_moved
         self._phased = False
+        #: series colour while compared with other hierarchies, else None
+        self._compare_ring: str | None = None
         self.setPen(QPen(QColor(COLOUR["relationship"]), 2))
         self.setBrush(QBrush(QColor(COLOUR["group_header"])))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -521,10 +523,36 @@ class _HierItem(QGraphicsEllipseItem):
             self._phased = bool(phased)
             self.update()
 
+    _RING = 6.0
+
+    def set_compare_ring(self, colour: str | None) -> None:
+        """A coloured ring while this oval is compared (the chart's series
+        colour); None clears it.  Pure view state."""
+        new = colour or None
+        if getattr(self, "_compare_ring", None) != new:
+            self.prepareGeometryChange()
+            self._compare_ring = new
+            self.update()
+
+    def boundingRect(self) -> QRectF:
+        rect = super().boundingRect()
+        if getattr(self, "_compare_ring", None):
+            m = self._RING + 2
+            return rect.adjusted(-m, -m, m, m)
+        return rect
+
     def paint(self, painter: QPainter, option, widget=None):
         super().paint(painter, option, widget)
         if self._phased:
             _phased_hatch(painter, "ellipse", self.rect())
+        ring = getattr(self, "_compare_ring", None)
+        if ring:
+            painter.save()
+            painter.setPen(QPen(QColor(ring), 4))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(self.rect().adjusted(
+                -self._RING / 2, -self._RING / 2, self._RING / 2, self._RING / 2))
+            painter.restore()
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
