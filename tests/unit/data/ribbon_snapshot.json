@@ -941,6 +941,16 @@
    "text": "Import Table\u2026",
    "tooltip": "Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value\n\nUnavailable: open or create a model first"
   },
+  "_import_template_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Data Table Template\u2026",
+   "tooltip": "Save the open model's block data as an Excel (.xlsx) or OpenDocument (.ods) sheet with the columns Import Table reads. Edit it, then import it back\n\nUnavailable: open or create a model first"
+  },
   "_importance_overlay_action": {
    "checkable": true,
    "checked": false,
@@ -1933,6 +1943,7 @@
    "_import_library_action": false,
    "_import_rbd_action": false,
    "_import_table_action": false,
+   "_import_template_action": false,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
@@ -2108,6 +2119,7 @@
    "_import_library_action": true,
    "_import_rbd_action": true,
    "_import_table_action": true,
+   "_import_template_action": true,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
@@ -2283,6 +2295,7 @@
    "_import_library_action": false,
    "_import_rbd_action": false,
    "_import_table_action": false,
+   "_import_template_action": false,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,

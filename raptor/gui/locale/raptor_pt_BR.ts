@@ -4281,10 +4281,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Quatro principais por tempo de inatividade</translation>
     </message>
     <message>
-      <source>Clear</source>
-      <translation>Limpar</translation>
-    </message>
-    <message>
       <source>No match</source>
       <translation>Nenhuma correspondência</translation>
     </message>
@@ -6795,6 +6791,10 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>The Advisor has no findings for this run.</source>
       <translation>O Advisor não tem constatações para esta execução.</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Limpar</translation>
     </message>
     <message>
       <source>Filter rows</source>
