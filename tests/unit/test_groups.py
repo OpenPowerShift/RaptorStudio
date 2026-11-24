@@ -191,3 +191,20 @@ def test_a_tags_value_that_is_a_bare_string_is_read_as_one_tag(rbd):
     assert G.tags_for(rbd, ref) == ["pumps"]
     assert G.tag_index(rbd) == {"pumps": {ref}}
     assert G.all_tags(rbd) == ["pumps"]
+
+
+def test_membership_edits_keep_a_stable_order():
+    """Members are stored in the order they were added, so the same edit
+    always writes the same file (a set's order varies between runs)."""
+    from types import SimpleNamespace
+    from raptor.core import groups as G
+    rbd = SimpleNamespace(groups=[], tags={})
+    gid = G.add_group(rbd, "Pumps", ["block:9", "block:2"])["id"]
+    assert G.add_to_group(rbd, gid, ["block:5", "block:2", "node:1"])
+    assert G.group_by_id(rbd, gid)["members"] == [
+        "block:9", "block:2", "block:5", "node:1"]
+    assert G.remove_from_group(rbd, gid, ["block:2"])
+    assert G.group_by_id(rbd, gid)["members"] == [
+        "block:9", "block:5", "node:1"]
+    assert not G.add_to_group(rbd, gid, ["block:9"])
+    assert not G.remove_from_group(rbd, gid, ["block:42"])

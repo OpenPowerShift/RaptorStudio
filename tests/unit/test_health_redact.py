@@ -325,3 +325,27 @@ def test_cli_health_says_when_there_are_no_issues(capsys):
     from raptor.cli.main import main
     assert main(["health", str(MODEL)]) == 0
     assert "no issues" in capsys.readouterr().out
+
+
+def test_share_safe_copy_renames_groups_and_tags():
+    """Group names, ids, descriptions and tags are typed prose; the copy
+    used to keep "Acme Site 7 pumps" verbatim (groups landed after the
+    share-safe copy was written)."""
+    from raptor.core import groups as g
+    rbd = load_rbds(MODEL)
+    g.add_group(rbd, "Acme Site 7 pumps", ["block:1"], description="Owned by J. Smith")
+    g.add_group(rbd, "Tagged", tag="customer-acme")
+    g.set_tags(rbd, "block:1", ["customer-acme", "rotating"])
+    out, _report = declassify(rbd)
+    text = repr((out.groups, out.tags))
+    for secret in ("Acme", "Smith", "customer-acme", "rotating", "Tagged"):
+        assert secret not in text
+    groups = g.groups_of(out)
+    assert [grp["name"] for grp in groups] == ["Group_1", "Group_2"]
+    # membership is structure: kept, and the tag-driven group still works
+    assert groups[0]["members"] == ["block:1"]
+    assert g.group_members(out, groups[1]) == {"block:1"}
+    # the original is untouched and names=False keeps them
+    assert g.groups_of(rbd)[0]["name"] == "Acme Site 7 pumps"
+    kept, _ = declassify(rbd, RedactOptions(names=False))
+    assert g.groups_of(kept)[0]["name"] == "Acme Site 7 pumps"

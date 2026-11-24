@@ -180,6 +180,38 @@ def _scrub_anchor(anchor: dict[str, Any],
     return out
 
 
+def _scrub_groups_and_tags(out: Any) -> int:
+    """Group names, ids, descriptions and tags are prose a user typed:
+    "Acme Site 7 pumps" names the site as surely as a block name does.
+    Rename them `Group_N` / `tag_N` (consistently, so a tag-driven group
+    still finds its members) and drop descriptions.  Colours and
+    membership are kept: they are structure, not identity."""
+    from raptor.core import groups as grp
+    tags = grp.clean_tags(getattr(out, "tags", None))
+    groups = grp.groups_of(out)
+    if not tags and not groups:
+        return 0
+    tag_map: dict[str, str] = {}
+
+    def tag_of(old: str) -> str:
+        if old not in tag_map:
+            tag_map[old] = f"tag_{len(tag_map) + 1}"
+        return tag_map[old]
+
+    out.tags = {ref: [tag_of(t) for t in values] for ref, values in tags.items()}
+    renamed = []
+    for index, group in enumerate(groups, 1):
+        clean = {key: value for key, value in group.items()
+                 if key not in ("description",)}
+        clean["id"] = f"g_{index}"
+        clean["name"] = f"Group_{index}"
+        if clean.get("tag"):
+            clean["tag"] = tag_of(str(clean["tag"]))
+        renamed.append(clean)
+    out.groups = renamed
+    return len(groups) + len(tag_map)
+
+
 def declassify(rbd: Any, options: RedactOptions | None = None  # noqa: C901, PLR0912, PLR0915
                ) -> tuple[Any, RedactReport]:
     """Return `(copy, report)`; the original model is not changed."""
@@ -224,20 +256,21 @@ def declassify(rbd: Any, options: RedactOptions | None = None  # noqa: C901, PLR
                 old = str(row.get(col) or "").strip()
                 if not old or old.casefold() in _REF_SENTINELS[section]:
                     continue
-                new = (rename.get((section, old))
-                       or rename_fold.get((section, old.casefold())))
+                target = (rename.get((section, old))
+                          or rename_fold.get((section, old.casefold())))
                 # A dangling reference still names the pool/trigger it
                 # intended; replace it too so no old label survives.
-                row[col] = new or f"{labels[section]}_unknown"
+                row[col] = target or f"{labels[section]}_unknown"
                 if row[col] != old:
                     report.names += 1
         # Comment rows carry the element name too.
         comments = getattr(out, "sections", {}).get("COMMENTS")
         for row in (comments.rows if comments is not None else ()):
             old = str(row.get("Name") or "").strip()
-            new = namemap.get(old) or namemap.get(old.casefold())
-            if new is not None:
-                row["Name"] = new
+            renamed = namemap.get(old) or namemap.get(old.casefold())
+            if renamed is not None:
+                row["Name"] = renamed
+        report.names += _scrub_groups_and_tags(out)
 
     if opts.comments:
         sec = getattr(out, "sections", {}).get("COMMENTS")

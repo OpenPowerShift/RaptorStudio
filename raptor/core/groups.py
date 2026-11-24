@@ -367,11 +367,13 @@ def add_to_group(rbd: Any, group_id: str, refs: Iterable[str]) -> bool:
     group = group_by_id(rbd, group_id)
     if group is None:
         return False
-    before = set(group.get("members") or ())
-    after = before | set(refs)
-    if after == before:
+    before = list(group.get("members") or ())
+    # A list, not a set: set order changes between Python runs, so saving
+    # the same edit twice wrote the members in a different order.
+    added = [ref for ref in _clean_members(refs) if ref not in before]
+    if not added:
         return False
-    update_group(rbd, group_id, members=after)
+    update_group(rbd, group_id, members=before + added)
     return True
 
 
@@ -379,9 +381,10 @@ def remove_from_group(rbd: Any, group_id: str, refs: Iterable[str]) -> bool:
     group = group_by_id(rbd, group_id)
     if group is None:
         return False
-    before = set(group.get("members") or ())
-    after = before - set(refs)
-    if after == before:
+    before = list(group.get("members") or ())
+    gone = set(_clean_members(refs))
+    after = [ref for ref in before if ref not in gone]
+    if len(after) == len(before):
         return False
     update_group(rbd, group_id, members=after)
     return True
