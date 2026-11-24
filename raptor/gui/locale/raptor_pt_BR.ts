@@ -9637,16 +9637,16 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>A maioria das paradas é curta e poucas são muito longas? A cauda longa é onde olhar.</translation>
     </message>
     <message>
-      <source>Each dot is an element: how often it stops against how long. Short and long stops need different fixes.</source>
-      <translation>Cada ponto é um elemento: a frequência das paradas contra a duração. Paradas curtas e longas pedem correções diferentes.</translation>
+      <source>Each bubble is an element: how often it takes the system down against how long each outage lasts.</source>
+      <translation>Cada bolha é um elemento: quantas vezes ele derruba o sistema contra quanto dura cada parada.</translation>
     </message>
     <message>
       <source>Bars show capacity each element lost. Differs from downtime when a failure only part-stops output.</source>
       <translation>As barras mostram a capacidade perdida por elemento. Difere da inatividade quando a falha só reduz a produção.</translation>
     </message>
     <message>
-      <source>Each dot is an element: how long it is down against the output it loses. Odd ones out are worth a look.</source>
-      <translation>Cada ponto é um elemento: o tempo parado contra a produção perdida. Os pontos fora do padrão merecem atenção.</translation>
+      <source>Each dot is an element: its downtime share against lost output. Dots at the left lose output without stopping.</source>
+      <translation>Cada ponto é um elemento: sua parcela da inatividade contra a produção perdida. Os da esquerda perdem produção sem parar.</translation>
     </message>
     <message>
       <source>Each bar is capacity lost to one cause. The biggest bar is the one to tackle.</source>
@@ -9661,8 +9661,8 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Faixas grossas são os principais caminhos da perda. Leia da esquerda para a direita, da hierarquia até a causa.</translation>
     </message>
     <message>
-      <source>Each year gets its own spread. A yearly dip shows planned shutdowns or ageing.</source>
-      <translation>Cada ano tem a sua dispersão. Uma queda anual indica paradas planejadas ou envelhecimento.</translation>
+      <source>Each year's spread across runs. A wide band means bad years happen; a falling middle means ageing.</source>
+      <translation>A dispersão de cada ano entre as execuções. Faixa larga: anos ruins acontecem; mediana em queda: envelhecimento.</translation>
     </message>
     <message>
       <source>Dots below the target line are missed years. Counts how often the target is missed.</source>
@@ -9681,8 +9681,8 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Área maior significa custo maior. Ajuda a notar o gasto de vários elementos pequenos somados.</translation>
     </message>
     <message>
-      <source>Splits operating cost into its categories. Find the biggest one and start there.</source>
-      <translation>Divide o custo operacional em categorias. Encontre a maior e comece por ela.</translation>
+      <source>Splits life-cycle cost into its categories. Find the biggest one and start there.</source>
+      <translation>Divide o custo do ciclo de vida em categorias. Encontre a maior e comece por ela.</translation>
     </message>
     <message>
       <source>The slope is spend per time. A steepening line means costs are rising as the system ages.</source>
