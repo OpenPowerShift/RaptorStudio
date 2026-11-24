@@ -440,9 +440,12 @@ class BackgroundRunMixin(_Base):
                 import traceback
                 traceback.print_exc()
                 self._discard_report_streams(streams)
-                state["error"] = "".join(
-                    traceback.format_exception_only(type(e), e)).strip() \
-                    + "\n" + traceback.format_exc(limit=8)
+                from raptor.gui.run_text import disk_full_text
+                full = disk_full_text(e)
+                state["error_is_disk_full"] = full is not None
+                state["error"] = full or ("".join(
+                    traceback.format_exception_only(type(e), e)).strip()
+                    + "\n" + traceback.format_exc(limit=8))
             finally:
                 _resume_cyclic_gc()
                 state.update({"phase": "done", "done": True})
@@ -711,6 +714,10 @@ class BackgroundRunMixin(_Base):
         try:
             err = state.get("error")
             if err:
+                if state.get("error_is_disk_full"):
+                    msgbox.critical(self, "Out of Disk Space", err)
+                    self._statusbar.showMessage("Run failed — out of disk space")
+                    return
                 msgbox.critical(self, "Simulation Failed",
                                 f"The background run failed:\n\n{err}")
                 self._statusbar.showMessage("Run failed")

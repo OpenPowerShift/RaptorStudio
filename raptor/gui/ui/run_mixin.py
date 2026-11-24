@@ -681,6 +681,12 @@ class RunMixin(_Base):
             return
         except Exception as e:
             self._abandon_foreground_run(streams)
+            from raptor.gui.run_text import disk_full_text
+            full = disk_full_text(e)
+            if full:
+                msgbox.critical(self, "Out of Disk Space", full)
+                self._statusbar.showMessage("Run failed — out of disk space")
+                return
             msgbox.critical(self, "Simulation Failed", f"The run failed:\n\n{e}")
             self._statusbar.showMessage("Run failed")
             return
