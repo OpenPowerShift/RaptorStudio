@@ -80,6 +80,13 @@ def test_filter_shows_matches_and_their_ancestors(qapp):
     assert len(picker.visible_names()) == len(picker._all)
 
 
+def test_plain_text_matches_names_not_every_descendant(qapp):
+    picker = _picker()
+    found = picker.apply_filter("area 1")
+    assert found == 1
+    assert picker.apply_filter("area 1 >unit 2") == 4
+
+
 def test_filter_is_case_insensitive(qapp):
     picker = _picker()
     assert picker.apply_filter("PUMP") == picker.apply_filter("pump") > 0

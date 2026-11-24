@@ -37,6 +37,7 @@ COMPARE_LIMIT = 4
 FILTER_DELAY_MS = 150
 _REF = Qt.ItemDataRole.UserRole
 _PATH = Qt.ItemDataRole.UserRole + 1
+_NAME = Qt.ItemDataRole.UserRole + 2
 
 #: Mode names.
 SCOPE = "scope"
@@ -106,7 +107,6 @@ class HierarchyTreePopup(QFrame):
         self.note_label.setWordWrap(True)
         self.note_label.hide()
         foot = QHBoxLayout()
-        foot.addWidget(self.count_label, 1)
         self.top_button: QPushButton | None = None
         self.clear_button: QPushButton | None = None
         if mode == COMPARE:
@@ -116,9 +116,11 @@ class HierarchyTreePopup(QFrame):
             self.clear_button = QPushButton("Clear")
             self.clear_button.setAutoDefault(False)
             self.clear_button.clicked.connect(self._clear)
-            foot.addWidget(self.top_button)
+            foot.addWidget(self.top_button, 1)
             foot.addWidget(self.clear_button)
-        lay.addLayout(foot)
+        lay.addWidget(self.count_label)
+        if mode == COMPARE:
+            lay.addLayout(foot)
         lay.addWidget(self.note_label)
         self.setFixedWidth(px(380))
         self._timer = QTimer(self)
@@ -174,6 +176,7 @@ class HierarchyTreePopup(QFrame):
                 item.setData(0, _REF, ref)
                 path = " > ".join(str(p) for p in row.get("path") or [])
                 item.setData(0, _PATH, (path or str(row.get("name") or "")).lower())
+                item.setData(0, _NAME, str(row.get("name") or "").lower())
                 item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight
                                       | Qt.AlignmentFlag.AlignVCenter)
                 if self.mode == COMPARE:
@@ -212,6 +215,11 @@ class HierarchyTreePopup(QFrame):
                         else Qt.CheckState.Unchecked)
                 if item.checkState(0) != want:
                     item.setCheckState(0, want)
+                if ref in ticked:  # a ticked row is never hidden in a fold
+                    parent = item.parent()
+                    while parent is not None and not parent.isExpanded():
+                        parent.setExpanded(True)
+                        parent = parent.parent()
             self._update_note()
             return
         target = (self._items.get(self._current[0]) if self._current
@@ -253,8 +261,12 @@ class HierarchyTreePopup(QFrame):
     def _filter(self, needle: str) -> int:
         shown: set[int] = set()
         matches = 0
+        # plain text matches a hierarchy's own name (its sub-hierarchies would
+        # otherwise all match through the path); a ">" asks for the path
+        role = _PATH if ">" in needle else _NAME
+        needle = " > ".join(p.strip() for p in needle.split(">"))
         for item in self._all:
-            if needle in item.data(0, _PATH):
+            if needle in item.data(0, role):
                 matches += 1
                 node: QTreeWidgetItem | None = item
                 while node is not None and id(node) not in shown:
@@ -268,7 +280,7 @@ class HierarchyTreePopup(QFrame):
         if self._system_item is not None:
             self._system_item.setHidden(needle not in "system")
         first = next((i for i in self._all if not i.isHidden()
-                      and needle in i.data(0, _PATH)), None)
+                      and needle in i.data(0, role)), None)
         if first is not None:
             self.tree.setCurrentItem(first)
             self.tree.scrollToItem(first)
