@@ -1540,9 +1540,53 @@ def _zero_hierarchies(attribution: dict[str, Any] | None) -> list[str]:
             if not float((row.get("dtci") or {}).get("mean") or 0.0)]
 
 
-def hierarchy_scorecard(attribution: dict[str, Any], top: int = 8,
-                        depth: int | None = 1) -> ChartSpec:
-    """P0: one tile per hierarchy at the chosen level, answer first."""
+def scorecard_badge(row: dict[str, Any]) -> tuple[str, str] | None:
+    """(tone, text) of a scorecard tile's baseline badge, or None without a
+    baseline.  A glyph and a word carry the direction, not colour alone; less
+    downtime share is better.  Tone: good, bad, neutral."""
+    info = row.get("baseline")
+    if not isinstance(info, dict):
+        return None
+    if info.get("status") == "new":
+        return "neutral", "new (not in baseline)"
+    points = float(info.get("delta") or 0.0) * 100.0
+    if abs(points) < 0.05:
+        return "neutral", "= no change"
+    if points < 0:
+        return "good", f"▼ {abs(points):.2g} pts better"
+    return "bad", f"▲ {points:.2g} pts worse"
+
+
+def scorecard_scale_text(x_max: float) -> str:
+    """The end of the strip scale shared by the tiles, e.g. "37 %"."""
+    points = x_max * 100.0
+    return f"{points:.0f} %" if points >= 10 else f"{points:.2g} %"
+
+
+def scorecard_strip(dots: Sequence[dict[str, Any]], x_max: float, width: float,
+                    radius: float, levels: int = 4) -> list[tuple[float, int]]:
+    """(x, level) for each quantile dot of a tile's per-run strip: x on the
+    scale shared by every tile (0 to `x_max`, `width` wide); a dot that would
+    touch the one before it in its row moves up a level."""
+    out: list[tuple[float, int]] = []
+    reach: list[float] = [-1e9] * levels
+    for dot in dots:
+        x = float(dot["value"]) / x_max * width if x_max > 0 else 0.0
+        level = next((i for i in range(levels) if x - reach[i] >= 2 * radius + 1),
+                     levels - 1)
+        reach[level] = x
+        out.append((x, level))
+    return out
+
+
+def hierarchy_scorecard(attribution: dict[str, Any], top: int = 8,  # noqa: C901
+                        depth: int | None = 1,
+                        baseline: list[dict[str, Any]] | None = None) -> ChartSpec:
+    """P0: one tile per hierarchy at the chosen level, answer first.
+
+    Each tile carries the per-run shares as quantile dots and, given a
+    `baseline` (hierarchy rows of an earlier run, matched by id as in
+    `hierarchy_delta`), the change in share against it."""
     found = hier.rows_at_depth(attribution, depth or 1)
     found.sort(key=lambda row: (-(float((row.get("dtci") or {}).get("mean") or 0.0)),
                                 str(row.get("name") or "")))
@@ -1557,6 +1601,19 @@ def hierarchy_scorecard(attribution: dict[str, Any], top: int = 8,
         "trials": [float(item.get("dtci") or 0.0)
                    for item in row.get("trials") or []],
     } for row in shown]
+    for entry in series:
+        entry["dots"] = quantile_dots(entry["trials"], 25)
+    dot_max = max((float(dot["value"]) for entry in series
+                   for dot in entry["dots"]), default=0.0)
+    if baseline:
+        before = {int(item.get("id") or 0): item for item in
+                  hier.rows_at_depth({"hierarchies": baseline}, depth or 1)}
+        for row, entry in zip(shown, series, strict=True):
+            was = before.get(int(row.get("id") or 0))
+            entry["baseline"] = (
+                {"status": "new"} if was is None else
+                {"status": "same", "before": float((was.get("dtci") or {}).get("mean") or 0.0),
+                 "delta": entry["value"] - float((was.get("dtci") or {}).get("mean") or 0.0)})
     zeros = [row["name"] for row in series if not row["value"]]
     if series and any(row["value"] for row in series):
         caption = (f"{series[0]['name']} holds the largest share of system "
@@ -1578,10 +1635,13 @@ def hierarchy_scorecard(attribution: dict[str, Any], top: int = 8,
         "scorecard", "Hierarchy scorecard",
         "one card per hierarchy: share of system downtime, ±2 standard errors, "
         "members and starters"
-        f" · {hier.depth_text(depth)}", "", "share of system downtime",
+        f" · {hier.depth_text(depth)}"
+        + (" · badges compare with the baseline run" if baseline else ""),
+        "", "share of system downtime",
         series=series, caption=caption,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
-                    "depth": depth,
+                    "depth": depth, "dot_max": dot_max,
+                    "has_baseline": bool(baseline),
                     "scope": {"kind": "system", "name": "System",
                               "path": ["System"]}},
         scope={"kind": "system", "id": 0, "name": "System", "path": ["System"]})
@@ -1811,6 +1871,12 @@ def hierarchy_overlay(attribution: dict[str, Any],
     y_max = max(y_max * 1.05, 1e-9)
     end_values = [(layer["name"], float(layer["y"][-1])) for layer in layers
                   if layer.get("name") != "system"]
+    for layer in layers:
+        # direct label at the line end replaces the key (one name, in the
+        # line's own colour, beside the line it names)
+        layer["end_value"] = f"{float(layer['y'][-1]):,.3g}{unit}"
+        layer["end_text"] = f"{layer.get('name')} {layer['end_value']}"
+        layer["key"] = False
     caption = ("By the end of the run, " + ", ".join(
         f"{name} caused {value:,.3g}{unit}" for name, value in end_values) + ".")
     if not hierarchies and len(available) > len(selected):
@@ -1827,7 +1893,8 @@ def hierarchy_overlay(attribution: dict[str, Any],
         series=layers,
         caption=caption,
         provenance={"runs": attribution.get("runs", 0), "y_range": [0.0, y_max],
-                    "time_units": units, "format": "", "hierarchies": names},
+                    "time_units": units, "format": "", "hierarchies": names,
+                    "end_labels": True},
         scope={"kind": "selection", "id": 0,
                "name": (f"{len(names)} hierarchy" if len(names) == 1
                         else f"{len(names)} hierarchies"),
@@ -3071,7 +3138,7 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
     source = hier.scoped(attribution, row) if row is not None else (attribution or {})
     meta = hier.scope_meta(attribution, row)
     if name == "hierarchy-scorecard":
-        return hierarchy_scorecard(source, depth=depth)
+        return hierarchy_scorecard(source, depth=depth, baseline=baseline)
     # checked above: a hierarchy chart without a roll-up has raised
     rolled_up: dict[str, Any] = attribution or {}
     if name == "hierarchy-pareto":

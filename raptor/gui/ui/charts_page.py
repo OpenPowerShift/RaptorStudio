@@ -924,7 +924,9 @@ class ChartsPage(QWidget):
         no_compare = ("" if has_comparable else
                       "No hierarchy has downtime to compare in this run.")
         add("hierarchy-scorecard", "Hierarchy scorecard", "By hierarchy",
-            lambda: charts.hierarchy_scorecard(attribution or {}, depth=self._ranking_depth()),
+            lambda: charts.hierarchy_scorecard(
+                attribution or {}, depth=self._ranking_depth(),
+                baseline=self._baseline_rows),
             scope_reason or no_hier)
         add("hierarchy-pareto", "Hierarchy Pareto", "By hierarchy",
             lambda: charts.hierarchy_pareto(attribution or {}, self._scope,

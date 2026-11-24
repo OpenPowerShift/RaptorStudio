@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_right
+from collections.abc import Sequence
 from typing import Any
 
 from raptor.api.insight.axes import format_value
@@ -114,6 +115,29 @@ def in_key(layer: dict[str, Any]) -> bool:
         return any(float(h) - float(lo) > 1e-12
                    for h, lo in zip(layer.get("hi") or (), layer.get("lo") or ()))
     return True
+
+
+def spread_labels(ys: Sequence[float], gap: float, top: float,
+                  bottom: float) -> list[float]:
+    """Vertical positions for direct end labels: each as near its line end
+    as possible, none closer than `gap` to another, all within top..bottom.
+
+    A forward pass pushes labels down off the one above; if the last then
+    falls below `bottom`, a backward pass pushes them back up.  Input order
+    is kept in the result.
+    """
+    order = sorted(range(len(ys)), key=lambda i: ys[i])
+    placed = [min(max(ys[i], top), bottom) for i in order]
+    for k in range(1, len(placed)):
+        placed[k] = max(placed[k], placed[k - 1] + gap)
+    if placed and placed[-1] > bottom:
+        placed[-1] = bottom
+        for k in range(len(placed) - 2, -1, -1):
+            placed[k] = min(placed[k], placed[k + 1] - gap)
+    out = [0.0] * len(ys)
+    for k, i in enumerate(order):
+        out[i] = placed[k]
+    return out
 
 
 def _spec(title: str, subtitle: str, units: str, layers: list[dict[str, Any]], *,
