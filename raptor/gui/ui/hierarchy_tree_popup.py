@@ -34,6 +34,8 @@ from raptor.gui.resources.design_tokens import SPACING, active_colour, px
 
 #: The comparison charts draw at most this many branches.
 COMPARE_LIMIT = 4
+#: The list's height cap; past it, it scrolls.
+TREE_MAX_HEIGHT = 320
 FILTER_DELAY_MS = 150
 _REF = Qt.ItemDataRole.UserRole
 _PATH = Qt.ItemDataRole.UserRole + 1
@@ -95,7 +97,7 @@ class HierarchyTreePopup(QFrame):
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, self.tree.header().ResizeMode.Stretch)
         self.tree.header().setSectionResizeMode(1, self.tree.header().ResizeMode.ResizeToContents)
-        self.tree.setFixedHeight(px(320))
+        self.tree.setFixedHeight(px(TREE_MAX_HEIGHT))
         self.tree.itemActivated.connect(self._on_activated)
         self.tree.itemClicked.connect(self._on_clicked)
         self.tree.itemChanged.connect(self._on_item_changed)
@@ -108,16 +110,13 @@ class HierarchyTreePopup(QFrame):
         self.note_label.hide()
         foot = QHBoxLayout()
         self.top_button: QPushButton | None = None
-        self.clear_button: QPushButton | None = None
         if mode == COMPARE:
             self.top_button = QPushButton("Top four by downtime")
             self.top_button.setAutoDefault(False)
             self.top_button.clicked.connect(self._top_four)
-            self.clear_button = QPushButton("Clear")
-            self.clear_button.setAutoDefault(False)
-            self.clear_button.clicked.connect(self._clear)
+            # No separate "Clear": an empty comparison already means the
+            # top four, so it would do exactly what this button does.
             foot.addWidget(self.top_button, 1)
-            foot.addWidget(self.clear_button)
         lay.addWidget(self.count_label)
         if mode == COMPARE:
             lay.addLayout(foot)
@@ -197,6 +196,7 @@ class HierarchyTreePopup(QFrame):
             self._building = False
         self._update_count(len(self._all), len(self._all))
         self.last_build_ms = (time.perf_counter() - began) * 1000.0
+        self._fit_height()
 
     def set_current(self, current: Sequence[int]) -> None:
         """Sync the choice (ids) without rebuilding the tree."""
@@ -235,6 +235,18 @@ class HierarchyTreePopup(QFrame):
             self.tree.scrollToItem(target, QAbstractItemView.ScrollHint.PositionAtCenter)
 
     # -- filtering -------------------------------------------------------
+
+    def _fit_height(self) -> None:
+        """Size the list once per set of hierarchies: room for every row when
+        there are few (no empty box under three hierarchies), else the
+        scrolling cap. Sizing on each expand or keystroke would make the
+        popup jump under the pointer."""
+        rows = len(self._all) + (1 if self._system_item is not None else 0)
+        row_h = max(self.tree.fontMetrics().height() + px(6), 1)
+        frame = 2 * self.tree.frameWidth() + px(4)
+        self.tree.setFixedHeight(min(px(TREE_MAX_HEIGHT),
+                                     max(rows, 1) * row_h + frame))
+        self.adjustSize()
 
     def apply_filter(self, text: str) -> int:
         """Show matches and their ancestors; return the match count."""
@@ -353,9 +365,6 @@ class HierarchyTreePopup(QFrame):
         self.set_current([])
         self.hide()
         self.compare_chosen.emit([])
-
-    def _clear(self) -> None:
-        self._top_four()
 
     # -- keyboard --------------------------------------------------------
 

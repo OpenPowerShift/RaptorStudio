@@ -170,16 +170,19 @@ def test_space_toggles_a_compare_row(qapp):
     assert picker.tree.topLevelItem(0).checkState(0) == Qt.CheckState.Checked
 
 
-def test_top_four_and_clear_send_an_empty_set(qapp):
+def test_top_four_sends_an_empty_set_and_unticks_everything(qapp):
     picker = _picker(COMPARE, current=[1, 2])
     assert picker.checked_refs() == [1, 2]
     spy = QSignalSpy(picker.compare_chosen)
     picker.top_button.click()
     assert spy.at(spy.count() - 1)[0] == []
-    picker.set_current([3])
-    picker.clear_button.click()
-    assert spy.at(spy.count() - 1)[0] == []
     assert picker.checked_refs() == []
+
+
+def test_there_is_no_clear_button_that_would_repeat_top_four(qapp):
+    # An empty comparison is the top four, so "Clear" did the same thing.
+    picker = _picker(COMPARE)
+    assert not hasattr(picker, "clear_button")
 
 
 def test_large_tree_builds_and_filters_within_budget(qapp):
@@ -225,3 +228,16 @@ def test_the_page_applies_scope_and_compare_through_the_picker(qapp):
     assert page.selected_hierarchies() == []
     # the picker is reused, not rebuilt, while the hierarchies are the same
     assert page.picker("compare") is compare
+
+
+def test_a_few_hierarchies_get_a_short_list_and_many_get_the_scroll_cap(qapp):
+    from raptor.gui.resources.design_tokens import px
+    from raptor.gui.ui.hierarchy_tree_popup import TREE_MAX_HEIGHT
+    few = _picker(COMPARE, rows=_rows(n_top=3, fan=1, depth=1))
+    many = _picker(COMPARE, rows=_rows(n_top=10, fan=6, depth=3))
+    assert few.tree.height() < px(TREE_MAX_HEIGHT) / 2
+    assert many.tree.height() == px(TREE_MAX_HEIGHT)
+    # Sized once per set of rows, not on each keystroke: no jumping popup.
+    before = many.tree.height()
+    many.apply_filter("unit")
+    assert many.tree.height() == before
