@@ -342,9 +342,11 @@ def test_save_version_now_command_opens_the_dialog_in_save_mode(
     from raptor.core.fileio.rbds import load_rbds
     from raptor.gui.command_table import COMMANDS
     ids = {c.id: c for c in COMMANDS}
-    assert ids["file.save_version"].shortcut == "Ctrl+Alt+S"
-    shortcuts = [c.shortcut for c in COMMANDS if c.shortcut]
-    assert shortcuts.count("Ctrl+Alt+S") == 1
+    assert ids["file.save_version"].handler == "_save_version_now"
+    from raptor.gui.command_table import BACKSTAGE
+    file_ids = dict(BACKSTAGE)["File"]
+    assert file_ids.index("file.save_version") + 1 == \
+        file_ids.index("file.history")
     model = tmp_path / "plant.rbds"
     model.write_bytes(DC1.read_bytes())
     window._load_into_app(load_rbds(str(model)), str(model))

@@ -1859,7 +1859,7 @@
   "Save description": "Salvar descrição",
   "Save every block of this model as reusable templates": "Salvar todos os blocos deste modelo como modelos reutilizáveis",
   "Save selection…": "Salvar seleção…",
-  "Save the current state as a named version you can come back to (Ctrl+Alt+S)": "Salva o estado atual como uma versão com nome, à qual você pode voltar (Ctrl+Alt+S)",
+  "Save the current state as a named version you can come back to": "Salva o estado atual como uma versão com nome, à qual você pode voltar",
   "Save the current state as a version (saves unsaved edits first)": "Salvar o estado atual como uma versão (salva antes as edições não salvas)",
   "Save the currently displayed hierarchy level as a scalable vector (.svg) file, for editing or embedding elsewhere at any resolution": "Salvar o nível de hierarquia exibido no momento como um arquivo vetorial escalável (.svg), para editar ou incorporar em outros lugares em qualquer resolução",
   "Save the currently selected sub-tab's report text verbatim as a .txt file.": "Salvar o texto do relatório da subaba selecionada no momento, literalmente, como um arquivo .txt.",

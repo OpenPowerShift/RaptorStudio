@@ -95,9 +95,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="history_clock_icon:text",
         tooltip=(
             "Save the current state as a named version you can come back "
-            "to (Ctrl+Alt+S)"),
+            "to"),
         handler="_save_version_now",
-        shortcut="Ctrl+Alt+S",
         enabled_when="has_file"),
     CommandSpec(
         id="file.close_file",
