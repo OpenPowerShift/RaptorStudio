@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from raptor.gui.ui.inspector_common import (
     _SIM_START,
+    WrappingCheckBox,
     _WordWrapCheckBox,
 )
 
@@ -12,7 +13,7 @@ from raptor.gui.ui.qtcompat import req
 
 from typing import TYPE_CHECKING, Any
 from PySide6.QtWidgets import (
-    QWidget, QCheckBox, QDoubleSpinBox, QComboBox, QPushButton,
+    QWidget, QDoubleSpinBox, QComboBox, QPushButton,
     QRadioButton, QButtonGroup,
 )
 
@@ -231,8 +232,10 @@ class InspectorBlockMixin(_Base):
         from PySide6.QtWidgets import QPushButton
         button = QPushButton("Estimate from experience…")
         button.setToolTip(
-            "No data? Say what share " + ("fails" if use == "fail" else "is repaired")
-            + " by a given age (one in ten by 100 hours, half by 300) and fit "
+            "No data? Say what share fails by a given age (one in ten by 100 hours, half by 300) and fit "
+            "a Weibull, lognormal or exponential law to the answers."
+            if use == "fail" else
+            "No data? Say what share is repaired by a given age (one in ten by 100 hours, half by 300) and fit "
             "a Weibull, lognormal or exponential law to the answers.")
         button.clicked.connect(lambda: self.experience_requested.emit(block_id, use))
         form.addRow("", button)
@@ -347,7 +350,7 @@ class InspectorBlockMixin(_Base):
         restore_combo.currentIndexChanged.connect(_restore_type_chosen)
         fl.addRow("Restoration factor:", restore_spin)
 
-        gd_cb = QCheckBox(
+        gd_cb = WrappingCheckBox(
             "This block's mean life changes following a failure")
         gd_cb.setToolTip(
             "Reliability growth or decay: after each failure the block's "
@@ -459,6 +462,7 @@ class InspectorBlockMixin(_Base):
         pool_combo = QComboBox()
         # Model names, not chrome: never run them through the catalogue.
         pool_combo.setProperty("raptor_i18n_data_items", True)
+        pool_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         pool_combo.addItem("(none)", "")
         pools_sec = (self._rbd.sections.get("SPARE_POOL_DATA")
                      if self._rbd else None)
@@ -472,7 +476,8 @@ class InspectorBlockMixin(_Base):
         pool_combo.setToolTip("Spare pool this block draws from")
         pool_combo.activated.connect(
             lambda _i, b=bid2, cmb=pool_combo:
-            self.pool_name_changed.emit(b, cmb.currentText()))
+            self.pool_name_changed.emit(
+                b, cmb.currentText() if cmb.currentData() else "(none)"))
         fl.addRow("Pool:", pool_combo)
         manage_pools_btn = QPushButton("Manage Spare Pools…")
         manage_pools_btn.setToolTip(
@@ -610,6 +615,7 @@ class InspectorBlockMixin(_Base):
         res_combo = QComboBox()
         # Model names, not chrome: never run them through the catalogue.
         res_combo.setProperty("raptor_i18n_data_items", True)
+        res_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         res_combo.addItem("(none)", "")
         res_sec = (self._rbd.sections.get("RESOURCE_DATA")
                   if self._rbd else None)
@@ -704,6 +710,7 @@ class InspectorBlockMixin(_Base):
         trig_combo = QComboBox()
         # Model names, not chrome: never run them through the catalogue.
         trig_combo.setProperty("raptor_i18n_data_items", True)
+        trig_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         trig_combo.addItem("(none)", "")
         trig_sec = (self._rbd.sections.get("TRIGGERS")
                     if self._rbd else None)
@@ -716,17 +723,21 @@ class InspectorBlockMixin(_Base):
             trig_combo.setCurrentIndex(max(ti2, 0))
         trig_combo.setEnabled(block.pm_triggered)
 
+        def _trig_text() -> str:
+            # The first entry is chrome and may be translated: the model is
+            # always told the English word.
+            return trig_combo.currentText() if trig_combo.currentData() else "(none)"
+
         def _trig_toggled(on: bool):
             self.block_pm_trig_changed.emit(
-                block_id, on, trig_combo.currentText())
+                block_id, on, _trig_text())
             trig_combo.setEnabled(on)
         def _trig_name(chosen: str):
             if block.pm_triggered:
                 self.block_pm_trig_changed.emit(
                     block_id, True, chosen)
         trig_cb.toggled.connect(_trig_toggled)
-        trig_combo.activated.connect(lambda _i: _trig_name(
-            trig_combo.currentText()))
+        trig_combo.activated.connect(lambda _i: _trig_name(_trig_text()))
         fl.addRow(trig_cb)
         fl.addRow("Trigger name:", trig_combo)
         manage_trig_btn = QPushButton("Manage Triggers…")
@@ -908,7 +919,7 @@ class InspectorBlockMixin(_Base):
                 sp.setToolTip(POOLED_COST_TIP)
             spins.append(sp)
             form_add(sp, label)
-        always_cb = QCheckBox("Always add Done cost at run end")
+        always_cb = WrappingCheckBox("Always add Done cost at run end")
         always_cb.setChecked(bool(block.always_add_done_cost))
 
         def commit_always(on: bool, bid=block.id):

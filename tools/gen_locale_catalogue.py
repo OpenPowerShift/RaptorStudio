@@ -285,6 +285,79 @@ def presentation_labels() -> list[str]:
     return sorted(v for v in values if _ui_string(v))
 
 
+#: Files whose every user-facing literal is catalogued, not only those passed
+#: to a known constructor or setter.  The Inspector builds its forms through
+#: its own row helpers and data tables of labels, which no call whitelist can
+#: follow; its code is mostly UI text, so the filter below keeps the text and
+#: drops identifiers, section keys and style sheets.
+SWEEP_FILES = ("ui/inspector.py", "ui/inspector_block_mixin.py",
+               "ui/inspector_node_mixin.py", "ui/inspector_rows_mixin.py",
+               "ui/inspector_annotation_mixin.py", "ui/inspector_common.py")
+
+#: Literals the sweep keeps out: file-format keys and codes that read like
+#: words (a combo's item data, a section name, a column).
+SWEEP_IGNORE = frozenset({
+    "NONE", "INFINITE", "CUSTOM", "NA", "N/A", "COMMENTS", "TRIGGERS",
+    "PHASES", "MAXFLOW", "FULLFLOW", "Anc", "PPM", "PPB",
+})
+
+#: UI text the filter cannot tell from a key (a lower-case first letter).
+SWEEP_EXTRA = ("k* Target", "not a number", "a priority from 1 to 99")
+
+
+def _sweep_text(value: str) -> bool:
+    """Whether a literal in a SWEEP_FILES module reads as UI text."""
+    if value in SWEEP_IGNORE or not _ui_string(value):
+        return False
+    if value != value.strip() or "{" in value or value.endswith(";"):
+        return False                      # an f-string piece, a style sheet
+    if any(css in value for css in ("background:", "border:", "color:")):
+        return False
+    if value.startswith("#") or value.startswith(".") or "_" in value:
+        return False
+    if " " not in value and value.isidentifier():
+        # A bare word: UI text only when it is capitalised ("Identity"),
+        # not a key ("block"), a CamelCase object name or a column name.
+        return (value[0].isupper() and value[1:].islower()) or \
+            value in ("PM", "ID", "LDT", "X", "Y")
+    return value[0].isupper() or not value[0].isascii() or value[0] in "%(?"
+
+
+def sweep_strings() -> list[str]:
+    out: dict[str, None] = {}
+    for name in SWEEP_FILES:
+        path = ROOT / "raptor" / "gui" / name
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+        skip: set[int] = set()
+        for node in ast.walk(tree):
+            # Docstrings, and every piece of an f-string (a fragment alone
+            # is not a sentence; runtime templates live in i18n.TEMPLATES).
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef)) \
+                    and node.body and isinstance(node.body[0], ast.Expr):
+                skip.add(id(node.body[0].value))
+            if isinstance(node, ast.JoinedStr):
+                skip.update(id(v) for v in ast.walk(node))
+            if isinstance(node, ast.Subscript):
+                skip.update(id(v) for v in ast.walk(node.slice))
+            if isinstance(node, ast.Call) and _called_name(node) in (
+                    "get", "getattr", "setattr", "hasattr", "setProperty",
+                    "setObjectName", "property", "setStyleSheet", "section",
+                    "setdefault", "pop"):
+                skip.update(id(v) for a in node.args for v in ast.walk(a))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                    and id(node) not in skip and _sweep_text(node.value):
+                out[node.value] = None
+    out.update(dict.fromkeys(SWEEP_EXTRA))
+    # The one sentence the Inspector takes from the model-edit rules.
+    from raptor.gui.model_edit import POOLED_COST_TIP
+    out[POOLED_COST_TIP] = None
+    return list(out)
+
+
 def scanned_strings() -> tuple[list[str], dict[str, list[str]]]:  # noqa: C901, PLR0912
     """`(widget-context sources, {explicit context: sources})`."""
     gui: dict[str, None] = {}
@@ -389,6 +462,9 @@ def catalogue(locale: str = "pt_BR",  # noqa: C901
 
     gui, contexts = scanned_strings()
     entries.setdefault("Gui", []).extend(gui)
+    entries.setdefault("Gui", []).extend(sweep_strings())
+    from raptor.gui import i18n
+    entries.setdefault("Gui", []).extend(i18n.dynamic_sources())
     entries.setdefault("Gui", []).extend(presentation_labels())
     entries.setdefault("Gui", []).extend(report_column_labels())
     for context_name, sources in contexts.items():

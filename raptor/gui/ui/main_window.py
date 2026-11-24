@@ -59,7 +59,7 @@ from raptor.gui.ui.data_tables import DataTablesDock
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
     ThemeManager, active_colour,
-    global_stylesheet,
+    global_stylesheet, px,
 )
 from raptor.gui.ui.help_mixin import HelpMixin
 from raptor.gui.ui.export_mixin import ExportMixin
@@ -1281,6 +1281,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dock_right.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_right)
         self._inspector_dock = dock_right
+        self._size_inspector_dock()
 
         # Failure Effects inspector: the structured state beside the canvas
         # while Failure Effects View is enabled. It shares the Inspector's
@@ -2354,6 +2355,16 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.y_axis_min_changed.connect(self._on_y_axis_min_changed)
         self._results.targets_changed.connect(self._on_targets_changed)
 
+    def _size_inspector_dock(self) -> None:
+        """The Inspector's narrowest width, in pixels at the current UI scale.
+
+        The forms wrap to whatever room there is, but at 150% the text is
+        half as large again while a fixed 340 px was not.
+        """
+        dock = getattr(self, "_inspector_dock", None)
+        if dock is not None:
+            dock.setMinimumSize(px(340), 1)
+
     def _on_theme_changed(self, dark: bool):
         self._theme_action.blockSignals(True)
         self._theme_action.setChecked(dark)
@@ -2363,6 +2374,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._theme_action.setText("Dark Theme")
         self._theme_action.blockSignals(False)
         self.setStyleSheet(global_stylesheet())
+        self._size_inspector_dock()
         c = active_colour()
         self._ribbon._refresh_theme(c)
         self._apply_action_icons()

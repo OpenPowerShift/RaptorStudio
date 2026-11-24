@@ -5,10 +5,11 @@ from raptor.gui.ui.qtcompat import req
 
 from typing import Any, cast
 from collections.abc import Callable
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QUndoCommand
 from PySide6.QtWidgets import (
     QWidget, QLayout, QVBoxLayout, QLabel, QHBoxLayout, QCheckBox, QPlainTextEdit,
+    QSizePolicy, QStyle, QStyleOptionButton, QStylePainter,
 )
 
 # The distribution rules are `raptor.core.distro_rules`'s, not this
@@ -191,6 +192,59 @@ def parse_flow_cell(text: str, label: str,
         return None, (f"enter a flow (0 or more), {label}, or "
                       f"{label}/{n_in}")
     return value, None
+
+
+class WrappingCheckBox(QCheckBox):
+    """A real `QCheckBox` (its text stays on the widget) whose text wraps.
+
+    A plain checkbox's minimum width is its whole text on one line, so a
+    long label -- worse, a long translation -- forces the dock wider than
+    the screen gives it and a horizontal scroll bar appears.  This one
+    reports a small minimum width, asks the layout for more height when it
+    is narrow, and draws its text wrapped beside the indicator.
+    """
+
+    _MIN_TEXT_WIDTH = 60
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A checkbox may not shrink by default (its policy has no shrink
+        # flag, so a layout takes its whole text width as the minimum).
+        self.setSizePolicy(QSizePolicy.Policy.Preferred,
+                           QSizePolicy.Policy.Preferred)
+
+    def _indicator_width(self) -> int:
+        style = self.style()
+        return (style.pixelMetric(QStyle.PixelMetric.PM_IndicatorWidth, None, self)
+                + style.pixelMetric(
+                    QStyle.PixelMetric.PM_CheckBoxLabelSpacing, None, self))
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        room = max(self._MIN_TEXT_WIDTH, width - self._indicator_width())
+        text = self.fontMetrics().boundingRect(
+            0, 0, room, 100000, int(Qt.TextFlag.TextWordWrap), self.text())
+        return max(text.height() + 4, super().sizeHint().height())
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        base = super().sizeHint()
+        return QSize(self._indicator_width() + self._MIN_TEXT_WIDTH,
+                     base.height())
+
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        painter = QStylePainter(self)
+        option = QStyleOptionButton()
+        self.initStyleOption(option)
+        text, option.text = option.text, ""
+        painter.drawControl(QStyle.ControlElement.CE_CheckBox, option)
+        area = self.style().subElementRect(
+            QStyle.SubElement.SE_CheckBoxContents, option, self)
+        painter.drawItemText(
+            area, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                      | Qt.TextFlag.TextWordWrap), self.palette(),
+            self.isEnabled(), text, self.foregroundRole())
 
 
 class _WordWrapCheckBox(QWidget):
