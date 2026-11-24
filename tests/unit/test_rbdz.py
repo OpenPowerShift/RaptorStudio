@@ -338,3 +338,83 @@ def test_results_from_a_run_folder_carry_the_files_that_exist(tmp_path):
     sources, summary = rbdz.results_from_run(run)
     assert set(sources) == {"summary.json", "final_results.txt"}
     assert summary["num_runs"] == 3
+
+
+def _big_source(tmp_path, mib: int = 3) -> Path:
+    path = tmp_path / "big.txt"
+    path.write_bytes((b"0.0\tBlock\tA\tGood\n" * 60000) * mib)
+    return path
+
+
+def test_progress_is_monotonic_and_reaches_the_total(tmp_path):
+    seen: list[tuple[int, int | None]] = []
+    big = _big_source(tmp_path)
+    rbdz.write_archive(
+        tmp_path / "p.rbdz", _model_text(),
+        results={"events.txt": big, "final_results.txt": "x\n"},
+        progress=lambda done, total: seen.append((done, total)))
+    assert len(seen) > 3
+    dones = [d for d, _ in seen]
+    assert dones == sorted(dones)
+    total = seen[-1][1]
+    assert total is not None and seen[-1][0] == total
+    assert all(t == total and d <= total for d, t in seen)
+    assert total == len(_model_text().encode()) + big.stat().st_size + 2
+
+
+def test_progress_total_for_lists_is_estimated_and_for_generators_unknown(
+        tmp_path):
+    lines = [f"line {i}" for i in range(1000)]
+    seen: list = []
+    rbdz.write_archive(tmp_path / "l.rbdz", _model_text(),
+                       results={"events.txt": lines},
+                       progress=lambda d, t: seen.append((d, t)))
+    assert seen[-1][1] is not None and seen[-1][0] == seen[-1][1]
+    seen.clear()
+    rbdz.write_archive(tmp_path / "g.rbdz", _model_text(),
+                       results={"events.txt": (x for x in lines)},
+                       progress=lambda d, t: seen.append((d, t)))
+    assert seen and all(t is None for _, t in seen)
+    assert [d for d, _ in seen] == sorted(d for d, _ in seen)
+
+
+def test_failure_mid_write_leaves_the_old_archive_and_no_temp_file(tmp_path):
+    target = tmp_path / "keep.rbdz"
+    rbdz.write_archive(target, _model_text(), results={"a.txt": "old\n"})
+    before = target.read_bytes()
+
+    def boom(_done, _total):
+        raise OSError("disk full")
+
+    with pytest.raises(OSError):
+        rbdz.write_archive(target, _model_text(),
+                           results={"events.txt": _big_source(tmp_path)},
+                           progress=boom)
+    assert target.read_bytes() == before
+    assert [p.name for p in tmp_path.iterdir() if p.name.endswith(".part")] == []
+
+
+def test_abort_stops_the_write_and_keeps_the_old_file(tmp_path):
+    target = tmp_path / "keep.rbdz"
+    rbdz.write_archive(target, _model_text(), results={"a.txt": "old\n"})
+    before = target.read_bytes()
+    calls = {"n": 0}
+
+    def abort():
+        calls["n"] += 1
+        return calls["n"] > 2
+
+    with pytest.raises(rbdz.RbdzCancelled):
+        rbdz.write_archive(target, _model_text(),
+                           results={"events.txt": _big_source(tmp_path)},
+                           abort=abort)
+    assert target.read_bytes() == before
+    assert not [p for p in tmp_path.iterdir() if p.name.endswith(".part")]
+    # a brand-new target is not created by an aborted write either
+    new = tmp_path / "new.rbdz"
+    calls["n"] = 0
+    with pytest.raises(rbdz.RbdzCancelled):
+        rbdz.write_archive(new, _model_text(),
+                           results={"events.txt": _big_source(tmp_path)},
+                           abort=abort)
+    assert not new.exists()
