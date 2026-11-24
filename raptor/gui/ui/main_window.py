@@ -2758,6 +2758,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         -- so a File-menu action can fire in either while `self._rbd` is
         being read/reassigned. The model-edit case is guarded by
         `_mark_dirty`; this covers the file/lifecycle cases."""
+        if getattr(self, "_save_in_progress", False):
+            self._statusbar.showMessage(
+                i18n.tr("Saving — wait for the save to finish"), 4000)
+            return True
         if getattr(self, "_export_in_progress", False):
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Information)
@@ -3921,6 +3925,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """Confirm unsaved changes before closing."""
         # Commit a Comment draft before the unsaved-change prompt/write
         # path, so closing cannot silently discard the last few keystrokes.
+        if getattr(self, "_save_in_progress", False):
+            # Do not abandon a half-written archive: finish it, then close.
+            self._close_after_save = True
+            self._statusbar.showMessage(
+                i18n.tr("Finishing the save, then closing"), 6000)
+            event.ignore()
+            return
         self._inspector.flush_pending_comment()
         if getattr(self, "_export_in_progress", False):
             self._statusbar.showMessage(

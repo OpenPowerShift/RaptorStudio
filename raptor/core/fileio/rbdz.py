@@ -39,7 +39,7 @@ import shutil
 import uuid
 import zipfile
 import zlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -86,6 +86,45 @@ _READ_ERRORS = (zipfile.BadZipFile, RuntimeError, NotImplementedError,
 
 class RbdzError(Exception):
     """An `.rbdz` archive is missing a required part or is malformed."""
+
+
+class RbdzCancelled(RbdzError):
+    """`write_archive` was stopped by its ``abort`` callback; nothing was
+    written (the temporary file is removed, an existing target is intact)."""
+
+
+class _Progress:
+    """Counts uncompressed bytes streamed into an archive, tells the caller.
+
+    ``progress(done, total)`` is called after every chunk and once at the end
+    with ``done == total``; ``total`` is None when some source's size is not
+    known up front.  ``done`` only grows, and never passes a known ``total``
+    (a line-list's total is an estimate in characters).  ``abort()`` is polled
+    on each chunk.
+    """
+
+    def __init__(self, progress, abort, total: int | None) -> None:
+        self.progress = progress
+        self.abort = abort
+        self.total = total
+        self.done = 0
+
+    def check_abort(self) -> None:
+        if self.abort is not None and self.abort():
+            raise RbdzCancelled("archive write cancelled")
+
+    def step(self, nbytes: int) -> None:
+        self.check_abort()
+        self.done += nbytes
+        if self.progress is not None:
+            shown = self.done if self.total is None \
+                else min(self.done, self.total)
+            self.progress(shown, self.total)
+
+    def finish(self) -> None:
+        if self.progress is not None:
+            end = self.done if self.total is None else self.total
+            self.progress(end, self.total)
 
 
 @dataclass
@@ -215,7 +254,8 @@ def _entry_info(name: str, compress_type: int) -> zipfile.ZipInfo:
 
 
 def _write_entry(zf: zipfile.ZipFile, name: str, source: Any,
-                 profile: int) -> zipfile.ZipInfo:
+                 profile: int, tracker: _Progress
+                 ) -> zipfile.ZipInfo:
     """Stream one entry into the open archive and return its ``ZipInfo``."""
     size = _size_hint(source)
     compress = profile if size is None or size >= _SMALL_ENTRY \
@@ -228,7 +268,34 @@ def _write_entry(zf: zipfile.ZipFile, name: str, source: Any,
     with zf.open(info, "w", force_zip64=force64) as dst:
         for chunk in _iter_source(source):
             dst.write(chunk)
+            tracker.step(len(chunk))
     return info
+
+
+def _expected_bytes(source: Any) -> int | None:
+    """Bytes a source will stream: exact for text, bytes and files; an
+    estimate (characters) for a sized list of lines; None when unknown."""
+    size = _size_hint(source)
+    if size is not None:
+        return size
+    if hasattr(source, "read_all_lines"):
+        return None
+    if isinstance(source, Iterable) and hasattr(source, "__len__"):
+        try:
+            return sum(len(str(x)) + 1 for x in source)
+        except Exception:                       # noqa: BLE001 - estimate only
+            return None
+    return None
+
+
+def _make_tracker(model_size: int, sources: dict[str, Any], progress, abort
+                  ) -> _Progress:
+    if progress is None:
+        return _Progress(None, abort, None)
+    expected = [model_size] + [_expected_bytes(v) for v in sources.values()]
+    known = [n for n in expected if n is not None]
+    return _Progress(progress, abort,
+                     sum(known) if len(known) == len(expected) else None)
 
 
 def _normalise_results(results: dict[str, Any] | None) -> dict[str, Any]:
@@ -246,12 +313,22 @@ def write_archive(path: str | os.PathLike, model_text: str, *,
                   manifest: dict[str, Any] | None = None,
                   compression: str = DEFAULT_COMPRESSION,
                   created: str | None = None,
-                  generator: str | None = None) -> dict[str, Any]:
+                  generator: str | None = None,
+                  progress: Callable[[int, int | None], None] | None = None,
+                  abort: Callable[[], bool] | None = None) -> dict[str, Any]:
     """Write *model_text* (and optional *results*) as an `.rbdz`.
 
     Returns the manifest that was written.  A result source may be a
     string, bytes, a path, a ``ResultStream`` or an iterable of lines; it
     is streamed into the archive, not read into memory first.
+
+    The archive is built in a temporary file beside *path* and moved over it
+    only once complete, so a failure or cancellation leaves any existing file
+    untouched.  ``progress(done, total)`` reports uncompressed bytes streamed
+    (``total`` is None when a source's size is unknown; ``done`` is
+    monotonic and ends equal to ``total``).  ``abort()`` is polled per chunk;
+    returning True raises :class:`RbdzCancelled`.  Both are called on the
+    writing thread, so a GUI must hop threads itself.
     """
     if compression not in COMPRESSION_PROFILES:
         raise ValueError(f"unknown compression {compression!r}; choose from "
@@ -285,6 +362,9 @@ def write_archive(path: str | os.PathLike, model_text: str, *,
         "sha256": hashlib.sha256(model_bytes).hexdigest(),
     }
 
+    tracker = _make_tracker(len(model_bytes), result_sources, progress,
+                            abort)
+
     result_entries: dict[str, dict[str, Any]] = {}
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -295,10 +375,10 @@ def write_archive(path: str | os.PathLike, model_text: str, *,
     tmp = target.with_name(f".{target.name}.{uuid.uuid4().hex}.part")
     try:
         with zipfile.ZipFile(tmp, "w", allowZip64=True) as zf:
-            _write_entry(zf, MODEL_NAME, model_bytes, profile)
+            _write_entry(zf, MODEL_NAME, model_bytes, profile, tracker)
             for name in sorted(result_sources):
                 info = _write_entry(zf, RESULTS_DIR + name,
-                                    result_sources[name], profile)
+                                    result_sources[name], profile, tracker)
                 result_entries[name] = {"bytes": info.file_size}
             if result_entries:
                 doc["results"] = {**(doc.get("results") or {}),
@@ -313,7 +393,9 @@ def write_archive(path: str | os.PathLike, model_text: str, *,
             zf.writestr(
                 _entry_info(MANIFEST_NAME, zipfile.ZIP_DEFLATED),
                 json.dumps(doc, indent=1, sort_keys=True) + "\n")
+        tracker.check_abort()
         os.replace(tmp, target)
+        tracker.finish()
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise

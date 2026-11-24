@@ -521,3 +521,31 @@ def test_a_rebuilt_index_finds_shared_and_archive_files(tmp_path):
     assert {store.read(s) for s in shots} == {b"PK-archive-1",
                                               b"PK-archive-2"}
     assert all(s.sha256 and s.created for s in shots)
+
+
+def test_record_streams_the_file_with_progress_and_leaves_no_temp(tmp_path):
+    from raptor.core.history import HistoryStore
+    src = tmp_path / "big.rbdz"
+    src.write_bytes(b"x" * (3 * 1024 * 1024 + 17))
+    store = HistoryStore(tmp_path / "hist")
+    seen: list = []
+    shot = store.record(src, reason="manual",
+                        progress=lambda d, t: seen.append((d, t)))
+    assert shot is not None and shot.bytes == src.stat().st_size
+    dones = [d for d, _ in seen]
+    assert dones == sorted(dones) and seen[-1][0] == seen[-1][1] == shot.bytes
+    assert shot.path.read_bytes() == src.read_bytes()
+    assert not list((tmp_path / "hist").rglob("*.part"))
+    # unchanged: no new entry, and the staged copy is removed
+    assert store.record(src, reason="manual") is None
+    assert not list((tmp_path / "hist").rglob("*.part"))
+    # a failure while copying leaves neither a temp file nor an entry
+    src.write_bytes(b"y" * 2_000_000)
+
+    def boom(_d, _t):
+        raise RuntimeError("stop")
+    import pytest
+    with pytest.raises(RuntimeError):
+        store.record(src, reason="manual", progress=boom)
+    assert not list((tmp_path / "hist").rglob("*.part"))
+    assert len(store.snapshots(src)) == 1

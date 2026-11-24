@@ -523,6 +523,10 @@ class RunMixin(_Base):
                 "Still rendering the previous results — try again in a "
                 "moment.", 5000)
             return False
+        if getattr(self, "_save_in_progress", False):
+            self._statusbar.showMessage(
+                i18n.tr("Saving — wait for the save to finish"), 4000)
+            return False
         if self._step_finalize_state is not None:
             self._statusbar.showMessage(
                 "Finalizing the stepped run — wait for its results", 5000)

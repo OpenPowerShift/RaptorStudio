@@ -631,7 +631,6 @@ class FileIoMixin(_Base):
             # screen. The model entry keeps the .rbds name so a reopened
             # result's report cover still says the right thing.
             from datetime import datetime
-            from raptor.core.fileio.rbdz import write_archive
             rbd = req(self._rbd)
             rbd.file_name = Path(path).with_suffix(".rbds").name
             sources = self._results.archive_payload() or {}
@@ -673,9 +672,11 @@ class FileIoMixin(_Base):
                      "model_name")
                     if summary.get(key) is not None
                 }
-            write_archive(path, rbds_io.render_for_save(rbd),
-                          results=sources, manifest=manifest,
-                          created=created)
+            # Snapshot on this thread (model text: ~20 ms); compress and
+            # write on a worker. Returns when the file is complete.
+            from raptor.gui.ui.save_progress import save_archive_blocking
+            save_archive_blocking(self, path, rbds_io.render_for_save(rbd),
+                                  sources, manifest, created)
             # Like an .rbds save: the archive is a version, and the
             # results it carries are now saved with it.
             self._archive_had_results = bool(sources)
@@ -1033,7 +1034,7 @@ class FileIoMixin(_Base):
             "results)").format(name=name), 8000
 
     def _save_file(self):
-        if self._rbd is None:
+        if self._rbd is None or getattr(self, "_save_in_progress", False):
             return
         if self._current_file is None:
             # New, never-saved model: Save means "choose a location".
@@ -1065,7 +1066,7 @@ class FileIoMixin(_Base):
         return os.path.join(folder, name + ".rbds")
 
     def _save_file_as(self):
-        if self._rbd is None:
+        if self._rbd is None or getattr(self, "_save_in_progress", False):
             return
         dlg = self._make_file_dialog("Save RBD File As", QFileDialog.AcceptMode.AcceptSave)
         # Save As suggests .rbds even for legacy files, nudging users to
