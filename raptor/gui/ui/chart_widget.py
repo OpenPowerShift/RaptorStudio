@@ -18,6 +18,7 @@ from __future__ import annotations
 import bisect
 import csv
 import math
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -34,6 +35,7 @@ from raptor.api.insight.axes import (
 )
 from raptor.api.insight.charts import ChartSpec, bubble_tip
 from raptor.gui.resources.design_tokens import active_colour
+from raptor.gui.ui import chart_i18n
 from raptor.gui.ui.chart_theme import cause_brush, cause_colour, cause_ink
 
 PAD = 16              # outer margin
@@ -86,6 +88,17 @@ class _Frame:
 #: The gesture hint appended to a time chart's x title; the first thing to go
 #: when the title does not fit.
 _ZOOM_HINT = " · drag across"
+_BADGE = re.compile(r"^(?P<glyph>[\u25bc\u25b2]) (?P<n>\S+) pts (?P<what>better|worse)$")
+
+
+def _badge_text(text: str) -> str:
+    """A scorecard badge (``▼ 52 pts better``) in the GUI language."""
+    match = _BADGE.match(text)
+    if match is None:
+        return chart_i18n.word(text)
+    template = ("\u25bc %1 pts better" if match["glyph"] == "\u25bc"
+                else "\u25b2 %1 pts worse")
+    return chart_i18n.fmt(template, match["n"])
 
 
 def fit_axis_title(fm: QFontMetrics, title: str, width: float) -> str:
@@ -95,6 +108,8 @@ def fit_axis_title(fm: QFontMetrics, title: str, width: float) -> str:
     if fm.horizontalAdvance(title) <= width:
         return title
     cut = title.find(_ZOOM_HINT)
+    if cut < 0:
+        cut = title.find(" \u00b7 ")        # the hint in another language
     if cut > 0:
         title = title[:cut]
         if fm.horizontalAdvance(title) <= width:
@@ -223,7 +238,7 @@ class ChartWidget(QWidget):
         if spec is None:
             painter.setPen(QColor(palette["muted"]))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
-                             "No chart for this result.")
+                             chart_i18n.word("No chart for this result."))
             painter.end()
             return
         # Compact below COMPACT_H: in a 190 px Results panel (a 1280 x 720
@@ -238,10 +253,11 @@ class ChartWidget(QWidget):
         title_font.setBold(True)
         painter.setFont(title_font)
         painter.setPen(QColor(palette["text"]))
-        title_w = QFontMetrics(title_font).horizontalAdvance(spec.title)
+        title = self._fitted_title(spec.title, title_font)
+        title_w = QFontMetrics(title_font).horizontalAdvance(title)
         painter.drawText(QRectF(PAD, 4 if compact else 6, self.width() - 2 * PAD, 24),
                          Qt.AlignmentFlag.AlignLeft if compact
-                         else Qt.AlignmentFlag.AlignHCenter, spec.title)
+                         else Qt.AlignmentFlag.AlignHCenter, title)
         painter.setFont(self.font())
         if not compact:
             painter.setPen(QColor(palette["muted"]))
@@ -271,7 +287,9 @@ class ChartWidget(QWidget):
             painter.drawText(QRectF(PAD, top, self.width() - 2 * PAD,
                                     max(16.0, self.height() - top - caption_h)),
                              Qt.AlignmentFlag.AlignCenter,
-                             "Make this panel taller (or float it) to see the chart.")
+                             chart_i18n.word(
+                                 "Make this panel taller (or float it) to "
+                                 "see the chart."))
         if spec.caption and not self._caption_in_body:
             painter.setPen(QColor(palette["text"]))
             rect = QRectF(PAD, self.height() - caption_h + 2,
@@ -284,6 +302,12 @@ class ChartWidget(QWidget):
                 painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
                                  spec.caption)
         painter.end()
+
+    def _fitted_title(self, title: str, font: QFont) -> str:
+        """The title, elided when it is wider than the chart (a long title in
+        another language is shortened, never cut off at the edge)."""
+        return QFontMetrics(font).elidedText(
+            title, Qt.TextElideMode.ElideRight, int(max(1, self.width() - 2 * PAD)))
 
     # The cause key: one swatch per cause the chart shows.
 
@@ -331,8 +355,9 @@ class ChartWidget(QWidget):
             painter.drawLine(QPointF(rect.left(), y - 4), QPointF(rect.left(), y + 4))
             painter.drawLine(QPointF(rect.right(), y - 4), QPointF(rect.right(), y + 4))
 
-        labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
-        entries = [(labels.get(c, c), patterned(c)) for c in self._causes(spec)]
+        group_labels = spec.provenance.get("group_labels") or {}
+        entries = [(chart_i18n.cause_label(c, group_labels), patterned(c))
+                   for c in self._causes(spec)]
         if spec.kind == "sunburst":
             from raptor.api.insight.hierarchy import SERIES_COLOURS
             roots = [node for node in spec.series if not node.get("parent")]
@@ -341,11 +366,11 @@ class ChartWidget(QWidget):
                          solid(SERIES_COLOURS[i % len(SERIES_COLOURS)]))
                         for i, node in enumerate(roots)]
         if spec.kind == "pareto" and any(_number(r.get("sem")) for r in spec.series):
-            entries.append(("± 2 standard errors", whisker))
+            entries.append((chart_i18n.word("± 2 standard errors"), whisker))
         solids = {"capacity_pareto": (("lost capacity", "accent"), ("downtime", "muted")),
                   "ribbon": (("system up", "result_green"), ("system down", "result_red"))}
         for label, key in solids.get(spec.kind, ()):
-            entries.append((label, solid(palette[key])))
+            entries.append((chart_i18n.word(label), solid(palette[key])))
         if spec.kind == "timeline":
             from raptor.api.insight.timecharts import in_key
             for layer in filter(in_key, spec.series):
@@ -384,7 +409,7 @@ class ChartWidget(QWidget):
                     painter.setPen(QColor(palette["muted"]))
                     painter.drawText(QRectF(x, y, self.width() - PAD - x, KEY_H),
                                      Qt.AlignmentFlag.AlignVCenter,
-                                     f"+{len(entries) - index} more")
+                                     f"+{len(entries) - index} " + chart_i18n.word("more"))
                     break
                 x, y, rows = float(PAD), y + KEY_H, rows + 1
             draw(QRectF(x, y + 4, 14, 12))
@@ -411,8 +436,10 @@ class ChartWidget(QWidget):
         x_text = ([_short(t) for t in xt] if x_log
                   else [tick_text(t, xt, fmt=x_fmt) for t in xt])
         gutter = max([fm.horizontalAdvance(t) for t in y_text] + [10]) + TICK_GAP
-        y_title = (y_label if y_label is not None else spec.y_label) or ""
-        x_title = (x_label if x_label is not None else spec.x_label) or ""
+        y_title = chart_i18n.word(
+            (y_label if y_label is not None else spec.y_label) or "")
+        x_title = chart_i18n.word(
+            (x_label if x_label is not None else spec.x_label) or "")
         if self.height() < COMPACT_H:
             x_title = ""          # the plot needs the line more than the title
         left = area.left() + gutter + (fm.height() + 4 if y_title else 0)
@@ -555,7 +582,8 @@ class ChartWidget(QWidget):
         painter.setPen(QColor(palette["muted"]))
         painter.drawText(area.adjusted(20, 0, -20, 0),
                          Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
-                         spec.caption or "Nothing to show for this run.")
+                         spec.caption
+                         or chart_i18n.word("Nothing to show for this run."))
         self._caption_in_body = True
 
     def _fit_rows(self, rows: list, area: QRectF) -> tuple[list, int]:
@@ -571,11 +599,12 @@ class ChartWidget(QWidget):
         shown = len(spec.series) - hidden if spec is not None else 0
         compact = self.height() < COMPACT_H     # no subtitle to carry "top 10 of 220"
         if isinstance(items, int) and items > shown and (hidden or compact):
-            text = f"{shown} of {items:,} shown"
-            if hidden:
-                text += ": make the panel taller to see more"
+            text = chart_i18n.fmt(
+                "%1 of %2 shown: make the panel taller to see more" if hidden
+                else "%1 of %2 shown", shown, f"{items:,}")
         elif hidden:
-            text = f"{hidden} more not shown: make the panel taller"
+            text = chart_i18n.fmt(
+                "%1 more not shown: make the panel taller", hidden)
         else:
             return
         painter.setPen(QColor(palette["muted"]))
@@ -634,7 +663,7 @@ class ChartWidget(QWidget):
                       "dot", "", self._value(value, 6))
         if target is not None:
             self._target_line(painter, palette, frame, target, horizontal=False,
-                              label=f"target {self._value(target, 5)}")
+                              label=chart_i18n.fmt("target %1", self._value(target, 5)))
 
     def _paint_ecdf(self, painter, spec, palette, area) -> None:
         # A spec from before the chart became an exceedance curve.
@@ -676,8 +705,9 @@ class ChartWidget(QWidget):
                        if (float(p["value"]) >= target if higher
                            else float(p["value"]) <= target)), default=0.0)
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"target {self._value(target, 5)}: "
-                                    f"{pct(met)} of runs reach it")
+                              label=chart_i18n.fmt(
+                                  "target %1: %2 of runs reach it",
+                                  self._value(target, 5), pct(met)))
 
         def read(px: float) -> list[tuple[QPointF, str]]:
             share = min(1.0, max(1.0 / len(values) if values else 0.0,
@@ -862,7 +892,7 @@ class ChartWidget(QWidget):
         if target is not None:
             # last, over the result column, so its label is not hidden
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"target {format_value(target, 'percent', 5)}")
+                              label=chart_i18n.fmt("target %1", format_value(target, 'percent', 5)))
 
     def _column_label(self, painter, palette, rect: QRectF, text: str) -> None:
         fm = QFontMetrics(self.font())
@@ -923,7 +953,7 @@ class ChartWidget(QWidget):
                       str(row["name"]), f"{row['name']}: {text}")
         if target is not None:
             self._target_line(painter, palette, frame, target, horizontal=False,
-                              label=f"target {format_value(target, 'percent', 5)}")
+                              label=chart_i18n.fmt("target %1", format_value(target, 'percent', 5)))
 
     def _paint_histogram(self, painter, spec, palette, area) -> None:
         bins = [b for b in spec.series if _number(b.get("lo")) and _number(b.get("hi"))
@@ -1130,7 +1160,7 @@ class ChartWidget(QWidget):
         target = self._target(spec)
         if target is not None and low <= target <= high:
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"target {format_value(target, fmt, 5)}")
+                              label=chart_i18n.fmt("target %1", format_value(target, fmt, 5)))
         median = next((float(m["value"]) for m in spec.marks
                        if m.get("kind") == "median" and _number(m.get("value"))),
                       None)
@@ -1141,7 +1171,7 @@ class ChartWidget(QWidget):
                                 Qt.PenStyle.DashLine))
             painter.drawLine(QPointF(frame.rect.left(), y),
                              QPointF(frame.rect.right(), y))
-            label = f"median {format_value(median, fmt, 5)}"
+            label = chart_i18n.fmt("median %1", format_value(median, fmt, 5))
             w = fm.horizontalAdvance(label) + 8
             painter.fillRect(QRectF(frame.rect.left(), y - fm.height() - 1,
                                     w, fm.height()), QColor(palette["surface"]))
@@ -1355,8 +1385,10 @@ class ChartWidget(QWidget):
             # room above 100 %: a run that never went down drew its line on
             # the frame's top edge, and the chart looked empty
             y_high += (y_high - y_low) * 0.04
-        x_label = (f"{spec.x_label} · drag across or Ctrl+wheel to zoom in"
-                   + (", double-click for the whole run" if zoomed else ""))
+        x_label = chart_i18n.fmt(
+            "%1 · drag across or Ctrl+wheel to zoom in, double-click for the "
+            "whole run" if zoomed else
+            "%1 · drag across or Ctrl+wheel to zoom in", spec.x_label)
         frame = self._frame(painter, spec, palette, area,
                             x_range=(t_start, max(t_end, t_start + 1e-9)),
                             y_range=(y_low, y_high), y_fmt=fmt,
@@ -1377,7 +1409,7 @@ class ChartWidget(QWidget):
         target = self._target(spec)
         if target is not None and y_low <= target <= y_high:
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=f"target {format_value(target, fmt, 5)}")
+                              label=chart_i18n.fmt("target %1", format_value(target, fmt, 5)))
         self._probe = (frame, _timeline_reader(
             layers, fmt, str(spec.provenance.get("time_units") or ""), frame, pt))
 
@@ -1565,7 +1597,9 @@ class ChartWidget(QWidget):
                 painter.drawText(QRectF(body.left() + column * width, body.bottom() + 4,
                                         width, fm.height()),
                                  Qt.AlignmentFlag.AlignHCenter,
-                                 "first" if column == 0 else f"then (step {column + 1})")
+                                 chart_i18n.word("first") if column == 0
+                                 else chart_i18n.fmt("then (step %1)",
+                                                     column + 1))
 
     def _paint_scorecard(self, painter, spec, palette, area) -> None:  # noqa: C901
         from raptor.api.insight.charts import scorecard_badge
@@ -1601,8 +1635,8 @@ class ChartWidget(QWidget):
                              format_value(value, "percent", 3))
             painter.setFont(self.font())
             sem = row.get("sem")
-            detail = (f"± {200 * float(sem):.2g} pts" if _number(sem) else
-                      "no spread to judge")
+            detail = (chart_i18n.fmt("± %1 pts", f"{200 * float(sem):.2g}")
+                      if _number(sem) else chart_i18n.word("no spread to judge"))
             painter.setPen(QColor(palette["muted"]))
             if not compact:
                 painter.drawText(rect.adjusted(8, 43, -8, 0),
@@ -1613,6 +1647,7 @@ class ChartWidget(QWidget):
             badge = scorecard_badge(row)
             if badge is not None:
                 tone, text = badge
+                text = _badge_text(text)
                 painter.setPen(QColor(palette["result_green"] if tone == "good" else
                                       palette["result_red"] if tone == "bad" else
                                       palette["muted"]))
@@ -1634,7 +1669,7 @@ class ChartWidget(QWidget):
             if cause:
                 painter.drawText(rect.adjusted(8, 4, -8, 0),
                                  Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
-                                 CAUSE_LABELS.get(cause, cause))
+                                 chart_i18n.cause_label(cause))
             self._hit(rect, "hierarchy", str(row.get("name") or ""),
                       f"{row.get('name')}: {format_value(value, 'percent', 3)} of "
                       "system downtime")
@@ -1649,8 +1684,10 @@ class ChartWidget(QWidget):
         painter.drawText(foot,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
                          QFontMetrics(self.font()).elidedText(
-                             f"{int(row.get('members') or 0)} members · "
-                             f"{int(row.get('starters') or 0)} started outages",
+                             chart_i18n.fmt(
+                                 "%1 members · %2 started outages",
+                                 int(row.get('members') or 0),
+                                 int(row.get('starters') or 0)),
                              Qt.TextElideMode.ElideRight,
                              int(max(1.0, foot.width()))))
 
@@ -1689,9 +1726,9 @@ class ChartWidget(QWidget):
         end_text = scorecard_scale_text(dot_max)
         room = (right - left) - sfm.horizontalAdvance("0") \
             - sfm.horizontalAdvance(end_text)
-        if sfm.horizontalAdvance("each dot a run") + 12 <= room:
-            painter.drawText(label, Qt.AlignmentFlag.AlignHCenter,
-                             "each dot a run")
+        each = chart_i18n.word("each dot a run")
+        if sfm.horizontalAdvance(each) + 12 <= room:
+            painter.drawText(label, Qt.AlignmentFlag.AlignHCenter, each)
         painter.setFont(self.font())
 
     def _paint_delta(self, painter, spec, palette, area) -> None:
@@ -1990,7 +2027,9 @@ class ChartWidget(QWidget):
             label = str(node.get("name") or "")
             if str(node.get("id") or "").startswith("cause-"):
                 from raptor.api.insight.attribution import CAUSE_LABELS
-                label = CAUSE_LABELS.get(str(node["id"])[6:], label)
+                cause_key = str(node["id"])[6:]
+                label = (chart_i18n.cause_label(cause_key)
+                         if cause_key in CAUSE_LABELS else label)
             raw = float(node.get('value') or 0)
             amount = amount_of(raw, node)
             if int(node.get("column") or 0) == 0:
@@ -2156,8 +2195,10 @@ class ChartWidget(QWidget):
             if end <= start:
                 start, end = whole
         zoomed = (start, end) != whole
-        x_label = (f"{spec.x_label} · drag across or Ctrl+wheel to zoom in"
-                   + (", double-click for the whole run" if zoomed else ""))
+        x_label = chart_i18n.fmt(
+            "%1 · drag across or Ctrl+wheel to zoom in, double-click for the "
+            "whole run" if zoomed else
+            "%1 · drag across or Ctrl+wheel to zoom in", spec.x_label)
         names = [str(row.get("name") or "") for row in rows if row.get("name")]
         fm = QFontMetrics(self.font())
         gutter = min(180, max([fm.horizontalAdvance(name) for name in names] + [0]) + 18) \
@@ -2547,8 +2588,10 @@ def _ribbon_rows(spec: ChartSpec, shown: int) -> str:
         return str(spec.y_label or "hierarchies")
     total = spec.provenance.get("runs")
     if isinstance(total, int) and total > shown:
-        return f"{shown} of {total:,} runs, best at the top"
-    return f"{shown} run{'s' if shown != 1 else ''}, best at the top"
+        return chart_i18n.fmt("%1 of %2 runs, best at the top", shown,
+                              f"{total:,}")
+    return chart_i18n.fmt("%1 run, best at the top" if shown == 1
+                          else "%1 runs, best at the top", shown)
 
 
 def _points(fraction: float) -> str:

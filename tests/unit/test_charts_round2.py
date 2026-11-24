@@ -160,7 +160,7 @@ def test_dynamic_chart_buttons_and_hops_label_translate_and_switch_back(
     page._set_baseline()
     assert page.compare_button.text() == "Comparar: 2 selecionadas"
     assert page.baseline_button.text() == "Referência: definida"
-    assert page.scope_button.text() == "Escopo: sistema"
+    assert page.scope_button.text() == "Escopo: Sistema"
     page.set_scope(100, follow=False)
     assert page.scope_button.text() == "Escopo: Intake"       # the name is data
     page.select("hierarchy-hops")
@@ -205,7 +205,7 @@ def test_translate_spec_translates_title_and_composed_subtitle_only(portuguese):
     assert out.subtitle == ("parcela do tempo de inatividade do sistema, "
                             "empilhada pela causa principal · nível superior "
                             "· escopo: Intake > Pump house")
-    assert out.caption == spec.caption                 # captions stay English
+    assert out.caption == spec.caption                 # an unknown caption stays English
     assert spec.title == "Hierarchy Pareto"            # the shared spec is untouched
     note = translate_spec(charts.ChartSpec(
         "pareto", "Where the money goes",

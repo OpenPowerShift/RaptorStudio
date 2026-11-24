@@ -39,6 +39,7 @@ from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_export, chart_i18n
 from raptor.gui.ui.chart_widget import ChartWidget
+from raptor.gui.ui.flow_layout import FlowLayout
 
 _KEY = Qt.ItemDataRole.UserRole
 _GROUP = Qt.ItemDataRole.UserRole + 1
@@ -221,10 +222,11 @@ class ChartsPage(QWidget):
         scroll.setWidget(chart)
         return scroll
 
-    def _build_bar(self) -> QHBoxLayout:  # noqa: PLR0915
-        """Run picker, axis floor and Export: shown only where a chart uses them."""
-        bar = QHBoxLayout()
-        bar.setSpacing(SPACING["sm"])
+    def _build_bar(self) -> FlowLayout:  # noqa: PLR0915
+        """Run picker, axis floor and Export: shown only where a chart uses
+        them.  The row wraps in a narrow dock rather than squeezing its
+        buttons (pt-BR's longer words read "Comparar...incipais")."""
+        bar = FlowLayout(spacing=SPACING["sm"])
         self.scope_button = QToolButton()
         self.scope_button.setText("Scope: System")
         self.scope_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -459,7 +461,9 @@ class ChartsPage(QWidget):
     def _update_scope_menu(self) -> None:
         self.scope_menu.clear()
         attribution = self._inputs.get("attribution")
-        system = self.scope_menu.addAction("System")
+        # fixed menu words are translated here: the menu is rebuilt after the
+        # widget pass, and a hierarchy's own name must stay as written
+        system = self.scope_menu.addAction(i18n.tr("System"))
         system.setCheckable(True)
         system.setChecked(self._scope_row() is None)
         system.triggered.connect(lambda _c=False: self.set_scope(None, follow=False))
@@ -476,7 +480,7 @@ class ChartsPage(QWidget):
     def _update_compare_menu(self) -> None:
         self.compare_menu.clear()
         attribution = self._inputs.get("attribution")
-        top = self.compare_menu.addAction("Top four by downtime")
+        top = self.compare_menu.addAction(i18n.tr("Top four by downtime"))
         top.setCheckable(True)
         top.setChecked(not self._selected)
         top.triggered.connect(lambda _c=False: self.set_compare([]))
@@ -1548,7 +1552,9 @@ class ChartsPage(QWidget):
         self.run_box.blockSignals(True)
         self.run_box.setMaximum(max(1, runs))
         self.run_box.blockSignals(False)
-        self.run_of.setText(f"of {runs:,}" if runs else "")
+        self.run_of.setText(
+            i18n.translate_source(f" of {runs}").strip().replace(
+                str(runs), f"{runs:,}") if runs else "")
         for widget in (self.run_label, self.run_box, self.run_of):
             widget.setVisible(per_run)
         floor = key in ("availability-through-run", "interval-availability",

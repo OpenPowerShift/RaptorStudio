@@ -333,6 +333,7 @@ def dynamic_sources() -> list[str]:
     from raptor.core.distro_rules import DISTRO_NAMES, DISTRO_PARAM_LABELS
     out = list(TEMPLATES)
     out += chart_strings.SOURCES
+    out += chart_strings.CAPTIONS
     out += UNIT_WORDS
     out += [name for name in DISTRO_NAMES.values()]
     out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()
@@ -425,6 +426,16 @@ def _from_template(context: str, source: str) -> str | None:
         if complete:
             return _fill(form, pieces)
     return None
+
+
+def translate_template(source: str) -> str | None:
+    """*source* read as one of the :data:`TEMPLATES` and translated, or None."""
+    return _from_template(WIDGET_CONTEXT, source) if _CURRENT != "en" else None
+
+
+def translate_unit(unit: str) -> str:
+    """A unit word (``hours``, ``per hours``) in the GUI language."""
+    return _unit(WIDGET_CONTEXT, unit) if _CURRENT != "en" else unit
 
 
 def _fill(form: str, pieces: list[str]) -> str:
