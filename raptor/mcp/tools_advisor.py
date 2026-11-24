@@ -311,13 +311,19 @@ def run_story(run_id: str,
     from raptor.api.advisor.context import check_requirements
     from raptor.api.insight.story import from_run, text_lines
 
+    from raptor.api.advisor.context import REQUIREMENT_FIELDS
     from raptor.api.run_tables import run_targets
     check_requirements(targets)
+    capacity_target = next(
+        (float(t["value"]) for t in targets or []
+         if REQUIREMENT_FIELDS.get(str(t.get("metric")))
+         == "capacity_weighted_availability"), None)
     if not targets:
         saved = run_targets(context.workspace(), run_id).get("availability")
         if saved is not None:
             targets = [{"metric": "availability", "op": ">=", "value": saved}]
-    story = from_run(context.workspace(), run_id, requirements=targets)
+    story = from_run(context.workspace(), run_id, requirements=targets,
+                     capacity_target=capacity_target)
     data = {**story.to_dict(), "run_id": run_id}
     return ok(data, "```\n" + "\n".join(text_lines(story)) + "\n```")
 
@@ -328,6 +334,7 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912,
               render_svg: bool = False, run: int = 1,
               y_floor: float | None = None, page: str = "screen",
               min_share: float = 0.0, target: float | None = None,
+              capacity_target: float | None = None,
               hierarchy: str | int | None = None,
               hierarchies: list[str | int] | None = None,
               compare_to: str | None = None,
@@ -384,12 +391,16 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912,
 
     `target` (0 to 1, e.g. 0.995) draws a dashed target line on the
     outcome, chance, convergence, availability-over-time and year charts,
-    and on `annual-capacity-fan` for a capacity-weighted availability
-    target, as the window's Target buttons do. The dot and convergence
-    charts also mark the median. It is a visual cue only. Without
-    `target`, the model's saved targets are used (`configure_system`'s
-    `availability_target`, and `capacity_target` for
-    `annual-capacity-fan`), when the run's model is still open.
+    as the window's Target button does. The dot and convergence
+    charts also mark the median. It is a visual cue only.
+    `capacity_target` (0 to 1: the share of the generated flow that must be
+    delivered) draws a dashed line on `capacity-through-run`,
+    `capacity-band` and `annual-capacity-fan`, and the captions of
+    `capacity-waterfall` and `capacity-sankey` say whether delivery met it
+    (on `annual-capacity-fan`, `target` still works as the capacity target).
+    Without them, the model's saved targets are used (`configure_system`'s
+    `availability_target` and `capacity_target`), when the run's model is
+    still open.
 
     Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
     `hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
@@ -461,11 +472,20 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912,
     if target is not None and not 0.0 < target <= 1.0:
         raise ValueError("target is a fraction: give it as 0 to 1 (0.995), not "
                          f"{target:g}")
-    if target is None:
+    if chart == "annual-capacity-fan" and capacity_target is None:
+        # `target` was the capacity target on this chart before
+        # `capacity_target` existed
+        capacity_target, target = target, None
+    if capacity_target is not None and not 0.0 < capacity_target <= 1.0:
+        raise ValueError("capacity_target is a fraction: give it as 0 to 1 "
+                         f"(0.95), not {capacity_target:g}")
+    if target is None or capacity_target is None:
         from raptor.api.run_tables import run_targets
         saved = run_targets(ws, run_id)
-        target = saved.get("capacity" if chart == "annual-capacity-fan"
-                           else "availability")
+        if target is None:
+            target = saved.get("availability")
+        if capacity_target is None:
+            capacity_target = saved.get("capacity")
     if fold is not None and min_share:
         raise ValueError("pass fold or min_share, not both")
     folding = charts.parse_fold(fold) if fold is not None else {"min_share": min_share}
@@ -482,6 +502,7 @@ def run_chart(run_id: str, chart: str = "trial-outcome",  # noqa: C901, PLR0912,
                            run=run,
                            importance=importance, y_floor=y_floor,
                            units=units, surface="mcp", target=target,
+                           capacity_target=capacity_target,
                            hierarchy=hierarchy, hierarchies=hierarchies,
                            baseline=baseline, baseline_label=compare_to,
                            depth=depth, by_hierarchy=by_hierarchy,

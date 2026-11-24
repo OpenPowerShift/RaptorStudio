@@ -377,6 +377,8 @@ def _story_html(insight: Any) -> str:  # noqa: C901, PLR0912
                        f'{_e(head.get("gap_text", ""))}</p>')
         if story.get("proportion"):
             out.append(f'<p>{_e(story["proportion"])}</p>')
+    if story.get("capacity_verdict"):
+        out.append(f'<p>{_e(story["capacity_verdict"])}</p>')
     drivers = story.get("drivers") or []
     if drivers:
         measure = story.get("drivers_measure") or "downtime"

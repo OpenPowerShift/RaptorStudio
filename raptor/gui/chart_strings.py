@@ -137,6 +137,7 @@ SOURCES: tuple[str, ...] = (
     "Make this panel taller (or float it) to see the chart.",
     "non-mission", "the baseline", "at least", "at most",
     "planned maintenance", "logistics, spares, crews",
+    "flow generated", "full capacity (highest recorded)",
     "Inherent (repair only)", "Achieved (+ planned maintenance)",
     "Operational (+ logistics, spares, crews)",
     # counted nouns in a caption
@@ -182,6 +183,7 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
     "\u00b1 %1 pts": (),
     "%1 members \u00b7 %2 started outages": (),
     "target %1": (), "median %1": (),
+    "capacity target %1 = %2": (),
     "target %1: %2 of runs reach it": (),
     "then (step %1)": (),
     "%1 (log scale)": (),
@@ -287,4 +289,18 @@ CAPTIONS: dict[str, str] = {
     "The steps use the same Red-time split as the availability ladder.": "",
     "%1 took nothing away in these runs.": "d",
     "No availability reported.": "",
+    # the capacity charts over time
+    "Run %1 delivered %2 of its %3; it ran below full %4 of the time, lowest "
+    "flow %5 of %6.": "ddwddd",
+    "Run %1: lowest flow %2.": "dd",
+    "%1 delivered %2 of their %3; the mean flow fell as low as %4 of %5.": "cdwdd",
+    "It met the capacity target.": "",
+    "It missed the capacity target %1.": "d",
+    "%1 of the %2 runs delivered at or above the capacity target.": "dd",
+    # lost capacity by cause, and the capacity target's verdict
+    "The largest loss is %1 (%2 of lost energy).": "wd",
+    "The largest loss is %1 (%2 of the summed contributions).": "wd",
+    "Delivered %1 of the generated flow: it met the capacity target %2.": "dd",
+    "Delivered %1 of the generated flow: it missed the capacity target %2 by "
+    "%3 points (loss allowed %4, lost %5).": "ddddd",
 }

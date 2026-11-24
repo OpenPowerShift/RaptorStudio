@@ -688,3 +688,45 @@ def test_parse_fold_is_the_one_reading_of_the_others_presets():
     for bad in ("top:0", "top:2.5", "tail:5", "fraction:1", "bogus"):
         with pytest.raises(ValueError):
             charts.parse_fold(bad)
+
+
+def _delivery(delivered, lost):
+    attribution = _capacity_attribution()
+    attribution["capacity"].update({"delivered_energy": {"mean": delivered},
+                                    "lost_energy": {"mean": lost}})
+    return attribution
+
+
+def test_the_capacity_waterfall_judges_delivery_against_the_target():
+    met = charts.capacity_waterfall(_delivery(97.0, 3.0), 0.95)
+    assert "Delivered 97 % of the generated flow: it met the capacity target 95 %." \
+        in met.caption
+    missed = charts.capacity_waterfall(_delivery(90.0, 10.0), 0.95)
+    assert ("it missed the capacity target 95 % by 5 points (loss allowed 5 %, "
+            "lost 10 %).") in missed.caption
+    # its axis is the share of the loss: nothing to draw a line on
+    assert met.marks == [] and missed.marks == []
+    assert "capacity target" not in charts.capacity_waterfall(_delivery(97.0, 3.0)).caption
+
+
+def test_chart_named_passes_the_capacity_target_to_the_waterfall():
+    spec = charts.chart_named("capacity-waterfall",
+                              attribution=_delivery(90.0, 10.0),
+                              target=0.5, capacity_target=0.99)
+    assert "missed the capacity target 99 %" in spec.caption
+    plain = charts.chart_named("capacity-waterfall", attribution=_delivery(90.0, 10.0),
+                               target=0.5)
+    assert "capacity target" not in plain.caption
+
+
+def test_the_annual_capacity_fan_takes_only_the_capacity_target():
+    periods = {"runs": 2, "periods_per_run": 2, "threshold": None,
+               "by_index": [{"index": 1, "n": 2, "p50": 0.9}],
+               "capacity": {"by_index": [{"index": 1, "n": 2, "p50": 0.9},
+                                         {"index": 2, "n": 2, "p50": 0.97}]}}
+    spec = charts.chart_named("annual-capacity-fan", periods=periods, target=0.5,
+                              capacity_target=0.99, units="hours")
+    assert [m["value"] for m in spec.marks] == [0.99]
+    spec = charts.chart_named("annual-capacity-fan", periods=periods, target=0.5,
+                              units="hours")
+    assert spec.marks == []

@@ -1408,8 +1408,16 @@ class ChartWidget(QWidget):
                                       label_w, t_end)
         target = self._target(spec)
         if target is not None and y_low <= target <= y_high:
+            share = next((float(m["share"]) for m in spec.marks
+                          if m.get("kind") == "target" and _number(m.get("share"))),
+                         None)
+            label = (chart_i18n.fmt("target %1", format_value(target, fmt, 5))
+                     if share is None else
+                     chart_i18n.fmt("capacity target %1 = %2",
+                                    format_value(share, "percent", 5),
+                                    format_value(target, fmt, 5)))
             self._target_line(painter, palette, frame, target, horizontal=True,
-                              label=chart_i18n.fmt("target %1", format_value(target, fmt, 5)))
+                              label=label)
         self._probe = (frame, _timeline_reader(
             layers, fmt, str(spec.provenance.get("time_units") or ""), frame, pt))
 

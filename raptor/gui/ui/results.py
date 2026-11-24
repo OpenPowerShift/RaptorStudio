@@ -1773,6 +1773,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._capacity_target = value if value and 0.0 < value <= 1.0 else None
         if hasattr(self, "_charts_page"):
             self._charts_page.set_capacity_target(self._capacity_target)
+        self._refresh_story()
         self.targets_changed.emit(self._target, self._capacity_target)
 
     def set_targets(self, targets: dict | None) -> None:
@@ -2341,7 +2342,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                            or manifest.get("digest") or ""),
                 requested_runs=(self._requested_runs or (None, ""))[0],
                 truncated=(self._requested_runs or (None, ""))[1],
-                currency=getattr(getattr(self, "_rbd", None), "currency", None))
+                currency=getattr(getattr(self, "_rbd", None), "currency", None),
+                capacity_target=self._capacity_target)
             page.set_story(story)
             page.set_target_note("target set on the Charts page and saved with "
                                  "the model" if self._target is not None

@@ -1384,8 +1384,20 @@ def capacity_vs_downtime(attribution: dict[str, Any],
         provenance={"runs": attribution.get("runs", 0), "format": "percent"})
 
 
-def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
-    """K5: where the generated flow goes, one step per cause."""
+def _capacity_verdict(capacity: dict[str, Any], target: float | None) -> str:
+    """" Delivered 97 % ...: it met the capacity target" (or ""), for a
+    caption that has no axis to draw the target on."""
+    from raptor.api.insight.capacity_attribution import delivered_share, target_sentence
+    text = target_sentence(delivered_share(capacity), target)
+    return f" {text}" if text else ""
+
+
+def capacity_waterfall(attribution: dict[str, Any],
+                       capacity_target: float | None = None) -> ChartSpec:
+    """K5: where the generated flow goes, one step per cause.
+
+    Its axis is the share of the *lost* energy, so a capacity target has
+    no line to sit on; with one, the caption says whether delivery met it."""
     capacity = attribution.get("capacity") or {}
     causes = capacity.get("causes") or {}
     total = sum((stat.get("mean") or 0.0) for stat in causes.values())
@@ -1401,6 +1413,7 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
                       "share": value})
         running -= value
     marginal = capacity.get("rule") == "marginal"
+    verdict = (_capacity_verdict(capacity, capacity_target) if steps else "")
     return ChartSpec(
         "waterfall", "Lost capacity by cause",
         ("each step is a cause's share of the summed marginal contributions"
@@ -1411,7 +1424,7 @@ def capacity_waterfall(attribution: dict[str, Any]) -> ChartSpec:
                   if marginal else
                   f"The largest loss is {steps[0]['name'].lower()} "
                   f"({pct(steps[0]['value'])} of lost energy).")
-                 if steps else _no_capacity(attribution)),
+                 if steps else _no_capacity(attribution)) + verdict,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "rule": capacity.get("rule", "")})
 
@@ -2302,7 +2315,8 @@ def capacity_sankey(attribution: dict[str, Any],  # noqa: C901 - two shapes, one
                     hierarchy: int | str | None = None,
                     hierarchies: Sequence[int | str] | None = None, *,
                     by_hierarchy: bool = True,
-                    show_delivered: bool = True) -> ChartSpec:
+                    show_delivered: bool = True,
+                    capacity_target: float | None = None) -> ChartSpec:
     """Generated flow to delivered, lost, hierarchy and cause.
 
     One hierarchy scopes the chart; several siblings compare their share of
@@ -2361,6 +2375,10 @@ def capacity_sankey(attribution: dict[str, Any],  # noqa: C901 - two shapes, one
                     "these hierarchies." if by_hierarchy else
                     f" {pct(remainder / lost)} of the lost flow is not "
                     "attributed to a cause.")
+    if row is None:
+        # the delivered branch is the system's: no verdict for one scope
+        caption += _capacity_verdict(attribution.get("capacity") or {},
+                                     capacity_target)
     subtitle = (("generated flow → delivered and lost → "
                  if show_delivered else "lost flow → ")
                 + ("hierarchy → cause" if by_hierarchy else "cause"))
@@ -3174,8 +3192,13 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
                 baseline_label: str | None = None,
                 depth: int | None = None,
                 by_hierarchy: bool = True,
-                show_delivered: bool = True) -> ChartSpec:
+                show_delivered: bool = True,
+                capacity_target: float | None = None) -> ChartSpec:
     """Build one chart by name, from whichever inputs it needs.
+
+    `target` is the availability target; `capacity_target` (a fraction of
+    the generated flow) is drawn on the capacity charts over time and
+    judged in the captions of the lost-capacity waterfall and Sankey.
 
     The charts over time (`raptor.api.insight.timecharts.TIME_CHARTS`) take
     the parsed availability plot (`ao_runs`) or capacity plot (`cap_runs`),
@@ -3252,7 +3275,8 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
     if name == "capacity-sankey":
         return capacity_sankey(rolled_up, hierarchy, hierarchies,
                                by_hierarchy=by_hierarchy,
-                               show_delivered=show_delivered)
+                               show_delivered=show_delivered,
+                               capacity_target=capacity_target)
     if name == "hierarchy-ribbon":
         return hierarchy_ribbon(rolled_up, run, depth=depth,
                                hierarchy=hierarchy)
@@ -3265,6 +3289,7 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
         try:
             return time_chart(name, ao_runs=ao_runs, cap_runs=cap_runs, run=run,
                               units=units, target=target, y_floor=y_floor,
+                              capacity_target=capacity_target,
                               generated=generated.get("generated"),
                               ends=ends if any(e is not None for e in ends) else None)
         except ValueError as exc:
@@ -3392,11 +3417,12 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
             need_attribution()),
         "capacity-vs-downtime": lambda: capacity_vs_downtime(
             need_attribution()),
-        "capacity-waterfall": lambda: capacity_waterfall(need_attribution()),
+        "capacity-waterfall": lambda: capacity_waterfall(
+            need_attribution(), capacity_target if row is None else None),
         "annual-fan": lambda: annual_fan(need_years()),
         "annual-dots": lambda: annual_dots(need_years()),
-        "annual-capacity-fan": lambda: annual_capacity_fan(need_years(),
-                                                          target),
+        "annual-capacity-fan": lambda: annual_capacity_fan(
+            need_years(), capacity_target),
     }
     spec = builders[name]()
     if row is not None:

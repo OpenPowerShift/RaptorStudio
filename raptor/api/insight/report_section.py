@@ -111,7 +111,8 @@ def _from_parts(story: Any, per_run: list[dict],  # noqa: C901, PLR0912, PLR0915
             # a capacity model's Story ranks lost capacity: the report
             # ranked only downtime and drew no capacity chart
             specs.append(chart_data.lost_capacity_pareto(attribution))
-            specs.append(chart_data.capacity_waterfall(attribution))
+            specs.append(chart_data.capacity_waterfall(
+                attribution, story_dict.get("capacity_target")))
         rows = attribution.get("hierarchies") or []
         has_downtime = any(float((row.get("dtci") or {}).get("mean") or 0.0) > 0
                            for row in rows)

@@ -71,6 +71,13 @@ TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-r
                  "interval-availability", "availability-band", "availability-ladder",
                  "downtime-waterfall", "annual-fan", "annual-dots")
 
+#: The charts that use the capacity target: a line on the two capacity charts
+#: over time and the year fan, a met/missed sentence in the waterfall's and
+#: Sankey's caption.
+CAPACITY_TARGET_CHARTS = ("capacity-through-run", "capacity-band",
+                          "capacity-waterfall", "capacity-sankey",
+                          "annual-capacity-fan")
+
 _RECORD_AO = ("These charts are drawn from the availability plot. "
               + run_needs.gui_hint("availability_plot"))
 _RECORD_CAP = ("These charts are drawn from the capacity plot. "
@@ -349,9 +356,10 @@ class ChartsPage(QWidget):
         self.target_button = self._target_control()
         self.capacity_target_button = QPushButton("Capacity target: none")
         self.capacity_target_button.setToolTip(
-            "A target capacity-weighted availability drawn on the year-by-year "
-            "capacity chart. Saved in the model file; the simulation does not "
-            "change.")
+            "A target share of the generated flow that must be delivered, drawn "
+            "as a dashed line on the capacity charts and judged (met or "
+            "missed) in their captions. Saved in the model file; the "
+            "simulation does not change.")
         self.capacity_target_button.clicked.connect(self._ask_capacity_target)
         self.capacity_axis_button = self._capacity_axis_control()
         self.fold_box = QComboBox()
@@ -659,7 +667,8 @@ class ChartsPage(QWidget):
             attribution, self._scope,
             None if self._scope is not None else (self._selected or None),
             by_hierarchy=by_hierarchy,
-            show_delivered=self.sankey_delivered.isChecked())
+            show_delivered=self.sankey_delivered.isChecked(),
+            capacity_target=self._capacity_target)
 
     def _on_follow_toggled(self, on: bool) -> None:
         self._follow_canvas = bool(on)
@@ -1224,7 +1233,8 @@ class ChartsPage(QWidget):
                 ("capacity-vs-downtime", "Downtime against lost capacity",
                  lambda: charts.capacity_vs_downtime(a)),
                 ("capacity-waterfall", "Lost capacity by cause",
-                 lambda: charts.capacity_waterfall(a)),
+                 lambda: charts.capacity_waterfall(
+                     a, self._capacity_target if row is None else None)),
                 ("lost-capacity-treemap", "Lost capacity treemap",
                  lambda: charts.lost_capacity_treemap(a))):
             add(key, title, "Lost capacity", build,
@@ -1371,6 +1381,7 @@ class ChartsPage(QWidget):
                     key, ao_runs=self._ao_runs, cap_runs=self._cap_runs,
                     run=max(1, run), units=i.get("units") or "",
                     target=i.get("target"), y_floor=self._y_floor or None,
+                    capacity_target=self._capacity_target,
                     generated=i.get("generated"),
                     ends=ends if any(e is not None for e in ends) else None)
             except ValueError as exc:
@@ -1564,7 +1575,8 @@ class ChartsPage(QWidget):
             key in ("capacity-through-run", "capacity-band"))
         self.target_button.setVisible(
             key in TARGET_CHARTS and self._scope_row() is None)
-        self.capacity_target_button.setVisible(key == "annual-capacity-fan")
+        self.capacity_target_button.setVisible(
+            key in CAPACITY_TARGET_CHARTS and self._scope_row() is None)
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
         depth_charts = {
             "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-heatmap",

@@ -147,6 +147,11 @@ class Story:
     #: The phase answer: one line per entered phase, in model order.  A
     #: run without phases leaves it empty.
     phases: list[PhaseLine] = field(default_factory=list)
+    #: The capacity target (a fraction of the generated flow) and the
+    #: verdict on it, from the runs' capacity-weighted availability; both
+    #: empty without a target or without capacity analysis.
+    capacity_target: float | None = None
+    capacity_verdict: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -203,6 +208,28 @@ def _meets(value: float | None, op: str | None, target: float | None) -> bool | 
         "<=": value <= target, "<": value < target,
         "==": abs(value - target) < 1e-12, "!=": abs(value - target) >= 1e-12,
     }.get(op)
+
+
+def _capacity_verdict(per_run: list[dict], units: str,
+                      target: float | None) -> str:
+    """"Capacity delivered 97.8 % against the capacity target 95 %: met
+    (every run met the capacity target)", or "" with no target or no
+    capacity-weighted availability in the runs."""
+    if target is None:
+        return ""
+    values = _values(per_run, "capacity_weighted_availability")
+    value = _mean(values)
+    if value is None:
+        return ""
+    field_name = "capacity_weighted_availability"
+    met = value >= target
+    gap = ("met" if met else
+           f"missed by {100.0 * (target - value):.3g} points")
+    done, total = split_at(values, target, ">=")
+    return (f"Capacity delivered {_fmt(value, field_name, units)} against the "
+            f"capacity target {_fmt(target, field_name, units)}: {gap} ("
+            + proportion_text(done, total).replace(
+                "met the target", "met the capacity target") + ").")
 
 
 def _headline(per_run: list[dict], units: str, requirements: list[dict],
@@ -552,6 +579,7 @@ def build(
     requested_runs: int | None = None,
     truncated: str = "",
     currency: str | None = None,
+    capacity_target: float | None = None,
 ) -> Story:
     """Build the Story from a finished batch's per-run dicts, money in
     `currency` (the model's; "$" when not given).  See `_build`."""
@@ -562,7 +590,8 @@ def build(
             requirements=requirements, has_capacity=has_capacity,
             has_phases=has_phases, phased=phased, cost_on=cost_on,
             model_name=model_name, run_id=run_id, model_hash=model_hash,
-            requested_runs=requested_runs, truncated=truncated)
+            requested_runs=requested_runs, truncated=truncated,
+            capacity_target=capacity_target)
 
 
 def _build(
@@ -581,6 +610,7 @@ def _build(
     model_hash: str = "",
     requested_runs: int | None = None,
     truncated: str = "",
+    capacity_target: float | None = None,
 ) -> Story:
     """Build the Story from a finished batch's per-run dicts.
 
@@ -640,20 +670,27 @@ def _build(
         caption=_caption(headline, drivers, attribution, measure),
         units=units, drivers_measure=measure,
         hierarchies=_hierarchy_lines(attribution),
-        phases=_phase_lines(attribution))
+        phases=_phase_lines(attribution),
+        capacity_target=capacity_target,
+        capacity_verdict=_capacity_verdict(per_run, units, capacity_target))
 
 
 def from_run(workspace: Any, run_id: str,
-             requirements: list[dict] | None = None) -> Story:
+             requirements: list[dict] | None = None,
+             capacity_target: float | None = None) -> Story:
     """The Story for a stored run, from its summary, per-run rows and
     attribution.  One implementation for the CLI, MCP and the report.
     `requirements` (``{metric, op, value}``) give the headline its target:
-    no surface passed one, so the target headline could never show."""
+    no surface passed one, so the target headline could never show.
+    `capacity_target` (a fraction) gives the Story its capacity verdict;
+    without it the model's saved capacity target is used."""
     from raptor.api.advisor import advise_run
     from raptor.api.insight import drivers
     from raptor.api.run import run_dir
-    from raptor.api.run_tables import read_per_run, read_summary
+    from raptor.api.run_tables import read_per_run, read_summary, run_targets
 
+    if capacity_target is None:
+        capacity_target = run_targets(workspace, run_id).get("capacity")
     runs_dir = run_dir(workspace, run_id)
     summary = read_summary(runs_dir, run_id, required=True)
     per_run = read_per_run(runs_dir, run_id) or []
@@ -674,7 +711,8 @@ def from_run(workspace: Any, run_id: str,
         run_id=run_id,
         requested_runs=summary.get("requested_runs"),
         truncated=str(summary.get("truncated") or ""),
-        currency=getattr(rbd, "currency", None))
+        currency=getattr(rbd, "currency", None),
+        capacity_target=capacity_target)
 
 
 def text_lines(story: Story) -> list[str]:  # noqa: C901, PLR0912
@@ -686,6 +724,8 @@ def text_lines(story: Story) -> list[str]:  # noqa: C901, PLR0912
                      + (f"  ({story.proportion})" if story.proportion else ""))
         if head.target_text and head.met is not None:
             lines.append(head.gap_text)
+    if story.capacity_verdict:
+        lines.append(story.capacity_verdict)
     if story.drivers:
         lines += ["", f"Where the {story.drivers_measure} comes from:"]
         for line in story.drivers:

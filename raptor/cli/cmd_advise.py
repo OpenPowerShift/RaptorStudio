@@ -84,7 +84,8 @@ def add_parser(sub: Any) -> None:  # noqa: PLR0915 - one flag per statement
     e.add_argument("--target", action="append", metavar="EXPR",
                    help="a requirement for the Story's headline, e.g. "
                         "'system.ao>=0.995' or 'mdt<=5' (repeatable; the first "
-                        "is the headline)")
+                        "is the headline); 'system.capacity>=0.95' is the "
+                        "capacity target, drawn on the capacity charts")
     e.add_argument("--analysis", metavar="LIST",
                    help="weak,cost,capacity for this run (replaces the model's "
                         "setting; the file is untouched): the cost and lost-capacity "
@@ -400,7 +401,8 @@ def explain_command(args: Any) -> int:  # noqa: C901, PLR0912 - one command, its
         story = None
         if args.story or args.target:
             from raptor.api.insight.story import from_run
-            story = from_run(ws, result.run_id, requirements=targets)
+            story = from_run(ws, result.run_id, requirements=targets,
+                             capacity_target=_capacity_target(targets))
         chart = _chart_for(ws, result.run_id, chart_name, attribution,
                            run=args.chart_run, y_floor=args.y_floor,
                            min_share=args.chart_min_share,
@@ -408,6 +410,7 @@ def explain_command(args: Any) -> int:  # noqa: C901, PLR0912 - one command, its
                            by_hierarchy=args.sankey == "hierarchy",
                            show_delivered=not args.no_delivered,
                            target=_availability_target(targets),
+                           capacity_target=_capacity_target(targets),
                            hierarchy=args.hierarchy,
                            hierarchies=(_split_csv(args.hierarchies)
                                         if args.hierarchies else None),
@@ -511,10 +514,20 @@ def _availability_target(targets: list[dict]) -> float | None:
                  if REQUIREMENT_FIELDS.get(str(t.get("metric"))) == "availability"), None)
 
 
-def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901 - gathers each chart's inputs
+def _capacity_target(targets: list[dict]) -> float | None:
+    """The first capacity target (`--target system.capacity>=0.95`), a
+    fraction of the generated flow, for the capacity charts and the Story."""
+    from raptor.api.advisor.context import REQUIREMENT_FIELDS
+    return next((float(t["value"]) for t in targets
+                 if REQUIREMENT_FIELDS.get(str(t.get("metric")))
+                 == "capacity_weighted_availability"), None)
+
+
+def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901, PLR0912 - gathers each chart's inputs
                attribution: dict, *, run: int = 1,
                y_floor: float | None = None, min_share: float = 0.0,
                target: float | None = None,
+               capacity_target: float | None = None,
                hierarchy: str | int | None = None,
                hierarchies: list[str] | None = None,
                compare_to: str | None = None,
@@ -524,7 +537,8 @@ def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901 - gathers e
                show_delivered: bool = True) -> Any:
     """Build the requested chart from a finished run, or None; with
     `min_share` or `fold`, its small items folded into one
-    (`charts.fold_small`).  Without `target`, the model's saved target."""
+    (`charts.fold_small`).  Without `target` or `capacity_target`, the
+    model's saved targets."""
     if not name:
         return None
     from raptor.api.insight import charts
@@ -546,10 +560,13 @@ def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901 - gathers e
                    else {"min_share": min_share})
     except ValueError as exc:
         raise CliError(f"--chart-fold: {exc}", X.USAGE) from exc
-    if target is None:
+    if target is None or capacity_target is None:
         from raptor.api.run_tables import run_targets
-        target = run_targets(ws, run_id).get(
-            "capacity" if name == "annual-capacity-fan" else "availability")
+        saved = run_targets(ws, run_id)
+        if target is None:
+            target = saved.get("availability")
+        if capacity_target is None:
+            capacity_target = saved.get("capacity")
     periods = None
     from raptor.api.insight import drivers
     if name in ("ensemble-ribbon", "hierarchy-overlay", "hierarchy-ribbon"):
@@ -579,7 +596,8 @@ def _chart_for(ws: Any, run_id: str, name: str | None,  # noqa: C901 - gathers e
                                cost_runs=cost_runs, run=run,
                                importance=importance, y_floor=y_floor,
                                units=run_units(ws, run_id), surface="cli",
-                               target=target, hierarchy=hierarchy,
+                               target=target, capacity_target=capacity_target,
+                               hierarchy=hierarchy,
                                hierarchies=hierarchies, baseline=baseline,
                                baseline_label=compare_to,
                                depth=depth, by_hierarchy=by_hierarchy,

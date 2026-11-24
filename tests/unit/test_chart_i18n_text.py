@@ -293,6 +293,49 @@ SAMPLES = {
         "Manutenção planejada não tirou nada nestas execuções."),
     "No availability reported.": (
         "No availability reported.", "Nenhuma disponibilidade informada."),
+    "Run %1 delivered %2 of its %3; it ran below full %4 of the time, lowest "
+    "flow %5 of %6.": (
+        "Run 1 delivered 86.01 % of its flow generated; it ran below full 23.8 % of "
+        "the time, lowest flow 0 of 1,500. It missed the capacity target 95 %.",
+        "A execução 1 entregou 86.01 % do total de referência (fluxo gerado); operou "
+        "abaixo do pleno em 23.8 % do tempo, com fluxo mínimo de 0 de 1,500. Não "
+        "atingiu a meta de capacidade 95 %."),
+    "Run %1: lowest flow %2.": (
+        "Run 3: lowest flow 40.", "Execução 3: fluxo mínimo de 40."),
+    "%1 delivered %2 of their %3; the mean flow fell as low as %4 of %5.": (
+        "12 runs delivered 92.51 % of their full capacity (highest recorded); the "
+        "mean flow fell as low as 670.8 of 1,500. 2 of the 12 runs delivered at or "
+        "above the capacity target.",
+        "12 execuções entregaram 92.51 % do total de referência (capacidade plena "
+        "(maior registrada)); o fluxo médio chegou a cair a 670.8 de 1,500. 2 das 12 "
+        "execuções entregaram a meta de capacidade ou mais."),
+    "It met the capacity target.": (
+        "Run 3: lowest flow 40. It met the capacity target.",
+        "Execução 3: fluxo mínimo de 40. Atingiu a meta de capacidade."),
+    "It missed the capacity target %1.": (
+        "Run 3: lowest flow 40. It missed the capacity target 95 %.",
+        "Execução 3: fluxo mínimo de 40. Não atingiu a meta de capacidade 95 %."),
+    "%1 of the %2 runs delivered at or above the capacity target.": (
+        "12 runs delivered 92.51 % of their flow generated; the mean flow fell as low "
+        "as 1 of 2. 1 of the 12 runs delivered at or above the capacity target.",
+        "12 execuções entregaram 92.51 % do total de referência (fluxo gerado); o "
+        "fluxo médio chegou a cair a 1 de 2. 1 das 12 execuções entregaram a meta de "
+        "capacidade ou mais."),
+    "The largest loss is %1 (%2 of lost energy).": (
+        "The largest loss is planned maintenance (45 % of lost energy).",
+        "A maior perda é manutenção planejada (45 % da energia perdida)."),
+    "The largest loss is %1 (%2 of the summed contributions).": (
+        "The largest loss is hands-on repair (45 % of the summed contributions).",
+        "A maior perda é reparo direto (45 % das contribuições somadas)."),
+    "Delivered %1 of the generated flow: it met the capacity target %2.": (
+        "Delivered 97 % of the generated flow: it met the capacity target 95 %.",
+        "Entregou 97 % do fluxo gerado: atingiu a meta de capacidade 95 %."),
+    "Delivered %1 of the generated flow: it missed the capacity target %2 by %3 "
+    "points (loss allowed %4, lost %5).": (
+        "Delivered 90 % of the generated flow: it missed the capacity target 95 % by "
+        "5 points (loss allowed 5 %, lost 10 %).",
+        "Entregou 90 % do fluxo gerado: não atingiu a meta de capacidade 95 % por 5 "
+        "pontos (perda admitida 5 %, perdida 10 %)."),
 }
 
 #: Run-to-run caption clauses are read apart from the sentences.
@@ -519,3 +562,19 @@ def test_the_tool_row_wraps_instead_of_clipping_at_a_narrow_width(pt, qapp):
     pane = page.export_button.parentWidget()
     assert page.export_button.geometry().right() > pane.width() - 40   # still at the right
     page.close()
+
+
+def test_the_capacity_target_line_is_labelled_in_the_gui_language(pt, qapp):
+    from raptor.api.insight import timecharts
+    from tests.unit.test_charts_page import _series
+    ao, cap = _series()
+    spec = timecharts.capacity_band(cap, generated=100.0, capacity_target=0.9)
+    seen = []
+    widget = ChartWidget()
+    original = widget._target_line
+    widget._target_line = lambda *a, **k: (seen.append(k.get("label")),
+                                           original(*a, **k))[1]
+    widget.resize(900, 500)
+    widget.set_spec(spec)
+    widget.grab()
+    assert seen == ["meta de capacidade 90 % = 90"]

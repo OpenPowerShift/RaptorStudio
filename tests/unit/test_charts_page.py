@@ -902,3 +902,57 @@ def test_scorecard_and_overlay_paint_with_baseline_and_end_labels(qapp):
     assert page.select("When did each hierarchy's downtime build up?")
     assert page.selected_spec().provenance["end_labels"]
     assert not page.chart.grab().isNull()
+
+
+def test_the_capacity_target_button_shows_on_every_chart_that_uses_it(qapp):
+    from raptor.gui.ui.charts_page import CAPACITY_TARGET_CHARTS
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 80.0}, "lost_energy": {"mean": 20.0},
+        "elements": [{"kind": "block", "id": 1, "name": "Pump",
+                      "lost_energy": {"mean": 20.0}, "share": {"mean": 1.0},
+                      "causes": {"repair": 1.0}, "main_cause": "repair"}],
+        "causes": {"repair": {"mean": 20.0}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", generated=100.0)
+    page.set_series(*_series())
+    for key in CAPACITY_TARGET_CHARTS:
+        if key == "annual-capacity-fan":
+            continue            # needs a year-long run: covered above
+        page.select(key)
+        assert page.capacity_target_button.isVisibleTo(page), key
+    for key in ("availability-band", "lost-capacity-pareto", "trial-outcome"):
+        page.select(key)
+        assert not page.capacity_target_button.isVisibleTo(page), key
+
+
+def test_changing_the_capacity_target_rebuilds_the_chart_on_show(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 80.0}, "lost_energy": {"mean": 20.0},
+        "elements": [{"kind": "block", "id": 1, "name": "Pump",
+                      "lost_energy": {"mean": 20.0}, "share": {"mean": 1.0},
+                      "causes": {"repair": 1.0}, "main_cause": "repair"}],
+        "causes": {"repair": {"mean": 20.0}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", generated=100.0)
+    page.set_series(*_series())
+    page.select("capacity-band")
+    assert not page.selected_spec().marks
+    page.set_capacity_target(0.9)
+    spec = page.selected_spec()
+    assert spec.marks[0]["share"] == 0.9
+    assert "capacity target" in spec.caption
+    assert page.capacity_target_button.text() == "Capacity target: 90 %"
+    page.select("capacity-waterfall")
+    assert "missed the capacity target 90 % by 10 points" in page.selected_spec().caption
+    page.set_capacity_target(None)
+    assert "capacity target" not in page.selected_spec().caption
+    page.select("capacity-band")
+    assert not page.selected_spec().marks

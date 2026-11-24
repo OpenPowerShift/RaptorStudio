@@ -180,3 +180,47 @@ def test_raptors_unlimited_capacity_is_not_drawn_as_a_billion():
     assert spec.provenance["y_range"][1] < 10
     assert "capacity available" not in [layer["name"] for layer in spec.series]
     assert "unlimited" in spec.caption
+
+
+# -- the capacity target ---------------------------------------------------
+
+def test_the_capacity_through_run_draws_the_target_on_the_flow_axis():
+    # run 1 delivers (5*100 + 3*40 + 12*100) / 2000 = 91 % of 100
+    spec = timecharts.capacity_through_run(
+        _cap(), 1, generated=100.0, ends=[20.0, 20.0], capacity_target=0.9)
+    assert spec.marks == [{"kind": "target", "value": pytest.approx(90.0),
+                           "share": 0.9, "label": "capacity target"}]
+    assert spec.caption.endswith("It met the capacity target.")
+    missed = timecharts.capacity_through_run(
+        _cap(), 1, generated=100.0, ends=[20.0, 20.0], capacity_target=0.95)
+    assert missed.marks[0]["value"] == pytest.approx(95.0)
+    assert "It missed the capacity target 95 %." in missed.caption
+
+
+def test_the_capacity_charts_draw_no_target_without_one():
+    assert timecharts.capacity_through_run(_cap(), 1, generated=100.0).marks == []
+    spec = timecharts.capacity_band(_cap(), generated=100.0, ends=[20.0, 20.0])
+    assert spec.marks == [] and "capacity target" not in spec.caption
+
+
+def test_the_capacity_band_counts_the_runs_that_met_the_target():
+    # run 1 delivers 91 %, run 2 (12 of 20 hours at zero flow) 40 %
+    spec = timecharts.capacity_band(_cap(), generated=100.0, ends=[20.0, 20.0],
+                                    capacity_target=0.9)
+    assert spec.marks[0]["value"] == pytest.approx(90.0)
+    assert "1 of the 2 runs delivered at or above the capacity target." in spec.caption
+
+
+def test_the_capacity_target_leaves_the_availability_target_alone():
+    spec = charts.chart_named("capacity-band", cap_runs=_cap(), units="hours",
+                              target=0.5, capacity_target=0.9,
+                              attribution={"capacity": {"generated": 100.0}})
+    assert [m["value"] for m in spec.marks] == [pytest.approx(90.0)]
+
+
+def test_the_target_is_in_the_svg_with_its_percentage():
+    spec = timecharts.capacity_through_run(
+        _cap(), 1, generated=100.0, ends=[20.0, 20.0], capacity_target=0.9)
+    assert "capacity target 90 % = 90" in render(spec)
+    assert "capacity target" not in render(timecharts.capacity_through_run(
+        _cap(), 1, generated=100.0, ends=[20.0, 20.0]))
