@@ -908,6 +908,10 @@ class InspectorBlockMixin(_Base):
             sp.setRange(-BLOCK_COST_LIMIT, BLOCK_COST_LIMIT)
             sp.setDecimals(BLOCK_COST_DECIMALS)
             sp.setValue(float(getattr(block, attr)))
+            # Its size hint is sized for the whole range (12+ digits), which
+            # beside a wrapped pt-BR label overflowed a 340 px dock on some
+            # fonts; let it narrow like the Inspector's other number fields.
+            sp.setMinimumWidth(96)
             if cost_field_readonly(block, attr):
                 # The engine reads these two only for
                 # SparingType.INFINITE (block_lifecycle.py); a Pooled

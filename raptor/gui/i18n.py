@@ -366,7 +366,6 @@ def run_panel_sources() -> list[str]:
     here, in full, so a translator sees exactly what the panel shows.
     """
     from raptor.api import run_needs
-    from raptor.core import run_experiment as rx
     out: list[str] = ["events", "nodes", "phases", "preventive maintenance",
                       "resources", "spare pools", "sparing", "triggers",
                       "Whole model", "1 core (Animate)",
@@ -374,7 +373,7 @@ def run_panel_sources() -> list[str]:
                       "re-simulation.",
                       "Statistics gathering starts here, so start-up "
                       "transients are excluded from the reported numbers.",
-                      rx._STATS_START_TOOLTIP,
+                      run_needs.STATS_START_TOOLTIP,
                       # the recordings' size note (raptor.core.storage_estimate)
                       "No recordings ticked: nothing extra is written.",
                       "Size on disk depends on how long each run lasts (the "
@@ -382,14 +381,14 @@ def run_panel_sources() -> list[str]:
                       "Lengthen a sample interval or untick a recording to "
                       "reduce it.",
                       "Animate \u2014 1 core, every event shown"]
-    for _key, label, hint in rx.RECORDING_FIELDS:
+    for _key, label, hint in run_needs.RECORDING_FIELDS:
         out += [label, hint]
     notes: list[str] = []
     for what in run_needs.FEEDS.values():
         notes += [f"For {what}.", f"Off: {what[0].lower() + what[1:]} will be empty."]
     out += notes
-    for key, (_analysis, word) in rx.RECORDING_REQUIRES.items():
-        label = next(lbl for k, lbl, _h in rx.RECORDING_FIELDS if k == key)
+    for key, (_analysis, word) in run_needs.RECORDING_REQUIRES.items():
+        label = next(lbl for k, lbl, _h in run_needs.RECORDING_FIELDS if k == key)
         out += [f"{label} (needs {word})", f"needs {word}"]
         feeds = run_needs.FEEDS[key]
         out += [f"Needs the {word} analysis, under Results to calculate. {note}"

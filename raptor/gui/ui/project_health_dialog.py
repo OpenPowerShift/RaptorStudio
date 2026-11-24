@@ -8,11 +8,12 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
-    QFileDialog, QFormLayout, QHBoxLayout, QLabel, QListWidget,
+    QFormLayout, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QPushButton, QVBoxLayout,
 )
 
 from raptor.api.health import HealthReport
+from raptor.gui.ui import filedialogs
 from raptor.core.redact import RedactOptions, write_share_copy
 
 
@@ -142,7 +143,7 @@ class ShareSafeDialog(QDialog):
         intro = QLabel(
             "A share-safe copy keeps the model's IDs, links, distributions "
             "and results inputs, but removes the labels and notes that "
-            "describe what the system is. The original file is not changed.")
+            "describe what the system is. Your own file is not changed.")
         intro.setWordWrap(True)
         lay.addWidget(intro)
         form = QFormLayout()
@@ -195,7 +196,7 @@ class ShareSafeDialog(QDialog):
 
     def _choose(self) -> None:
         start = self._default_path or "shared-model.rbds"
-        path, _filter = QFileDialog.getSaveFileName(
+        path, _filter = filedialogs.getSaveFileName(
             self, "Share-safe Copy", start,
             "RAPTOR Studio model (*.rbds)")
         if not path:

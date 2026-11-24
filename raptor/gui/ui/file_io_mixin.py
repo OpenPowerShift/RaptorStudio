@@ -834,8 +834,17 @@ class FileIoMixin(_Base):
         self._inspector.flush_pending_comment()
         self._diagram_dock.view.write_back_to_rbd(self._rbd)
         self._diagram_dock.view.write_back_annotations()
+        results = self._results
+        run_id = results.run_id()
+        if (run_id is None and results.has_results()
+                and not getattr(results, "_archive_source", "")):
+            # Results with no manifest have no digest, and an archive without
+            # one has none either: None == None would call a new run "the
+            # same as the version". Results the archive did not supply are
+            # never its own, so give them an identity no archive can match.
+            run_id = f"unrecorded-{id(results._manifest)}-{self._content_stamp()}"
         return CurrentState(self._rbd, dirty=bool(getattr(self, "_dirty", False)),
-                            run_id=self._results.run_id())
+                            run_id=run_id)
 
     def _save_for_history(self) -> bool:
         """Save unsaved edits so a version can checkpoint them; False when
