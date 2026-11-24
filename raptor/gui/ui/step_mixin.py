@@ -47,6 +47,7 @@ class StepMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         _NO_BREAKPOINT: str
+        _debug_page_index: int
         _breakpoint_combo: PySide6.QtWidgets.QComboBox
         def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ..., seed: int = ...) -> dict: ...
         def _clear_run_eta(self) -> None: ...

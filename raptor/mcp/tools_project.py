@@ -188,8 +188,9 @@ def list_versions(model_id: str, limit: int = 20) -> CallToolResult:
     path = _history_file(handle)
     snapshots = _history.snapshots(path)
     shown = snapshots[:limit]
+    versions = [_snapshot_row(s) for s in shown]
     data = {"file": context.public_source(str(path)), "total": len(snapshots),
-            "versions": [_snapshot_row(s) for s in shown]}
+            "versions": versions}
     lines = [f"{len(snapshots)} version(s) of `{path.name}`"]
     if not snapshots:
         lines.append("")
@@ -197,7 +198,7 @@ def list_versions(model_id: str, limit: int = 20) -> CallToolResult:
                      "it saves this file.")
     else:
         lines.append("")
-        for row in data["versions"]:
+        for row in versions:
             label = f" — {row['label']}" if row["label"] else ""
             lines.append(f"- `{row['snapshot_id']}` {row['created']} "
                          f"({row['reason']}, {row['bytes']:,} B){label}")

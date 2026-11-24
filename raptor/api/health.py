@@ -143,7 +143,7 @@ def report(rbd: Any) -> HealthReport:  # noqa: C901, PLR0912
         name = str(row.get("blockName") or "").strip().casefold()
         if name:
             seen.setdefault(name, []).append(row_int(row.get("ID"), 0))
-    display = {}
+    display: dict[str, str] = {}
     for row in rows.get("blocks", []):
         name = str(row.get("blockName") or "").strip()
         if name:

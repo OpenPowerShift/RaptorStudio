@@ -132,7 +132,7 @@ class ShareSafeDialog(QDialog):
         self._default_path = default_path
         self._source = source
         self.path: str | None = None
-        self.report = None
+        self.report: Any = None   # a RedactReport once written
         self.setWindowTitle("Share-safe Copy")
         self.setMinimumWidth(560)
         self._build()

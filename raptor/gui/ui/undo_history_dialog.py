@@ -222,10 +222,10 @@ class UndoHistoryDialog(QDialog):
             # A push at the top of the stack only adds rows; the base row
             # and the saved marker keep their meaning, so append instead
             # of rebuilding a list that may hold thousands of steps.
-            appended = (old is not None and len(texts) > len(old)
+            appended = bool(old is not None and len(texts) > len(old)
                         and texts[:len(old)] == old
                         and clean == self._shown_clean)
-            if appended:
+            if appended and old is not None:
                 self._append_rows(len(old), texts)
             else:
                 self._rebuild_rows(texts)
