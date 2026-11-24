@@ -694,6 +694,18 @@ def show_preferences(win):
         "borders and focus rings high contrast. Useful in bright rooms or "
         "for low vision.", "app")
 
+    reduce_motion = QCheckBox("Reduce motion")
+    reduce_motion.setChecked(_settings.get_bool(
+        "appearance/reduce_motion", False))
+    reduce_motion.setToolTip(
+        "Turns off animated charts: the Play control is disabled and the "
+        "static summary is shown")
+    _pref_row(
+        app_form, "Motion:", reduce_motion,
+        "Charts that can animate (the run-by-run hierarchy plot) never play "
+        "while this is on; the static summary is shown instead. Animation "
+        "is always opt-in.", "app")
+
     from raptor.gui import i18n as _i18n
     language = QComboBox()
     language.addItem("System language", "system")
@@ -1051,6 +1063,10 @@ def show_preferences(win):
     old_scale = _settings.get_int("appearance/ui_scale", 100)
     _settings.set_value("appearance/ui_scale", scale.currentData())
     _settings.set_value("appearance/high_contrast", contrast.isChecked())
+    _settings.set_value("appearance/reduce_motion", reduce_motion.isChecked())
+    results_dock = getattr(win, "_results", None)
+    if results_dock is not None and hasattr(results_dock, "_charts_page"):
+        results_dock._charts_page.sync_motion_setting()
     from raptor.gui.resources.design_tokens import ThemeManager
     ThemeManager.instance().set_high_contrast(contrast.isChecked())
     _palette.set_active(palette_key)

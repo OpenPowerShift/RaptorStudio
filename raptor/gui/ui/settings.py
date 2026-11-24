@@ -70,6 +70,9 @@ DEFAULTS: dict[str, Any] = {
     # Accessibility/presentation preferences, not model data.
     "appearance/ui_scale": 100,
     "appearance/high_contrast": False,
+    # Reduced motion: chart animations (the run-by-run hierarchy plot) stay
+    # off and their Play control is disabled.
+    "appearance/reduce_motion": False,
     # UI language: "system" or a locale code with a shipped catalogue.
     "appearance/language": "system",
     # Chart palette: the cause fills on every chart, report and saved image.

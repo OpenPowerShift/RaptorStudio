@@ -2209,6 +2209,42 @@
       <translation>Limpar referência</translation>
     </message>
     <message>
+      <source>Play</source>
+      <translation>Reproduzir</translation>
+    </message>
+    <message>
+      <source>Play or pause the run-by-run animation</source>
+      <translation>Reproduzir ou pausar a animação execução a execução</translation>
+    </message>
+    <message>
+      <source>Step</source>
+      <translation>Avançar</translation>
+    </message>
+    <message>
+      <source>Show the next run</source>
+      <translation>Mostrar a próxima execução</translation>
+    </message>
+    <message>
+      <source>Show the next run (pauses the animation)</source>
+      <translation>Mostrar a próxima execução (pausa a animação)</translation>
+    </message>
+    <message>
+      <source>Summary</source>
+      <translation>Resumo</translation>
+    </message>
+    <message>
+      <source>Back to the summary of all runs</source>
+      <translation>Voltar ao resumo de todas as execuções</translation>
+    </message>
+    <message>
+      <source>Stop and show every run at once</source>
+      <translation>Parar e mostrar todas as execuções de uma vez</translation>
+    </message>
+    <message>
+      <source>Run being shown</source>
+      <translation>Execução exibida</translation>
+    </message>
+    <message>
       <source>The run this chart shows (arrow keys step through them)</source>
       <translation>A execução que este gráfico mostra (as setas percorrem as execuções)</translation>
     </message>
@@ -2983,6 +3019,22 @@
     <message>
       <source>Keeps the semantic state colours but makes the window, text, borders and focus rings high contrast. Useful in bright rooms or for low vision.</source>
       <translation>Mantém as cores semânticas de estado, mas torna a janela, o texto, as bordas e os anéis de foco de alto contraste. Útil em ambientes claros ou para baixa visão.</translation>
+    </message>
+    <message>
+      <source>Reduce motion</source>
+      <translation>Reduzir movimento</translation>
+    </message>
+    <message>
+      <source>Turns off animated charts: the Play control is disabled and the static summary is shown</source>
+      <translation>Desativa os gráficos animados: o controle Reproduzir fica desativado e o resumo estático é exibido</translation>
+    </message>
+    <message>
+      <source>Motion:</source>
+      <translation>Movimento:</translation>
+    </message>
+    <message>
+      <source>Charts that can animate (the run-by-run hierarchy plot) never play while this is on; the static summary is shown instead. Animation is always opt-in.</source>
+      <translation>Os gráficos que podem ser animados (o gráfico de hierarquias execução a execução) nunca são reproduzidos enquanto esta opção estiver ativa; o resumo estático é exibido no lugar. A animação é sempre opcional.</translation>
     </message>
     <message>
       <source>System language</source>
@@ -6831,10 +6883,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Sparing cost</source>
       <translation>Custo de provisão</translation>
-    </message>
-    <message>
-      <source>Summary</source>
-      <translation>Resumo</translation>
     </message>
     <message>
       <source>System capacity</source>

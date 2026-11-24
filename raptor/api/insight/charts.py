@@ -15,7 +15,7 @@ import math
 
 import itertools
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -252,6 +252,12 @@ def _csv_table(chart: ChartSpec) -> tuple[list[str], list[list[Any]]]:  # noqa: 
                  *columns, "total"],
                 [[row.get("name"), *[row.get("cells", {}).get(c) for c in columns],
                   row.get("total")] for row in chart.series])
+    if chart.kind == "hops":
+        hop_names = [str(row.get("name")) for row in chart.series]
+        count = max((len(row.get("runs") or []) for row in chart.series), default=0)
+        return (["run", *hop_names],
+                [[i + 1, *[(row.get("runs") or [None] * count)[i]
+                           for row in chart.series]] for i in range(count)])
     if chart.kind == "sankey":
         return (["source", "target", "value", "cause"],
                 [[row.get("source"), row.get("target"), row.get("value"),
@@ -307,6 +313,10 @@ def _kind_lines(chart: ChartSpec,  # noqa: C901, PLR0912 - one branch per chart 
                 f" · {int(row.get('members') or 0)} inside, "
                 f"{int(row.get('starters') or 0)} started an outage"
                 for row in rows]
+    if chart.kind == "hops":
+        return [f"  {row.get('name')}: mean {row_value(float(row.get('value') or 0))}"
+                f", highest in {int(row.get('first') or 0)} of "
+                f"{len(row.get('runs') or [])} runs" for row in rows]
     if chart.kind == "delta":
         return [f"  {row.get('name')}: "
                 f"{row_value(float(row.get('before') or 0))} to "
@@ -1902,11 +1912,10 @@ def hierarchy_overlay(attribution: dict[str, Any],
     return spec
 
 
-def hierarchy_small_multiples(attribution: dict[str, Any],
-                              hierarchies: Sequence[int | str] | None = None,
-                              top: int = 4,
-                              depth: int | None = 1) -> ChartSpec:
-    """One dot-plot panel per hierarchy: each dot is a run's share."""
+def _compared_rows(attribution: dict[str, Any],
+                   hierarchies: Sequence[int | str] | None, top: int,
+                   depth: int | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The hierarchies a comparison chart shows, and every one it could."""
     available = [row for row in hier.rows_at_depth(attribution, depth or 1)
                  if float((row.get("dtci") or {}).get("mean") or 0.0) > 0]
     selected = hier.resolve_many(attribution, hierarchies) if hierarchies \
@@ -1921,6 +1930,15 @@ def hierarchy_small_multiples(attribution: dict[str, Any],
             "these hierarchies overlap (a parent includes its child): "
             + ", ".join(f"{a} / {b}" for a, b in overlap)
             + ". Choose different branches, or use one level at a time.")
+    return selected, available
+
+
+def hierarchy_small_multiples(attribution: dict[str, Any],
+                              hierarchies: Sequence[int | str] | None = None,
+                              top: int = 4,
+                              depth: int | None = 1) -> ChartSpec:
+    """One dot-plot panel per hierarchy: each dot is a run's share."""
+    selected, available = _compared_rows(attribution, hierarchies, top, depth)
     facets = []
     for row in selected:
         values = hier.per_run(attribution, row)
@@ -1956,6 +1974,75 @@ def hierarchy_small_multiples(attribution: dict[str, Any],
                "name": (f"{len(facets)} hierarchy" if len(facets) == 1
                         else f"{len(facets)} hierarchies"),
                "path": [row["name"] for row in selected]})
+
+
+def hierarchy_hops(attribution: dict[str, Any],
+                   hierarchies: Sequence[int | str] | None = None,
+                   top: int = 4, depth: int | None = 1,
+                   frame: int | None = None) -> ChartSpec:
+    """Hypothetical outcome plot: which hierarchy is worse, run by run.
+
+    `frame` None is the static summary (one quantile dot per slice of the
+    runs, per hierarchy: what every report, CLI and MCP surface draws).  An
+    integer is one run's shares on the same fixed axis, which the GUI steps
+    through to show how often the ranking flips (`hops_frame`)."""
+    selected, _available = _compared_rows(attribution, hierarchies, top, depth)
+    trials = [row.get("trials") or [] for row in selected]
+    count = min((len(t) for t in trials), default=0)
+    # a run with no system outage has no share (the same rule as per_run)
+    keep = [i for i in range(count)
+            if not ("system_red_time" in trials[0][i]
+                    and not trials[0][i]["system_red_time"])]
+    rows: list[dict[str, Any]] = []
+    for row, own in zip(selected, trials, strict=True):
+        runs = [float(own[i].get("dtci") or 0.0) for i in keep]
+        rows.append({"name": str(row["name"]), "value": _mean(runs) or 0.0,
+                     "runs": runs, "dots": quantile_dots(runs), "first": 0})
+    rows.sort(key=lambda r: -float(r["value"]))
+    for i in range(len(keep)):
+        shares = [float(r["runs"][i]) for r in rows]
+        if max(shares) > 0:
+            rows[shares.index(max(shares))]["first"] += 1
+    n = len(keep)
+    lead = rows[0]
+    if len(rows) > 1 and n:
+        caption = (f"{lead['name']} causes the most downtime in "
+                   f"{lead['first']} of {n} runs.")
+    else:
+        caption = (f"{lead['name']}: mean share of system downtime "
+                   f"{pct(float(lead['value']))} over {n} runs.")
+    from raptor.api.insight.axes import nice_range
+    biggest = max((v for r in rows for v in r["runs"]), default=0.0)
+    high = nice_range(0.0, max(biggest, 1e-6), 5, share=True)[1]
+    spec = ChartSpec(
+        "hops", "Which hierarchy is worse, run by run?",
+        f"each run's share of system downtime at {hier.depth_text(depth)}; "
+        "the dashed line is each hierarchy's mean",
+        "share of system downtime", "hierarchy", series=rows, caption=caption,
+        provenance={"runs": n, "format": "percent", "frame": None,
+                    "x_range": (0.0, high), "lead": lead["name"], "summary": caption,
+                    "hierarchies": [r["name"] for r in rows]},
+        scope={"kind": "selection", "id": 0,
+               "name": (f"{len(rows)} hierarchy" if len(rows) == 1
+                        else f"{len(rows)} hierarchies"),
+               "path": [r["name"] for r in rows]})
+    return hops_frame(spec, frame) if frame is not None else spec
+
+
+def hops_frame(spec: ChartSpec, index: int | None) -> ChartSpec:
+    """The same chart showing run `index` (0-based; None: the summary)."""
+    if spec.kind != "hops":
+        return spec
+    runs = int(spec.provenance.get("runs") or 0)
+    if index is None or runs <= 0:
+        provenance = dict(spec.provenance, frame=None)
+        return replace(spec, provenance=provenance)
+    index = max(0, min(runs - 1, int(index)))
+    ranked = sorted(spec.series, key=lambda r: -float(r["runs"][index]))
+    parts = ", ".join(f"{r['name']} {pct(float(r['runs'][index]))}" for r in ranked)
+    summary = str(spec.provenance.get("summary") or spec.caption)
+    return replace(spec, caption=f"Run {index + 1} of {runs}: {parts}. {summary}",
+                   provenance=dict(spec.provenance, frame=index))
 
 
 def hierarchy_delta(attribution: dict[str, Any],
@@ -2984,6 +3071,7 @@ CHARTS = {
     "hierarchy-treemap": hierarchy_treemap,
     "hierarchy-overlay": hierarchy_overlay,
     "hierarchy-small-multiples": hierarchy_small_multiples,
+    "hierarchy-hops": hierarchy_hops,
     "hierarchy-delta": hierarchy_delta,
     "hierarchy-heatmap": hierarchy_heatmap,
     "hierarchy-phase-heatmap": hierarchy_phase_heatmap,
@@ -3000,18 +3088,19 @@ HIERARCHY_CHARTS = frozenset(
 
 #: Charts that compare several hierarchies (rather than scope one).
 MULTI_HIERARCHY_CHARTS = frozenset({
-    "hierarchy-overlay", "hierarchy-small-multiples", "capacity-sankey"})
+    "hierarchy-overlay", "hierarchy-small-multiples", "hierarchy-hops",
+    "capacity-sankey"})
 
 #: Charts that already choose one level, so one scope argument is ambiguous.
 NO_SINGLE_HIERARCHY = frozenset({
     "hierarchy-scorecard", "hierarchy-overlay",
-    "hierarchy-small-multiples", "hierarchy-delta",
+    "hierarchy-small-multiples", "hierarchy-hops", "hierarchy-delta",
 })
 #: Charts whose `depth` argument chooses a level.
 DEPTH_CHARTS = frozenset({
     "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-treemap",
-    "hierarchy-overlay", "hierarchy-small-multiples", "hierarchy-delta",
-    "hierarchy-heatmap", "hierarchy-phase-heatmap", "hierarchy-ribbon",
+    "hierarchy-overlay", "hierarchy-small-multiples", "hierarchy-hops",
+    "hierarchy-delta", "hierarchy-heatmap", "hierarchy-phase-heatmap", "hierarchy-ribbon",
     "hierarchy-sunburst",
 })
 
@@ -3113,7 +3202,7 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
                          "treemap, sunburst, heatmap, ribbon or Sankey")
     if hierarchies and name not in MULTI_HIERARCHY_CHARTS:
         raise ValueError(f"{name} does not take several hierarchies: use "
-                         "hierarchy-overlay or hierarchy-small-multiples")
+                         "hierarchy-overlay, hierarchy-small-multiples or hierarchy-hops")
     if (name in HIERARCHY_CHARTS and not hier.rows(attribution)
             and not (name == "capacity-sankey" and not by_hierarchy)):
         raise ValueError(
@@ -3149,6 +3238,8 @@ def _chart_named(name: str, *, per_run: list[dict] | None = None,  # noqa: C901,
         return hierarchy_overlay(rolled_up, hierarchies, depth=depth)
     if name == "hierarchy-small-multiples":
         return hierarchy_small_multiples(rolled_up, hierarchies, depth=depth)
+    if name == "hierarchy-hops":
+        return hierarchy_hops(rolled_up, hierarchies, depth=depth)
     if name == "hierarchy-delta":
         return hierarchy_delta(rolled_up, baseline, depth=depth,
                                baseline_label=baseline_label)

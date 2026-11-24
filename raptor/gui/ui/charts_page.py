@@ -25,7 +25,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
@@ -61,6 +61,8 @@ GROUPS = ("The answer", "By hierarchy", "Over time", "Why it goes down",
 
 #: The smallest height the chart is drawn at; a shorter page scrolls.
 CHART_MIN_HEIGHT = 340
+#: Milliseconds a run stays up in the run-by-run hierarchy animation.
+HOPS_INTERVAL_MS = 500
 
 #: The charts that draw a target line, where the Target button is shown.
 TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
@@ -128,6 +130,12 @@ class ChartsPage(QWidget):
         self._capacity_axis_mode = "auto"
         self._capacity_axis_value: float | None = None
         self._capacity_axis_range: tuple[float, float] | None = None
+        #: run-by-run hierarchy plot: None shows the static summary, an
+        #: int the run being shown. Never started on its own.
+        self._hops_frame: int | None = None
+        self._hops_timer = QTimer(self)
+        self._hops_timer.setInterval(HOPS_INTERVAL_MS)
+        self._hops_timer.timeout.connect(self._hops_tick)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -298,6 +306,29 @@ class ChartsPage(QWidget):
         self.clear_baseline_action.setEnabled(False)
         self.baseline_button.setMenu(self.baseline_menu)
         bar.addWidget(self.baseline_button)
+        self.hops_play = QToolButton()
+        self.hops_play.setText("Play")
+        self.hops_play.setAccessibleName("Play or pause the run-by-run animation")
+        self.hops_play.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_play.clicked.connect(self.toggle_hops_play)
+        self.hops_step = QToolButton()
+        self.hops_step.setText("Step")
+        self.hops_step.setAccessibleName("Show the next run")
+        self.hops_step.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_step.setToolTip("Show the next run (pauses the animation)")
+        self.hops_step.clicked.connect(self.step_hops)
+        self.hops_summary = QToolButton()
+        self.hops_summary.setText("Summary")
+        self.hops_summary.setAccessibleName("Back to the summary of all runs")
+        self.hops_summary.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_summary.setToolTip("Stop and show every run at once")
+        self.hops_summary.clicked.connect(lambda _c=False: self.stop_hops(reset=True))
+        self.hops_label = QLabel("")
+        self.hops_label.setObjectName("SectionNote")
+        self.hops_label.setAccessibleName("Run being shown")
+        for hops_widget in (self.hops_play, self.hops_step, self.hops_summary,
+                            self.hops_label):
+            bar.addWidget(hops_widget)
         self.run_label = QLabel(i18n.tr("Run", "Results"))
         self.run_box = QSpinBox()
         self.run_box.setMinimum(1)
@@ -787,6 +818,7 @@ class ChartsPage(QWidget):
     # -- the list -------------------------------------------------------
 
     def _rebuild(self) -> None:  # noqa: C901 - one list rebuild
+        self.stop_hops(reset=True, redraw=False)
         current = self.selected_key() or self._wanted
         folded = {item.text(0) for item in self._groups() if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
@@ -1025,6 +1057,10 @@ class ChartsPage(QWidget):
         add("hierarchy-small-multiples", "Is the hierarchy ranking stable?", "By hierarchy",
             lambda: charts.hierarchy_small_multiples(attribution or {}, chosen,
                                                             depth=self._ranking_depth()),
+            no_hier or no_overlap or no_compare)
+        add("hierarchy-hops", "Which hierarchy is worse, run by run?", "By hierarchy",
+            lambda: charts.hierarchy_hops(attribution or {}, chosen,
+                                          depth=self._ranking_depth()),
             no_hier or no_overlap or no_compare)
         add("hierarchy-delta", "Hierarchy change against baseline", "By hierarchy",
             lambda: charts.hierarchy_delta(
@@ -1313,6 +1349,8 @@ class ChartsPage(QWidget):
 
     def _on_current(self, current: QTreeWidgetItem | None, _previous) -> None:
         if current is not None and current.data(0, _KEY):
+            if str(current.data(0, _KEY)) != self._wanted:
+                self.stop_hops(reset=True, redraw=False)
             self._wanted = str(current.data(0, _KEY))
         self._show_current()
 
@@ -1328,10 +1366,15 @@ class ChartsPage(QWidget):
         if entry.missing:
             self._show_missing(entry.title, entry.missing, entry.action)
             return
+        spec: charts.ChartSpec | None
         if entry.key == "hierarchy-map":
             spec = self._hierarchy_map_spec()
         elif entry.key == "capacity-sankey":
             spec = self._capacity_sankey_spec()
+        elif entry.key == "hierarchy-hops":
+            static_spec = self._specs.get(entry.title)
+            spec = (charts.hops_frame(static_spec, self._hops_frame)
+                    if static_spec is not None else None)
         elif entry.key == "hierarchy-ribbon":
             try:
                 spec = charts.hierarchy_ribbon(
@@ -1368,6 +1411,84 @@ class ChartsPage(QWidget):
             self.enable_requested.emit(list(entry.needs))
         else:
             self.drivers_requested.emit()
+
+    # -- run-by-run hierarchy plot (opt-in animation) ---------------------
+
+    @staticmethod
+    def motion_reduced() -> bool:
+        from raptor.gui.ui import settings
+        return settings.get_bool("appearance/reduce_motion", False)
+
+    def _hops_runs(self) -> int:
+        entry = self._entries.get("hierarchy-hops")
+        spec = self._specs.get(entry.title) if entry is not None else None
+        return int(spec.provenance.get("runs") or 0) if spec is not None else 0
+
+    def sync_motion_setting(self) -> None:
+        """Apply a changed Reduce motion setting: stop and disable Play."""
+        if self.motion_reduced():
+            self.stop_hops(reset=True)
+        else:
+            self._sync_hops()
+
+    def _sync_hops(self) -> None:
+        runs = self._hops_runs()
+        playing = self._hops_timer.isActive()
+        reduced = self.motion_reduced()
+        self.hops_play.setText("Pause" if playing else "Play")
+        self.hops_play.setEnabled(runs > 1 and not reduced)
+        self.hops_play.setToolTip(
+            "Reduce motion is on (Preferences > Appearance): the animation "
+            "is off. Use Step to go through the runs one at a time."
+            if reduced else
+            "Animate through the runs, one at a time, to see how often the "
+            "ranking changes")
+        self.hops_step.setEnabled(runs > 1)
+        self.hops_summary.setEnabled(self._hops_frame is not None)
+        self.hops_label.setText(
+            f"Run {self._hops_frame + 1} of {runs}" if self._hops_frame is not None
+            else (f"All {runs} runs" if runs else ""))
+
+    def toggle_hops_play(self) -> None:
+        if self._hops_timer.isActive():
+            self._hops_timer.stop()
+            self._sync_hops()
+            return
+        if self.motion_reduced() or self._hops_runs() < 2:
+            return
+        self._hops_timer.start()
+        self._hops_tick()
+
+    def step_hops(self) -> None:
+        """Show the next run (and pause: stepping is manual)."""
+        self._hops_timer.stop()
+        self._hops_tick()
+
+    def _hops_tick(self) -> None:
+        runs = self._hops_runs()
+        if runs < 1:
+            self._hops_timer.stop()
+            return
+        self._hops_frame = 0 if self._hops_frame is None else (self._hops_frame + 1) % runs
+        if self.selected_key() == "hierarchy-hops":
+            self._show_current()
+        else:
+            self.stop_hops(reset=True, redraw=False)
+
+    def stop_hops(self, *, reset: bool = False, redraw: bool = True) -> None:
+        """Stop the timer; `reset` also returns to the static summary."""
+        self._hops_timer.stop()
+        changed = reset and self._hops_frame is not None
+        if reset:
+            self._hops_frame = None
+        if changed and redraw and self.selected_key() == "hierarchy-hops":
+            self._show_current()
+        elif hasattr(self, "hops_play"):
+            self._sync_hops()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
+        self.stop_hops()
+        super().hideEvent(event)
 
     def _show_missing(self, title: str, text: str, action: str) -> None:
         self.chart.set_spec(None)
@@ -1414,7 +1535,7 @@ class ChartsPage(QWidget):
         depth_charts = {
             "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-heatmap",
             "hierarchy-phase-heatmap", "hierarchy-small-multiples",
-            "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
+            "hierarchy-hops", "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
             "hierarchy-delta"}
         self.depth_box.setVisible(
             has_hier and key in depth_charts
@@ -1426,6 +1547,10 @@ class ChartsPage(QWidget):
         self._sync_target_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
+        for hops_widget in (self.hops_play, self.hops_step, self.hops_summary,
+                            self.hops_label):
+            hops_widget.setVisible(key == "hierarchy-hops")
+        self._sync_hops()
 
     @property
     def fold_mode(self) -> str:

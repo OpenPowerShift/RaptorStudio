@@ -665,7 +665,7 @@ run-to-run ribbon, and for a phased model `phase-downtime` and
 The hierarchy charts (`hierarchy-scorecard`, `hierarchy-pareto`,
 `hierarchy-treemap`, `hierarchy-sunburst`, `hierarchy-heatmap`,
 `hierarchy-phase-heatmap`, `hierarchy-overlay`, `hierarchy-small-multiples`,
-`hierarchy-delta`,
+`hierarchy-hops`, `hierarchy-delta`,
 `hierarchy-ribbon`, `hierarchy-anatomy` and `capacity-sankey`) read the
 hierarchy roll-up the same run records. `hierarchy` picks one by id, name
 or `A > B` path, and the element charts then describe only what is inside

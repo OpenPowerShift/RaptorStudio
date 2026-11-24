@@ -3708,7 +3708,7 @@ charts also mark the median. It is a visual cue only. Without
 Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
 `hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
 `hierarchy-heatmap`, `hierarchy-phase-heatmap`, `hierarchy-overlay`,
-`hierarchy-small-multiples`,
+`hierarchy-small-multiples`, `hierarchy-hops`,
 `hierarchy-delta`, `hierarchy-ribbon`, `hierarchy-anatomy` and
 `capacity-sankey` (the last needs capacity attribution). `hierarchy`
 selects one by id, name or `A > B` path; `hierarchies` selects up to
