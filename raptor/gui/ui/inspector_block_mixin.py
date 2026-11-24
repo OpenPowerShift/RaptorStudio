@@ -885,16 +885,16 @@ class InspectorBlockMixin(_Base):
         # Wording matches Raptor 7's own Costs tab rather than generic
         # column-name-derived labels -- e.g. "Rebate or disposal" not
         # "Done Fixed", "Recurring spare" not "Per spare".
-        labels = ["Initial acquisition", "Running (/time)",
-                  "Standby (/time)", "Idle downtime (/time)",
+        labels = ["Initial acquisition", "Running (/\u2060time)",
+                  "Standby (/\u2060time)", "Idle downtime (/\u2060time)",
                   "Hands-on maintenance, fixed cost",
-                  "Hands-on maintenance (/time)",
-                  "Logistical hold (/time)",
+                  "Hands-on maintenance (/\u2060time)",
+                  "Logistical hold (/\u2060time)",
                   "Preventive maintenance, fixed cost",
-                  "Preventive maintenance (/time)",
-                  "Preventive maintenance hold (/time)",
+                  "Preventive maintenance (/\u2060time)",
+                  "Preventive maintenance hold (/\u2060time)",
                   "Rebate or disposal, fixed cost",
-                  "Permanently done (/time)",
+                  "Permanently done (/\u2060time)",
                   "Recurring spare", "Emergency spare additional cost"]
         cost_id = block.id
         spins: list[QDoubleSpinBox] = []

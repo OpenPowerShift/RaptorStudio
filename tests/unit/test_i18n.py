@@ -397,3 +397,29 @@ def test_refilled_combos_and_rebuilt_tabs_are_not_put_back(qapp, locale):
             "Summary", "Resources", "Sparing"]
     finally:
         i18n.install(qapp, "en")
+
+
+def test_templates_do_not_rewrite_model_data(qapp, pt):
+    """A label the app wrote translates; one showing a user's name does not."""
+    app_label = QLabel("Phase 2")
+    data_label = QLabel("Phase 2")
+    data_label.setProperty("raptor_i18n_data", True)
+    named = QLabel("Phase Alpha")          # not a number: not the app's words
+    i18n.translate_widgets(app_label)
+    i18n.translate_widgets(data_label)
+    i18n.translate_widgets(named)
+    assert app_label.text() == "Fase 2"
+    assert data_label.text() == "Phase 2"
+    assert named.text() == "Phase Alpha"
+
+
+def test_a_data_spin_suffix_is_not_a_template(qapp, pt):
+    from PySide6.QtWidgets import QSpinBox
+    app_spin, data_spin = QSpinBox(), QSpinBox()
+    app_spin.setSuffix(" of 4")
+    data_spin.setSuffix(" of 4")
+    data_spin.setProperty("raptor_i18n_data", True)
+    i18n.translate_widgets(app_spin)
+    i18n.translate_widgets(data_spin)
+    assert app_spin.suffix() != " of 4"
+    assert data_spin.suffix() == " of 4"

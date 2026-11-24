@@ -817,6 +817,10 @@ class InspectorRowsMixin(_Base):
                 spin.setDecimals(3)
                 spin.setValue(float(val_now))
             fl.addRow(f"{phase_name}:", combo)
+            # the user's phase name: data, never read as a template
+            name_label = fl.labelForField(combo)
+            if name_label is not None:
+                name_label.setProperty("raptor_i18n_data", True)
             fl.addRow("", spin)
             editors.append((combo, spin))
 

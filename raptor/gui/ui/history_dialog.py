@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from raptor.gui import i18n
 from raptor.api.history import store as history_store
 from raptor.core.history import HistoryStore, Snapshot, file_digest
 
@@ -260,7 +261,7 @@ class HistoryDialog(QDialog):
                 f"The model has not changed since the version recorded "
                 f"{when}; that version is selected. Type a label to name "
                 "it." if when else
-                "The model has not changed; no version was added.")
+                i18n.tr("The model has not changed; no version was added."))
         elif newest and newest[0].id == shot.id:
             self._note.setText(
                 f"Labelled the version recorded {shot.time_text()}.")
@@ -344,14 +345,14 @@ def _archive_results_line(path: Path) -> str:
         with zipfile.ZipFile(path) as zf:
             names = [n for n in zf.namelist() if n.endswith("summary.json")]
             if not names:
-                return "Archive without saved results."
+                return i18n.tr("Archive without saved results.")
             with zf.open(names[0]) as handle:
                 summary = json.loads(handle.read(1_000_000))
     except (OSError, ValueError, zipfile.BadZipFile):
-        return "Archive: the saved results could not be read."
+        return i18n.tr("Archive: the saved results could not be read.")
     runs = summary.get("num_runs") if isinstance(summary, dict) else None
     when = summary.get("run_at") if isinstance(summary, dict) else None
-    bits = ["Archive with saved results"]
+    bits = [i18n.tr("Archive with saved results")]
     if isinstance(runs, int):
         bits.append(f"{runs:,} run{'' if runs == 1 else 's'}")
     if isinstance(when, str) and when:
@@ -374,6 +375,6 @@ def _diff_lines(diff: dict[str, Any]) -> list[str]:
         body = [[f"{r['kind']} {r['path']}".strip(), r["field"],
                  r["a"] or "—", r["b"] or "—"] for r in mine]
         out += ["", f"{_DIFF_TITLES[group]}:",
-                _table_text(["Element", "Field", "This version", "Open now"],
+                _table_text(["Element", "Field", i18n.tr("This version"), i18n.tr("Open now")],
                             body)]
     return out
