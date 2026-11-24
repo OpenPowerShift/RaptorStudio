@@ -2061,6 +2061,18 @@
       <translation>Não comparável: a análise de capacidade difere entre os modelos.</translation>
     </message>
     <message>
+      <source>Charts in this group</source>
+      <translation>Gráficos deste grupo</translation>
+    </message>
+    <message>
+      <source>Not available</source>
+      <translation>Indisponível</translation>
+    </message>
+    <message>
+      <source>No preview</source>
+      <translation>Sem miniatura</translation>
+    </message>
+    <message>
       <source>baseline %1</source>
       <translation>a referência %1</translation>
     </message>
@@ -2309,8 +2321,8 @@
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
     </message>
     <message>
-      <source>Click to fold or unfold this group</source>
-      <translation>Clique para recolher ou expandir este grupo</translation>
+      <source>Click to see this group's charts; click the arrow to fold or unfold it</source>
+      <translation>Clique para ver os gráficos deste grupo; clique na seta para recolher ou expandir</translation>
     </message>
     <message>
       <source>Y axis</source>
@@ -8281,6 +8293,14 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>%1 (fora da missão)</translation>
     </message>
     <message>
+      <source>The year charts need the model's time unit to be hours; this model counts %1.</source>
+      <translation>Os gráficos anuais precisam que a unidade de tempo do modelo seja horas; este modelo conta em %1.</translation>
+    </message>
+    <message>
+      <source>Needs a run at least one whole year long (8,760 hours); this run is %1 hours.</source>
+      <translation>Precisa de uma execução de pelo menos um ano inteiro (8.760 horas); esta execução tem %1 horas.</translation>
+    </message>
+    <message>
       <source>Baseline: none</source>
       <translation>Referência: nenhuma</translation>
     </message>
@@ -9495,6 +9515,390 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Delivered %1 of the generated flow: it missed the capacity target %2 by %3 points (loss allowed %4, lost %5).</source>
       <translation>Entregou %1 do fluxo gerado: não atingiu a meta de capacidade %2 por %3 pontos (perda admitida %4, perdida %5).</translation>
+    </message>
+    <message>
+      <source>One dot per run. A tight cluster means a dependable result; a wide spread means luck matters.</source>
+      <translation>Um ponto por execução. Pontos juntos indicam um resultado confiável; muito espalhados, que a sorte pesa.</translation>
+    </message>
+    <message>
+      <source>Read across from a value to the share of runs that got that far. Steep and narrow is good.</source>
+      <translation>Leia de um valor até a parcela de execuções que chegou a ele. Curva íngreme e estreita é bom sinal.</translation>
+    </message>
+    <message>
+      <source>Falls as runs fail for the first time. Use it to judge a mission or a warranty period.</source>
+      <translation>Cai conforme as execuções falham pela primeira vez. Útil para avaliar uma missão ou um prazo de garantia.</translation>
+    </message>
+    <message>
+      <source>Each step down is a cost: planned maintenance, then spares and logistics. Shows what to fix.</source>
+      <translation>Cada degrau para baixo é uma perda: manutenção planejada, depois peças e logística. Mostra o que corrigir.</translation>
+    </message>
+    <message>
+      <source>A flat line means more runs will not move the average. Still moving? Run more.</source>
+      <translation>Linha estável: mais execuções não mudarão a média. Ainda se mexe? Faça mais execuções.</translation>
+    </message>
+    <message>
+      <source>One panel per hierarchy with its share of downtime. Start here to see who to look into.</source>
+      <translation>Um painel por hierarquia, com a sua parcela da inatividade. Comece aqui para ver quem investigar.</translation>
+    </message>
+    <message>
+      <source>The longest bar is the biggest source of downtime. Work on that hierarchy first.</source>
+      <translation>A barra mais longa é a maior fonte de inatividade. Comece por essa hierarquia.</translation>
+    </message>
+    <message>
+      <source>Bigger area means more downtime, and parents hold their children. Find the hot spot at a glance.</source>
+      <translation>Área maior significa mais inatividade, e os pais contêm os filhos. Ache o ponto crítico num relance.</translation>
+    </message>
+    <message>
+      <source>Steep lines are where downtime piles up fastest, and when. Compare up to four hierarchies.</source>
+      <translation>Linhas íngremes mostram onde e quando a inatividade se acumula mais rápido. Compare até quatro hierarquias.</translation>
+    </message>
+    <message>
+      <source>Rankings that change between runs are luck, not a real weakness. Stable ones are real.</source>
+      <translation>Ordens que mudam entre execuções são sorte, não fraqueza real. As estáveis são reais.</translation>
+    </message>
+    <message>
+      <source>Play through the runs to see how often the worst hierarchy changes. Few changes mean a clear culprit.</source>
+      <translation>Percorra as execuções para ver quantas vezes a pior hierarquia muda. Poucas mudanças indicam um culpado claro.</translation>
+    </message>
+    <message>
+      <source>Bars up are worse than your saved baseline, bars down are better. Use it to check a change.</source>
+      <translation>Barras para cima são piores que a sua linha de base salva; para baixo, melhores. Use para conferir uma mudança.</translation>
+    </message>
+    <message>
+      <source>Dark cells are a hierarchy hurt by a cause. Look for one dark column to fix everywhere.</source>
+      <translation>Células escuras são uma hierarquia afetada por uma causa. Procure uma coluna escura para corrigir em todo lugar.</translation>
+    </message>
+    <message>
+      <source>Dark cells mark a hierarchy struggling in a phase. Useful when the mission has distinct stages.</source>
+      <translation>Células escuras marcam uma hierarquia com problemas numa fase. Útil quando a missão tem etapas distintas.</translation>
+    </message>
+    <message>
+      <source>Each path is a chain from a cause up to the system going down. Thick paths happen most.</source>
+      <translation>Cada caminho é uma cadeia, da causa até o sistema parar. Os caminhos grossos são os mais frequentes.</translation>
+    </message>
+    <message>
+      <source>One row per hierarchy, coloured when down. Overlaps show failures that happen together.</source>
+      <translation>Uma linha por hierarquia, colorida quando parada. Sobreposições mostram falhas que ocorrem juntas.</translation>
+    </message>
+    <message>
+      <source>Each drop is an outage. See when they cluster and how fast availability recovers.</source>
+      <translation>Cada queda é uma indisponibilidade. Veja quando se agrupam e com que rapidez a disponibilidade se recupera.</translation>
+    </message>
+    <message>
+      <source>Availability of each slice of the run, not the running average. Shows bad stretches clearly.</source>
+      <translation>A disponibilidade de cada trecho da execução, não a média acumulada. Mostra bem os períodos ruins.</translation>
+    </message>
+    <message>
+      <source>The shaded band holds most runs. A wide band early on settles as the run goes on.</source>
+      <translation>A faixa sombreada contém a maioria das execuções. Uma faixa larga no início se estreita com o tempo.</translation>
+    </message>
+    <message>
+      <source>Steps down are lost capacity. Compare the dips with the line for full capacity.</source>
+      <translation>Degraus para baixo são capacidade perdida. Compare as quedas com a linha da capacidade total.</translation>
+    </message>
+    <message>
+      <source>The band holds most runs. Staying low means capacity is lost often, not just once.</source>
+      <translation>A faixa contém a maioria das execuções. Ficar embaixo significa perda frequente de capacidade, não uma só vez.</translation>
+    </message>
+    <message>
+      <source>A long top bar is one weak component. Consider spares, redundancy or a better part.</source>
+      <translation>Uma barra longa no topo é um componente fraco. Considere peças sobressalentes, redundância ou uma peça melhor.</translation>
+    </message>
+    <message>
+      <source>Bars show downtime each element caused. A few long bars mean fixing a few things pays most.</source>
+      <translation>As barras mostram a inatividade causada por cada elemento. Poucas barras longas: corrigir poucas coisas rende mais.</translation>
+    </message>
+    <message>
+      <source>Each bar is a loss: repair, maintenance, then logistics. The biggest drop is where to act.</source>
+      <translation>Cada barra é uma perda: reparo, manutenção e depois logística. A maior queda é onde agir.</translation>
+    </message>
+    <message>
+      <source>Bigger area means more downtime. Handy when there are too many elements for a bar chart.</source>
+      <translation>Área maior significa mais inatividade. Prático quando há elementos demais para um gráfico de barras.</translation>
+    </message>
+    <message>
+      <source>Tall bars are phases with the most downtime. Check whether it lands in a critical phase.</source>
+      <translation>Barras altas são as fases com mais inatividade. Veja se cai numa fase crítica.</translation>
+    </message>
+    <message>
+      <source>Dark cells are a cause in a phase. Shows whether the same problem hits all phases or just one.</source>
+      <translation>Células escuras são uma causa numa fase. Mostra se o mesmo problema atinge todas as fases ou só uma.</translation>
+    </message>
+    <message>
+      <source>Follows one typical outage through failure, waiting and repair. Long waits mean spares or crews.</source>
+      <translation>Acompanha uma indisponibilidade típica: falha, espera e reparo. Esperas longas apontam falta de peças ou de equipes.</translation>
+    </message>
+    <message>
+      <source>Each row is a run, coloured when down. Lines of colour in the same place mean a common time.</source>
+      <translation>Cada linha é uma execução, colorida quando parada. Cores alinhadas no mesmo ponto indicam um momento comum.</translation>
+    </message>
+    <message>
+      <source>Most outages short and a few very long? The long tail is where to look.</source>
+      <translation>A maioria das paradas é curta e poucas são muito longas? A cauda longa é onde olhar.</translation>
+    </message>
+    <message>
+      <source>Each bubble is an element: how often it takes the system down against how long each outage lasts.</source>
+      <translation>Cada bolha é um elemento: quantas vezes ele derruba o sistema contra quanto dura cada parada.</translation>
+    </message>
+    <message>
+      <source>Bars show capacity each element lost. Differs from downtime when a failure only part-stops output.</source>
+      <translation>As barras mostram a capacidade perdida por elemento. Difere da inatividade quando a falha só reduz a produção.</translation>
+    </message>
+    <message>
+      <source>Each dot is an element: its downtime share against lost output. Dots at the left lose output without stopping.</source>
+      <translation>Cada ponto é um elemento: sua parcela da inatividade contra a produção perdida. Os da esquerda perdem produção sem parar.</translation>
+    </message>
+    <message>
+      <source>Each bar is capacity lost to one cause. The biggest bar is the one to tackle.</source>
+      <translation>Cada barra é a capacidade perdida por uma causa. A maior barra é a que deve ser atacada.</translation>
+    </message>
+    <message>
+      <source>Bigger area means more capacity lost. Handy when many elements share the loss.</source>
+      <translation>Área maior significa mais capacidade perdida. Prático quando muitos elementos dividem a perda.</translation>
+    </message>
+    <message>
+      <source>Thick bands are the main routes of loss. Read left to right from hierarchy to cause.</source>
+      <translation>Faixas grossas são os principais caminhos da perda. Leia da esquerda para a direita, da hierarquia até a causa.</translation>
+    </message>
+    <message>
+      <source>Each year's spread across runs. A wide band means bad years happen; a falling middle means ageing.</source>
+      <translation>A dispersão de cada ano entre as execuções. Faixa larga: anos ruins acontecem; mediana em queda: envelhecimento.</translation>
+    </message>
+    <message>
+      <source>Dots below the target line are missed years. Counts how often the target is missed.</source>
+      <translation>Pontos abaixo da linha da meta são anos em que ela não foi atingida. Conta com que frequência isso acontece.</translation>
+    </message>
+    <message>
+      <source>Each year gets its own spread of delivered capacity. Shows if output slips as years pass.</source>
+      <translation>Cada ano tem a sua dispersão da capacidade entregue. Mostra se a produção cai com o passar dos anos.</translation>
+    </message>
+    <message>
+      <source>Long bars are the elements that cost most. Compare them with their downtime before cutting.</source>
+      <translation>Barras longas são os elementos que mais custam. Compare com a inatividade deles antes de cortar.</translation>
+    </message>
+    <message>
+      <source>Bigger area means higher cost. Helps spot spending in small elements added up.</source>
+      <translation>Área maior significa custo maior. Ajuda a notar o gasto de vários elementos pequenos somados.</translation>
+    </message>
+    <message>
+      <source>Splits life-cycle cost into its categories. Find the biggest one and start there.</source>
+      <translation>Divide o custo do ciclo de vida em categorias. Encontre a maior e comece por ela.</translation>
+    </message>
+    <message>
+      <source>The slope is spend per time. A steepening line means costs are rising as the system ages.</source>
+      <translation>A inclinação é o gasto por tempo. Uma linha cada vez mais íngreme indica custos crescentes com o envelhecimento.</translation>
+    </message>
+    <message>
+      <source>One bar per year. Use it to budget, and to see if costs climb as parts wear.</source>
+      <translation>Uma barra por ano. Use para orçar e ver se os custos sobem com o desgaste das peças.</translation>
+    </message>
+    <message>
+      <source>Top right matters both when it fails and when improved. Spend spares and money there.</source>
+      <translation>O canto superior direito importa tanto quando falha quanto quando melhora. Invista peças e dinheiro ali.</translation>
+    </message>
+    <message>
+      <source>Start here: did the system meet its target, and how sure can you be?</source>
+      <translation>Comece aqui: o sistema atingiu a meta e com que segurança se pode dizer isso?</translation>
+    </message>
+    <message>
+      <source>Find which part of the model is responsible, by hierarchy.</source>
+      <translation>Descubra qual parte do modelo é responsável, hierarquia por hierarquia.</translation>
+    </message>
+    <message>
+      <source>See when the trouble happens. Needs the recorded plots turned on.</source>
+      <translation>Veja quando o problema acontece. Exige os gráficos registrados ativados.</translation>
+    </message>
+    <message>
+      <source>Trace downtime to the elements and causes behind it, then decide what to fix.</source>
+      <translation>Rastreie a inatividade até os elementos e causas por trás dela e decida o que corrigir.</translation>
+    </message>
+    <message>
+      <source>For models that deliver flow: what failures cost in output, not just uptime.</source>
+      <translation>Para modelos que entregam fluxo: o que as falhas custam em produção, não só em tempo ativo.</translation>
+    </message>
+    <message>
+      <source>Check each year on its own. Needs a run at least a year long.</source>
+      <translation>Confira cada ano separadamente. Exige uma execução de pelo menos um ano.</translation>
+    </message>
+    <message>
+      <source>See where money goes, by element, category and year. Needs cost analysis.</source>
+      <translation>Veja para onde vai o dinheiro, por elemento, categoria e ano. Exige a análise de custo.</translation>
+    </message>
+    <message>
+      <source>Rank elements by how much improving them would help the whole system.</source>
+      <translation>Ordene os elementos pelo quanto melhorá-los ajudaria o sistema inteiro.</translation>
+    </message>
+    <message>
+      <source>No runs yet: run the model (F5).</source>
+      <translation>Ainda não há execuções: execute o modelo (F5).</translation>
+    </message>
+    <message>
+      <source>This chart is system-wide and has no per-hierarchy series. Choose System, or use the hierarchy overlay, small multiples, heatmap or state ribbon.</source>
+      <translation>Este gráfico é do sistema inteiro e não tem séries por hierarquia. Escolha Sistema ou use a sobreposição de hierarquias, os pequenos múltiplos, o mapa de calor ou a faixa de estados.</translation>
+    </message>
+    <message>
+      <source>Needs at least 2 runs.</source>
+      <translation>Precisa de pelo menos 2 execuções.</translation>
+    </message>
+    <message>
+      <source>The run kept no event log: turn on Detailed event log and run again.</source>
+      <translation>A execução não guardou o registro de eventos: ative Detailed event log e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Work out the downtime drivers first (the hierarchy roll-up comes from the same replay).</source>
+      <translation>Calcule antes as causas da inatividade (a consolidação por hierarquia vem da mesma reprodução).</translation>
+    </message>
+    <message>
+      <source>This run has no hierarchy roll-up: rerun it with attribution and a hierarchy roll-up.</source>
+      <translation>Esta execução não tem consolidação por hierarquia: execute de novo com atribuição e consolidação por hierarquia.</translation>
+    </message>
+    <message>
+      <source>Work out the downtime drivers first.</source>
+      <translation>Calcule antes as causas da inatividade.</translation>
+    </message>
+    <message>
+      <source>This run has no phase breakdown: rerun it with phases and attribution on.</source>
+      <translation>Esta execução não tem detalhamento por fase: execute de novo com fases e atribuição ativadas.</translation>
+    </message>
+    <message>
+      <source>The model has no mission phases.</source>
+      <translation>O modelo não tem fases de missão.</translation>
+    </message>
+    <message>
+      <source>This run kept no per-hierarchy outage timeline: run again with downtime attribution on.</source>
+      <translation>Esta execução não guardou a linha do tempo das paradas por hierarquia: execute de novo com a atribuição da inatividade ativada.</translation>
+    </message>
+    <message>
+      <source>These hierarchies overlap (a parent includes its child): choose different branches, or one level.</source>
+      <translation>Estas hierarquias se sobrepõem (um pai inclui o filho): escolha ramos diferentes ou um só nível.</translation>
+    </message>
+    <message>
+      <source>No hierarchy has downtime to compare in this run.</source>
+      <translation>Nenhuma hierarquia tem inatividade para comparar nesta execução.</translation>
+    </message>
+    <message>
+      <source>This run has no per-hierarchy phase breakdown: rerun it with phases and attribution on.</source>
+      <translation>Esta execução não tem detalhamento por fase em cada hierarquia: execute de novo com fases e atribuição ativadas.</translation>
+    </message>
+    <message>
+      <source>Set a baseline run first, then run again.</source>
+      <translation>Defina antes uma execução de referência e execute de novo.</translation>
+    </message>
+    <message>
+      <source>The run is shorter than one recording interval, so no interval was completed. Lower the availability plot's interval under Run panel ▸ Recording, then run again.</source>
+      <translation>A execução é mais curta que um intervalo de registro, então nenhum intervalo foi concluído. Reduza o intervalo do gráfico de disponibilidade em Painel de execução ▸ Gravação e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Needs the availability plot of at least 2 runs.</source>
+      <translation>Precisa do gráfico de disponibilidade de pelo menos 2 execuções.</translation>
+    </message>
+    <message>
+      <source>Needs the capacity plot of at least 2 runs.</source>
+      <translation>Precisa do gráfico de capacidade de pelo menos 2 execuções.</translation>
+    </message>
+    <message>
+      <source>Work out which elements caused each outage first (it replays this run's event log).</source>
+      <translation>Calcule antes quais elementos causaram cada parada (isso reproduz o registro de eventos desta execução).</translation>
+    </message>
+    <message>
+      <source>This result has no per-component failure counts.</source>
+      <translation>Este resultado não tem contagens de falhas por componente.</translation>
+    </message>
+    <message>
+      <source>Rerun with phases and attribution on to split each phase's downtime by cause.</source>
+      <translation>Execute de novo com fases e atribuição ativadas para dividir a inatividade de cada fase por causa.</translation>
+    </message>
+    <message>
+      <source>No outage timeline was kept for this run.</source>
+      <translation>Nenhuma linha do tempo de paradas foi guardada nesta execução.</translation>
+    </message>
+    <message>
+      <source>No capacity was lost in these runs, so there is nothing to show.</source>
+      <translation>Nenhuma capacidade foi perdida nestas execuções, então não há o que mostrar.</translation>
+    </message>
+    <message>
+      <source>No outage was recorded, so every year was fully available: there is nothing to draw year by year.</source>
+      <translation>Nenhuma parada foi registrada, então todos os anos ficaram totalmente disponíveis: não há o que desenhar ano a ano.</translation>
+    </message>
+    <message>
+      <source>Needs a run at least one whole year long (8,760 hours).</source>
+      <translation>Precisa de uma execução de pelo menos um ano inteiro (8.760 horas).</translation>
+    </message>
+    <message>
+      <source>This chart cannot be drawn from this result.</source>
+      <translation>Este gráfico não pode ser desenhado a partir deste resultado.</translation>
+    </message>
+    <message>
+      <source>Work out the downtime drivers</source>
+      <translation>Calcular as causas da inatividade</translation>
+    </message>
+    <message>
+      <source>These charts are drawn from the availability plot. Tick &lt;b&gt;Availability plot&lt;/b&gt; under Run panel ▸ Recording, then run again.</source>
+      <translation>Estes gráficos vêm do gráfico de disponibilidade. Marque &lt;b&gt;Availability plot&lt;/b&gt; em Painel de execução ▸ Gravação e execute de novo.</translation>
+    </message>
+    <message>
+      <source>These charts are drawn from the capacity plot. Tick &lt;b&gt;Capacity&lt;/b&gt; under Run panel ▸ Results to calculate and &lt;b&gt;Capacity plot&lt;/b&gt; under Run panel ▸ Recording, then run again.</source>
+      <translation>Estes gráficos vêm do gráfico de capacidade. Marque &lt;b&gt;Capacidade&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e &lt;b&gt;Capacity plot&lt;/b&gt; em Painel de execução ▸ Gravação e execute de novo.</translation>
+    </message>
+    <message>
+      <source>These charts replay the event log. Tick &lt;b&gt;Detailed event log&lt;/b&gt; under Run panel ▸ Recording, then run again.</source>
+      <translation>Estes gráficos reproduzem o registro de eventos. Marque &lt;b&gt;Detailed event log&lt;/b&gt; em Painel de execução ▸ Gravação e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Lost capacity needs the capacity analysis. Tick &lt;b&gt;Capacity&lt;/b&gt; under Run panel ▸ Results to calculate, then run again.</source>
+      <translation>A capacidade perdida precisa da análise de capacidade. Marque &lt;b&gt;Capacidade&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Needs the capacity analysis as well. Tick &lt;b&gt;Capacity&lt;/b&gt; under Run panel ▸ Results to calculate, then run again.</source>
+      <translation>Precisa também da análise de capacidade. Marque &lt;b&gt;Capacidade&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Needs the cost analysis. Tick &lt;b&gt;Cost&lt;/b&gt; under Run panel ▸ Results to calculate, then run again.</source>
+      <translation>Precisa da análise de custo. Marque &lt;b&gt;Custo&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Needs the interim cost report. Tick &lt;b&gt;Cost&lt;/b&gt; under Run panel ▸ Results to calculate and &lt;b&gt;Interim cost&lt;/b&gt; under Run panel ▸ Recording, then run again.</source>
+      <translation>Precisa do relatório de custo parcial. Marque &lt;b&gt;Custo&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e &lt;b&gt;Interim cost&lt;/b&gt; em Painel de execução ▸ Gravação e execute de novo.</translation>
+    </message>
+    <message>
+      <source>The quadrant needs RAW and RRW, so importance mode Both. Tick &lt;b&gt;Importance measures&lt;/b&gt; under Run panel ▸ Results to calculate, then run again.</source>
+      <translation>O quadrante precisa de RAW e RRW, portanto do modo de importância Ambos. Marque &lt;b&gt;Medidas de importância&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Needs importance measures (mode Both). Tick &lt;b&gt;Importance measures&lt;/b&gt; under Run panel ▸ Results to calculate, then run again.</source>
+      <translation>Precisa das medidas de importância (modo Ambos). Marque &lt;b&gt;Medidas de importância&lt;/b&gt; em Painel de execução ▸ Resultados a calcular e execute de novo.</translation>
+    </message>
+    <message>
+      <source>Turn on Detailed event log and run</source>
+      <translation>Ativar Detailed event log e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Capacity and run</source>
+      <translation>Ativar Capacidade e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Detailed event log and Capacity and run</source>
+      <translation>Ativar Detailed event log e Capacidade e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Availability plot and run</source>
+      <translation>Ativar Availability plot e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Capacity and Capacity plot and run</source>
+      <translation>Ativar Capacidade e Capacity plot e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Cost and run</source>
+      <translation>Ativar Custo e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Cost and Interim cost and run</source>
+      <translation>Ativar Custo e Interim cost e executar</translation>
+    </message>
+    <message>
+      <source>Turn on Importance measures and run</source>
+      <translation>Ativar Medidas de importância e executar</translation>
     </message>
     <message>
       <source>seconds</source>

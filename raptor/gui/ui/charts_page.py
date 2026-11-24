@@ -25,8 +25,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, Signal
+from PySide6.QtGui import (
+    QAction, QActionGroup, QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap,
+    QPolygonF, QShortcut,
+)
 from PySide6.QtWidgets import (
     QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
     QSpinBox, QSplitter, QStackedWidget, QToolButton, QTreeWidget,
@@ -37,7 +40,8 @@ from raptor.gui import i18n
 from raptor.api import run_needs
 from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.gui.resources.design_tokens import SPACING, active_colour
-from raptor.gui.ui import chart_export, chart_i18n
+from raptor.gui.ui import chart_descriptions, chart_export, chart_i18n
+from raptor.gui.ui.chart_group_overview import ASPECT, CardData, ChartGroupOverview
 from raptor.gui.ui.chart_widget import ChartWidget
 from raptor.gui.ui.flow_layout import FlowLayout
 from raptor.gui.ui.hierarchy_tree_popup import HierarchyTreePopup
@@ -146,6 +150,9 @@ class ChartsPage(QWidget):
         #: run-by-run hierarchy plot: None shows the static summary, an
         #: int the run being shown. Never started on its own.
         self._hops_frame: int | None = None
+        #: overview pictures: key -> (spec drawn, look it was drawn in, picture)
+        self._thumbs: dict[str, tuple[Any, tuple, QPixmap]] = {}
+        self._thumb_widget: ChartWidget | None = None
         self._hops_timer = QTimer(self)
         self._hops_timer.setInterval(HOPS_INTERVAL_MS)
         self._hops_timer.timeout.connect(self._hops_tick)
@@ -177,11 +184,16 @@ class ChartsPage(QWidget):
         self.nav.setIndentation(10)
         self.nav.setUniformRowHeights(True)
         self.nav.setMinimumWidth(150)
+        self.nav.setExpandsOnDoubleClick(False)
         self.nav.currentItemChanged.connect(self._on_current)
-        # a heading folds its group away (the list is long on a short dock)
-        self.nav.itemClicked.connect(
-            lambda item, _col: item.setExpanded(not item.isExpanded())
-            if item.childCount() else None)
+        # A heading shows its group's overview (see `_on_nav_clicked`); its
+        # caret, the Left/Right keys and a second click fold it away (the
+        # list is long on a short dock).
+        self._press_was_current = False
+        self.nav.viewport().installEventFilter(self)
+        self.nav.itemClicked.connect(self._on_nav_clicked)
+        self.nav.itemExpanded.connect(self._sync_caret)
+        self.nav.itemCollapsed.connect(self._sync_caret)
         left_lay.addWidget(self.nav, 1)
         split.addWidget(left)
 
@@ -205,6 +217,10 @@ class ChartsPage(QWidget):
         self.chart_scroll = self._scrolling(self.chart)
         self.stack.addWidget(self.chart_scroll)
         self.stack.addWidget(self._build_missing_panel())
+        self.overview = ChartGroupOverview()
+        self.overview.set_providers(self._thumb_cached, self._thumb_render)
+        self.overview.chart_chosen.connect(self._open_chart)
+        self.stack.addWidget(self.overview)
         rlay.addWidget(self.stack, 1)
         self.note = QLabel("")
         self.note.setObjectName("SectionNote")
@@ -845,6 +861,8 @@ class ChartsPage(QWidget):
     def _rebuild(self) -> None:  # noqa: C901 - one list rebuild
         self.stop_hops(reset=True, redraw=False)
         current = self.selected_key() or self._wanted
+        heading_shown = self.selected_group()
+        self._thumbs.clear()
         folded = {self._group_name(item) for item in self._groups()
                   if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
@@ -868,8 +886,11 @@ class ChartsPage(QWidget):
                 continue
             parent = QTreeWidgetItem([i18n.tr(group).upper()])
             parent.setData(0, _GROUP, group)
-            parent.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            parent.setToolTip(0, i18n.tr("Click to fold or unfold this group"))
+            parent.setFlags(Qt.ItemFlag.ItemIsEnabled
+                            | Qt.ItemFlag.ItemIsSelectable)
+            parent.setToolTip(0, i18n.tr(
+                "Click to see this group's charts; click the arrow to fold "
+                "or unfold it"))
             parent.setFont(0, heading)
             parent.setForeground(0, muted)
             self.nav.addTopLevelItem(parent)
@@ -883,7 +904,14 @@ class ChartsPage(QWidget):
         if chosen is None:
             chosen = self._first_available()
         self.nav.blockSignals(False)
-        if chosen is not None:
+        for head in self._groups():
+            self._sync_caret(head)
+        shown = next((h for h in self._groups()
+                      if heading_shown and self._group_name(h) == heading_shown),
+                     None)
+        if shown is not None:
+            self.nav.setCurrentItem(shown)
+        elif chosen is not None:
             self.nav.setCurrentItem(chosen)
         if self.search.text():
             self._filter_charts(self.search.text())
@@ -1374,7 +1402,9 @@ class ChartsPage(QWidget):
             self._build_errors[entry.key] = str(exc)
             return None
 
-    def _time_spec(self, key: str) -> charts.ChartSpec | None:
+    def _time_spec(self, key: str, *, quiet: bool = False) -> charts.ChartSpec | None:
+        """A recorded-plot chart; `quiet` returns None on failure instead of
+        switching the page to the explanation (the overview's pictures)."""
         run = self.run_box.value() if key in timecharts.PER_RUN_CHARTS else 0
         cache_key = (key, run, self._y_floor)
         if cache_key not in self._time_cache:
@@ -1390,7 +1420,8 @@ class ChartsPage(QWidget):
                     generated=i.get("generated"),
                     ends=ends if any(e is not None for e in ends) else None)
             except ValueError as exc:
-                self._show_missing(self._entries[key].title, str(exc), "")
+                if not quiet:
+                    self._show_missing(self._entries[key].title, str(exc), "")
                 return None
         return self._time_cache[cache_key]
 
@@ -1401,11 +1432,15 @@ class ChartsPage(QWidget):
             self._wanted = str(current.data(0, _KEY))
         self._show_current()
 
-    def _show_current(self) -> None:  # noqa: C901 - one branch per chart shape
+    def _show_current(self) -> None:  # noqa: C901, PLR0912 - one branch per chart shape
         key = self.selected_key()
         entry = self._entries.get(key or "")
         self._sync_controls(entry)
         self._sync_note()
+        group = self.selected_group()
+        if group is not None:
+            self._show_overview(group)
+            return
         if entry is None:
             self.chart.set_spec(None)
             self.stack.setCurrentWidget(self.chart_scroll)
@@ -1451,6 +1486,156 @@ class ChartsPage(QWidget):
         self.chart.set_spec(chart_i18n.translate_spec(spec))
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
+
+    # -- group headings and the group overview ----------------------------
+
+    def selected_group(self) -> str | None:
+        """The English name of the group whose heading is current, if any."""
+        item = self.nav.currentItem()
+        if item is None or item.data(0, _KEY) or not item.childCount():
+            return None
+        return self._group_name(item)
+
+    def _heading(self, group: str) -> QTreeWidgetItem | None:
+        return next((h for h in self._groups() if self._group_name(h) == group),
+                    None)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802 - Qt name
+        """Two clicks on a heading are told apart before the list sees them:
+        one on its arrow only folds (`_caret_hit`), and one on a heading
+        that is not current shows its overview (`_on_nav_clicked`)."""
+        if obj is self.nav.viewport() and event.type() in (
+                QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                QEvent.Type.MouseButtonDblClick):
+            item = self.nav.itemAt(event.position().toPoint())
+            if item is not None and self._caret_hit(
+                    item, event.position().toPoint()):
+                if event.type() == QEvent.Type.MouseButtonPress:
+                    item.setExpanded(not item.isExpanded())
+                return True
+            if event.type() == QEvent.Type.MouseButtonPress:
+                self._press_was_current = (item is not None
+                                           and item is self.nav.currentItem())
+        return super().eventFilter(obj, event)
+
+    def _caret_hit(self, item: QTreeWidgetItem, pos: QPoint) -> bool:
+        if not item.childCount() or item.data(0, _KEY):
+            return False
+        rect = self.nav.visualItemRect(item)
+        return pos.x() < rect.left() + self.nav.iconSize().width() + 6
+
+    def _on_nav_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:
+        """A heading: the first click shows its overview (and unfolds it); a
+        click on the heading already shown folds or unfolds it."""
+        if not item.childCount() or item.data(0, _KEY):
+            return
+        if self._press_was_current:
+            item.setExpanded(not item.isExpanded())
+        else:
+            item.setExpanded(True)
+
+    def _sync_caret(self, item: QTreeWidgetItem) -> None:
+        """The arrow beside a heading: down when open, right when folded."""
+        if item.data(0, _KEY) or not item.childCount():
+            return
+        size = max(10, self.nav.fontMetrics().height() - 4)
+        ratio = self.nav.devicePixelRatioF()
+        pixmap = QPixmap(int(size * ratio), int(size * ratio))
+        pixmap.setDevicePixelRatio(ratio)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(active_colour()["muted"]))
+        from PySide6.QtCore import QPointF
+        m = size * 0.2
+        if item.isExpanded():
+            points = [QPointF(m, size * 0.32), QPointF(size - m, size * 0.32),
+                      QPointF(size / 2, size * 0.72)]
+        else:
+            points = [QPointF(size * 0.32, m), QPointF(size * 0.72, size / 2),
+                      QPointF(size * 0.32, size - m)]
+        painter.drawPolygon(QPolygonF(points))
+        painter.end()
+        self.nav.setIconSize(pixmap.deviceIndependentSize().toSize())
+        item.setIcon(0, QIcon(pixmap))
+
+    def _open_chart(self, key: str) -> None:
+        """A card was chosen: show that chart."""
+        if self.select(key):
+            self.nav.setFocus()
+
+    def _show_overview(self, group: str) -> None:
+        heading = self._heading(group)
+        cards: list[CardData] = []
+        if heading is not None:
+            for index in range(heading.childCount()):
+                item = heading.child(index)
+                entry = self._entries.get(str(item.data(0, _KEY) or ""))
+                if item.isHidden() or entry is None:
+                    continue
+                cards.append(CardData(
+                    entry.key, i18n.tr(entry.title),
+                    i18n.tr(chart_descriptions.describe(entry.key)),
+                    i18n.translate_source(entry.missing) if entry.missing else ""))
+        self.chart.set_spec(None)
+        self.overview.show_group(
+            group, i18n.tr(group),
+            i18n.tr(chart_descriptions.GROUP_BLURBS.get(group, "")), cards)
+        self.stack.setCurrentWidget(self.overview)
+
+    # -- the overview's pictures ------------------------------------------
+
+    def _thumb_look(self, width: int) -> tuple:
+        """What a picture depends on besides its chart: its size, the theme,
+        the UI scale and the language."""
+        colour = active_colour()
+        return (width, colour["surface"], colour["text"],
+                round(self.font().pointSizeF(), 1),
+                round(self.devicePixelRatioF(), 2), i18n.current_locale())
+
+    def _thumb_spec(self, key: str, *, build: bool) -> charts.ChartSpec | None:
+        entry = self._entries.get(key)
+        if entry is None or entry.missing:
+            return None
+        if key in timecharts.TIME_CHARTS:
+            if build:
+                return self._time_spec(key, quiet=True)
+            run = self.run_box.value() if key in timecharts.PER_RUN_CHARTS else 0
+            return self._time_cache.get((key, run, self._y_floor))
+        return self._specs.get(entry.title)
+
+    def _thumb_cached(self, key: str, width: int) -> QPixmap | None:
+        """The picture already drawn from the chart as it stands, if any."""
+        held = self._thumbs.get(key)
+        spec = self._thumb_spec(key, build=False)
+        if held is None or spec is None or held[0] is not spec \
+                or held[1] != self._thumb_look(width):
+            return None
+        return held[2]
+
+    def _thumb_render(self, key: str, width: int) -> QPixmap | None:
+        """Draw a chart small: its plot alone, in the GUI language, at the
+        size it will be shown (not a big picture scaled down, which thins
+        every line and shrinks every label)."""
+        spec = self._thumb_spec(key, build=True)
+        if spec is None:
+            return None
+        height = int(width * ASPECT)
+        if self._thumb_widget is None:
+            self._thumb_widget = ChartWidget()
+            self._thumb_widget.thumbnail = True
+        widget = self._thumb_widget
+        widget.setFont(self.font())
+        widget.resize(width, height)
+        widget.set_spec(chart_i18n.translate_spec(spec))
+        ratio = self.devicePixelRatioF()
+        pixmap = QPixmap(int(width * ratio), int(height * ratio))
+        pixmap.setDevicePixelRatio(ratio)
+        widget.render(pixmap)
+        widget.set_spec(None)
+        self._thumbs[key] = (spec, self._thumb_look(width), pixmap)
+        return pixmap
 
     def _on_missing_action(self) -> None:
         entry = self._entries.get(self.selected_key() or "")
@@ -1541,8 +1726,8 @@ class ChartsPage(QWidget):
     def _show_missing(self, title: str, text: str, action: str) -> None:
         self.chart.set_spec(None)
         self.missing_title.setText(title)
-        self.missing_text.setText(text)
-        self.missing_action.setText(action)
+        self.missing_text.setText(i18n.translate_source(text))
+        self.missing_action.setText(i18n.translate_source(action))
         self.missing_action.setVisible(bool(action))
         self.stack.setCurrentIndex(1)
 

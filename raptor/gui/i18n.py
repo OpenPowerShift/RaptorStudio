@@ -311,6 +311,11 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
 }
 
 TEMPLATES.update(chart_strings.TEMPLATES)
+#: the Charts page's reasons that carry a figure
+TEMPLATES["The year charts need the model's time unit to be hours; this "
+          "model counts %1."] = (-1,)
+TEMPLATES["Needs a run at least one whole year long (8,760 hours); this run "
+          "is %1 hours."] = ()
 
 #: The laws a block carries; the Inspector labels their fields with these.
 LAW_USES: tuple[str, ...] = ("Failure", "Repair", "Pre-LDT", "Post-LDT", "PM")
@@ -334,6 +339,8 @@ def dynamic_sources() -> list[str]:
     out = list(TEMPLATES)
     out += chart_strings.SOURCES
     out += chart_strings.CAPTIONS
+    from raptor.gui.ui import chart_descriptions
+    out += chart_descriptions.texts()
     out += UNIT_WORDS
     out += [name for name in DISTRO_NAMES.values()]
     out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()
