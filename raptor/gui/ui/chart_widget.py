@@ -139,6 +139,9 @@ class ChartWidget(QWidget):
         self._drag_from: QPointF | None = None
         self._zoom_frame: _Frame | None = None
         self._caption_in_body = False
+        #: a minimap: the plot alone, no title, key or caption (the Charts
+        #: page's group overview renders these small)
+        self.thumbnail = False
         # Small on purpose: the results dock is as tall as its tallest
         # page's minimum, and a tall floor here stops the user dragging the
         # bottom splitter (the chart repaints at whatever height it gets).
@@ -227,7 +230,10 @@ class ChartWidget(QWidget):
 
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt name
         with currency(self._currency()):
-            self._paint_event(event)
+            if self.thumbnail and self._spec is not None:
+                self._paint_thumb_event(self._spec)
+            else:
+                self._paint_event(event)
 
     def _paint_event(self, _event) -> None:
         painter = QPainter(self)
@@ -301,6 +307,22 @@ class ChartWidget(QWidget):
             else:
                 painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
                                  spec.caption)
+        painter.end()
+
+    def _paint_thumb_event(self, spec: ChartSpec) -> None:
+        """The plot alone, filling the widget."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        palette = active_colour()
+        painter.fillRect(self.rect(), QColor(palette["surface"]))
+        self._hits, self._tips = [], []
+        self._detail_hits = []
+        self._probe = None
+        self._caption_in_body = True       # no caption strip under the plot
+        area = QRectF(PAD, PAD / 2, max(1.0, self.width() - 2 * PAD),
+                      max(1.0, self.height() - PAD))
+        draw = getattr(self, f"_paint_{spec.kind}", self._paint_none)
+        draw(painter, spec, palette, area)
         painter.end()
 
     def _fitted_title(self, title: str, font: QFont) -> str:

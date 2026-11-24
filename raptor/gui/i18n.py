@@ -334,6 +334,8 @@ def dynamic_sources() -> list[str]:
     out = list(TEMPLATES)
     out += chart_strings.SOURCES
     out += chart_strings.CAPTIONS
+    from raptor.gui.ui import chart_descriptions
+    out += chart_descriptions.texts()
     out += UNIT_WORDS
     out += [name for name in DISTRO_NAMES.values()]
     out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()
