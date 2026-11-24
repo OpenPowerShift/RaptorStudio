@@ -144,3 +144,13 @@ def test_both_renderers_use_the_shared_layout():
     from raptor.render import charts_svg
     assert "sankey_layout" in inspect.getsource(charts_svg._sankey)
     assert "sankey_layout" in inspect.getsource(chart_widget.ChartWidget._paint_sankey)
+
+
+def test_a_short_downstream_column_hangs_near_its_sources():
+    nodes, _links, boxes, _bands = _laid_out()
+    lost = boxes["lost"]
+    hier_nodes = [n for n in nodes if str(n["id"]).startswith("hier-")]
+    top = min(boxes[str(n["id"])][0] for n in hier_nodes)
+    end = max(boxes[str(n["id"])][0] + boxes[str(n["id"])][1] for n in hier_nodes)
+    mid = (top + end) / 2
+    assert lost[0] <= mid <= lost[0] + lost[1]

@@ -6,7 +6,7 @@ conserved.  A node is as tall as the larger of its own value and the flow
 through it (in or out); links leaving a node are stacked top to bottom in
 the order of their targets' vertical position, links arriving are stacked
 in the order of their sources', so each link owns its own slot.  Shorter
-columns are centred.  Links and nodes of at least one pixel each: a tiny
+columns hang near the mean height of the flow coming in.  Links and nodes of at least one pixel each: a tiny
 link is drawn 1 px thick and the node grows by the difference.
 """
 
@@ -82,6 +82,17 @@ def layout(nodes: Sequence[dict[str, Any]],  # noqa: C901, PLR0912, PLR0915 - on
     def place(c: int, order: list[dict[str, Any]]) -> None:
         used = sum(h[str(n["id"])] for n in order) + gap * max(0, len(order) - 1)
         y = max(0.0, (height - used) / 2)
+        ids_here = {str(n["id"]) for n in order}
+        pulls = [(centre[str(links[i]["source"])],
+                  float(links[i].get("value") or 0.0))
+                 for i in valid if str(links[i]["target"]) in ids_here
+                 and str(links[i]["source"]) in centre]
+        weight = sum(w for _, w in pulls)
+        if c != columns[0] and weight > 0:
+            # a short column hangs near where its flow comes from, not
+            # centred: it reads as flowing out of its source
+            want = sum(p * w for p, w in pulls) / weight - used / 2
+            y = min(max(0.0, want), max(0.0, height - used))
         for n in order:
             centre[str(n["id"])] = y + h[str(n["id"])] / 2
             y += h[str(n["id"])] + gap
