@@ -902,3 +902,42 @@ def test_scorecard_and_overlay_paint_with_baseline_and_end_labels(qapp):
     assert page.select("When did each hierarchy's downtime build up?")
     assert page.selected_spec().provenance["end_labels"]
     assert not page.chart.grab().isNull()
+
+
+def test_a_builder_value_error_is_shown_not_logged_as_an_error(qapp, caplog):
+    import logging
+
+    from raptor.gui.ui.charts_page import _Entry
+    page = ChartsPage()
+
+    def entry(build):
+        return _Entry("x-chart", "X chart", "Why it goes down", build)
+
+    def refuse():
+        raise ValueError("Nothing to show, here is why.")
+
+    def bug():
+        raise RuntimeError("boom")
+    with caplog.at_level(logging.DEBUG):
+        assert page._safe(entry(refuse)) is None
+    assert page._build_errors["x-chart"] == "Nothing to show, here is why."
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
+        assert page._safe(entry(bug)) is None
+    assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+
+def test_the_lost_capacity_sankey_is_greyed_out_when_nothing_was_lost(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 100.0}, "lost_energy": {"mean": 0.0},
+        "elements": [], "causes": {}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    entry = next(e for e in page._catalogue()
+                 if e.key == "capacity-sankey")
+    assert "No capacity was lost" in entry.missing

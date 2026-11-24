@@ -1215,6 +1215,11 @@ class ChartsPage(QWidget):
         no_capacity = ("" if a.get("capacity") else
                        drivers_missing() or "Lost capacity needs the capacity "
                        "analysis. " + run_needs.gui_hint("capacity"))
+        # the analysis ran but nothing was lost: the Sankey has no flow to draw
+        _lost = ((a.get("capacity") or {}).get("lost_energy") or {}).get("mean")
+        no_lost = (charts._no_capacity(a)
+                   if a.get("capacity") and _lost is not None
+                   and float(_lost) <= 0 else "")
         capacity_needs: tuple[str, ...] = (
             () if a.get("capacity") or action else
             ("capacity",) if attribution else ("attribution", "capacity"))
@@ -1233,7 +1238,7 @@ class ChartsPage(QWidget):
         if has_hier:
             add("capacity-sankey", "Lost capacity by hierarchy and cause",
                 "Lost capacity", self._capacity_sankey_spec,
-                no_capacity or no_overlap)
+                no_capacity or no_lost or no_overlap)
 
         ends = [float(row["ending_sim_time"]) for row in per_run
                 if isinstance(row.get("ending_sim_time"), (int, float))]
@@ -1354,6 +1359,11 @@ class ChartsPage(QWidget):
             with currency(self._inputs.get("currency")):
                 spec = entry.build()
                 return charts.with_currency_stamp(spec) if spec is not None else None
+        except ValueError as exc:
+            # a builder's "cannot draw this, here is why": not a bug
+            logging.getLogger(__name__).debug("no %s: %s", entry.key, exc)
+            self._build_errors[entry.key] = str(exc)
+            return None
         except Exception as exc:  # noqa: BLE001 - one bad chart must not break the tab
             logging.getLogger(__name__).exception("could not build %s", entry.key)
             self._build_errors[entry.key] = str(exc)
