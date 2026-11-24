@@ -36,6 +36,8 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QSpinBox, QStatusBar, QTabWidget, QTextEdit, QWidget,
 )
 
+from raptor.gui import chart_strings  # noqa: E402
+
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
 _TRANSLATOR: QTranslator | None = None
 _QT_TRANSLATOR: QTranslator | None = None
@@ -305,6 +307,8 @@ TEMPLATES: dict[str, tuple[int, ...]] = {
     "fixed flow.": (),
 }
 
+TEMPLATES.update(chart_strings.TEMPLATES)
+
 #: The laws a block carries; the Inspector labels their fields with these.
 LAW_USES: tuple[str, ...] = ("Failure", "Repair", "Pre-LDT", "Post-LDT", "PM")
 
@@ -325,6 +329,7 @@ def dynamic_sources() -> list[str]:
     """
     from raptor.core.distro_rules import DISTRO_NAMES, DISTRO_PARAM_LABELS
     out = list(TEMPLATES)
+    out += chart_strings.SOURCES
     out += UNIT_WORDS
     out += [name for name in DISTRO_NAMES.values()]
     out += sorted({lab for labs in DISTRO_PARAM_LABELS.values()

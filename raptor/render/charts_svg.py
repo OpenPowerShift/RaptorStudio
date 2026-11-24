@@ -19,7 +19,7 @@ from typing import Any
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, compact, currency, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    FAN_LINE_MIN, compact, currency, fit_dots, fit_dots_shared, format_value, log_ticks, nice_range, nice_ticks, pct,
     period_axis, place_labels, tick_text,
 )
 from raptor.api.insight import palette as _palette
@@ -376,7 +376,7 @@ def _quartile_lines(out: list[str], spec: ChartSpec, frame: _Frame, *,
     """U16: the GUI's dotted quartile lines, labelled along the top."""
     box = frame.box
     fmt = _fmt_of(spec)
-    last_right, row = -1e9, 0
+    row_edges = [-1e9] * 3
     for mark in spec.marks:
         if mark.get("kind") != "quartile" or not _number(mark.get("value")):
             continue
@@ -386,12 +386,15 @@ def _quartile_lines(out: list[str], spec: ChartSpec, frame: _Frame, *,
             + format_value(float(mark["value"]), fmt, 4)
         w = _width(label) + 6
         left = min(max(box.left, x - w / 2), box.right - w)
-        row = row + 1 if left < last_right + 4 else 0
+        row = next((k for k, edge in enumerate(row_edges)
+                    if left >= edge + 4), None)
+        if row is None:
+            continue
+        row_edges[row] = left + w
         top = box.top + LINE_H * (1 + row) + 2
         out.append(_rect(left, top, w, LINE_H, "#ffffff"))
         out.append(_text(left + w / 2, top + 11, label, size=10, anchor="middle",
                          colour=MUTED))
-        last_right = left + w
 
 
 def _fmt_of(spec: ChartSpec) -> str:
@@ -1413,7 +1416,9 @@ def _delta(spec: ChartSpec, area: _Box) -> list[str]:
     values = [float(row.get("value") or 0.0) for row in rows]
     if not any(abs(value) > 1e-12 for value in values):
         return []
-    bound = max(max(abs(v) for v in values), 1e-9)
+    bound = max(max(abs(v) + (2 * float(r["sem"]) if _number(r.get("sem"))
+                              and float(r["sem"]) > 0 else 0.0)
+                    for v, r in zip(values, rows)), 1e-9)
     bound = nice_range(-bound, bound, 4)[1]
     labels = [str(row.get("name") or "") for row in rows]
     gutter = min(area.width * 0.4, _gutter(area, labels, len(rows)))
@@ -1446,9 +1451,17 @@ def _delta(spec: ChartSpec, area: _Box) -> list[str]:
         unit = " h" if units.lower().startswith("hour") else (
             f" {units}" if units else "")
         text = format_value(value, fmt, 3) + unit
-        left = x + 4 if value >= 0 else x - _width(text) - 4
-        out.append(_text(left, y + bar_h - 2, text, size=10,
-                         anchor="start" if value >= 0 else "end"))
+        reach = max(x, frame.x(value + 2 * sem)) if value >= 0 else min(
+            x, frame.x(value - 2 * sem))
+        if value >= 0:
+            left = reach + 4
+            if left + _width(text) > box.right:
+                left = zero - 4 - _width(text)
+        else:
+            left = reach - _width(text) - 4
+            if left < box.left:
+                left = zero + 4
+        out.append(_text(left, y + bar_h - 2, text, size=10, anchor="start"))
         out.append(_text(area.left + gutter - 8, y + bar_h - 2,
                          _shrink(str(row.get("name") or ""), gutter - 10),
                          size=10, anchor="end"))
@@ -1474,6 +1487,10 @@ def _hops(spec: ChartSpec, area: _Box) -> list[str]:
     shares = ([float(r["runs"][index]) for r in rows]
               if isinstance(index, int) else [])
     order = sorted(range(len(rows)), key=lambda i: -shares[i]) if shares else []
+    diameter, all_levels = fit_dots_shared(
+        [[frame.x(float(d["value"])) for d in row.get("dots") or []
+          for _ in range(max(1, int(d.get("count", 1))))] for row in rows],
+        max(8.0, band * 0.8), largest=10.0)
     for i, row in enumerate(rows):
         top = box.top + i * band
         mid = top + band / 2
@@ -1490,10 +1507,7 @@ def _hops(spec: ChartSpec, area: _Box) -> list[str]:
             out.append(_text(min(max(x, mean_x) + 6, box.right - 60), mid + 4,
                              f"#{rank} {pct(shares[i])}", size=10))
         else:
-            dots = [float(d["value"]) for d in row.get("dots") or []
-                    for _ in range(max(1, int(d.get("count", 1))))]
-            diameter, levels = fit_dots([frame.x(v) for v in dots],
-                                        band * 0.8, largest=10.0)
+            levels = all_levels[i]
             for (x, level) in levels:
                 y = top + band - 3 - diameter / 2 - level * diameter
                 out.append(f"<circle cx='{_fmt(x)}' cy='{_fmt(y)}' "
@@ -1758,16 +1772,23 @@ def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901
         value = float(row.get("value") or 0.0)
         out.append(_text(x + 8, y + 42, format_value(value, "percent", 3),
                          size=20, weight="600", colour=ACCENT if value else MUTED))
-        if _number(row.get("sem")):
+        compact_tile = height < 96
+        if _number(row.get("sem")) and not compact_tile:
             out.append(_text(x + 8, y + 58, f"± {2 * float(row['sem']) * 100:.2g} pts",
                              size=9, colour=MUTED))
         badge = scorecard_badge(row)
         if badge is not None:
-            out.append(_text(x + 8, y + 72, badge[1], size=9, weight="600",
+            out.append(_text(x + 8, y + (58 if compact_tile else 72), badge[1],
+                             size=9, weight="600",
                              colour=badge_colours.get(badge[0], MUTED)))
         detail = (f"{int(row.get('members') or 0)} members · "
                   f"{int(row.get('starters') or 0)} started outages")
-        out.append(_text(x + 8, y + height - 8, detail, size=9, colour=MUTED))
+        has_strip = bool(row.get("dots")) and height >= 64
+        if not compact_tile:
+            out.append(_text(x + 8, y + height - 8,
+                             _shrink(detail, width * 0.5 - 16 if has_strip
+                                     else width - 16),
+                             size=9, colour=MUTED))
         cause = str(row.get("cause") or "")
         if cause:
             out.append(_text(x + width - 8, y + 18, CAUSE_LABELS.get(cause, cause),
@@ -1795,8 +1816,10 @@ def _strip(dots: list[dict], dot_max: float, left: float, right: float,
     out.append(_text(left, base + 13, "0", size=8, colour=MUTED))
     out.append(_text(right, base + 13, scorecard_scale_text(dot_max),
                      size=8, anchor="end", colour=MUTED))
-    out.append(_text((left + right) / 2, base + 13, "each dot a run", size=8,
-                     anchor="middle", colour=MUTED))
+    if (right - left) - _width("0") - _width(scorecard_scale_text(dot_max)) \
+            >= _width("each dot a run") + 12:
+        out.append(_text((left + right) / 2, base + 13, "each dot a run", size=8,
+                         anchor="middle", colour=MUTED))
     return out
 
 

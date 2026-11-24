@@ -154,7 +154,7 @@ class EditGuardMixin(_Base):
 
     def _discard_results(self) -> None:
         """Every surface that shows the old model's numbers."""
-        self._results.clear()
+        self._results.clear(keep_chart_state=True)
         self._results_basis = None
         self._reset_status_summary()
         self._update_system_swatch(None)

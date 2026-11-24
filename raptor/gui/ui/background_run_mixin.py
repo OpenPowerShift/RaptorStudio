@@ -162,7 +162,7 @@ class BackgroundRunMixin(_Base):
         resume_ev.set()
         stop_ev = threading.Event()
         skip_ev = threading.Event()
-        self._results.clear()   # fresh batch: no stale numbers
+        self._results.clear(keep_chart_state=True)   # fresh batch: no stale numbers
         self._diagram_dock.view.clear_result_overlays()
         self._reset_live_log()
         state["resume_ev"] = resume_ev

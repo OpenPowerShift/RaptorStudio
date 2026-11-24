@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
-    FAN_LINE_MIN, compact, currency, fit_dots, format_value, log_ticks, nice_range, nice_ticks, pct,
+    FAN_LINE_MIN, compact, currency, fit_dots, fit_dots_shared, format_value, log_ticks, nice_range, nice_ticks, pct,
     period_axis, place_labels, tick_text,
 )
 from raptor.api.insight.charts import ChartSpec, bubble_tip
@@ -81,6 +81,25 @@ class _Frame:
             low, high = math.log10(self.x_low), math.log10(self.x_high)
             return 10 ** (low + share * (high - low))
         return self.x_low + share * (self.x_high - self.x_low)
+
+
+#: The gesture hint appended to a time chart's x title; the first thing to go
+#: when the title does not fit.
+_ZOOM_HINT = " · drag across"
+
+
+def fit_axis_title(fm: QFontMetrics, title: str, width: float) -> str:
+    """`title` in `width` pixels: the zoom hint is dropped first, then the
+    rest is elided on the right, so a narrow panel never clips both ends."""
+    width = max(1, int(width))
+    if fm.horizontalAdvance(title) <= width:
+        return title
+    cut = title.find(_ZOOM_HINT)
+    if cut > 0:
+        title = title[:cut]
+        if fm.horizontalAdvance(title) <= width:
+            return title
+    return fm.elidedText(title, Qt.TextElideMode.ElideRight, width)
 
 
 class ChartWidget(QWidget):
@@ -441,7 +460,8 @@ class ChartWidget(QWidget):
         if x_title:
             painter.drawText(QRectF(rect.left(), rect.bottom() + fm.height() + 6,
                                     rect.width(), fm.height()),
-                             Qt.AlignmentFlag.AlignHCenter, x_title)
+                             Qt.AlignmentFlag.AlignHCenter,
+                             fit_axis_title(fm, x_title, rect.width()))
         if y_title:
             painter.save()
             painter.translate(area.left() + fm.height() / 2 + 1, rect.center().y())
@@ -500,7 +520,7 @@ class ChartWidget(QWidget):
         fm = QFontMetrics(self.font())
         r = frame.rect
         muted = QColor(palette["muted"])
-        last_right, row = -1e9, 0
+        row_edges = [-1e9] * 3
         lowest = r.top()
         for mark in marks:
             x = frame.x(float(mark["share"]) if at_share else float(mark["value"]))
@@ -510,12 +530,17 @@ class ChartWidget(QWidget):
                 + self._value(float(mark["value"]), 4)
             w = fm.horizontalAdvance(label) + 6
             left = min(max(r.left(), x - w / 2), r.right() - w)
-            row = row + 1 if left < last_right + 4 else 0
+            # first row (up to three) whose last label ends before this one
+            # starts; none free: this one is dropped (the line stays)
+            row = next((k for k, edge in enumerate(row_edges)
+                        if left >= edge + 4), None)
+            if row is None:
+                continue
+            row_edges[row] = left + w
             plate = QRectF(left, r.top() + fm.height() * (1 + row) + 2, w, fm.height())
             painter.fillRect(plate, QColor(palette["surface"]))
             painter.setPen(muted)
             painter.drawText(plate, Qt.AlignmentFlag.AlignCenter, label)
-            last_right = left + w
             lowest = max(lowest, plate.bottom())
         return lowest
 
@@ -1584,10 +1609,7 @@ class ChartWidget(QWidget):
                                  Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
                                  detail)
             if not compact:
-                painter.drawText(rect.adjusted(8, 0, -8, -6),
-                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
-                                 f"{int(row.get('members') or 0)} members · "
-                                 f"{int(row.get('starters') or 0)} started outages")
+                self._scorecard_footer(painter, row, rect, height)
             badge = scorecard_badge(row)
             if badge is not None:
                 tone, text = badge
@@ -1616,6 +1638,21 @@ class ChartWidget(QWidget):
             self._hit(rect, "hierarchy", str(row.get("name") or ""),
                       f"{row.get('name')}: {format_value(value, 'percent', 3)} of "
                       "system downtime")
+
+    def _scorecard_footer(self, painter: QPainter, row: dict, rect: QRectF,
+                          height: float) -> None:
+        """The tile's member and outage counts, kept to the left of the dot
+        strip (elided) rather than running under the strip's labels."""
+        foot = rect.adjusted(8, 0, -8, -6)
+        if row.get("dots") and height >= 64:
+            foot.setRight(rect.left() + rect.width() * 0.5 - 6)
+        painter.drawText(foot,
+                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
+                         QFontMetrics(self.font()).elidedText(
+                             f"{int(row.get('members') or 0)} members · "
+                             f"{int(row.get('starters') or 0)} started outages",
+                             Qt.TextElideMode.ElideRight,
+                             int(max(1.0, foot.width()))))
 
     def _scorecard_strip(self, painter: QPainter, palette: dict[str, str],
                          row: dict, rect: QRectF, dot_max: float) -> None:
@@ -1648,7 +1685,13 @@ class ChartWidget(QWidget):
         painter.drawText(label, Qt.AlignmentFlag.AlignLeft, "0")
         painter.drawText(label, Qt.AlignmentFlag.AlignRight,
                          scorecard_scale_text(dot_max))
-        painter.drawText(label, Qt.AlignmentFlag.AlignHCenter, "each dot a run")
+        # the middle caption only when it fits between the two ends
+        end_text = scorecard_scale_text(dot_max)
+        room = (right - left) - sfm.horizontalAdvance("0") \
+            - sfm.horizontalAdvance(end_text)
+        if sfm.horizontalAdvance("each dot a run") + 12 <= room:
+            painter.drawText(label, Qt.AlignmentFlag.AlignHCenter,
+                             "each dot a run")
         painter.setFont(self.font())
 
     def _paint_delta(self, painter, spec, palette, area) -> None:
@@ -1658,7 +1701,11 @@ class ChartWidget(QWidget):
         values = [float(row.get("value") or 0.0) for row in rows]
         if not any(abs(value) > 1e-12 for value in values):
             return self._paint_none(painter, spec, palette, area)
-        bound = max(max(abs(v) for v in values), 1e-9)
+        # the interval ends count: a bar near the bound with its error bar
+        # used to run off the frame
+        bound = max(max(abs(v) + (2 * float(r["sem"]) if _number(r.get("sem"))
+                                  and float(r["sem"]) > 0 else 0.0)
+                        for v, r in zip(values, rows)), 1e-9)
         bound = nice_range(-bound, bound, 4)[1]
         labels = [str(row.get("name") or "") for row in rows]
         gutter = min(area.width() * 0.4,
@@ -1687,9 +1734,11 @@ class ChartWidget(QWidget):
                                     palette["result_green"] if value < 0 else
                                     palette["muted"]))
             sem = row.get("sem")
+            reach_lo = reach_hi = x
             if _number(sem) and float(sem) > 0:
                 lo = frame.x(value - 2 * float(sem))
                 hi = frame.x(value + 2 * float(sem))
+                reach_lo, reach_hi = min(lo, hi, x), max(lo, hi, x)
                 mid = y + bar_h / 2
                 painter.setPen(QPen(QColor(palette["text"]), 1.2))
                 painter.drawLine(QPointF(lo, mid), QPointF(hi, mid))
@@ -1700,9 +1749,19 @@ class ChartWidget(QWidget):
             unit = " h" if units.lower().startswith("hour") else (
                 f" {units}" if units else "")
             text = format_value(value, fmt, 3) + unit
-            label_x = (min(x, zero) + 4 if value >= 0
-                       else max(box.left() + 2, x - 80))
-            painter.drawText(QRectF(label_x, y, 80, bar_h),
+            text_w = QFontMetrics(self.font()).horizontalAdvance(text) + 6
+            # beside the bar (and its interval), never on it: the bar's
+            # colour is not the text's background. No room there: the open
+            # side of the zero line.
+            if value >= 0:
+                label_x = reach_hi + 4
+                if label_x + text_w > box.right():
+                    label_x = zero - 4 - text_w
+            else:
+                label_x = reach_lo - 4 - text_w
+                if label_x < box.left():
+                    label_x = zero + 4
+            painter.drawText(QRectF(label_x, y, text_w, bar_h),
                              Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                              text)
             painter.drawText(
@@ -1736,6 +1795,11 @@ class ChartWidget(QWidget):
                   if isinstance(index, int) else [])
         order = sorted(range(len(rows)), key=lambda i: -shares[i]) if shares else []
         accent = QColor(palette["accent"])
+        dot_rows = [[frame.x(float(d["value"])) for d in row.get("dots") or []
+                     for _ in range(max(1, int(d.get("count", 1))))]
+                    for row in rows]
+        diameter, all_levels = fit_dots_shared(
+            dot_rows, max(8.0, band * 0.8), largest=10.0)
         for i, row in enumerate(rows):
             top = box.top() + i * band
             mid = top + band / 2
@@ -1762,10 +1826,7 @@ class ChartWidget(QWidget):
                           f"{row.get('name')}: {format_value(shares[i], 'percent', 3)}"
                           f" in run {index + 1}")
             else:
-                dots = [float(d["value"]) for d in row.get("dots") or []
-                        for _ in range(max(1, int(d.get("count", 1))))]
-                diameter, levels = fit_dots([frame.x(v) for v in dots],
-                                            max(8.0, band * 0.8), largest=10.0)
+                levels = all_levels[i]
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(accent)
                 radius = diameter / 2 - 0.6

@@ -246,6 +246,19 @@ def fit_dots(xs: Sequence[float], height: float, *, largest: float = 36.0,
         diameter = max(smallest, diameter * 0.9)
 
 
+def fit_dots_shared(rows: Sequence[Sequence[float]], height: float, *,
+                    largest: float = 36.0, smallest: float = 4.0,
+                    ) -> tuple[float, list[list[tuple[float, int]]]]:
+    """One dot diameter for several rows: the smallest that every row's own
+    fit needs, so a row piled on one value does not draw smaller dots than
+    its neighbours. Returns the diameter and each row's stacking at it."""
+    if not rows:
+        return max(smallest, min(largest, height)), []
+    diameter = min(fit_dots(xs, height, largest=largest, smallest=smallest)[0]
+                   for xs in rows)
+    return diameter, [stack_dots(xs, diameter) for xs in rows]
+
+
 #: Below this many periods a year-by-year chart draws one box per period:
 #: a line through two or three medians reads as a trend that is not there.
 FAN_LINE_MIN = 4

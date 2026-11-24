@@ -1807,8 +1807,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._requested_runs = (requested, why) if requested else None
         self._refresh_story()
 
-    def clear(self):
-        """Reset every result surface to the pre-run placeholder state."""
+    def clear(self, keep_chart_state=False):
+        """Reset every result surface to the pre-run placeholder state.
+
+        `keep_chart_state` is for a re-run of the SAME model: the Charts
+        baseline and the explicit compare picks are the user's reference
+        for "what changed", so they survive the wipe. Opening, closing or
+        otherwise replacing the model calls this without it."""
         self._requested_runs = None
         self._manifest = None
         self._rbd = None
@@ -1866,8 +1871,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._raw_sources = {}
         if hasattr(self, "_charts_page"):
             self._charts_page.set_series([], [])
-            self._charts_page.set_compare([])
-            self._charts_page.set_baseline(None)
+            if not keep_chart_state:
+                self._charts_page.set_compare([])
+                self._charts_page.set_baseline(None)
             self._charts_page.set_inputs()
             self._charts_page.set_note("")
         self._tabs.hide()

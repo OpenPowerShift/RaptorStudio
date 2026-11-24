@@ -769,7 +769,7 @@ class RunMixin(_Base):
         self._run_in_progress = True
         self._refresh_commands()
         self._disable_run_panel_for_run()
-        self._results.clear()
+        self._results.clear(keep_chart_state=True)
         # The live-frame fingerprint belongs to the previous run (a
         # stopped run left its last state in it).
         self._live_sig = None
