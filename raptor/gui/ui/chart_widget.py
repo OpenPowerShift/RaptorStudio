@@ -1937,7 +1937,7 @@ class ChartWidget(QWidget):
                           str(row.get("name") or ""),
                           f"{row.get('name')} / {cause}: {100 * value:.3g} %")
 
-    def _paint_sankey(self, painter, spec, palette, area) -> None:  # noqa: C901, PLR0915
+    def _paint_sankey(self, painter, spec, palette, area) -> None:  # noqa: C901, PLR0912, PLR0915
         nodes = list(spec.provenance.get("nodes") or [])
         links = spec.series
         if not nodes or not links:
@@ -1973,50 +1973,49 @@ class ChartWidget(QWidget):
         span = max(1.0, area.width() - left_pad - right_pad)
         col_x = {col: area.left() + left_pad + span * i / max(1, len(columns) - 1)
                  for i, col in enumerate(columns)}
-        totals = {col: sum(float(node.get("value") or 0.0) for node in nodes
-                           if int(node.get("column") or 0) == col)
-                  for col in columns}
-        gap = 6.0
-        placed: dict[str, tuple[float, float, float]] = {}
-        for col in columns:
-            members = [node for node in nodes if int(node.get("column") or 0) == col]
-            total = totals[col] or 1.0
-            available = max(1.0, area.height() - gap * max(0, len(members) - 1))
-            y = area.top()
-            for node in members:
-                h = max(2.0, available * float(node.get("value") or 0.0) / total)
-                placed[str(node["id"])] = (col_x[col], y, h)
-                y += h + gap
-        for link in links:
-            source = placed.get(str(link.get("source")))
-            target = placed.get(str(link.get("target")))
-            if source is None or target is None:
+        from raptor.api.insight.sankey_layout import layout as flow_layout
+        from raptor.api.insight.sankey_layout import spread_labels
+        boxes, bands = flow_layout(nodes, links, area.height())
+        placed = {str(node["id"]): (col_x[int(node.get("column") or 0)],
+                                    area.top() + boxes[str(node["id"])][0],
+                                    boxes[str(node["id"])][1]) for node in nodes}
+        for link, band in zip(links, bands, strict=True):
+            if band is None:
                 continue
-            value = float(link.get("value") or 0.0)
-            thickness = max(1.0, value / (totals[columns[0]] or 1.0)
-                            * area.height() * 0.45)
-            x0, y0, h0 = source
-            x1, y1, h1 = target
-            y0 += h0 / 2
-            y1 += h1 / 2
+            thickness, ys, yt = band
+            x0 = placed[str(link["source"])][0] + 14
+            x1 = placed[str(link["target"])][0]
+            ya, yb = area.top() + ys, area.top() + yt
             cause = str(link.get("cause") or "other")
             colour = QColor(cause_colour(cause) if link.get("cause")
                             else palette["muted"])
             colour.setAlpha(95)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(colour)
-            path = QPainterPath(QPointF(x0 + 14, y0 - thickness / 2))
-            path.cubicTo(QPointF((x0 + x1) / 2, y0 - thickness / 2),
-                         QPointF((x0 + x1) / 2, y1 - thickness / 2),
-                         QPointF(x1, y1 - thickness / 2))
-            path.lineTo(QPointF(x1, y1 + thickness / 2))
-            path.cubicTo(QPointF((x0 + x1) / 2, y1 + thickness / 2),
-                         QPointF((x0 + x1) / 2, y0 + thickness / 2),
-                         QPointF(x0 + 14, y0 + thickness / 2))
+            cx = (x0 + x1) / 2
+            path = QPainterPath(QPointF(x0, ya))
+            path.cubicTo(QPointF(cx, ya), QPointF(cx, yb), QPointF(x1, yb))
+            path.lineTo(QPointF(x1, yb + thickness))
+            path.cubicTo(QPointF(cx, yb + thickness),
+                         QPointF(cx, ya + thickness),
+                         QPointF(x0, ya + thickness))
             path.closeSubpath()
             painter.drawPath(path)
+        line_h = float(fm.height())
+        centre_of: dict[str, float] = {}
+        for col in columns:
+            wanted = []
+            for node in nodes:
+                if int(node.get("column") or 0) != col:
+                    continue
+                _x, ny, nh = placed[str(node["id"])]
+                two = col == max(columns) and nh >= line_h * 2 + 4
+                wanted.append((str(node["id"]), ny + nh / 2,
+                               line_h * 2 if two else line_h))
+            centre_of.update(spread_labels(wanted, area.top(), area.bottom()))
         for node in nodes:
             x, y, h = placed[str(node["id"])]
+            cy = centre_of[str(node["id"])]
             painter.fillRect(QRectF(x, y, 14, h), QColor(palette["muted"]))
             kind = ("hierarchy" if str(node.get("id") or "").startswith("hier-")
                     else "note")
@@ -2033,7 +2032,8 @@ class ChartWidget(QWidget):
             raw = float(node.get('value') or 0)
             amount = amount_of(raw, node)
             if int(node.get("column") or 0) == 0:
-                painter.drawText(QRectF(x - left_pad + 2, y, left_pad - 8, h),
+                painter.drawText(QRectF(x - left_pad + 2, cy - line_h / 2,
+                                        left_pad - 8, line_h),
                                  Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                                  fm.elidedText(label, Qt.TextElideMode.ElideRight,
                                                int(left_pad - 10)))
@@ -2041,13 +2041,13 @@ class ChartWidget(QWidget):
                 width = max(1.0, right_pad - 24)
                 if h >= fm.height() * 2 + 4:
                     painter.drawText(
-                        QRectF(x + 18, y + h / 2 - fm.height(), width,
+                        QRectF(x + 18, cy - fm.height(), width,
                                fm.height()),
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         fm.elidedText(label, Qt.TextElideMode.ElideRight,
                                       int(max(1.0, width))))
                     painter.drawText(
-                        QRectF(x + 18, y + h / 2, width, fm.height()),
+                        QRectF(x + 18, cy, width, fm.height()),
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         fm.elidedText(amount, Qt.TextElideMode.ElideRight,
                                       int(max(1.0, width))))
@@ -2055,16 +2055,13 @@ class ChartWidget(QWidget):
                     text = f"{label} · {amount}"
                     # a sliver node at the foot of the column centred its
                     # one-line label half below the chart: keep it inside
-                    line = float(fm.height())
-                    top = min(max(y + h / 2 - line / 2, area.top()),
-                              area.bottom() - line)
                     painter.drawText(
-                        QRectF(x + 18, top, width, line),
+                        QRectF(x + 18, cy - line_h / 2, width, line_h),
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         fm.elidedText(text, Qt.TextElideMode.ElideRight,
                                       int(max(1.0, right_pad - 28))))
             else:
-                painter.drawText(QRectF(x + 18, y, 220, h),
+                painter.drawText(QRectF(x + 18, cy - line_h / 2, 220, line_h),
                                  Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                                  f"{label} · {amount}")
 

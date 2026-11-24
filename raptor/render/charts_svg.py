@@ -1601,45 +1601,40 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
     span = max(1.0, area.width - left_pad - right_pad)
     col_x = {col: area.left + left_pad + span * i / max(1, len(columns) - 1)
              for i, col in enumerate(columns)}
-    totals = {col: sum(float(node.get("value") or 0.0) for node in nodes
-                       if int(node.get("column") or 0) == col)
-              for col in columns}
-    gap = 6.0
-    placed: dict[str, tuple[float, float, float]] = {}
-    for col in columns:
-        members = [node for node in nodes if int(node.get("column") or 0) == col]
-        total = totals[col] or 1.0
-        available = max(1.0, area.height - gap * max(0, len(members) - 1))
-        y = area.top
-        for node in members:
-            h = max(2.0, available * float(node.get("value") or 0.0) / total)
-            placed[str(node["id"])] = (col_x[col], y, h)
-            y += h + gap
+    from raptor.api.insight.sankey_layout import layout as _flow_layout
+    from raptor.api.insight.sankey_layout import spread_labels as _spread_labels
+    boxes, bands = _flow_layout(nodes, links, area.height)
+    placed = {str(node["id"]): (col_x[int(node.get("column") or 0)],
+                                area.top + boxes[str(node["id"])][0],
+                                boxes[str(node["id"])][1]) for node in nodes}
     out: list[str] = []
-    # links behind nodes
-    for link in links:
-        source = placed.get(str(link.get("source")))
-        target = placed.get(str(link.get("target")))
-        if source is None or target is None:
+    # links behind nodes: each owns its own slot in both nodes
+    for link, band in zip(links, bands, strict=True):
+        if band is None:
             continue
-        value = float(link.get("value") or 0.0)
-        thickness = max(1.0, value / (totals[0] or 1.0) * area.height * 0.45)
-        x0, y0, h0 = source
-        x1, y1, h1 = target
-        y0 += h0 / 2
-        y1 += h1 / 2
+        thickness, ys, yt = band
+        x0 = placed[str(link["source"])][0]
+        x1 = placed[str(link["target"])][0]
+        ya, yb = area.top + ys, area.top + yt
         cause = str(link.get("cause") or "other")
         colour = _palette.colour(cause) if link.get("cause") else "#9FB3C8"
-        cx = (x0 + x1) / 2
+        cx = (x0 + 14 + x1) / 2
         out.append(
-            f"<path d='M{_fmt(x0 + 14)},{_fmt(y0 - thickness / 2)} "
-            f"C{_fmt(cx)},{_fmt(y0 - thickness / 2)} {_fmt(cx)},{_fmt(y1 - thickness / 2)} "
-            f"{_fmt(x1)},{_fmt(y1 - thickness / 2)} L{_fmt(x1)},{_fmt(y1 + thickness / 2)} "
-            f"C{_fmt(cx)},{_fmt(y1 + thickness / 2)} {_fmt(cx)},{_fmt(y0 + thickness / 2)} "
-            f"{_fmt(x0 + 14)},{_fmt(y0 + thickness / 2)} Z' "
+            f"<path d='M{_fmt(x0 + 14)},{_fmt(ya)} "
+            f"C{_fmt(cx)},{_fmt(ya)} {_fmt(cx)},{_fmt(yb)} "
+            f"{_fmt(x1)},{_fmt(yb)} L{_fmt(x1)},{_fmt(yb + thickness)} "
+            f"C{_fmt(cx)},{_fmt(yb + thickness)} {_fmt(cx)},{_fmt(ya + thickness)} "
+            f"{_fmt(x0 + 14)},{_fmt(ya + thickness)} Z' "
             f"fill='{colour}' fill-opacity='0.34'/>")
+    centre_of: dict[str, float] = {}
+    for col in columns:
+        centre_of.update(_spread_labels(
+            [(str(n["id"]), placed[str(n["id"])][1] + placed[str(n["id"])][2] / 2, 12.0)
+             for n in nodes if int(n.get("column") or 0) == col],
+            area.top, area.bottom))
     for node in nodes:
         x, y, h = placed[str(node["id"])]
+        cy = centre_of[str(node["id"])]
         out.append(_rect(x, y, 14, h, "#6B7785"))
         label = str(node.get("name") or "")
         if str(node.get("id") or "").startswith("cause-"):
@@ -1647,16 +1642,16 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
         raw = float(node.get('value') or 0)
         amount = share_of(node, amount_of(raw))
         if int(node.get("column") or 0) == 0:
-            out.append(_text(x - 6, y + h / 2 + 4,
+            out.append(_text(x - 6, cy + 4,
                              _shrink(label, left_pad - 12), size=10,
                              anchor="end"))
         elif int(node.get("column") or 0) == max(columns):
             # a sliver node at the foot of the column: keep its label inside
-            out.append(_text(x + 18, min(y + h / 2 + 4, area.bottom - 2),
+            out.append(_text(x + 18, cy + 4,
                              _shrink(f"{label} · {amount}", right_pad - 20),
                              size=9))
         else:
-            out.append(_text(x + 18, y + h / 2 + 4,
+            out.append(_text(x + 18, cy + 4,
                              _shrink(f"{label} · {amount}", span / max(1, len(columns) - 1) - 20),
                              size=9))
     return out
