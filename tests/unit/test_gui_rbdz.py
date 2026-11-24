@@ -178,3 +178,42 @@ def test_an_archive_restores_the_structured_analyses(
     again = saved.archive_payload()
     assert again is not None
 
+
+
+def test_saving_after_a_new_run_does_not_keep_the_old_runs_files(
+        qapp, two_runs, tmp_path):
+    """Re-saving a reopened archive keeps its entries; after a NEW run the
+    old run's event log (and drivers, plots...) must not be carried into
+    the archive beside the new run's figures."""
+    from raptor.gui.ui import settings
+    from raptor.gui.ui.main_window import MainWindow
+    rbd, live = two_runs
+    archive = tmp_path / "old.rbdz"
+    rbdz.write_archive(archive, "model placeholder",
+                       results=live.archive_payload())
+    settings.set_value("startup/show_start_page", False)
+    win = MainWindow()
+    try:
+        win._load_into_app(load_rbd(FIXTURE), None)
+        assert win._restore_archive_results(str(archive))
+        assert "events.txt" in win._archive_files
+        resaved = tmp_path / "resaved.rbdz"
+        assert win._write_model(str(resaved))
+        assert "events.txt" in rbdz.read_results(resaved).results
+
+        # A new run with the event log off replaces the result set.
+        report_data: list = []
+        _logs, eor, fin = run_simulation_with_reports(
+            load_rbd(FIXTURE), num_runs=1, date="fixed",
+            report_sink=report_data)
+        win._results.set_results([], eor, fin, report_data=report_data,
+                                 units="hours", rbd=rbd)
+        fresh = tmp_path / "fresh.rbdz"
+        assert win._write_model(str(fresh))
+        results = rbdz.read_results(fresh).results
+        assert "events.txt" not in results
+        summary = json.loads(results["summary.json"])
+        assert summary["num_runs"] == 1
+    finally:
+        win._dirty = False
+        win.close()

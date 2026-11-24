@@ -69,6 +69,7 @@ class FileIoMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         def _block_defaults(self) -> dict: ...
+        def _apply_hier_status(self, report_data: Any) -> None: ...
         def _bump_model_revision(self) -> None: ...
         _busy_dialog: Any  # really PySide6.QtWidgets.QProgressDialog | None
         def _cancel_pending_block_selection(self) -> None: ...
@@ -631,11 +632,17 @@ class FileIoMixin(_Base):
             rbd.file_name = Path(path).with_suffix(".rbds").name
             sources = self._results.archive_payload() or {}
             # Preserve entries from the opened archive that the dock does
-            # not regenerate (ids, data files, future entries).
-            old_files = getattr(self, "_archive_files", None) or {}
+            # not regenerate (ids, data files, future entries) -- but only
+            # while the results on screen ARE that archive's. After a new
+            # run they belong to another run: merging them put the old
+            # run's event log or drivers beside the new run's figures.
+            showing_archive = bool(getattr(self._results, "_archive_source", ""))
+            old_files = (getattr(self, "_archive_files", None) or {}
+                         if showing_archive else {})
             for name, source in old_files.items():
                 sources.setdefault(name, source)
-            if not sources and getattr(self, "_archive_had_results", False):
+            if not sources and showing_archive and \
+                    getattr(self, "_archive_had_results", False):
                 msgbox.warning(
                     self, "Archive Results Not Replaced",
                     "This archive's saved results could not be restored, so "
@@ -824,6 +831,14 @@ class FileIoMixin(_Base):
         from raptor.core.fileio.model_file import load_model_file
         return load_model_file(path)
 
+    def _save_for_history(self) -> bool:
+        """Save unsaved edits so a new version records them; False when
+        the save was cancelled or failed (the model stays dirty)."""
+        if not getattr(self, "_dirty", False):
+            return True
+        self._save_file()
+        return not getattr(self, "_dirty", False)
+
     def _open_history_dialog(self):
         """File ▸ Version History: browse or restore saved versions."""
         if not self._current_file:
@@ -831,7 +846,9 @@ class FileIoMixin(_Base):
         from PySide6.QtWidgets import QDialog
         from raptor.gui.ui.history_dialog import HistoryDialog
         from raptor.api import history
-        dialog = HistoryDialog(self, self._current_file)
+        dialog = HistoryDialog(self, self._current_file,
+                               current_model=self._rbd,
+                               save_current=self._save_for_history)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         snapshot = dialog.snapshot
@@ -904,8 +921,8 @@ class FileIoMixin(_Base):
     def _clear_archive_results_temp(self) -> None:
         """Drop the extracted result files of a previously opened `.rbdz`."""
         temp = getattr(self, "_archive_temp", None)
-        self._archive_temp = None
-        self._archive_files = {}
+        self._archive_temp: Any = None    # a TemporaryDirectory while open
+        self._archive_files: dict[str, Any] = {}
         self._archive_had_results = False
         if temp is not None:
             try:

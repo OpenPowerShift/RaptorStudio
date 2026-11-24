@@ -20,21 +20,116 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
+DC1 = Path(__file__).resolve().parents[2] / "new_docs/models/DC1.rbds"
+
+
+def _renamed_copy(text: str, old: str, new: str) -> str:
+    assert old in text
+    return text.replace(old, new, 1)
+
+
+def _first_block_name(path: Path) -> str:
+    from raptor.core.fileio.rbds import load_rbds
+    return str(load_rbds(str(path)).sections["BLOCK_DATA"].rows[0]["blockName"])
+
+
 def test_dialog_lists_previews_and_chooses_a_version(qapp, tmp_path):
+    """The preview describes the version and compares it with the open
+    model; it never shows the file's raw text."""
+    from raptor.core.fileio.rbds import load_rbds
     model = tmp_path / "plant.rbds"
-    model.write_text("model-v1", encoding="utf-8")
+    text = DC1.read_text(encoding="utf-8")
+    model.write_text(text, encoding="utf-8")
+    name = _first_block_name(model)
     store = HistoryStore(tmp_path / "history")
     older = store.record(model, reason="save")
-    model.write_text("model-v2 is longer", encoding="utf-8")
+    model.write_text(_renamed_copy(text, name, name + "_v2"), encoding="utf-8")
     newer = store.record(model, reason="manual", label="before edit")
-    dialog = HistoryDialog(None, model, store)
+    dialog = HistoryDialog(None, model, store,
+                           current_model=load_rbds(str(model)))
     assert dialog._list.count() == 2
     assert dialog._list.item(0).text().startswith(newer.time_text())
-    assert "model-v2" in dialog._preview.toPlainText()
+    shown = dialog._preview.toPlainText()
+    assert shown.startswith("Model: ") and "block" in shown
+    assert "Same as the model that is open now" in shown
+    assert '"blocks"' not in shown and "{" not in shown.splitlines()[0]
     dialog._list.setCurrentRow(1)
-    assert "model-v1" in dialog._preview.toPlainText()
+    shown = dialog._preview.toPlainText()
+    assert "Changes from this version to the model open now" in shown
+    assert name + "_v2" in shown
     dialog._open()
     assert dialog.action == "open" and dialog.snapshot.id == older.id
+
+
+def test_an_archive_version_is_summarised_not_dumped(qapp, tmp_path):
+    """An `.rbdz` is a zip: its bytes as text were noise, and their stray
+    Syriac/Thaana/N'Ko code points flooded the log with font warnings."""
+    import json
+    from raptor.core.fileio.rbdz import write_archive
+    archive = tmp_path / "plant.rbdz"
+    write_archive(archive, DC1.read_text(encoding="utf-8"), results={
+        "summary.json": json.dumps({"num_runs": 250,
+                                    "run_at": "2026-11-23T10:15:00"})})
+    store = HistoryStore(tmp_path / "history")
+    store.record(archive)
+    dialog = HistoryDialog(None, archive, store)
+    shown = dialog._preview.toPlainText()
+    assert shown.startswith("Model: ")
+    assert "250 runs" in shown and "2026-11-23 10:15" in shown
+    assert "PK" not in shown and "\ufffd" not in shown
+    assert not any(0x0700 <= ord(ch) < 0x0800 for ch in shown)
+
+
+def test_a_damaged_version_says_so(qapp, tmp_path):
+    model = tmp_path / "plant.rbds"
+    model.write_bytes(b"\x00\xff not a model")
+    store = HistoryStore(tmp_path / "history")
+    store.record(model)
+    dialog = HistoryDialog(None, model, store)
+    assert "could not be read as a model" in dialog._preview.toPlainText()
+
+
+def test_save_version_now_saves_unsaved_edits_first(
+        qapp, tmp_path, monkeypatch):
+    """The button recorded the file on disk only: right after a save (which
+    already recorded it) or with unsaved edits, nothing was added."""
+    from raptor.gui.ui import history_dialog as history_ui
+    model = tmp_path / "plant.rbds"
+    text = DC1.read_text(encoding="utf-8")
+    model.write_text(text, encoding="utf-8")
+    name = _first_block_name(model)
+    store = HistoryStore(tmp_path / "history")
+    store.record(model, reason="save")
+    saved = []
+
+    def save_current() -> bool:
+        # The host saves the edited model; its save records a version.
+        model.write_text(_renamed_copy(text, name, name + "_edited"),
+                         encoding="utf-8")
+        store.record(model, reason="save")
+        saved.append(True)
+        return True
+
+    dialog = HistoryDialog(None, model, store, save_current=save_current)
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("checkpoint", True)))
+    dialog._snapshot_now()
+    assert saved
+    shots = store.snapshots(model)
+    assert len(shots) == 2 and shots[0].label == "checkpoint"
+    assert "Labelled the version" in dialog._note.text()
+
+    monkeypatch.setattr(history_ui.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("", True)))
+    dialog = HistoryDialog(None, model, store, save_current=lambda: True)
+    dialog._snapshot_now()
+    assert len(store.snapshots(model)) == 2
+    assert "has not changed since the version recorded" in dialog._note.text()
+    assert dialog._list.currentRow() == 0
+
+    dialog = HistoryDialog(None, model, store, save_current=lambda: False)
+    dialog._snapshot_now()
+    assert "Saving was cancelled" in dialog._note.text()
 
 
 def test_dialog_delete_keeps_the_file_and_other_versions(qapp, tmp_path):
