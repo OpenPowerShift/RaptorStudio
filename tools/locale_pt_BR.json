@@ -1167,6 +1167,7 @@
   "Remove text annotations only": "Remover somente anotações de texto",
   "Remove the selected elements from this group's list. Elements included by the tag query stay in the view.": "Remover os elementos selecionados da lista deste grupo. Os elementos incluídos pela consulta de etiqueta permanecem na visão.",
   "Remove this entry from the model": "Remover esta entrada do modelo",
+  "Remove {name} from comparison": "Remover {name} da comparação",
   "Reorder arrival time": "Tempo de chegada da reposição",
   "Reorder level": "Nível de reposição",
   "Reorder quantity": "Quantidade de reposição",
