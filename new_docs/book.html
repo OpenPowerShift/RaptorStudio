@@ -11158,7 +11158,101 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_reference">23.6.10. Reference</h4>
+<h4 id="_groups_imports_versions_and_sharing">23.6.10. Groups, imports, versions and sharing</h4>
+<div class="paragraph">
+<p>Groups and tags are saved views over a model and never change the
+simulation. A <strong>version</strong> is a checkpoint you save on purpose (the desktop
+app&#8217;s <strong>File ▸ Save Version Now&#8230;&#8203;</strong>); the tools use the word snapshot only
+in <code>snapshot_version&#8217;s name. See the Version History and Project Health
+guides in `docs/</code> for the full story.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tool</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_groups</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The model&#8217;s groups and tags. <code>members</code> is the resolved count: explicit
+  members plus every element carrying the group&#8217;s tag.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>create_group</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Create a group (or update the one with that name): <code>members</code> as
+  selectors such as <code>Block:3</code> or <code>Hier:900</code>, an optional <code>tag</code> query, a
+  <code>colour</code> and a <code>description</code>. The model is saved.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>update_group</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Patch one group by name or id: rename, recolour, replace <code>members</code> or
+  edit them with <code>add</code> / <code>remove</code>; an empty <code>tag</code> or <code>description</code> clears
+  it.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>delete_group</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Delete a group. Its elements and their tags are kept.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>tag_elements</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set, add or remove tags on elements (<code>mode</code> is <code>replace</code>, <code>add</code> or
+  <code>remove</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>preview_table_import</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Say exactly what an <code>.xlsx</code> or <code>.ods</code> sheet would change, row by row,
+  before anything is written. An <code>error</code> blocks the import; a <code>warning</code>
+  does not.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>import_table_data</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply the sheet&#8217;s changes and save the model. A plan with any error is
+  refused, so a mistyped row cannot half-edit the model. One edit step;
+  <code>undo_last_edit</code> is the way back.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>project_health</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What is in the model and what a reviewer should tidy: element counts,
+  validator findings, unnamed or duplicate names, unused pools and the
+  prose a share-safe copy would remove. Nothing is run or changed.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>share_safe_copy</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write a copy with the identifying prose removed and the data intact.
+  Group and tag names become <code>Group_N</code> and <code>tag_N</code>, group descriptions are
+  dropped, and colours and membership are kept.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>snapshot_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Record the model&#8217;s file as a version now, with an optional <code>label</code> and
+  Markdown <code>description</code>. Ordinary saves record none.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_versions</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The versions kept for the model&#8217;s file, newest first, with the history&#8217;s
+  total size and whether it is over the 50 MB soft limit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>label_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name a version or give it a Markdown description; the content is
+  unchanged.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>restore_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write a version to a new file in the workspace. The open model is not
+  changed; open the written file with <code>open_model</code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_reference">23.6.11. Reference</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 25%;">
@@ -11196,7 +11290,7 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_resources">23.6.11. Resources</h4>
+<h4 id="_resources">23.6.12. Resources</h4>
 <div class="paragraph">
 <p>Read-only URIs a client can browse or read:</p>
 </div>
@@ -11248,7 +11342,7 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_prompts">23.6.12. Prompts</h4>
+<h4 id="_prompts">23.6.13. Prompts</h4>
 <div class="paragraph">
 <p>Conversation starters that appear in your client&#8217;s prompt menu:</p>
 </div>

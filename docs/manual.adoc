@@ -259,7 +259,7 @@ Leave the text blank to keep all names. The whole edit is one undo step.
 [[spreadsheet-import]]
 == Import a data table from a spreadsheet
 
-*Data ▸ Import Table…* reads the active sheet of an Excel (`.xlsx`) or
+*Data ▸ Import Table…* (also *File ▸ Import ▸ Import Table…*, with *File ▸ Import ▸ Data Table Template…* to write a starter sheet) reads the active sheet of an Excel (`.xlsx`) or
 OpenDocument (`.ods`) workbook and changes failure/repair parameters, PM
 settings or stock on the blocks it names. The first row with content is the
 header: `id` or `name` identifies the block, and the other columns name the
@@ -573,7 +573,10 @@ After a run (or a stepped Finish) the Results dock offers:
   across all runs), *Why it goes down*, *Lost capacity*, *Year by
   year*, *Cost* and *What matters most*. Type in **Search charts** to
   filter the list by title or group (Esc clears it); click a group heading
-  to fold it.
+  to fold it, and open the group's overview: one card per chart in it, each a
+  small live picture of that chart for this run with its title and the question
+  it answers. Click a card (or press Enter or Space on it) to open the chart.
+  A card for a chart the run cannot draw is greyed and says why.
   *By hierarchy* reads a nested model level by level: a scorecard and
   Pareto, one nested view with a *Treemap / Sunburst* switch, cumulative
   overlays, small multiples, cause and phase heatmaps, a state ribbon, an
@@ -584,7 +587,8 @@ After a run (or a stepped Finish) the Results dock offers:
   four hierarchies for the overlay, small multiples and Sankey and refuses
   a parent and its child together, because that would count the same
   downtime twice. **Baseline** keeps this run's hierarchy table so the
-  next run can show what moved. A chart the run cannot draw because a
+  next run can show what moved; it survives re-runs of the same model and is
+  cleared when the model changes. A chart the run cannot draw because a
   switch is off stays in the list, greyed; choosing it names the check box
   to tick and where it is (for example *Detailed event log* under Run
   panel ▸ Recording for the downtime charts, *Cost* under Run panel ▸
@@ -664,14 +668,19 @@ named under the chart. A share and its uncertainty range never pass
    saved non-zero value (`graphYmin`) is a fixed floor for every
    availability chart over time. **Target** draws a dashed availability
    target on the outcome, chance, convergence, time and year charts and on
-   the availability ladder; **Capacity target** draws one on the capacity
-   year chart. Both targets are saved in the model's `targets` object, so
+   the availability ladder; **Capacity target** draws a dashed line, as a share of the flow generated, on
+   the capacity year chart, *Capacity through a run* and *Capacity across all
+   runs*; the *Capacity through a run* caption says whether that run met it. The
+   *Lost capacity by cause* waterfall has no flow axis to draw it on, so
+   its caption states whether the delivered share met the target. Both targets are saved in the model's `targets` object, so
    reopening the `.rbds` file restores them; they never change the model's
    numbers or the simulation, and setting one does not make a result look
    out of date. The `configure_system` tool sets them
    (`availability_target`, `capacity_target`; 0 clears), and `run_chart`,
    `run_story` and `raptor explain` use the saved ones when no target is
-   given. The dot plots also mark the median (and the quartiles);
+   given. `raptor explain --target system.capacity>=0.95` sets the capacity
+   target for one run (`--target system.ao>=0.995` the availability one),
+   and `run_chart` takes `capacity_target` (a fraction, 0 to 1). The dot plots also mark the median (and the quartiles);
    convergence marks the median of the runs. Drag across a chart over time
    (or hold Ctrl and turn the wheel) to zoom the time axis; double-click or
    right-click *Show the whole run* restores it.
@@ -720,7 +729,27 @@ fills the figure instead of being squeezed by the delivered branch. Each
 hierarchy and cause label also gives its share of the lost flow.
 +
 Above the chart, **Scope** picks the hierarchy the element charts and the
-ranking charts read (System, or any hierarchy by its indented path), and
+ranking charts read (System, or any hierarchy by its indented path). Scope
+and **Compare** are framed buttons with a caret that open a searchable
+picker: type to find a hierarchy by name, or start with `>` to search by
+path (`>Intake > Pump`); a header line says how many hierarchies match
+(*N of M*). Compare allows at most four and its button shows how many are
+ticked; with none ticked the four with the most downtime are compared (*Top
+four by downtime*). On a narrow panel (under about 600 px) a chart dropdown
+replaces the chart list. A comparison is also drawn on the canvas: each
+compared hierarchy's oval gets a ring in its chart colour, other elements and
+links fade, and a row of chips with a remove button sits on the Charts page;
+the picker, the chips and the canvas stay in step. The *Hierarchy scorecard*
+adds a dot strip per hierarchy (one dot per run, on a shared scale) and, once
+a baseline is set, a badge reading *better*, *worse*, *no change* or *new*
+(glyph and word). The overlay labels each line directly with its value at the
+line's end, so it needs no legend. *Which hierarchy is worse, run by run?*
+shows each run's share of the system downtime per hierarchy: it opens on the
+summary of all runs, **Step** shows the next run and **Play** runs through them.
+It never plays by itself, and with *Preferences ▸ Appearance ▸ Reduce
+motion* on, Play is disabled and only Step and the summary are used. The *Lost
+capacity by hierarchy and cause* Sankey switches to a more readable view when
+the lost flow is a small share of the flow generated.
 **Follow canvas** keeps the charts on the hierarchy level shown in the
 diagram. **Depth** is *All levels* by default: ranking charts then use the
 top level, while the treemap and sunburst draw every level. Choose *Top
@@ -1896,6 +1925,21 @@ the Help window stays usable, and can be closed, while a dialog is open.
 * `.rbds` — the **native** format (JSON). Save / Save As write it by
   default; it is the only format that keeps annotations and a few other
   RAPTOR Studio fields.
+* `.rbdz` — a **model archive**: the model plus the run's result files in
+  one zip (see `docs/RBDZ_FORMAT.md`). Compressing results can take seconds
+  to minutes, so Save writes it on a background thread. A progress bar
+  appears only if the save takes longer than 0.3 seconds, so a small file
+  never flashes one. While it runs the window keeps repainting, but
+  editing, running, another save and opening or closing wait for it, so the
+  file is a consistent snapshot of the moment you pressed Save. Closing the
+  window during a save waits, then closes. The archive is written to a
+  temporary file in the same folder and then replaced over the target, so a
+  failed save never leaves a half-written archive. A new run (or clearing
+  the results) marks an open archive as having unsaved changes.
+* **File ▸ Save Version Now…** and **File ▸ Version History…** — a *version*
+  is a checkpoint you save on purpose; an ordinary Save records none. See
+  `docs/VERSION_HISTORY.md`. `raptor history --snapshot` and the MCP
+  `snapshot_version` tool are the scripted equivalents.
 * `.rbd` — the **classic** format (Latin-1 text,
   sectioned). Opens and round-trips; saving data the classic format cannot hold
   (annotations, for example) as `.rbd` drops it, with a warning

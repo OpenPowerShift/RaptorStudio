@@ -1,8 +1,12 @@
 # Spreadsheet data-table import
 
-**Data ▸ Import Table…** reads an `.xlsx` or `.ods` sheet, validates every
+**Data ▸ Import Table…** (also **File ▸ Import ▸ Import Table…**) reads an `.xlsx` or `.ods` sheet, validates every
 row against the model, shows what would change, and applies the lot as one
 undo step (`Ctrl+Z` restores the whole import).
+
+**File ▸ Import ▸ Data Table Template…** writes a starter `.xlsx` or `.ods`
+sheet for the open model (one row per block, with the field columns), ready
+to edit and bring back with **File ▸ Import ▸ Import Table…**.
 
 ## Sheet shape
 
