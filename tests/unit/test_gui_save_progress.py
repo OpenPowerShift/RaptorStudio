@@ -339,3 +339,29 @@ def test_one_progress_view_when_a_dialog_mirrors_the_save(
 def test_the_sinks_exist_before_the_first_save(window):
     assert save_progress.save_progress_sinks(window) == []
     assert window._save_progress_sinks == []
+
+
+def test_a_shortcut_to_an_action_is_held_back_during_a_save(
+        window, monkeypatch):
+    """Shortcuts are delivered to the QAction, not a widget: the lock must
+    sit on the actions too, now that it is not an application-wide filter
+    (#142 forbids one)."""
+    from PySide6.QtGui import QAction, QKeySequence, QShortcutEvent
+    action = next(a for a in window.findChildren(QAction)
+                  if not a.shortcut().isEmpty() and a.isEnabled())
+    fired: list[bool] = []
+    action.triggered.connect(lambda *_a: fired.append(True))
+    probe: dict = {}
+
+    def during():
+        event = QShortcutEvent(QKeySequence(action.shortcut()), 0, False)
+        probe["blocked"] = QApplication.sendEvent(action, event)
+
+    _slow_writer(monkeypatch, [(200, during)])
+    window._save_file()
+    assert probe["blocked"] is True
+    assert fired == []
+    # After the save the filter is gone and the action works again.
+    QApplication.sendEvent(
+        action, QShortcutEvent(QKeySequence(action.shortcut()), 0, False))
+    assert fired == [True]

@@ -63,6 +63,7 @@ def create_group(model_id: str, name: str,
     ones tagged later. `colour` is `#RRGGBB`; one is chosen when omitted.
     The model is saved, so the group survives the call.
     """
+    context.require_write()         # before the model changes, not at save
     from raptor.api import groups
     ws = context.workspace()
     data = groups.create_group(ws, model_id, name, members, tag=tag,
@@ -88,6 +89,7 @@ def update_group(model_id: str, group: str,
     rewriting the rest. `tag=""` clears the tag query; `description=""`
     clears the note. The model is saved.
     """
+    context.require_write()         # before the model changes, not at save
     from raptor.api import groups
     ws = context.workspace()
     data = groups.update_group(ws, model_id, group, name=name, colour=colour,
@@ -103,6 +105,7 @@ def update_group(model_id: str, group: str,
 @guarded
 def delete_group(model_id: str, group: str) -> CallToolResult:
     """Delete a group; its elements and their tags are kept."""
+    context.require_write()         # before the model changes, not at save
     from raptor.api import groups
     ws = context.workspace()
     data = groups.delete_group(ws, model_id, group)
@@ -122,6 +125,7 @@ def tag_elements(model_id: str, elements: list[str], tags: list[str],
     empty `tags` clears it. An element the model does not have is refused
     rather than skipped.
     """
+    context.require_write()         # before the model changes, not at save
     from raptor.api import groups
     ws = context.workspace()
     data = groups.set_tags(ws, model_id, elements, tags, mode=mode)

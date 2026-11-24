@@ -65,6 +65,8 @@ READ_ONLY = {
 DESTRUCTIVE = {"save_model_as", "close_model", "delete_element",
                "delete_elements", "delete_link", "undo_last_edit",
                "redo_last_edit", "delete_file", "delete_annotation",
+               # removes the group (its elements and tags are kept)
+               "delete_group",
                # they can overwrite a part in an existing .rbdlib file
                "save_part_type", "save_assembly",
                # each replaces a file of the same name

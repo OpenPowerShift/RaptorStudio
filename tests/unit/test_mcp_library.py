@@ -253,3 +253,20 @@ def test_apply_part_type_takes_a_model_part_by_its_name(server, model):
     applied = _ok(_call(server, "apply_part_type", model_id=model,
                         part="PumpType", elements=["Pump"]))
     assert applied["count"] == 1
+
+
+def test_read_only_group_edits_are_refused_before_the_model_changes(server, model):
+    """A refused group edit must not leave the open model changed in memory:
+    the gate runs before the edit, not only at the save."""
+    from raptor.api import groups
+    from raptor.mcp import context
+    import raptor.mcp.tools_groups as tg
+    ws = context.workspace()
+    assert groups.list_groups(ws, model)["groups"] == []
+    server.mcp._raptor_args.read_only = True
+    try:
+        assert tg.create_group(model, "Pumps").is_error
+        assert tg.tag_elements(model, ["Block:1"], ["pump"]).is_error
+    finally:
+        server.mcp._raptor_args.read_only = False
+    assert groups.list_groups(ws, model)["groups"] == []

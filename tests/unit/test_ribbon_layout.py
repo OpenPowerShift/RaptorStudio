@@ -330,7 +330,10 @@ class TestCompactMode:
         """A real window whose ribbon pages get only `px`. The window itself
         cannot be made narrow enough to fold a group -- its minimum (~850 px)
         is absorbed by shrinking alone -- but a page can be."""
-        w = cls._window(qapp, 1600)
+        # Wide enough that every page fits at full size with room for font
+        # differences: with Project Health the Model page needs ~1555 px
+        # here, and CI's fonts pushed it past a 1600 px window.
+        w = cls._window(qapp, 1920)
         cls._squeeze(w, qapp, px)
         return w
 

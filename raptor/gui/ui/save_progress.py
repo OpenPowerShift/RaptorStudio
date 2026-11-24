@@ -21,8 +21,9 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QEvent, QEventLoop, QObject, QThread, QTimer, Signal
+from PySide6.QtGui import QAction, QShortcut
 from PySide6.QtWidgets import (
-    QAbstractSpinBox, QApplication, QComboBox, QLabel, QProgressBar,
+    QAbstractSpinBox, QComboBox, QLabel, QProgressBar,
     QScrollBar, QSlider, QWidget)
 
 from raptor.gui import i18n
@@ -85,6 +86,13 @@ class InputLock(QObject):
     turn over a spin box, combo box or slider is held back: those change
     a value the save may be writing.  Applies
     to the owner window and the windows parented to it (floating docks).
+
+    Installed on each of the window's own widgets, actions and shortcuts
+    (`install`), never on the QApplication: an application-wide Python
+    filter also receives QtWebEngine's internal objects, and PySide
+    segfaults resolving wrappers for them (#142).  Shortcut and key events
+    are delivered to the action or the focus widget, both of which carry
+    this filter.  Web-view internals are skipped for the same reason.
     """
 
     blocked = Signal()
@@ -92,8 +100,41 @@ class InputLock(QObject):
     def __init__(self, owner: QWidget) -> None:
         super().__init__(owner)
         self._owner = owner
+        self._targets: list[QObject] = []
+
+    @staticmethod
+    def _web(obj: QObject) -> bool:
+        w = obj if isinstance(obj, QWidget) else None
+        while w is not None:
+            if "WebEngine" in type(w).__name__ or \
+                    "WebEngine" in w.metaObject().className():
+                return True
+            w = w.parentWidget()
+        return False
+
+    def install(self) -> None:
+        """Filter the window, its widgets, actions and shortcuts."""
+        targets: list[QObject] = [self._owner]
+        targets += self._owner.findChildren(QWidget)
+        targets += self._owner.findChildren(QAction)
+        targets += self._owner.findChildren(QShortcut)
+        for obj in targets:
+            if self._web(obj):
+                continue
+            obj.installEventFilter(self)
+            self._targets.append(obj)
+
+    def remove(self) -> None:
+        for obj in self._targets:
+            try:
+                obj.removeEventFilter(self)
+            except RuntimeError:        # deleted while the save ran
+                pass
+        self._targets.clear()
 
     def _mine(self, obj: QObject) -> bool:
+        if isinstance(obj, (QAction, QShortcut)):
+            return obj in self._targets
         w = obj if isinstance(obj, QWidget) else None
         while w is not None:
             if w is self._owner:
@@ -259,17 +300,15 @@ def run_blocking(owner: QWidget, host: Any, fn: Callable[..., Any], *,
     lock.blocked.connect(present.note_blocked)
     loop = QEventLoop(owner)
     job.finished.connect(loop.quit)
-    app = QApplication.instance()
-    assert app is not None
     setattr(owner, flag, True)
-    app.installEventFilter(lock)
+    lock.install()
     present.timer.start(SHOW_AFTER_MS)
     try:
         job.start()
         loop.exec()
         job.wait()
     finally:
-        app.removeEventFilter(lock)
+        lock.remove()
         present.close()
         setattr(owner, flag, False)
         lock.deleteLater()
