@@ -2129,6 +2129,10 @@
       <translation>Mostrar os gráficos do sistema inteiro ou de uma hierarquia. Segue o diagrama, a menos que você escolha um escopo aqui.</translation>
     </message>
     <message>
+      <source>Chart scope</source>
+      <translation>Escopo do gráfico</translation>
+    </message>
+    <message>
       <source>Follow canvas</source>
       <translation>Seguir o diagrama</translation>
     </message>
@@ -2303,14 +2307,6 @@
     <message>
       <source>A target availability drawn as a dashed line on these charts and judged in the Overview's Story (met or missed, and by how many runs). It is saved in the model file; it does not change the simulation.</source>
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
-    </message>
-    <message>
-      <source>System</source>
-      <translation>Sistema</translation>
-    </message>
-    <message>
-      <source>Top four by downtime</source>
-      <translation>Quatro principais por tempo de inatividade</translation>
     </message>
     <message>
       <source>Click to fold or unfold this group</source>
@@ -3353,6 +3349,10 @@
       <translation>Reverter para as configurações de fábrica (Exponencial/Lognormal/Sobressalentes infinitos)</translation>
     </message>
     <message>
+      <source>System</source>
+      <translation>Sistema</translation>
+    </message>
+    <message>
       <source>Independent</source>
       <translation>Independente</translation>
     </message>
@@ -4267,6 +4267,34 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Find:</source>
       <translation>Localizar:</translation>
+    </message>
+    <message>
+      <source>Search hierarchies…</source>
+      <translation>Pesquisar hierarquias…</translation>
+    </message>
+    <message>
+      <source>Search hierarchies</source>
+      <translation>Pesquisar hierarquias</translation>
+    </message>
+    <message>
+      <source>Top four by downtime</source>
+      <translation>Quatro principais por tempo de inatividade</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Limpar</translation>
+    </message>
+    <message>
+      <source>No match</source>
+      <translation>Nenhuma correspondência</translation>
+    </message>
+    <message>
+      <source>Four are ticked, the most the comparison charts draw. Untick one to pick another.</source>
+      <translation>Quatro marcadas, o máximo que os gráficos de comparação desenham. Desmarque uma para escolher outra.</translation>
+    </message>
+    <message>
+      <source>%1 of %2</source>
+      <translation>%1 de %2</translation>
     </message>
     <message>
       <source>Description</source>
@@ -6767,10 +6795,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>The Advisor has no findings for this run.</source>
       <translation>O Advisor não tem constatações para esta execução.</translation>
-    </message>
-    <message>
-      <source>Clear</source>
-      <translation>Limpar</translation>
     </message>
     <message>
       <source>Filter rows</source>
