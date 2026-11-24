@@ -226,6 +226,90 @@ def test_the_lost_capacity_sankey_can_drop_the_hierarchy_and_delivered(qapp):
                for node in spec.provenance["nodes"])
 
 
+def _sankey_page(lost: float, delivered: float):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": lost + delivered,
+        "delivered_energy": {"mean": delivered}, "lost_energy": {"mean": lost},
+        "elements": [
+            {"kind": "block", "id": 1, "name": "Pump",
+             "lost_energy": {"mean": lost * 0.6}, "share": {"mean": 0.6},
+             "causes": {"repair": 1.0}, "main_cause": "repair"},
+            {"kind": "block", "id": 2, "name": "Filter",
+             "lost_energy": {"mean": lost * 0.4}, "share": {"mean": 0.4},
+             "causes": {"pm": 1.0}, "main_cause": "pm"}],
+        "causes": {"repair": {"mean": lost * 0.6}, "pm": {"mean": lost * 0.4}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    page.select("Lost capacity by hierarchy and cause")
+    return page
+
+
+def test_a_small_loss_starts_the_sankey_at_the_loss_and_says_so(qapp):
+    page = _sankey_page(lost=1.0, delivered=999.0)       # 0.1 % lost
+    spec = page.selected_spec()
+    assert not page.sankey_delivered.isChecked()
+    assert spec.provenance["nodes"][0]["id"] == "lost"
+    assert "lost flow only" in spec.caption
+    page.sankey_delivered.setChecked(True)               # the reader's choice sticks
+    assert any(n["id"] == "delivered" for n in page.selected_spec().provenance["nodes"])
+    assert "lost flow only" not in page.selected_spec().caption
+
+
+def test_a_large_loss_keeps_the_delivered_branch(qapp):
+    page = _sankey_page(lost=200.0, delivered=800.0)     # 20 % lost
+    assert page.sankey_delivered.isChecked()
+    assert "lost flow only" not in page.selected_spec().caption
+
+
+def test_the_toolbar_buttons_are_framed_and_the_pickers_have_a_caret(qapp):
+    page = ChartsPage()
+    for button in (page.scope_button, page.compare_button, page.follow_button,
+                   page.sankey_delivered, page.hops_play):
+        assert "border: 1px solid" in button.styleSheet()
+    assert "padding-right" in page.scope_button.styleSheet()
+    assert "padding-right" in page.compare_button.styleSheet()
+
+
+def test_enter_opens_the_scope_picker(qapp):
+    from PySide6.QtCore import QEvent
+    from PySide6.QtGui import QKeyEvent
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return,
+                      Qt.KeyboardModifier.NoModifier)
+    assert page.eventFilter(page.scope_button, event)
+    assert page.picker("scope").isVisible()
+    page.picker("scope").hide()
+
+
+def test_a_narrow_page_swaps_the_chart_list_for_a_grouped_drop_down(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    page.resize(1000, 700)
+    page.show()
+    assert not page.nav_combo.isVisible() and page._left.isVisible()
+    page.resize(420, 700)
+    assert page.nav_combo.isVisible() and not page._left.isVisible()
+    # a heading row per group, the charts indented beneath it
+    texts = [page.nav_combo.itemText(i) for i in range(page.nav_combo.count())]
+    assert any(t.startswith("    ") for t in texts)
+    assert any(heading and not t.startswith(" ")
+               for (heading, _name), t in zip(page._combo_rows, texts, strict=True))
+    row = next(i for i, (heading, name) in enumerate(page._combo_rows)
+               if not heading and name == "hierarchy-pareto")
+    page.nav_combo.activated.emit(row)
+    assert page.selected_key() == "hierarchy-pareto"
+    assert page.nav_combo.currentIndex() == row
+    page.hide()
+
+
 def test_a_gathered_treemap_cell_carries_its_members_for_details(qapp):
     page = ChartsPage()
     per_run, attribution, _importance = _inputs()

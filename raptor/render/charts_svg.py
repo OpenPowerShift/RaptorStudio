@@ -1599,6 +1599,15 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
             return amount
         return f"{amount} ({pct(float(node.get('value') or 0.0) / total_lost)})"
 
+    unit = str(spec.provenance.get("units") or "")
+
+    def amounts_of(node: dict, raw: float) -> list[str]:
+        """Richest first; the headline nodes carry the unit, dropped first."""
+        plain = share_of(node, amount_of(raw))
+        if unit and str(node.get("id")) in ("generated", "delivered", "lost"):
+            return [f"{plain} {unit}", plain, amount_of(raw)]
+        return [plain, amount_of(raw)]
+
     columns = sorted({int(node.get("column") or 0) for node in nodes})
     first = [str(n.get("name") or "") for n in nodes
              if int(n.get("column") or 0) == columns[0]]
@@ -1626,7 +1635,8 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
              for i, col in enumerate(columns)}
     from raptor.api.insight.sankey_layout import layout as _flow_layout
     from raptor.api.insight.sankey_layout import spread_labels as _spread_labels
-    boxes, bands = _flow_layout(nodes, links, area.height)
+    # a few pixels of air above the caption: labels never touch it
+    boxes, bands = _flow_layout(nodes, links, area.height - 6)
     placed = {str(node["id"]): (col_x[int(node.get("column") or 0)],
                                 area.top + boxes[str(node["id"])][0],
                                 boxes[str(node["id"])][1]) for node in nodes}
@@ -1659,8 +1669,7 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
         if int(node.get("column") or 0) == columns[0]:
             return _fit_lines(label_of(node), [], left_pad - 12, _width)
         raw = float(node.get("value") or 0)
-        return _fit_lines(label_of(node), [share_of(node, amount_of(raw)),
-                                           amount_of(raw)],
+        return _fit_lines(label_of(node), amounts_of(node, raw),
                           gap_after(node) - 20, _width)
 
     def two_lines(node: dict) -> bool:
@@ -1678,7 +1687,7 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
               if int(n.get("column") or 0) == columns[-1]
               else 12.0 * len(side_lines(n)))
              for n in nodes if int(n.get("column") or 0) == col],
-            area.top, area.bottom))
+            area.top, area.bottom - 6))
     for node in nodes:
         x, y, h = placed[str(node["id"])]
         cy = centre_of[str(node["id"])]
@@ -1698,7 +1707,7 @@ def _sankey(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901, PLR0915 - 
                 right_pad - 20), size=9))
         elif int(node.get("column") or 0) == max(columns):
             out.append(_text(x + 18, cy + 4, _fit_label(
-                label, [amount, amount_of(raw)], right_pad - 20, _width), size=9))
+                label, amounts_of(node, raw), right_pad - 20, _width), size=9))
         else:
             shown = side_lines(node)
             for n, text in enumerate(shown):

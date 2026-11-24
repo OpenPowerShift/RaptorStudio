@@ -2209,6 +2209,14 @@
       <translation>Filtrar a lista de gráficos por título ou grupo (Esc limpa o filtro)</translation>
     </message>
     <message>
+      <source>Chart</source>
+      <translation>Gráfico</translation>
+    </message>
+    <message>
+      <source>Choose a chart; the groups are the headings</source>
+      <translation>Escolha um gráfico; os grupos são os títulos</translation>
+    </message>
+    <message>
       <source>Scope: System</source>
       <translation>Escopo: Sistema</translation>
     </message>
@@ -4433,6 +4441,14 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Pesquisar hierarquias</translation>
     </message>
     <message>
+      <source>Show a hierarchy</source>
+      <translation>Mostrar uma hierarquia</translation>
+    </message>
+    <message>
+      <source>Compare up to four hierarchies</source>
+      <translation>Comparar até quatro hierarquias</translation>
+    </message>
+    <message>
       <source>Top four by downtime</source>
       <translation>Quatro principais por tempo de inatividade</translation>
     </message>
@@ -4443,6 +4459,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>Four are ticked, the most the comparison charts draw. Untick one to pick another.</source>
       <translation>Quatro marcadas, o máximo que os gráficos de comparação desenham. Desmarque uma para escolher outra.</translation>
+    </message>
+    <message>
+      <source>%1 ticked</source>
+      <translation>%1 marcadas</translation>
     </message>
     <message>
       <source>%1 of %2</source>
@@ -8689,6 +8709,22 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Comparar: %1 selecionadas</translation>
     </message>
     <message>
+      <source>Target: %1</source>
+      <translation>Meta: %1</translation>
+    </message>
+    <message>
+      <source>Capacity target: %1</source>
+      <translation>Meta de capacidade: %1</translation>
+    </message>
+    <message>
+      <source>year %1</source>
+      <translation>ano %1</translation>
+    </message>
+    <message>
+      <source>1 in 10 longer (%1)</source>
+      <translation>1 em 10 mais longas (%1)</translation>
+    </message>
+    <message>
       <source>Scope: %1</source>
       <translation>Escopo: %1</translation>
     </message>
@@ -8790,7 +8826,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>Outage paths inside %1</source>
-      <translation>Caminhos de indisponibilidade dentro de %1</translation>
+      <translation>Caminhos de interrupção dentro de %1</translation>
     </message>
     <message>
       <source>▼ %1 pts better</source>
@@ -8806,7 +8842,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>%1 members · %2 started outages</source>
-      <translation>%1 membros · %2 iniciadores</translation>
+      <translation>%1 membros · %2 interrupções iniciadas</translation>
     </message>
     <message>
       <source>target %1</source>
@@ -8974,7 +9010,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>Outage paths across hierarchies</source>
-      <translation>Caminhos de indisponibilidade entre hierarquias</translation>
+      <translation>Caminhos de interrupção entre hierarquias</translation>
     </message>
     <message>
       <source>When was each hierarchy down?</source>
@@ -9058,7 +9094,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>What an outage looks like</source>
-      <translation>Como é uma indisponibilidade</translation>
+      <translation>Como é uma interrupção</translation>
     </message>
     <message>
       <source>Run-to-run state ribbon</source>
@@ -9070,11 +9106,11 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>How long is an outage?</source>
-      <translation>Quanto dura uma indisponibilidade?</translation>
+      <translation>Quanto dura uma interrupção?</translation>
     </message>
     <message>
       <source>Frequent or long outages?</source>
-      <translation>Indisponibilidades frequentes ou longas?</translation>
+      <translation>Interrupções frequentes ou longas?</translation>
     </message>
     <message>
       <source>Who loses the capacity</source>
@@ -9154,7 +9190,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>any outage counts, planned maintenance included</source>
-      <translation>qualquer indisponibilidade conta, inclusive a manutenção planejada</translation>
+      <translation>qualquer interrupção conta, inclusive a manutenção planejada</translation>
     </message>
     <message>
       <source>Kaplan–Meier</source>
@@ -9170,7 +9206,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>each outage charged to the element that started it, stacked by what that element was doing</source>
-      <translation>cada indisponibilidade atribuída ao elemento que a iniciou, empilhada pelo que esse elemento estava fazendo</translation>
+      <translation>cada interrupção atribuída ao elemento que a iniciou, empilhada pelo que esse elemento estava fazendo</translation>
     </message>
     <message>
       <source>each step is a share of the loss, in the availability ladder's order</source>
@@ -9186,15 +9222,15 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>log scale: many short outages or a few long ones</source>
-      <translation>escala logarítmica: muitas indisponibilidades curtas ou poucas longas</translation>
+      <translation>escala logarítmica: muitas interrupções curtas ou poucas longas</translation>
     </message>
     <message>
       <source>x = system outages it starts a run, y = how long they last, area = share of downtime</source>
-      <translation>x = indisponibilidades do sistema que inicia por execução, y = quanto duram, área = parcela da inatividade</translation>
+      <translation>x = interrupções do sistema que inicia por execução, y = quanto duram, área = parcela da inatividade</translation>
     </message>
     <message>
       <source>x = share of outages started, y = outage length relative to the average (1 = average), area = share of downtime</source>
-      <translation>x = parcela das indisponibilidades iniciadas, y = duração relativa à média (1 = média), área = parcela da inatividade</translation>
+      <translation>x = parcela das interrupções iniciadas, y = duração relativa à média (1 = média), área = parcela da inatividade</translation>
     </message>
     <message>
       <source>x = RAW (what losing it costs), y = RRW (what fixing it buys)</source>
@@ -9350,7 +9386,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>colour = what started its outages</source>
-      <translation>cor = o que iniciou suas indisponibilidades</translation>
+      <translation>cor = o que iniciou suas interrupções</translation>
     </message>
     <message>
       <source>each row is a hierarchy</source>
@@ -9594,7 +9630,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>outages</source>
-      <translation>indisponibilidades</translation>
+      <translation>interrupções</translation>
     </message>
     <message>
       <source>width</source>
@@ -9614,11 +9650,11 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>outages it started a run</source>
-      <translation>indisponibilidades iniciadas por execução</translation>
+      <translation>interrupções iniciadas por execução</translation>
     </message>
     <message>
       <source>mean outage length</source>
-      <translation>duração média da indisponibilidade</translation>
+      <translation>duração média da interrupção</translation>
     </message>
     <message>
       <source>run-years</source>
@@ -9755,6 +9791,74 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>full capacity (highest recorded)</source>
       <translation>capacidade plena (maior registrada)</translation>
+    </message>
+    <message>
+      <source>capacity lost</source>
+      <translation>capacidade perdida</translation>
+    </message>
+    <message>
+      <source>flow delivered</source>
+      <translation>fluxo entregue</translation>
+    </message>
+    <message>
+      <source>capacity available</source>
+      <translation>capacidade disponível</translation>
+    </message>
+    <message>
+      <source>every run (lowest to highest)</source>
+      <translation>todas as execuções (da menor à maior)</translation>
+    </message>
+    <message>
+      <source>8 runs in 10</source>
+      <translation>8 execuções em 10</translation>
+    </message>
+    <message>
+      <source>mean flow</source>
+      <translation>fluxo médio</translation>
+    </message>
+    <message>
+      <source>capacity target</source>
+      <translation>meta de capacidade</translation>
+    </message>
+    <message>
+      <source>flow</source>
+      <translation>fluxo</translation>
+    </message>
+    <message>
+      <source>share of lost capacity</source>
+      <translation>parcela da capacidade perdida</translation>
+    </message>
+    <message>
+      <source>share of lost energy</source>
+      <translation>parcela da energia perdida</translation>
+    </message>
+    <message>
+      <source>capacity-weighted availability</source>
+      <translation>disponibilidade ponderada por capacidade</translation>
+    </message>
+    <message>
+      <source>the lost flow</source>
+      <translation>fluxo perdido</translation>
+    </message>
+    <message>
+      <source>the cost</source>
+      <translation>custo</translation>
+    </message>
+    <message>
+      <source>system downtime</source>
+      <translation>tempo de inatividade do sistema</translation>
+    </message>
+    <message>
+      <source>flow × time</source>
+      <translation>fluxo × tempo</translation>
+    </message>
+    <message>
+      <source>failures a run</source>
+      <translation>falhas por execução</translation>
+    </message>
+    <message>
+      <source>The charts over time use all %1 recorded rows, from %2; each run is reduced to about %3 points for drawing, keeping its highs, lows and ends. Export ▸ Save the recorded plot rows keeps every row.</source>
+      <translation>Os gráficos ao longo do tempo usam todas as %1 linhas registradas, de %2; cada execução é reduzida a cerca de %3 pontos para o desenho, mantendo seus máximos, mínimos e extremos. Exportar ▸ Salvar as linhas gravadas do gráfico mantém todas as linhas.</translation>
     </message>
     <message>
       <source>Inherent (repair only)</source>
@@ -9942,7 +10046,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>No outage was recorded.</source>
-      <translation>Nenhuma indisponibilidade foi registrada.</translation>
+      <translation>Nenhuma interrupção foi registrada.</translation>
     </message>
     <message>
       <source>%1; %2 of downtime attributed to them (system down %3).</source>
@@ -10002,7 +10106,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>%1 runs first went down at exactly %2: a scheduled outage such as planned maintenance, not a random failure.</source>
-      <translation>%1 execuções pararam pela primeira vez exatamente em %2: uma indisponibilidade programada, como a manutenção planejada, e não uma falha aleatória.</translation>
+      <translation>%1 execuções pararam pela primeira vez exatamente em %2: uma interrupção programada, como a manutenção planejada, e não uma falha aleatória.</translation>
     </message>
     <message>
       <source>No run failed.</source>
@@ -10042,7 +10146,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>The steps use the same Red-time split as the availability ladder.</source>
-      <translation>As etapas usam a mesma divisão do tempo parado que a escada de disponibilidade.</translation>
+      <translation>As etapas usam a mesma divisão do tempo de inatividade que a escada de disponibilidade.</translation>
     </message>
     <message>
       <source>%1 took nothing away in these runs.</source>
@@ -10087,6 +10191,110 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Delivered %1 of the generated flow: it met the capacity target %2.</source>
       <translation>Entregou %1 do fluxo gerado: atingiu a meta de capacidade %2.</translation>
+    </message>
+    <message>
+      <source>Lost flow is %1 flow × time a run; the largest hierarchy is %2.</source>
+      <translation>O fluxo perdido é de %1 fluxo × tempo por execução; a maior hierarquia é %2.</translation>
+    </message>
+    <message>
+      <source>Lost flow is %1 flow × time a run; the largest cause is %2.</source>
+      <translation>O fluxo perdido é de %1 fluxo × tempo por execução; a maior causa é %2.</translation>
+    </message>
+    <message>
+      <source>Lost flow is %1 flow × time a run.</source>
+      <translation>O fluxo perdido é de %1 fluxo × tempo por execução.</translation>
+    </message>
+    <message>
+      <source>%1 of the lost flow is not inside these hierarchies.</source>
+      <translation>%1 do fluxo perdido não está dentro dessas hierarquias.</translation>
+    </message>
+    <message>
+      <source>%1 of the lost flow is not attributed to a cause.</source>
+      <translation>%1 do fluxo perdido não é atribuído a uma causa.</translation>
+    </message>
+    <message>
+      <source>%1 of the lost flow is not attributed to a single element.</source>
+      <translation>%1 do fluxo perdido não é atribuído a um único elemento.</translation>
+    </message>
+    <message>
+      <source>Showing the lost flow only: it is %1 of the generated flow (%2 was delivered). Press Delivered to draw the whole flow.</source>
+      <translation>Mostrando só o fluxo perdido: ele é %1 do fluxo gerado (%2 foram entregues). Pressione Entregue para desenhar o fluxo inteiro.</translation>
+    </message>
+    <message>
+      <source>No capacity limit applies while the system is up (Raptor records it as unlimited).</source>
+      <translation>Nenhum limite de capacidade se aplica enquanto o sistema está em operação (o Raptor o registra como ilimitado).</translation>
+    </message>
+    <message>
+      <source>Where no capacity limit applies the capacity line runs along the top edge (Raptor records it as unlimited).</source>
+      <translation>Onde nenhum limite de capacidade se aplica, a linha de capacidade corre pela borda superior (o Raptor o registra como ilimitado).</translation>
+    </message>
+    <message>
+      <source>%1 loses the largest share of capacity (%2).</source>
+      <translation>%1 perde a maior parcela da capacidade (%2).</translation>
+    </message>
+    <message>
+      <source>These are overlapping marginal contributions, so they need not add to 100 %.</source>
+      <translation>São contribuições marginais sobrepostas, portanto não precisam somar 100 %.</translation>
+    </message>
+    <message>
+      <source>Points above the diagonal are understated by availability alone.</source>
+      <translation>Os pontos acima da diagonal são subestimados só pela disponibilidade.</translation>
+    </message>
+    <message>
+      <source>Half of the outages end by %1; one in ten lasts over %2.</source>
+      <translation>Metade das interrupções termina em %1; uma em dez dura mais de %2.</translation>
+    </message>
+    <message>
+      <source>There was one outage in %1 runs; it lasted %2.</source>
+      <translation>Houve uma interrupção em %1 execuções; ela durou %2.</translation>
+    </message>
+    <message>
+      <source>Low right, frequent short outages: improve reliability. High left, rare long ones: repair and logistics.</source>
+      <translation>Embaixo à direita, interrupções curtas e frequentes: melhore a confiabilidade. No alto à esquerda, as raras e longas: reparo e logística.</translation>
+    </message>
+    <message>
+      <source>%1 carries the largest cost (%2).</source>
+      <translation>%1 tem o maior custo (%2).</translation>
+    </message>
+    <message>
+      <source>No element has a cost in this run.</source>
+      <translation>Nenhum elemento tem custo nesta execução.</translation>
+    </message>
+    <message>
+      <source>%1 fails most often: %2 failures a run on average (%3 of all component failures). The runs average %4 component failures each.</source>
+      <translation>%1 falha com mais frequência: %2 falhas por execução em média (%3 de todas as falhas de componentes). As execuções têm em média %4 falhas de componentes cada.</translation>
+    </message>
+    <message>
+      <source>Only 1 year, too few to show a trend; median %1.</source>
+      <translation>Apenas 1 ano, pouco para mostrar uma tendência; mediana %1.</translation>
+    </message>
+    <message>
+      <source>Only %1 years, too few to show a trend; median %2.</source>
+      <translation>Apenas %1 anos, pouco para mostrar uma tendência; mediana %2.</translation>
+    </message>
+    <message>
+      <source>%1 years; the median moves from %2 to %3.</source>
+      <translation>%1 anos; a mediana vai de %2 a %3.</translation>
+    </message>
+    <message>
+      <source>%1 run-years; no target was set.</source>
+      <translation>%1 execuções-ano; nenhuma meta foi definida.</translation>
+    </message>
+    <message>
+      <source>%1 of the %2 dots are at %3.</source>
+      <translation>%1 dos %2 pontos estão em %3.</translation>
+    </message>
+    <message>
+      <source>%1 occupies the largest area (%2 of %3).</source>
+      <translation>%1 ocupa a maior área (%2 de %3).</translation>
+    </message>
+    <message>
+      <source>%1 occupies the largest area (%2, %3 of %4).</source>
+      <translation>%1 ocupa a maior área (%2, %3 de %4).</translation>
+    </message>
+    <message>
+      <source>%1; best %2 up, worst %3 up.</source>
+      <translation>%1; a melhor ficou %2 em operação, a pior %3.</translation>
     </message>
     <message>
       <source>Delivered %1 of the generated flow: it missed the capacity target %2 by %3 points (loss allowed %4, lost %5).</source>
@@ -10158,7 +10366,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>Each drop is an outage. See when they cluster and how fast availability recovers.</source>
-      <translation>Cada queda é uma indisponibilidade. Veja quando se agrupam e com que rapidez a disponibilidade se recupera.</translation>
+      <translation>Cada queda é uma interrupção. Veja quando se agrupam e com que rapidez a disponibilidade se recupera.</translation>
     </message>
     <message>
       <source>Availability of each slice of the run, not the running average. Shows bad stretches clearly.</source>
@@ -10202,7 +10410,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>Follows one typical outage through failure, waiting and repair. Long waits mean spares or crews.</source>
-      <translation>Acompanha uma indisponibilidade típica: falha, espera e reparo. Esperas longas apontam falta de peças ou de equipes.</translation>
+      <translation>Acompanha uma interrupção típica: falha, espera e reparo. Esperas longas apontam falta de peças ou de equipes.</translation>
     </message>
     <message>
       <source>Each row is a run, coloured when down. Lines of colour in the same place mean a common time.</source>
@@ -10210,11 +10418,11 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>Most outages short and a few very long? The long tail is where to look.</source>
-      <translation>A maioria das paradas é curta e poucas são muito longas? A cauda longa é onde olhar.</translation>
+      <translation>A maioria das interrupções é curta e poucas são muito longas? A cauda longa é onde olhar.</translation>
     </message>
     <message>
       <source>Each bubble is an element: how often it takes the system down against how long each outage lasts.</source>
-      <translation>Cada bolha é um elemento: quantas vezes ele derruba o sistema contra quanto dura cada parada.</translation>
+      <translation>Cada bolha é um elemento: quantas vezes ele derruba o sistema contra quanto dura cada interrupção.</translation>
     </message>
     <message>
       <source>Bars show capacity each element lost. Differs from downtime when a failure only part-stops output.</source>
@@ -10386,7 +10594,7 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     </message>
     <message>
       <source>No outage timeline was kept for this run.</source>
-      <translation>Nenhuma linha do tempo de paradas foi guardada nesta execução.</translation>
+      <translation>Nenhuma linha do tempo de interrupções foi guardada nesta execução.</translation>
     </message>
     <message>
       <source>No capacity was lost in these runs, so there is nothing to show.</source>

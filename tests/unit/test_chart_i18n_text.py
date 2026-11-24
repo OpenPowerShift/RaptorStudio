@@ -203,7 +203,7 @@ SAMPLES = {
         "The commonest start is Intake_Pump_3 (32.3 % of downtime).",
         "O início mais comum é Intake_Pump_3 (32.3 % da inatividade)."),
     "No outage was recorded.": (
-        "No outage was recorded.", "Nenhuma indisponibilidade foi registrada."),
+        "No outage was recorded.", "Nenhuma interrupção foi registrada."),
     "%1; %2 of downtime attributed to them (system down %3).": (
         "4 hierarchies; 98 h of downtime attributed to them (system down 120 h).",
         "4 hierarquias; 98 h de inatividade atribuída a elas (sistema parado 120 h)."),
@@ -254,7 +254,7 @@ SAMPLES = {
         "14 runs first went down at exactly 2,190 hours: a scheduled outage such as "
         "planned maintenance, not a random failure.",
         "14 execuções pararam pela primeira vez exatamente em 2,190 horas: uma "
-        "indisponibilidade programada, como a manutenção planejada, e não uma falha "
+        "interrupção programada, como a manutenção planejada, e não uma falha "
         "aleatória."),
     "No run failed.": ("No run failed.", "Nenhuma execução falhou."),
     "No run recorded a time to first failure.": (
@@ -282,10 +282,10 @@ SAMPLES = {
         "The largest single loss is planned maintenance (0.353 points). The steps use "
         "the same Red-time split as the availability ladder.",
         "A maior perda isolada é manutenção planejada (0.353 pontos). As etapas usam a "
-        "mesma divisão do tempo parado que a escada de disponibilidade."),
+        "mesma divisão do tempo de inatividade que a escada de disponibilidade."),
     "The steps use the same Red-time split as the availability ladder.": (
         "The steps use the same Red-time split as the availability ladder.",
-        "As etapas usam a mesma divisão do tempo parado que a escada de disponibilidade."),
+        "As etapas usam a mesma divisão do tempo de inatividade que a escada de disponibilidade."),
     "%1 took nothing away in these runs.": (
         "Inherent (repair only) 99.7 %; Achieved (+ planned maintenance) 99.7 %. "
         "Planned maintenance took nothing away in these runs.",
@@ -336,6 +336,84 @@ SAMPLES = {
         "5 points (loss allowed 5 %, lost 10 %).",
         "Entregou 90 % do fluxo gerado: não atingiu a meta de capacidade 95 % por 5 "
         "pontos (perda admitida 5 %, perdida 10 %)."),
+    'Lost flow is %1 flow × time a run; the largest hierarchy is %2.': (
+        'Lost flow is 126 flow × time a run; the largest hierarchy is Power_sub.',
+        'O fluxo perdido é de 126 fluxo × tempo por execução; a maior hierarquia é Power_sub.'),
+    'Lost flow is %1 flow × time a run; the largest cause is %2.': (
+        'Lost flow is 126 flow × time a run; the largest cause is hands-on repair.',
+        'O fluxo perdido é de 126 fluxo × tempo por execução; a maior causa é reparo direto.'),
+    'Lost flow is %1 flow × time a run.': (
+        'Lost flow is 126 flow × time a run.',
+        'O fluxo perdido é de 126 fluxo × tempo por execução.'),
+    '%1 of the lost flow is not inside these hierarchies.': (
+        'Lost flow is 126 flow × time a run; the largest hierarchy is Power_sub. 12 % of the lost flow is not inside these hierarchies.',
+        'O fluxo perdido é de 126 fluxo × tempo por execução; a maior hierarquia é Power_sub. 12 % do fluxo perdido não está dentro dessas hierarquias.'),
+    '%1 of the lost flow is not attributed to a cause.': (
+        '12 % of the lost flow is not attributed to a cause.',
+        '12 % do fluxo perdido não é atribuído a uma causa.'),
+    '%1 of the lost flow is not attributed to a single element.': (
+        'Points above the diagonal are understated by availability alone. 12 % of the lost flow is not attributed to a single element.',
+        'Os pontos acima da diagonal são subestimados só pela disponibilidade. 12 % do fluxo perdido não é atribuído a um único elemento.'),
+    'Showing the lost flow only: it is %1 of the generated flow (%2 was delivered). Press Delivered to draw the whole flow.': (
+        'Showing the lost flow only: it is 0.0143 % of the generated flow (875,874 was delivered). Press Delivered to draw the whole flow.',
+        'Mostrando só o fluxo perdido: ele é 0.0143 % do fluxo gerado (875,874 foram entregues). Pressione Entregue para desenhar o fluxo inteiro.'),
+    'No capacity limit applies while the system is up (Raptor records it as unlimited).': (
+        'Run 3: lowest flow 40. No capacity limit applies while the system is up (Raptor records it as unlimited).',
+        'Execução 3: fluxo mínimo de 40. Nenhum limite de capacidade se aplica enquanto o sistema está em operação (o Raptor o registra como ilimitado).'),
+    'Where no capacity limit applies the capacity line runs along the top edge (Raptor records it as unlimited).': (
+        'Run 3: lowest flow 40. Where no capacity limit applies the capacity line runs along the top edge (Raptor records it as unlimited).',
+        'Execução 3: fluxo mínimo de 40. Onde nenhum limite de capacidade se aplica, a linha de capacidade corre pela borda superior (o Raptor o registra como ilimitado).'),
+    '%1 loses the largest share of capacity (%2).': (
+        'Utility_A loses the largest share of capacity (40.2 %).',
+        'Utility_A perde a maior parcela da capacidade (40.2 %).'),
+    'These are overlapping marginal contributions, so they need not add to 100 %.': (
+        'Utility_A loses the largest share of capacity (40.2 %). These are overlapping marginal contributions, so they need not add to 100 %.',
+        'Utility_A perde a maior parcela da capacidade (40.2 %). São contribuições marginais sobrepostas, portanto não precisam somar 100 %.'),
+    'Points above the diagonal are understated by availability alone.': (
+        'Points above the diagonal are understated by availability alone.',
+        'Os pontos acima da diagonal são subestimados só pela disponibilidade.'),
+    'Half of the outages end by %1; one in ten lasts over %2.': (
+        'Half of the outages end by 4.098 h; one in ten lasts over 16.7 h.',
+        'Metade das interrupções termina em 4.098 h; uma em dez dura mais de 16.7 h.'),
+    'There was one outage in %1 runs; it lasted %2.': (
+        'There was one outage in 20 runs; it lasted 2.5 h.',
+        'Houve uma interrupção em 20 execuções; ela durou 2.5 h.'),
+    'Low right, frequent short outages: improve reliability. High left, rare long ones: repair and logistics.': (
+        'Low right, frequent short outages: improve reliability. High left, rare long ones: repair and logistics.',
+        'Embaixo à direita, interrupções curtas e frequentes: melhore a confiabilidade. No alto à esquerda, as raras e longas: reparo e logística.'),
+    '%1 carries the largest cost (%2).': (
+        'Pump_A carries the largest cost (34.1 %).',
+        'Pump_A tem o maior custo (34.1 %).'),
+    'No element has a cost in this run.': (
+        'No element has a cost in this run.',
+        'Nenhum elemento tem custo nesta execução.'),
+    '%1 fails most often: %2 failures a run on average (%3 of all component failures). The runs average %4 component failures each.': (
+        'Pump_A fails most often: 16.9 failures a run on average (34.6 % of all component failures). The runs average 48.8 component failures each.',
+        'Pump_A falha com mais frequência: 16.9 falhas por execução em média (34.6 % de todas as falhas de componentes). As execuções têm em média 48.8 falhas de componentes cada.'),
+    'Only 1 year, too few to show a trend; median %1.': (
+        'Only 1 year, too few to show a trend; median 96 %.',
+        'Apenas 1 ano, pouco para mostrar uma tendência; mediana 96 %.'),
+    'Only %1 years, too few to show a trend; median %2.': (
+        'Only 2 years, too few to show a trend; median 96 %, 97 %.',
+        'Apenas 2 anos, pouco para mostrar uma tendência; mediana 96 %, 97 %.'),
+    '%1 years; the median moves from %2 to %3.': (
+        '6 years; the median moves from 99 % to 97 %.',
+        '6 anos; a mediana vai de 99 % a 97 %.'),
+    '%1 run-years; no target was set.': (
+        '20 run-years; no target was set. 17 of the 20 dots are at 100 %.',
+        '20 execuções-ano; nenhuma meta foi definida. 17 dos 20 pontos estão em 100 %.'),
+    '%1 of the %2 dots are at %3.': (
+        '20 run-years; no target was set. 17 of the 20 dots are at 100 %.',
+        '20 execuções-ano; nenhuma meta foi definida. 17 dos 20 pontos estão em 100 %.'),
+    '%1 occupies the largest area (%2 of %3).': (
+        'Pump_A occupies the largest area (81.4 % of system downtime).',
+        'Pump_A ocupa a maior área (81.4 % de tempo de inatividade do sistema).'),
+    '%1 occupies the largest area (%2, %3 of %4).': (
+        'Pump_A occupies the largest area ($114k, 34.1 % of the cost).',
+        'Pump_A ocupa a maior área ($114k, 34.1 % de custo).'),
+    '%1; best %2 up, worst %3 up.': (
+        '20 runs; best 100 % up, worst 99.8 % up.',
+        '20 execuções; a melhor ficou 100 % em operação, a pior 99.8 %.'),
 }
 
 #: Run-to-run caption clauses are read apart from the sentences.
@@ -473,7 +551,7 @@ def test_scorecard_widget_words_translate(pt):
     assert chart_i18n.cause_label("pm") == "Manutenção planejada"
     assert chart_i18n.cause_label("repair") == "Reparo direto"
     assert chart_i18n.cause_label("wait_spare") == "Aguardando um sobressalente"
-    assert chart_i18n.fmt("%1 members · %2 started outages", 4, 2) == "4 membros · 2 iniciadores"
+    assert chart_i18n.fmt("%1 members · %2 started outages", 4, 2) == "4 membros · 2 interrupções iniciadas"
     assert chart_i18n.word("each dot a run") == "cada ponto, uma execução"
     assert chart_i18n.word("± 2 standard errors") == "± 2 erros padrão"
     assert chart_i18n.fmt("± %1 pts", "6.6") == "± 6.6 pts"

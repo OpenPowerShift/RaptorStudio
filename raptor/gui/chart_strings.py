@@ -141,6 +141,15 @@ SOURCES: tuple[str, ...] = (
     "non-mission", "the baseline", "at least", "at most",
     "planned maintenance", "logistics, spares, crews",
     "flow generated", "full capacity (highest recorded)",
+    "capacity lost", "flow delivered", "capacity available",
+    "every run (lowest to highest)", "8 runs in 10", "mean flow",
+    "capacity target", "flow", "share of lost capacity", "share of lost energy",
+    "capacity-weighted availability", "the lost flow", "the cost",
+    "system downtime", "flow \u00d7 time", "failures a run",
+    # the note under the charts over time (`results_graphs_mixin`)
+    "The charts over time use all %1 recorded rows, from %2; each run is "
+    "reduced to about %3 points for drawing, keeping its highs, lows and "
+    "ends. Export \u25b8 Save the recorded plot rows keeps every row.",
     "Inherent (repair only)", "Achieved (+ planned maintenance)",
     "Operational (+ logistics, spares, crews)",
     # counted nouns in a caption
@@ -154,6 +163,10 @@ SOURCES: tuple[str, ...] = (
 TEMPLATES: dict[str, tuple[int, ...]] = {
     # the Charts page's controls
     "Compare: %1 selected": (),
+    "Target: %1": (),
+    "Capacity target: %1": (),
+    "year %1": (),
+    "1 in 10 longer (%1)": (),
     "Scope: %1": (),
     "Run %1 of %2": (),
     "All %1 runs": (),
@@ -304,6 +317,40 @@ CAPTIONS: dict[str, str] = {
     "The largest loss is %1 (%2 of lost energy).": "wd",
     "The largest loss is %1 (%2 of the summed contributions).": "wd",
     "Delivered %1 of the generated flow: it met the capacity target %2.": "dd",
+    # the lost-capacity Sankey
+    "Lost flow is %1 flow \u00d7 time a run; the largest hierarchy is %2.": "dd",
+    "Lost flow is %1 flow \u00d7 time a run; the largest cause is %2.": "dw",
+    "Lost flow is %1 flow \u00d7 time a run.": "d",
+    "%1 of the lost flow is not inside these hierarchies.": "d",
+    "%1 of the lost flow is not attributed to a cause.": "d",
+    "%1 of the lost flow is not attributed to a single element.": "d",
+    "Showing the lost flow only: it is %1 of the generated flow (%2 was "
+    "delivered). Press Delivered to draw the whole flow.": "dd",
+    # other capacity, outage and cost captions
+    "No capacity limit applies while the system is up (Raptor records it as "
+    "unlimited).": "",
+    "Where no capacity limit applies the capacity line runs along the top "
+    "edge (Raptor records it as unlimited).": "",
+    "%1 loses the largest share of capacity (%2).": "dd",
+    "These are overlapping marginal contributions, so they need not add to "
+    "100 %.": "",
+    "Points above the diagonal are understated by availability alone.": "",
+    "Half of the outages end by %1; one in ten lasts over %2.": "qq",
+    "There was one outage in %1 runs; it lasted %2.": "dq",
+    "Low right, frequent short outages: improve reliability. High left, rare "
+    "long ones: repair and logistics.": "",
+    "%1 carries the largest cost (%2).": "dd",
+    "No element has a cost in this run.": "",
+    "%1 fails most often: %2 failures a run on average (%3 of all component "
+    "failures). The runs average %4 component failures each.": "dddd",
+    "Only 1 year, too few to show a trend; median %1.": "d",
+    "Only %1 years, too few to show a trend; median %2.": "dd",
+    "%1 years; the median moves from %2 to %3.": "ddd",
+    "%1 run-years; no target was set.": "d",
+    "%1 of the %2 dots are at %3.": "ddd",
+    "%1 occupies the largest area (%2 of %3).": "ddw",
+    "%1 occupies the largest area (%2, %3 of %4).": "dddw",
+    "%1; best %2 up, worst %3 up.": "cdd",
     "Delivered %1 of the generated flow: it missed the capacity target %2 by "
     "%3 points (loss allowed %4, lost %5).": "ddddd",
 }
