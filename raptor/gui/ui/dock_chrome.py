@@ -231,8 +231,11 @@ class DockSlotChrome:
         for e in self.entries:
             collapsed = e["minimized"]
             bg = c["group_header"] if collapsed else c["surface"]
+            # Scoped to the bar: an unscoped rule cascades to the icon, the
+            # title and each button, which then paint their own boxes.
             e["titlebar"].setStyleSheet(
-                f"background: {bg}; border-bottom: 1px solid {c['border']};")
+                f"#DockTitleBar {{ background: {bg}; "
+                f"border-bottom: 1px solid {c['border']}; }}")
             icon = e["dock"].windowIcon()
             if not icon.isNull():
                 e["icon_label"].setPixmap(icon.pixmap(16, 16))
