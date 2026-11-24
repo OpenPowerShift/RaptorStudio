@@ -121,3 +121,46 @@ def test_canvas_rings_and_fades_and_restores(qapp):
     finally:
         w._dirty = False
         w.close()
+
+
+@pytest.mark.gui
+def test_links_fade_with_their_faded_ends_and_restore(qapp):
+    from raptor.core.fileio.rbds import load_rbds
+    from raptor.gui.ui.main_window import MainWindow
+    w = MainWindow()
+    try:
+        w._load_into_app(load_rbds(MODEL), MODEL)
+        view = w._diagram_dock.view
+        assert view._links
+        ids = sorted(view._hier_items)
+        assert all(link.opacity() == 1.0 for link in view._links)
+        dirty = w._dirty
+        w._on_chart_compare_changed([ids[0]])
+        faded = 0
+        for link in view._links:
+            want = min(link._from.opacity(), link._to.opacity())
+            assert link.opacity() == pytest.approx(want)
+            faded += want < 1.0
+        assert faded                      # some link touches a faded end
+        assert w._dirty == dirty
+        # an out-of-service "cut" end dims the element, not its links
+        end = view._links[0]._from
+        end._oos_state = "cut"
+        w._on_chart_compare_changed([])
+        end.setOpacity(0.45)
+        view._apply_group_view()
+        assert view._links[0].opacity() == pytest.approx(
+            min(view._view_fade(view._links[0]._from),
+                view._view_fade(view._links[0]._to)))
+        end._oos_state = None
+        end.setOpacity(1.0)
+        view._apply_group_view()
+        assert all(link.opacity() == 1.0 for link in view._links)
+        # group view fades links too
+        view.set_group_view({f"hier:{ids[0]}"})
+        assert any(link.opacity() < 1.0 for link in view._links)
+        view.set_group_view(None)
+        assert all(link.opacity() == 1.0 for link in view._links)
+    finally:
+        w._dirty = False
+        w.close()
