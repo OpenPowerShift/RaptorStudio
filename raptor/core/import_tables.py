@@ -733,3 +733,57 @@ def apply_to_rbd(rbd: Any, plan: ImportPlan) -> tuple[dict[int, dict], dict[int,
     before, after = row_snapshot(plan, rbd)
     write_rows(rbd, after)
     return before, after
+
+
+# ---------------------------------------------------------------------------
+# template
+# ---------------------------------------------------------------------------
+
+#: The template's columns: the header text (one of `_ALIASES`) per field.
+TEMPLATE_HEADERS = (
+    ("id", "ID"), ("name", "Name"),
+    ("fail_dist", "Failure distribution"),
+    ("fail_params", "Failure parameters"),
+    ("repair_dist", "Repair distribution"),
+    ("repair_params", "Repair parameters"),
+    ("pm_freq", "PM frequency"), ("uses_pm", "Uses PM"),
+    ("stock", "Initial stock"),
+)
+
+
+def template_rows(rbd: Any) -> tuple[list[str], list[list[Any]]]:
+    """Headers and one row per block, filled with the model's values.
+
+    Edit the sheet and import it back: every column is one the importer
+    reads, so an unchanged template plans no change at all.
+    """
+    headers = [text for _field, text in TEMPLATE_HEADERS]
+    rows: list[list[Any]] = []
+    for oid, row in sorted(_block_rows(rbd).items()):
+        out: list[Any] = [oid, str(row.get("blockName") or "")]
+        for column in ("F", "R"):
+            code = _code(row, f"{column}Dist")
+            values = _params(row, column, _count(row, f"#{column}Param", code))
+            out.append(DISTRO_NAMES.get(code, str(code)))
+            out.append("; ".join(f"{v:.12g}" for v in values))
+        out.append(_num(row, "PMFreq"))
+        out.append("yes" if _bool(row.get("usesPM")) else "no")
+        out.append(int(_num(row, "Stock")))
+        rows.append(out)
+    return headers, rows
+
+
+def write_template(rbd: Any, path: str | Any) -> Any:
+    """Write the import template for *rbd* as `.xlsx` or `.ods`."""
+    from raptor.core.fileio.workbook import Sheet, WorkbookInfo, write_workbook
+    headers, rows = template_rows(rbd)
+    sheet = Sheet(
+        name="Blocks", headers=headers, rows=rows, title="Block data",
+        description=("Edit the values, then import the file back with "
+                     "Import Table. Leave a cell empty to keep the model's "
+                     "value; ID (or Name) picks the block. Parameters are "
+                     "separated by semicolons, in the order the Inspector "
+                     "shows them."),
+        text_cols=frozenset({1, 2, 3, 4, 5, 7}))
+    return write_workbook(path, [sheet], WorkbookInfo(
+        title="RAPTOR Studio data table template", contents=False))

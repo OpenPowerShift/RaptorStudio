@@ -773,6 +773,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_import_data_table",
         enabled_when="model_open"),
     CommandSpec(
+        id="data.import_template",
+        attr="_import_template_action",
+        text="Data Table Template…",
+        icon="csv_icon:text",
+        tooltip=(
+            "Save the open model's block data as an Excel (.xlsx) or "
+            "OpenDocument (.ods) sheet with the columns Import Table reads. "
+            "Edit it, then import it back"),
+        handler="_export_import_template",
+        enabled_when="model_open"),
+    CommandSpec(
         id="data.phases",
         attr="_phases_action",
         text="Phases…",
@@ -1564,9 +1575,11 @@ BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save",
               "file.save_as", "file.history", "file.close_file",
               "file.quit", "home.diff")),
-    # Other tools' files opened as a new model: one tile per format, so a
-    # new importer is one more id here.
-    ("Import", ("file.import_awb",)),
+    # Other tools' files: one tile per format, so a new importer is one
+    # more id here. Availability Workbench opens a new model; a data table
+    # (.xlsx/.ods) updates the open one, and is also under Data ▸ Bulk Edit.
+    ("Import", ("file.import_awb", "data.import_table",
+                "data.import_template")),
     # U22: one Export (the file type picks what is written), then Export
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.

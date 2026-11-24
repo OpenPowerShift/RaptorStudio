@@ -251,7 +251,8 @@ def test_the_file_view_has_an_import_page_with_availability_workbench(win):
     among Open/Save in the nav column."""
     from raptor.gui.command_table import BACKSTAGE
     sections = dict(BACKSTAGE)
-    assert sections["Import"] == ("file.import_awb",)
+    assert sections["Import"] == ("file.import_awb", "data.import_table",
+                                  "data.import_template")
     assert "file.import_awb" not in sections["File"]
     win._show_backstage("Import")
     bs = win._backstage
@@ -259,4 +260,6 @@ def test_the_file_view_has_an_import_page_with_availability_workbench(win):
     assert names.index("Import") == names.index("Print and Export") - 1
     page, _btn = bs._page_by_name["Import"]
     tiles = [t for t in bs._tiles if page.isAncestorOf(t)]
-    assert [t.accessibleName() for t in tiles] == ["Import Availability Workbench…"]
+    assert [t.accessibleName() for t in tiles] == [
+        "Import Availability Workbench…", "Import Table…",
+        "Data Table Template…"]

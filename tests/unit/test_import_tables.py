@@ -238,3 +238,25 @@ def test_duplicate_rows_cannot_combine_a_law_with_invalid_params(rbd):
     plan = I.plan_import(rbd, sheet)
     assert plan.has_errors()
     assert any("must be" in p.text() for p in plan.errors)
+
+
+@pytest.mark.parametrize("ext", ["xlsx", "ods"])
+def test_the_template_round_trips_and_an_edit_imports(tmp_path, ext):
+    """The template is the model's own blocks under columns the importer
+    reads: unchanged it plans nothing; one edited cell plans one change."""
+    from raptor.core.fileio.rbd import load_rbd
+    from raptor.core.fileio.sheet_reader import read_sheet
+    from raptor.core.fileio.workbook import Sheet, write_workbook
+    from raptor.core.import_tables import (
+        plan_import, template_rows, write_template,
+    )
+    rbd = load_rbd("tests/golden/HierarchyExample/input.rbd")
+    path = write_template(rbd, tmp_path / f"template.{ext}")
+    plan = plan_import(rbd, read_sheet(str(path)), source=str(path))
+    assert not plan.changes and not plan.has_errors()
+    headers, rows = template_rows(rbd)
+    rows[0][headers.index("Initial stock")] = 7
+    edited = write_workbook(tmp_path / f"edited.{ext}",
+                            [Sheet(name="Blocks", headers=headers, rows=rows)])
+    plan = plan_import(rbd, read_sheet(str(edited)), source=str(edited))
+    assert [c.field for c in plan.changes] == ["stock"]
