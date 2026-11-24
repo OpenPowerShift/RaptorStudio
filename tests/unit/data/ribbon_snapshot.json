@@ -2498,11 +2498,6 @@
       {
        "kind": "action",
        "large": true,
-       "text": "Project Health"
-      },
-      {
-       "kind": "action",
-       "large": true,
        "text": "Analytical\u2026"
       }
      ],
@@ -2745,6 +2740,11 @@
        "kind": "action",
        "large": true,
        "text": "Separate Streams"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Project Health"
       }
      ],
      "title": "Bulk Edit"

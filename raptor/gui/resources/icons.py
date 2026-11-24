@@ -952,6 +952,25 @@ def csv_icon(colour: str) -> QIcon:
     return _icon("csv", colour, draw)
 
 
+def table_template_icon(colour: str) -> QIcon:
+    """Data Table Template: an empty sheet of columns under a header row,
+    to fill in and import (Import Table is the table with an arrow)."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(7, 8, 34, 32)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(7, 8, 34, 8)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 2))
+        for x in (18, 30):
+            p.drawLine(x, 16, x, 40)
+        for y in (24, 32):
+            p.drawLine(7, y, 41, y)
+    return _icon("table_template", colour, draw)
+
+
 def cut_icon(colour: str) -> QIcon:
     def draw(p: QPainter, c: QColor):
         pen = QPen(c, 3)
@@ -1089,6 +1108,22 @@ def history_clock_icon(colour: str) -> QIcon:
         p.drawLine(24, 16, 24, 25)
         p.drawLine(24, 25, 31, 29)
     return _icon("history", colour, draw)
+
+
+def save_version_icon(colour: str) -> QIcon:
+    """Save Version Now: the history clock with a plus, a new checkpoint
+    (Version History itself is the plain clock)."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawEllipse(6, 6, 26, 26)
+        p.setPen(QPen(c, 3))
+        p.drawLine(19, 12, 19, 20)
+        p.drawLine(19, 20, 25, 24)
+        p.setPen(_pen(c, 4))
+        p.drawLine(37, 30, 37, 44)
+        p.drawLine(30, 37, 44, 37)
+    return _icon("save_version", colour, draw)
 
 
 def model_history_icon(colour: str) -> QIcon:

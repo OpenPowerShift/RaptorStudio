@@ -3501,7 +3501,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._undo_history_dialog = None
 
     def _open_project_health(self):
-        """Model ▸ Project Health: statistics, findings and sharing."""
+        """Data ▸ Project Health: statistics, findings and sharing."""
         if self._rbd is None:
             return
         from raptor.api import health

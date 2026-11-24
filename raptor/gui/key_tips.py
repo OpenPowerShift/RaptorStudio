@@ -29,7 +29,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "model.add_block": "B", "model.add_node": "O",
         "model.add_event": "E", "model.add_hier": "H",
         "model.collapse": "L", "model.delete": "D", "home.syscfg": "P",
-        "home.validate": "I", "home.health": "Z",
+        "home.validate": "I",
         "results.analytical": "A",
         "arrange.anno_text": "T",
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
@@ -47,7 +47,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     "Data": {
         "data.phases": "P", "data.block_defaults": "D", "data.mass_edit": "M",
         "data.groups": "G", "data.import_table": "T",
-        "data.own_streams": "S",
+        "data.own_streams": "S", "home.health": "H",
         "data.export_library": "E", "data.import_library": "I",
     },
     "Simulate": {

@@ -92,7 +92,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="file.save_version",
         attr="_save_version_action",
         text="Save Version Now…",
-        icon="history_clock_icon:text",
+        icon="save_version_icon:text",
         tooltip=(
             "Save the current state as a named version you can come back "
             "to"),
@@ -786,7 +786,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="data.import_template",
         attr="_import_template_action",
         text="Data Table Template…",
-        icon="csv_icon:text",
+        icon="table_template_icon:text",
         tooltip=(
             "Save the open model's block data as an Excel (.xlsx) or "
             "OpenDocument (.ods) sheet with the columns Import Table reads. "
@@ -1630,8 +1630,9 @@ LAYOUT: tuple[Page, ...] = (
                        # the large ones Quick Add left a gap
                        Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
+       # Project Health is on Data (Bulk Edit): a fourth large button here
+       # made the busiest tab shrink its Model group at 1280 px.
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
-                       Btn("home.health", True),
                        Btn("results.analytical", True)), priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
@@ -1661,7 +1662,8 @@ LAYOUT: tuple[Page, ...] = (
                            Btn("data.mass_edit", True),
                            Btn("data.groups", True),
                            Btn("data.import_table", True),
-                           Btn("data.own_streams", True)), priority=2),
+                           Btn("data.own_streams", True),
+                           Btn("home.health", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),
     _p("Simulate", "_simulate_page_index",

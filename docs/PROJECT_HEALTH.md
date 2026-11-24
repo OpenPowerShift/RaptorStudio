@@ -2,7 +2,7 @@
 
 ## Project health
 
-**Model ▸ Project Health** (or `raptor health MODEL`) answers the questions a
+**Data ▸ Project Health** (or `raptor health MODEL`) answers the questions a
 reviewer asks before a run or a hand-off:
 
 - how many blocks, nodes, events, hierarchies, links, pools, resources,
