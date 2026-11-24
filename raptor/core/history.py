@@ -23,6 +23,7 @@ import re
 import stat
 import tempfile
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -30,6 +31,12 @@ from pathlib import Path
 from typing import Any
 
 from raptor.core.state_dir import state_dir
+
+_fcntl: Any
+try:                                    # POSIX
+    import fcntl as _fcntl
+except ImportError:                     # Windows
+    _fcntl = None
 
 #: Automatic copies only (see AUTOMATIC_REASONS): keep this many per file...
 DEFAULT_KEEP = 30
@@ -96,24 +103,59 @@ def clean_description(text: str | None) -> str:
     return raw.strip()[:MAX_DESCRIPTION].rstrip()
 
 
+#: Windows (no fcntl) falls back to an exclusive lock file. One older than
+#: this many seconds is taken to be left by a crashed process and is broken.
+LOCK_STALE_SECONDS = 60.0
+#: How long to wait for another process's lock before giving up on it.
+LOCK_TIMEOUT_SECONDS = 30.0
+_LOCK_POLL = 0.05
+#: A temp file left by an interrupted write is swept after this long.
+ORPHAN_PART_SECONDS = 3600.0
+
+
 @contextmanager
 def _file_lock(path: Path):
-    """Best-effort inter-process lock beside the index."""
+    """Inter-process lock beside the index.
+
+    POSIX uses flock. Where fcntl is missing (Windows) an O_CREAT|O_EXCL
+    lock file is used instead, with a stale-lock timeout so a crashed
+    process cannot wedge the history for good.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a+", encoding="utf-8") as handle:
-        try:
-            import fcntl
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        except (ImportError, OSError):
-            pass
-        try:
-            yield
-        finally:
+    if _fcntl is not None:
+        with open(path, "a+", encoding="utf-8") as handle:
             try:
-                import fcntl
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-            except (ImportError, OSError):
+                _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX)
+            except OSError:
                 pass
+            try:
+                yield
+            finally:
+                try:
+                    _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+                except OSError:
+                    pass
+        return
+    marker = path.with_name(path.name + ".excl")
+    deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
+    while True:
+        try:
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            break
+        except (FileExistsError, PermissionError):
+            try:
+                age = time.time() - marker.stat().st_mtime
+            except OSError:
+                continue                # vanished: try to take it again
+            if age > LOCK_STALE_SECONDS or time.monotonic() > deadline:
+                _discard(marker)        # stale (or wedged): break it
+                continue
+            time.sleep(_LOCK_POLL)
+    try:
+        yield
+    finally:
+        _discard(marker)
 
 
 class HistoryError(Exception):
@@ -133,12 +175,14 @@ class Snapshot:
     #: Optional Markdown note about this version (metadata only).
     description: str = ""
 
-    def time_text(self) -> str:
+    def time_text(self, seconds: bool = True) -> str:
+        """Local date and time; ``seconds=False`` stops at the minute."""
         try:
             stamp = datetime.fromisoformat(self.created)
         except ValueError:
             return self.created
-        return stamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        return stamp.astimezone().strftime(
+            "%Y-%m-%d %H:%M:%S" if seconds else "%Y-%m-%d %H:%M")
 
     def size_text(self) -> str:
         return format_bytes(self.bytes)
@@ -267,6 +311,21 @@ class HistoryStore:
         self.keep = max(1, int(keep))
         self.max_bytes = max(0, int(max_bytes))
         self._lock = threading.Lock()
+        self._sweep_orphans()
+
+    def _sweep_orphans(self) -> None:
+        """Remove temp files an interrupted write left behind (> 1 hour)."""
+        cutoff = time.time() - ORPHAN_PART_SECONDS
+        try:
+            candidates = list(self.root.glob("*/*.part"))
+        except OSError:
+            return
+        for part in candidates:
+            try:
+                if part.stat().st_mtime < cutoff:
+                    part.unlink()
+            except OSError:
+                pass
 
     # -- paths ----------------------------------------------------------
     @staticmethod
@@ -283,11 +342,28 @@ class HistoryStore:
     # -- index ----------------------------------------------------------
     def _read_index(self, file: str | Path) -> dict[str, Any]:
         path = self._index_path(file)
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            raw = {"version": INDEX_VERSION, "file": str(file), "snapshots": []}
-        except (OSError, ValueError):
+        raw: Any
+        for attempt in range(4):
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                break
+            except FileNotFoundError:
+                raw = {"version": INDEX_VERSION, "file": str(file),
+                       "snapshots": []}
+                break
+            except ValueError:
+                raw = None              # unparseable: quarantine below
+                break
+            except OSError as exc:
+                # A transient failure (a share hiccup, a virus scanner
+                # holding the file) is not damage: never rebuild over it.
+                if attempt == 3:
+                    raise HistoryError(
+                        f"cannot read the version history index "
+                        f"({path}): {exc}") from exc
+                time.sleep(0.05 * (attempt + 1))
+        if not isinstance(raw, dict) or not isinstance(raw.get("snapshots"),
+                                                       list):
             # Keep the damaged index for diagnosis; rebuild what the file
             # names can tell us so snapshots are not lost.
             try:
@@ -296,8 +372,6 @@ class HistoryStore:
                 os.replace(path, quarantine)
             except OSError:
                 pass
-            raw = self._rebuild_index(file)
-        if not isinstance(raw, dict) or not isinstance(raw.get("snapshots"), list):
             raw = self._rebuild_index(file)
         raw["snapshots"] = [entry for entry in raw.get("snapshots", [])
                             if self._safe_stored(entry)]
@@ -313,12 +387,16 @@ class HistoryStore:
                 and name not in (".", "..")
                 and "/" not in name and "\\" not in name and "\0" not in name)
 
-    def _rebuild_index(self, file: str | Path) -> dict[str, Any]:
+    def _rebuild_index(self, file: str | Path,
+                       deleted: list[str] | None = None) -> dict[str, Any]:
         entries = []
         folder = self._folder(file)
+        skip = set(deleted or [])
         for path in sorted(folder.glob("*.rb*")):
             if path.suffix not in (".rbds", ".rbd", ".rbdz"):
                 continue
+            if path.name in skip:
+                continue            # deleted by the user; unlink failed
             sid = path.stem
             try:
                 size = path.stat().st_size
@@ -337,8 +415,11 @@ class HistoryStore:
                             "description": "",
                             "bytes": size, "sha256": file_digest(path),
                             "stored": path.name})
-        return {"version": INDEX_VERSION, "file": str(file),
-                "snapshots": entries}
+        doc: dict[str, Any] = {"version": INDEX_VERSION, "file": str(file),
+                               "snapshots": entries}
+        if skip:
+            doc["deleted"] = sorted(skip)
+        return doc
 
     def _write_index(self, file: str | Path, doc: dict[str, Any]) -> None:
         _atomic_write(self._index_path(file),
@@ -349,7 +430,7 @@ class HistoryStore:
         folder = self._folder(file)
         doc = self._read_index(file)
         if not doc.get("snapshots") and any(folder.glob("*.rb*")):
-            doc = self._rebuild_index(file)
+            doc = self._rebuild_index(file, self._pending_deletions(doc))
             try:
                 self._write_index(file, doc)     # persist the recovery
             except OSError:
@@ -479,13 +560,17 @@ class HistoryStore:
                 "bytes": size, "sha256": digest, "stored": stored,
                 **({"description": description} if description else {}),
             })
+            pending = [n for n in self._pending_deletions(doc)
+                       if n != stored]
             doc, removed = self._prune(path, entries)
+            if pending:
+                doc["deleted"] = pending
             # The index is the truth: commit it first, then delete the
             # files it no longer names. A crash in between leaves an
             # unreferenced snapshot (recoverable) rather than an index
             # entry whose file is gone.
             self._write_index(path, doc)
-            self._unlink(path, removed, doc["snapshots"])
+            self._unlink(path, removed, doc["snapshots"], doc)
             return Snapshot(
                 id=sid, file=str(path),
                 created=now.isoformat(timespec="seconds"),
@@ -560,17 +645,41 @@ class HistoryStore:
                 [str(e.get("stored") or "") for e in dropped
                  if e.get("stored")])
 
+    @staticmethod
+    def _pending_deletions(doc: dict[str, Any]) -> list[str]:
+        raw = doc.get("deleted")
+        return [str(n) for n in raw] if isinstance(raw, list) else []
+
     def _unlink(self, file: str | Path, names: list[str],
-                remaining: list[dict[str, Any]]) -> None:
-        """Delete stored files that no remaining entry still names."""
+                remaining: list[dict[str, Any]],
+                doc: dict[str, Any] | None = None) -> None:
+        """Delete stored files that no remaining entry still names.
+
+        A file that cannot be deleted (open on Windows) is recorded in the
+        index's ``deleted`` list, so recovery never re-adds it as a version;
+        the next write retries it.
+        """
         folder = self._folder(file)
         in_use = {str(e.get("stored") or "") for e in remaining
                   if isinstance(e, dict)}
-        for name in names:
+        pending = set(self._pending_deletions(doc or {})) | set(names)
+        failed: set[str] = set()
+        for name in sorted(pending):
             if name in in_use:
                 continue
             try:
                 (folder / name).unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                failed.add(name)
+        if doc is not None and failed != set(self._pending_deletions(doc)):
+            if failed:
+                doc["deleted"] = sorted(failed)
+            else:
+                doc.pop("deleted", None)
+            try:
+                self._write_index(file, doc)
             except OSError:
                 pass
 
@@ -643,10 +752,16 @@ class HistoryStore:
             if removed is None:
                 return False
             doc["snapshots"] = kept
-            self._write_index(file, doc)
             name = str(removed.get("stored") or "")
+            if name and not any(isinstance(e, dict) and e.get("stored") == name
+                                for e in kept):
+                # Recorded before the unlink: if it fails, recovery must
+                # not bring the deleted version back.
+                doc["deleted"] = sorted(
+                    {*self._pending_deletions(doc), name})
+            self._write_index(file, doc)
             if name:
-                self._unlink(file, [name], kept)
+                self._unlink(file, [name], kept, doc)
             return True
 
 

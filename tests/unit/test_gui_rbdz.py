@@ -334,7 +334,76 @@ def test_current_row_of_an_archive_tracks_the_results_on_screen(
             current_state=win._history_current_state)
 
     first = dialog()._list.item(0).text()
-    assert "matches the version saved" in first and "unsaved" not in first
+    assert "same as the version saved" in first and "unsaved" not in first
     _new_run(win, rbd, runs=1)
     text = dialog()._list.item(0).text()
-    assert "not checkpointed" in text and "unsaved changes" in text
+    assert "not saved as a version" in text and "unsaved changes" in text
+
+
+def test_a_run_finishing_during_a_save_leaves_the_window_unsaved(
+        archive_window, monkeypatch):
+    """The file holds the results from before the run; marking the window
+    clean would hide that until the user lost the new run."""
+    import time
+
+    from PySide6.QtCore import QTimer
+    win, _archive, _store, rbd = archive_window
+    real = rbdz.write_archive
+
+    def slow(path, text, **kw):
+        time.sleep(0.5)
+        return real(path, text, **kw)
+
+    monkeypatch.setattr(rbdz, "write_archive", slow)
+    QTimer.singleShot(150, lambda: _new_run(win, rbd))
+    win._mark_dirty()
+    assert win._save_file() is True
+    assert win._dirty is True
+    assert "*" in win.windowTitle()
+    # A second, quiet save now clears it.
+    monkeypatch.setattr(rbdz, "write_archive", real)
+    assert win._save_file() is True
+    assert win._dirty is False
+
+
+def test_a_save_with_nothing_new_still_clears_the_flag(archive_window):
+    win, _archive, _store, _rbd = archive_window
+    win._mark_dirty()
+    assert win._save_file() is True
+    assert win._dirty is False
+
+
+def test_a_full_disk_on_save_gets_the_plain_message(
+        archive_window, monkeypatch):
+    import errno
+
+    from raptor.gui.ui import msgbox
+    win, _archive, _store, _rbd = archive_window
+    texts: list[str] = []
+    monkeypatch.setattr(msgbox, "critical",
+                        lambda _w, _t, text, *a, **k: texts.append(text))
+
+    def boom(*a, **k):
+        try:
+            raise OSError(errno.ENOSPC, "No space left on device")
+        except OSError as exc:
+            raise RuntimeError("write failed") from exc
+
+    monkeypatch.setattr(rbdz, "write_archive", boom)
+    win._mark_dirty()
+    assert win._save_file() is False
+    assert "disk is full" in texts[0] and "Errno" not in texts[0]
+    assert win._dirty is True
+
+
+def test_results_on_a_restored_archive_make_it_unsaved(archive_window):
+    """After a restore reloads the file, `_load_into_app` forgets the
+    archive baseline; arming it again is what makes the next run count."""
+    win, archive, _store, rbd = archive_window
+    win._load_into_app(win._open_model_any(str(archive)), str(archive))
+    _new_run(win, rbd)
+    assert win._dirty is False           # the gap: baseline not armed
+    win._arm_archive_baseline(str(archive))
+    win._results.clear()
+    _new_run(win, rbd)
+    assert win._dirty is True

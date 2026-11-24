@@ -1,10 +1,10 @@
 .TH "RAPTOR-HISTORY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
 .SH NAME
-raptor\-history \- list, snapshot or restore saved versions of a model
+raptor\-history \- list, save, describe or restore versions of a model
 .SH SYNOPSIS
 \fBraptor history\fR [\-h] [\-\-snapshot] [\-\-label TEXT] [\-\-description TEXT] [\-\-description\-file PATH] [\-\-describe SNAPSHOT] [\-\-restore SNAPSHOT] [\-o PATH] [\-\-force] [\-f {text,json}] MODEL
 .SH DESCRIPTION
-Version history kept by the desktop application on save. Snapshots live in the user's private state folder, not beside the model.
+Version checkpoints: list, save (snapshot) with an optional label and Markdown description, describe, or restore. Versions live in the user's private state folder, not beside the model.
 .SH OPTIONS
 .SS Options
 .TP

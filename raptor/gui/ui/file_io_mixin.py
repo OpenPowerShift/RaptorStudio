@@ -839,13 +839,20 @@ class FileIoMixin(_Base):
 
     def _save_for_history(self) -> bool:
         """Save unsaved edits so a version can checkpoint them; False when
-        the save was cancelled or failed (the model stays dirty)."""
+        the save was cancelled or failed (the model stays dirty).
+
+        A run that finishes during the save leaves the window unsaved, but
+        the save itself succeeded, so that is not a failure here.
+        """
         if not getattr(self, "_dirty", False):
             return True
-        self._save_file()
-        return not getattr(self, "_dirty", False)
+        return bool(self._save_file())
 
-    def _open_history_dialog(self):
+    def _save_version_now(self):
+        """File ▸ Save Version Now: the history dialog, straight to the save."""
+        self._open_history_dialog(save_now=True)
+
+    def _open_history_dialog(self, *_checked, save_now: bool = False):
         """File ▸ Version History: browse or restore saved versions."""
         if not self._current_file:
             return
@@ -855,7 +862,8 @@ class FileIoMixin(_Base):
         dialog = HistoryDialog(self, self._current_file,
                                current_model=self._rbd,
                                save_current=self._save_for_history,
-                               current_state=self._history_current_state)
+                               current_state=self._history_current_state,
+                               start_save=save_now)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         snapshot = dialog.snapshot
@@ -915,6 +923,7 @@ class FileIoMixin(_Base):
                 history.restore(self._current_file, snapshot.id)
                 restored = self._open_model_any(self._current_file)
                 self._load_into_app(restored, self._current_file)
+                self._arm_archive_baseline(self._current_file)
                 self._undo_stack.setClean()
                 self._dirty = False
             except Exception as exc:  # noqa: BLE001
@@ -924,6 +933,38 @@ class FileIoMixin(_Base):
             self._statusbar.showMessage(
                 f"Restored version from {snapshot.time_text()}", 8000)
 
+    def _content_stamp(self) -> tuple[int, str | None, int]:
+        """What "the document as it is now" is: undo position, the result
+        set on screen, and a counter bumped whenever the results change.
+
+        A save compares the stamp from before the write with the one after
+        it: a run that finished while the archive was being written changed
+        the document, so the file does not hold it and the window stays
+        unsaved.
+        """
+        return (self._undo_stack.index(), self._results.run_id(),
+                getattr(self, "_content_generation", 0))
+
+    def _mark_saved(self, stamp: tuple[int, str | None, int]) -> None:
+        """Clear the unsaved flag, unless the document changed mid-save."""
+        if self._undo_stack.index() == stamp[0]:
+            self._undo_stack.setClean()
+        self._dirty = self._content_stamp() != stamp
+        if self._dirty:
+            self._update_title()
+
+    def _save_failed_text(self, exc: BaseException, path: str) -> str:
+        from raptor.gui.run_text import save_disk_full_text
+        return (save_disk_full_text(exc, path)
+                or f"Failed to save:\n{exc}")
+
+    def _arm_archive_baseline(self, path: str | None) -> None:
+        """Results shown on an open `.rbdz` that are not its own make it
+        unsaved. Armed after every load of an archive (open, restore of a
+        version), not only the Open command."""
+        self._archive_baseline_file = (
+            path if path and str(path).lower().endswith(".rbdz") else None)
+
     def _archive_results_diverged(self) -> None:
         """Results are part of an `.rbdz` document: when the ones on screen
         stop being the archive's own (a new run, or cleared), the document
@@ -932,6 +973,7 @@ class FileIoMixin(_Base):
         stores results and is untouched. Runs from the Results dock's
         `contents_changed`; ignored while a file is being opened.
         """
+        self._content_generation = getattr(self, "_content_generation", 0) + 1
         current = getattr(self, "_current_file", None)
         if (not current or not str(current).lower().endswith(".rbdz")
                 or getattr(self, "_archive_baseline_file", None) != current
@@ -1033,24 +1075,27 @@ class FileIoMixin(_Base):
             "Saved archive: {name} (model only — run the model to include "
             "results)").format(name=name), 8000
 
-    def _save_file(self):
+    def _save_file(self) -> bool:
+        """Save to the current file. True when the file was written."""
         if self._rbd is None or getattr(self, "_save_in_progress", False):
-            return
+            return False
         if self._current_file is None:
             # New, never-saved model: Save means "choose a location".
-            self._save_file_as()
-            return
+            return bool(self._save_file_as())
         try:
+            stamp = self._content_stamp()
             if not self._write_model(self._current_file):
                 self._statusbar.showMessage("Save cancelled")
-                return
-            self._undo_stack.setClean()
-            self._dirty = False
+                return False
+            self._mark_saved(stamp)
             self._update_title()
             message, timeout = self._save_message(self._current_file)
             self._statusbar.showMessage(message, timeout)
+            return True
         except Exception as e:
-            msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
+            msgbox.critical(self, "Save Failed",
+                            self._save_failed_text(e, self._current_file))
+            return False
 
     def _untitled_save_path(self) -> str:
         """Where Save As starts for a model with no file: its title (or
@@ -1065,9 +1110,10 @@ class FileIoMixin(_Base):
             folder = os.path.expanduser("~")
         return os.path.join(folder, name + ".rbds")
 
-    def _save_file_as(self):
+    def _save_file_as(self) -> bool:
+        """Save under a new name. True when the file was written."""
         if self._rbd is None or getattr(self, "_save_in_progress", False):
-            return
+            return False
         dlg = self._make_file_dialog("Save RBD File As", QFileDialog.AcceptMode.AcceptSave)
         # Save As suggests .rbds even for legacy files, nudging users to
         # the native format; plain Save keeps the file's own format
@@ -1079,10 +1125,10 @@ class FileIoMixin(_Base):
         suggested = stem + suffix
         dlg.selectFile(suggested)
         if not dlg.exec() or not dlg.selectedFiles():
-            return
+            return False
         path = dlg.selectedFiles()[0]
         if not path:
-            return
+            return False
         if not str(path).lower().endswith((".rbds", ".rbdz", ".rbd")):
             # No extension: the filter the user chose names the format, so
             # selecting "RAPTOR Studio archives" and typing "plant" saves
@@ -1095,19 +1141,19 @@ class FileIoMixin(_Base):
                 self, "File Already Open",
                 f"{Path(path).name} is open in another RAPTOR Studio "
                 "window. Close that window or save to a different file.")
-            return
+            return False
         try:
+            stamp = self._content_stamp()
             if not self._write_model(path):
                 self._statusbar.showMessage("Save cancelled")
-                return
+                return False
         except Exception as e:
-            msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
-            return
+            msgbox.critical(self, "Save Failed",
+                            self._save_failed_text(e, path))
+            return False
         self._current_file = path
-        self._archive_baseline_file = (
-            path if str(path).lower().endswith(".rbdz") else None)
-        self._undo_stack.setClean()
-        self._dirty = False
+        self._arm_archive_baseline(path)
+        self._mark_saved(stamp)
         # A model saved for the first time now has a file: Save becomes
         # available.
         self._refresh_commands()
@@ -1115,3 +1161,4 @@ class FileIoMixin(_Base):
         self._remember_recent(path)
         message, timeout = self._save_message(path)
         self._statusbar.showMessage(message, timeout)
+        return True

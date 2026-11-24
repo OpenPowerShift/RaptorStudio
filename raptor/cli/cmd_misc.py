@@ -42,10 +42,11 @@ def add_parser(sub: Any) -> None:
     d.set_defaults(func=doctor_command)
 
     h = sub.add_parser(
-        "history", help="list, snapshot or restore saved versions of a model",
-        description="Version history kept by the desktop application on save. "
-                    "Snapshots live in the user's private state folder, not "
-                    "beside the model.")
+        "history", help="list, save, describe or restore versions of a model",
+        description="Version checkpoints: list, save (snapshot) with an "
+                    "optional label and Markdown description, describe, or "
+                    "restore. Versions live in the user's private state "
+                    "folder, not beside the model.")
     h.add_argument("model", metavar="MODEL")
     h.add_argument("--snapshot", action="store_true",
                    help="record the file as it is now")

@@ -30,6 +30,50 @@ def _filename_dir(exc: BaseException) -> str:
     return os.path.dirname(str(name)) if name else ""
 
 
+def _space_error(exc: BaseException) -> OSError | None:
+    """The ENOSPC/EDQUOT error in *exc*'s cause chain, if any."""
+    import errno
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, OSError) and current.errno in (
+                errno.ENOSPC, getattr(errno, "EDQUOT", 122)):
+            return current
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def save_disk_full_text(exc: BaseException, path: str = "") -> str | None:
+    """Plain words for a save that ran out of disk space, or None.
+
+    The same detection as `disk_full_text` (anywhere in the cause chain), but
+    the message is about writing the file, not about a run.
+    """
+    import errno
+    import os
+    import shutil
+    found = _space_error(exc)
+    if found is None:
+        return None
+    folder = os.path.dirname(os.path.abspath(path)) if path \
+        else _filename_dir(found)
+    quota = found.errno == getattr(errno, "EDQUOT", 122)
+    try:
+        free = shutil.disk_usage(folder or ".").free
+        free_text = f" ({free / 2**30:.1f} GB free there now)"
+    except OSError:
+        free_text = ""
+    reason = ("your disk quota is used up" if quota
+              else "the disk is full")
+    where = f" in {folder}" if folder else ""
+    return (
+        f"The file could not be saved because {reason}{where}{free_text}.\n\n"
+        "Free some space, or use Save As to write to another disk. The "
+        "model in the window is unchanged and still has its unsaved "
+        "changes.")
+
+
 def disk_full_text(exc: BaseException) -> str | None:
     """Plain words for a run that ran out of disk space, or None.
 

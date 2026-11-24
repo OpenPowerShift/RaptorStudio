@@ -274,3 +274,68 @@ def test_save_version_now_failure_reenables_the_dialog(
     dialog._snapshot_now()
     assert not dialog._working and dialog._snapshot_btn.isEnabled()
     assert "history disk full" in dialog._note.text()
+
+
+def test_wheel_over_editable_widgets_is_held_back_during_a_save(
+        window, monkeypatch):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QWheelEvent
+    from PySide6.QtWidgets import QSpinBox
+    spin = QSpinBox(window)
+    spin.setRange(0, 100)
+    spin.setValue(10)
+    spin.show()
+    probe: dict = {}
+
+    def during():
+        def wheel():
+            return QWheelEvent(
+                QPointF(3, 3), QPointF(3, 3), QPoint(0, 0), QPoint(0, 120),
+                Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+                Qt.ScrollPhase.NoScrollPhase, False)
+        probe["spin"] = QApplication.sendEvent(spin, wheel())
+        probe["canvas"] = QApplication.sendEvent(
+            window._diagram_dock.view.viewport(), wheel())
+        probe["value"] = spin.value()
+
+    _slow_writer(monkeypatch, [(200, during)])
+    window._save_file()
+    assert probe["spin"] is True and probe["value"] == 10
+    assert probe["canvas"] is not None        # the canvas still gets wheel
+    window.close()
+
+
+def test_progress_past_an_estimated_total_is_not_a_flood(qapp):
+    job = save_progress.WorkerJob(lambda p: None)
+    seen: list = []
+    job.progressed.connect(lambda d, t: seen.append((d, t)),
+                           Qt.ConnectionType.DirectConnection)
+    for done in range(100, 5000):
+        job.progress(done, 100)         # total underestimated
+    assert len(seen) <= 3
+
+
+def test_one_progress_view_when_a_dialog_mirrors_the_save(
+        window, monkeypatch):
+    made: list = []
+    real = save_progress.SaveProgressBar
+
+    class Spy(real):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            made.append(self)
+
+    monkeypatch.setattr(save_progress, "SaveProgressBar", Spy)
+    got: list = []
+    save_progress.save_progress_sinks(window).append(
+        lambda d, t: got.append((d, t)))
+    window._mark_dirty()
+    _slow_writer(monkeypatch, [])
+    window._save_file()
+    assert got                           # the dialog's sink was fed
+    assert made == []                    # and the status bar stayed quiet
+
+
+def test_the_sinks_exist_before_the_first_save(window):
+    assert save_progress.save_progress_sinks(window) == []
+    assert window._save_progress_sinks == []
