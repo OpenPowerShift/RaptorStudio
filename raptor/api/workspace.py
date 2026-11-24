@@ -11,7 +11,6 @@ import hashlib
 import secrets
 import itertools
 import json
-import logging
 import os
 import shutil
 import tempfile
@@ -25,9 +24,6 @@ from typing import Any
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.fileio.rbds import load_rbds, save_rbds
 from raptor.api.limits import MAX_MODEL_BYTES, MAX_TOTAL_MODELS
-
-
-log = logging.getLogger(__name__)
 
 
 #: The friendly block fields a workspace's house defaults may set, applied
@@ -235,6 +231,72 @@ class ModelHandle:
 # but we want the api layer to be importable even if core has issues.
 
 
+def prepare_workspace_root(root: str | Path, *,
+                           resolve: bool = True,
+                           probe_write: bool = True) -> Path:
+    """Create the workspace directory tree, checking writes when asked.
+
+    This is the cheap start-up path: it touches no model file, so the MCP
+    server can answer its first frame before the model index is read.
+    `Workspace` uses it too, so the directory layout is defined once.
+
+    A failed probe raises the same `OSError` the first save would have
+    raised, but before the transport is listening rather than on a later
+    tool call.
+
+    *resolve* is off only for a path the MCP context already resolved at
+    start-up.  Such a path is pinned: if a symlink (or a directory in the
+    path) has been swapped since, `resolve()` no longer names the same
+    directory and the call is refused instead of writing through it.
+
+    *probe_write* is off for `--read-only` and for the `Workspace`
+    constructor: a read-only workspace can still serve reads, and an
+    existing tree needs no write test until something is actually saved.
+    """
+    root = Path(root)
+    if resolve:
+        root = root.resolve()
+    elif root.resolve() != root:
+        raise WorkspaceError(
+            f"workspace path changed since start-up: {root} now resolves "
+            f"to {root.resolve()}"
+        )
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    managed = ("models", "runs", "renders")
+    # Each managed directory must be a real directory directly under the
+    # root, never a symlink -- not even one that was there at start-up.
+    # Model reads and writes go through `models`, and `sweep_retention`
+    # `rmtree`s old entries under `runs`: a `runs -> ~` link would let the
+    # sweep delete the user's own old directories.  A link to a sibling
+    # (`models -> runs`) is refused too, since the sweep would then expire
+    # models.  Checked before `mkdir`, so nothing is created through one.
+    for name in managed:
+        child = root / name
+        if child.is_symlink() or child.resolve() != child:
+            what = ("changed since start-up" if not resolve
+                    else "is a symlink")
+            raise WorkspaceError(
+                f"workspace directory {child} {what} (it resolves to "
+                f"{child.resolve()}); models, runs and renders must be real "
+                f"directories inside the workspace"
+            )
+    for name in managed:
+        (root / name).mkdir(parents=True, exist_ok=True, mode=0o700)
+    if probe_write:
+        # Existing, read-only directories pass `mkdir`; an actual write is
+        # the permission test.  Probe every managed directory, because a
+        # writable root with a read-only `models` would pass otherwise.
+        for directory in (root, *(root / name for name in managed)):
+            fd, probe = tempfile.mkstemp(prefix=".raptor-write-",
+                                        dir=directory)
+            os.close(fd)
+            try:
+                os.unlink(probe)
+            except OSError:
+                pass
+    return root
+
+
 # ---------------------------------------------------------------------------
 # Workspace
 # ---------------------------------------------------------------------------
@@ -258,23 +320,27 @@ class Workspace:
     RETAIN_DAYS = 30
     MAX_BACKUPS = 20
 
+    #: Exact public row shape for `list_models`, cold (from `meta.json`)
+    #: or materialised (from a handle).  Internal bookkeeping never leaks.
+    _MODEL_ROW_FIELDS = ("model_id", "name", "blocks", "nodes",
+                         "last_modified", "source")
+
     def __init__(self, root: str | Path, *,
                  max_models: int = MAX_CONCURRENT_MODELS,
                  retain_days: int = RETAIN_DAYS,
                  max_bytes: int = MAX_WORKSPACE_BYTES,
-                 max_total_models: int = MAX_TOTAL_MODELS) -> None:
-        self.root = Path(root).resolve()
+                 max_total_models: int = MAX_TOTAL_MODELS,
+                 _resolved: bool = False) -> None:
+        # Ensure directory structure. A new workspace is private to its owner:
+        # it holds models and results other local users have no need to read.
+        # `_resolved` means the MCP context resolved and pinned this path at
+        # start-up; it must not be resolved (and thereby re-targeted) again.
+        self.root = prepare_workspace_root(
+            root, resolve=not _resolved, probe_write=False)
         self.max_models = max_models
         self.retain_days = retain_days
         self.max_bytes = max_bytes
         self.max_total_models = max_total_models
-
-        # Ensure directory structure. A new workspace is private to its owner:
-        # it holds models and results other local users have no need to read.
-        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        (self.root / "models").mkdir(parents=True, exist_ok=True)
-        (self.root / "runs").mkdir(parents=True, exist_ok=True)
-        (self.root / "renders").mkdir(parents=True, exist_ok=True)
 
         # Materialised models: model_id -> ModelHandle.  A *cache*, bounded
         # by `max_models`; it is not the list of models the workspace has.
@@ -309,7 +375,8 @@ class Workspace:
         self._locks: dict[str, threading.RLock] = {}
         self._locks_guard = threading.Lock()
 
-        # Load any existing models from disk into the cache
+        # Index any existing models.  Model files are read by `get()` on
+        # first use, not here.
         self._load_existing_models()
 
     # ------------------------------------------------------------------
@@ -639,46 +706,72 @@ class Workspace:
                 "open_model to load a file from disk."
             )
 
-        model_dir = self.root / "models" / model_id
-        path = model_dir / "model.rbds"
-        if not path.exists():
-            # Indexed but never materialised: use the snapshot taken at
-            # open time, falling back to the source only for older
-            # workspaces created before snapshots existed.
-            snapshot = next(
-                (model_dir / f"source{suffix}" for suffix in (".rbds", ".rbd")
-                 if (model_dir / f"source{suffix}").is_file()), None)
-            if snapshot is None:
-                source = self._index[model_id].get("source") or ""
-                if not source or not Path(source).is_file():
-                    raise UnknownHandle(
-                        f"Model {model_id!r} is indexed but its file is "
-                        f"missing (looked for {path}"
-                        + (f" and source {source})" if source else ")")
-                        + ".  Open it again with open_model."
-                    )
-                snapshot = Path(source)
-            path = snapshot
-
-        rbd = self._load_any(str(path))
-        meta = self._index[model_id]
-        handle = ModelHandle(
-            model_id=model_id,
-            name=meta.get("name", model_id),
-            path=model_dir / "model.rbds",
-            meta_path=model_dir / "meta.json",
-            rbd=rbd,
-            created=meta.get("created", 0.0),
-            last_modified=meta.get("last_modified", 0.0),
-            source=meta.get("source", ""),
-        )
+        # Parsing is serialised per model: two threads asking for the same
+        # cold model used to read and validate it twice (once each), which
+        # on a large file costs seconds of CPU and tens of MB of peak RAM.
         with self._lock_for(model_id):
+            handle = self._models.get(model_id)
+            if handle is not None:
+                with self._cache_lock:
+                    self._lru[model_id] = self._clock()
+                return handle
+            if model_id not in self._index:
+                raise UnknownHandle(
+                    f"Unknown or expired model handle: {model_id!r}.  "
+                    "Call list_models to see the model_ids available."
+                )
+
+            model_dir = self.root / "models" / model_id
+            path = model_dir / "model.rbds"
+            if not path.is_file():
+                # Indexed but never materialised: use the snapshot taken at
+                # open time, falling back to the source only for older
+                # workspaces created before snapshots existed.
+                snapshot = next(
+                    (model_dir / f"source{suffix}"
+                     for suffix in (".rbds", ".rbd")
+                     if (model_dir / f"source{suffix}").is_file()), None)
+                if snapshot is None:
+                    source = self._index[model_id].get("source") or ""
+                    if not source or not Path(source).is_file():
+                        raise UnknownHandle(
+                            f"Model {model_id!r} is indexed but its file is "
+                            f"missing (looked for {path}"
+                            + (f" and source {source})" if source else ")")
+                            + ".  Open it again with open_model."
+                        )
+                    snapshot = Path(source)
+                path = snapshot
+
+            # `open_model` and every save enforce this cap; a model written
+            # by an older build (or edited on disk) could otherwise be
+            # loaded here without one.
+            try:
+                size = path.stat().st_size
+            except OSError as exc:
+                raise UnknownHandle(
+                    f"Model {model_id!r} is indexed but its file cannot be "
+                    f"read: {exc}") from exc
+            self._check_model_size(size)
+
+            rbd = self._load_any(str(path))
+            meta = self._index[model_id]
+            handle = ModelHandle(
+                model_id=model_id,
+                name=meta.get("name", model_id),
+                path=model_dir / "model.rbds",
+                meta_path=model_dir / "meta.json",
+                rbd=rbd,
+                created=meta.get("created", 0.0),
+                last_modified=meta.get("last_modified", 0.0),
+                source=meta.get("source", ""),
+            )
             _sync_counts(rbd)
-        with self._cache_lock:
-            self._models[model_id] = handle
-            self._lru[model_id] = self._clock()
-            self._evict_locked()
-        return handle
+            with self._cache_lock:
+                self._models[model_id] = handle
+                self._lru[model_id] = self._clock()
+                self._evict_locked()
+            return handle
 
     def save(self, model_id: str, *, check_rules: bool = True) -> None:
         """Autosave the model to disk (creating a backup first).
@@ -838,16 +931,18 @@ class Workspace:
 
         Reads the index, not the cache, so it reports every model the
         workspace knows about however many are currently materialised.
+        Every row has exactly `_MODEL_ROW_FIELDS`; `blocks` and `nodes`
+        are `None` when a model has no usable `meta.json` and has not been
+        loaded yet.  They are deliberately not guessed from the file size.
         """
         with self._cache_lock:
             cached = dict(self._models)
+            index = dict(self._index)
         out = []
-        for model_id, meta in self._index.items():
+        for model_id, meta in index.items():
             handle = cached.get(model_id)
-            if handle is not None:
-                out.append(handle.to_dict())
-            else:
-                out.append(dict(meta))
+            row = handle.to_dict() if handle is not None else meta
+            out.append({key: row.get(key) for key in self._MODEL_ROW_FIELDS})
         out.sort(key=lambda m: m.get("name") or "")
         return out
 
@@ -863,20 +958,24 @@ class Workspace:
         `delete=true` additionally removes the model's directory, so it
         does not come back at all.
         """
-        with self._cache_lock:
-            known = model_id in self._index or model_id in self._models
-            self._models.pop(model_id, None)
-            self._lru.pop(model_id, None)
-            self._index.pop(model_id, None)
-        if not known:
-            raise UnknownHandle(
-                f"Unknown or expired model handle: {model_id!r}.  "
-                "Call list_models to see the model_ids available."
-            )
-        if delete:
-            model_dir = self.root / "models" / model_id
-            if model_dir.exists():
-                shutil.rmtree(model_dir, ignore_errors=True)
+        # The model lock keeps `close` from deleting files while a cold
+        # `get` is parsing the same model; both paths use the same order
+        # (model lock, then cache lock).
+        with self._lock_for(model_id):
+            with self._cache_lock:
+                known = model_id in self._index or model_id in self._models
+                self._models.pop(model_id, None)
+                self._lru.pop(model_id, None)
+                self._index.pop(model_id, None)
+            if not known:
+                raise UnknownHandle(
+                    f"Unknown or expired model handle: {model_id!r}.  "
+                    "Call list_models to see the model_ids available."
+                )
+            if delete:
+                model_dir = self.root / "models" / model_id
+                if model_dir.exists():
+                    shutil.rmtree(model_dir, ignore_errors=True)
         return {"ok": True}
 
     # ------------------------------------------------------------------
@@ -1309,13 +1408,13 @@ class Workspace:
     def _load_existing_models(self) -> None:
         """Populate the index from the models directory.
 
-        Deliberately does **not** parse any model file.  It used to load
-        every `model.rbds` into the cache, which meant a workspace holding
-        more models than `max_models` came back over the cap -- and since
-        nothing ever evicts, `create_model` then failed for the lifetime
-        of the server with a limit the user had no way to clear.  Now the
-        index is one small JSON read per model and the cap only ever
-        governs how many are *materialised* at once.
+        Deliberately does **not** parse any model file: the index is one
+        small JSON read per model, and `get()` loads a model on first use.
+        Earlier versions parsed models here, first all of them (a
+        workspace over `max_models` then refused `create_model` for the
+        server's lifetime), later up to `max_models` (which delayed the
+        MCP server's first frame by several seconds).  A damaged model now
+        surfaces when it is explicitly used, not at start-up.
         """
         models_dir = self.root / "models"
         if not models_dir.exists():
@@ -1347,35 +1446,8 @@ class Workspace:
                 "nodes": meta.get("nodes"),
                 "last_modified": meta.get("last_modified", 0.0),
                 "source": meta.get("source", ""),
-                "materialised": materialised,
             }
             self._index[model_id] = entry
-
-        # Warm the cache up to the cap, most recently modified first, so the
-        # common case of "reopen what I had open" costs nothing.
-        self._warm_cache()
-
-    def _warm_cache(self) -> None:
-        """Materialise the most recently used models, skipping bad ones.
-
-        One unreadable model -- written by an older, incompatible build, or
-        damaged on disk -- must not stop the workspace (and therefore the MCP
-        server) from starting.  It stays in the index so `list_models` still
-        shows it, and a later explicit `get` reports the real error.
-        """
-        for model_id, _ in sorted(
-            self._index.items(),
-            key=lambda kv: kv[1].get("last_modified") or 0.0,
-            reverse=True,
-        )[: self.max_models]:
-            try:
-                self.get(model_id)
-            except UnknownHandle:
-                self._index.pop(model_id, None)
-            except Exception as exc:            # noqa: BLE001
-                log.warning(
-                    "workspace: could not load model %s at start-up; "
-                    "continuing without it: %s", model_id, exc)
 
     def _index_entry(self, handle: ModelHandle) -> dict[str, Any]:
         """The index row for *handle*, matching `ModelHandle.to_dict`."""
@@ -1387,9 +1459,6 @@ class Workspace:
             "nodes": counts["nodes"],
             "last_modified": handle.last_modified,
             "source": handle.source,
-            "materialised": (handle.path.exists()
-                            or any((handle.path.parent / f"source{s}").exists()
-                                   for s in (".rbds", ".rbd"))),
         }
 
     def _summarise(self, rbd: RbdFile) -> str:

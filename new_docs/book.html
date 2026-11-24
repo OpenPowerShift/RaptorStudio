@@ -331,7 +331,7 @@
 <li><a href="#_tips_and_best_practices">23.10. Tips and best practices</a></li>
 <li><a href="#mcp-troubleshooting">23.11. Troubleshooting</a></li>
 <li><a href="#_frequently_asked_questions">23.12. Frequently asked questions</a></li>
-<li><a href="#_workspace_layout">23.13. Workspace layout</a></li>
+<li><a href="#mcp-workspace-layout">23.13. Workspace layout</a></li>
 <li><a href="#_configuration_reference">23.14. Configuration reference</a></li>
 </ul>
 </li>
@@ -12095,7 +12095,17 @@ workspace and copy the file out yourself.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_models_from_the_gui_do_not_show_up_in_the_workspace">23.11.8. Models from the GUI do not show up in the workspace</h4>
+<h4 id="_the_server_refuses_to_start_is_a_symlink">23.11.8. The server refuses to start: <code>is a symlink</code></h4>
+<div class="paragraph">
+<p>One of the workspace&#8217;s <code>models</code>, <code>runs</code> or <code>renders</code> directories is a
+symlink, which the server will not follow (see <a href="#mcp-workspace-layout">Section 23.13, &#8220;Workspace layout&#8221;</a>). Move
+its contents into a real directory of the same name, or point <code>--workspace</code>
+at the disk you want. <code>changed since start-up</code> means the workspace path or
+one of those directories was replaced while the server ran; restart it.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_models_from_the_gui_do_not_show_up_in_the_workspace">23.11.9. Models from the GUI do not show up in the workspace</h4>
 <div class="paragraph">
 <p>The MCP server uses its own workspace directory (by default
 <code>~/.local/share/raptor-studio/mcp</code>). Open a GUI model by path instead:</p>
@@ -12111,7 +12121,7 @@ mutated.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_simulation_is_refused_as_too_long">23.11.9. Simulation is refused as too long</h4>
+<h4 id="_simulation_is_refused_as_too_long">23.11.10. Simulation is refused as too long</h4>
 <div class="paragraph">
 <p>The server estimates first and refuses a run predicted to exceed
 <code>timeout_s</code> (default 120 s). Use fewer runs, a shorter <code>run_length</code>, or
@@ -12119,7 +12129,7 @@ pass <code>confirm_long_run=true</code>. <code>--max-runs</code> (default 5000) 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_the_runtime_estimate_seems_off">23.11.10. The runtime estimate seems off</h4>
+<h4 id="_the_runtime_estimate_seems_off">23.11.11. The runtime estimate seems off</h4>
 <div class="paragraph">
 <p>The estimate comes from a real pilot and is deliberately a <strong>range</strong>, not a
 promise. Per-run cost can be non-uniform for models with growth/decay or
@@ -12184,7 +12194,7 @@ connections.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_workspace_layout">23.13. Workspace layout</h3>
+<h3 id="mcp-workspace-layout">23.13. Workspace layout</h3>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-text" data-lang="text">&lt;workspace&gt;/
@@ -12205,6 +12215,14 @@ connections.</p>
 <p>Handles (<code>model_id</code>, <code>run_id</code>) are opaque tokens that map to these
 directories, so they survive a client restart. Run and render artefacts
 are swept after <code>--retain-days</code> (default 30); models are kept.</p>
+</div>
+<div class="paragraph">
+<p><code>models/</code>, <code>runs/</code> and <code>renders/</code> must be real directories, not symlinks.
+The sweep deletes old entries under them, so a link to a directory outside
+the workspace, or from one of them to another, would let it delete files it
+does not own. The server refuses to start with such a link. To keep the
+workspace on another disk, point <code>--workspace</code> there; a symlink to the
+whole workspace is fine.</p>
 </div>
 </div>
 <div class="sect2">

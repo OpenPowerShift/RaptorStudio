@@ -1,7 +1,9 @@
 """Per-server runtime context for the MCP tools.
 
 Holds the parsed CLI arguments and the single :class:`Workspace` the
-server operates on, and exposes the small guards the tools use to honour
+server operates on -- constructed lazily on the first tool or resource
+call, so the transport can answer `initialize`/`server/discover` without
+reading a model -- and exposes the small guards the tools use to honour
 ``--read-only``, ``--max-runs`` and ``--allow-write``.
 
 Keeping this out of ``server.py`` avoids a circular import: tool modules
@@ -10,16 +12,50 @@ import :mod:`raptor.mcp.context`, never the server module.
 from __future__ import annotations
 
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
-from raptor.api.workspace import Workspace
+from raptor.api.workspace import Workspace, prepare_workspace_root
+
+#: Constructing a Workspace reads the model index; two tool calls racing at
+#: start-up must not build two of them (and run the retention sweep twice).
+_WORKSPACE_LOCK = threading.Lock()
 
 
 def parsed_args() -> Any:
     """The argparse namespace stored by ``server.main`` (or ``None``)."""
     from raptor.mcp.server import mcp
     return getattr(mcp, "_raptor_args", None)
+
+
+def prepare_workspace() -> Path:
+    """Create the workspace tree without reading any model.
+
+    ``server.main`` calls this before the transport starts so a bad
+    ``--workspace`` still fails fast.  The full :class:`Workspace` is built
+    on the first tool call: constructing it here used to parse and
+    JSON-schema-check up to 50 models, delaying the first MCP frame by
+    several seconds.
+    """
+    from raptor.mcp.server import mcp
+
+    args = parsed_args()
+    if args is None:
+        raise RuntimeError(
+            "MCP server context is not initialised; start the server through "
+            "its normal entry point."
+        )
+    root = prepare_workspace_root(
+        args.workspace,
+        probe_write=not bool(getattr(args, "read_only", False)),
+    )
+    # Pin the path this process checked.  Re-resolving `args.workspace` at
+    # first use would follow a symlink swapped in after start-up.  The pin
+    # is keyed on this `args` object, so it never outlives the arguments it
+    # was made for (a later `main()` or test installs new ones).
+    mcp._raptor_prepared = (args, str(Path(args.workspace)), root)  # type: ignore[attr-defined]
+    return root
 
 
 def workspace() -> Workspace:
@@ -36,19 +72,29 @@ def workspace() -> Workspace:
             "MCP server context is not initialised; start the server through "
             "its normal entry point."
         )
-    root = Path(args.workspace).resolve()
+    prepared = getattr(mcp, "_raptor_prepared", None)
+    if (prepared is not None and prepared[0] is args
+            and prepared[1] == str(Path(args.workspace))):
+        root, resolved = prepared[2], True
+    else:
+        root, resolved = Path(args.workspace).resolve(), False
     ws = getattr(mcp, "_raptor_ws", None)
-    if ws is None or ws.root != root:
-        ws = Workspace(
-            root,
-            retain_days=int(getattr(args, "retain_days", 30)),
-        )
-        # Retention sweep once per workspace.
-        try:
-            ws.sweep_retention()
-        except OSError:
-            pass
-        mcp._raptor_ws = ws  # type: ignore[attr-defined]
+    if ws is not None and ws.root == root:
+        return ws
+    with _WORKSPACE_LOCK:
+        ws = getattr(mcp, "_raptor_ws", None)
+        if ws is None or ws.root != root:
+            ws = Workspace(
+                root,
+                retain_days=int(getattr(args, "retain_days", 30)),
+                _resolved=resolved,
+            )
+            # Retention sweep once per workspace.
+            try:
+                ws.sweep_retention()
+            except OSError:
+                pass
+            mcp._raptor_ws = ws  # type: ignore[attr-defined]
     return ws
 
 

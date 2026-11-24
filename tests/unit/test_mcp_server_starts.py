@@ -4,8 +4,10 @@ answers a basic call.
 from __future__ import annotations
 
 import json
+import queue
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -29,12 +31,36 @@ def _jsonrpc_msg(method: str, *, params: dict | None = None,
     return (json.dumps(msg) + "\n").encode()
 
 
-def _read_jsonrpc(stream) -> dict:
-    """Read one JSON-RPC response from *stream* (newline-delimited)."""
-    line = stream.readline()
+def _read_jsonrpc(stream, timeout: float = 20.0) -> dict:
+    """Read one JSON-RPC response from *stream* (newline-delimited).
+
+    A broken server must fail the test rather than hang the whole suite,
+    so the blocking read runs in a daemon thread with a timeout.
+    """
+    lines: queue.Queue = queue.Queue(maxsize=1)
+    threading.Thread(target=lambda: lines.put(stream.readline()),
+                     daemon=True).start()
+    try:
+        line = lines.get(timeout=timeout)
+    except queue.Empty:
+        raise RuntimeError(
+            f"Server sent no reply within {timeout:g}s") from None
     if not line:
         raise RuntimeError("Server closed connection without a response")
     return json.loads(line)
+
+
+def _modern_discover_params() -> dict:
+    """The 2026-07-28 per-request envelope for `server/discover`."""
+    return {
+        "_meta": {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientInfo": {
+                "name": "test-client", "version": "0.1.0",
+            },
+            "io.modelcontextprotocol/clientCapabilities": {},
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -195,3 +221,180 @@ class TestMCPServerStarts:
         finally:
             proc.terminate()
             proc.wait(timeout=5)
+
+
+class TestLazyWorkspaceStartup:
+    """The transport must not wait for the Workspace to be constructed."""
+
+    def test_main_does_not_build_workspace_before_transport(
+            self, tmp_path, monkeypatch):
+        from raptor.mcp import server
+
+        seen: dict = {}
+
+        def fake_run(**kwargs):
+            seen["workspace"] = getattr(server.mcp, "_raptor_ws", None)
+            seen["kwargs"] = kwargs
+
+        monkeypatch.setattr(server, "_import_tools", lambda args: None)
+        monkeypatch.setattr(server.mcp, "run", fake_run)
+        monkeypatch.setattr(server.mcp, "_raptor_args", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None,
+                            raising=False)
+
+        root = tmp_path / "workspace"
+        assert server.main(["--workspace", str(root),
+                            "--transport", "stdio"]) == 0
+
+        # The directory tree exists (so a bad path still fails fast), but
+        # no Workspace was built before mcp.run().
+        assert seen["workspace"] is None
+        for name in ("models", "runs", "renders"):
+            assert (root / name).is_dir()
+
+    def test_main_reports_unusable_workspace(self, tmp_path, monkeypatch):
+        from raptor.mcp import server
+
+        monkeypatch.setattr(server.mcp, "_raptor_args", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None,
+                            raising=False)
+        blocker = tmp_path / "not-a-directory"
+        blocker.write_text("")
+        assert server.main(["--workspace", str(blocker),
+                            "--transport", "stdio"]) == 1
+
+    def test_prepared_root_is_pinned_against_a_symlink_swap(
+            self, tmp_path, monkeypatch):
+        from raptor.mcp import context, server
+
+        safe = tmp_path / "safe"
+        evil = tmp_path / "evil"
+        safe.mkdir()
+        evil.mkdir()
+        link = tmp_path / "workspace"
+        link.symlink_to(safe, target_is_directory=True)
+        args = type("A", (), {"workspace": str(link), "retain_days": 30})()
+        monkeypatch.setattr(server.mcp, "_raptor_args", args, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None, raising=False)
+
+        assert context.prepare_workspace() == safe.resolve()
+        link.unlink()
+        link.symlink_to(evil, target_is_directory=True)
+
+        ws = context.workspace()
+        assert ws.root == safe.resolve()
+        assert not (evil / "models").exists()
+
+    def test_prepared_root_that_became_a_symlink_is_refused(
+            self, tmp_path, monkeypatch):
+        from raptor.mcp import context, server
+
+        safe = tmp_path / "safe"
+        evil = tmp_path / "evil"
+        safe.mkdir()
+        evil.mkdir()
+        args = type("A", (), {"workspace": str(safe), "retain_days": 30})()
+        monkeypatch.setattr(server.mcp, "_raptor_args", args, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None, raising=False)
+        assert context.prepare_workspace() == safe.resolve()
+
+        safe.rename(tmp_path / "moved")
+        safe.symlink_to(evil, target_is_directory=True)
+
+        with pytest.raises(Exception, match="changed since start-up"):
+            context.workspace()
+
+    def test_prepared_root_refuses_a_swapped_managed_directory(
+            self, tmp_path, monkeypatch):
+        from raptor.mcp import context, server
+
+        safe = tmp_path / "safe"
+        evil = tmp_path / "evil"
+        safe.mkdir()
+        evil.mkdir()
+        args = type("A", (), {"workspace": str(safe), "retain_days": 30})()
+        monkeypatch.setattr(server.mcp, "_raptor_args", args, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None, raising=False)
+        context.prepare_workspace()
+
+        (safe / "models").rename(tmp_path / "moved-models")
+        (safe / "models").symlink_to(evil, target_is_directory=True)
+
+        with pytest.raises(Exception, match="changed since start-up"):
+            context.workspace()
+
+    @pytest.mark.parametrize("name", ["models", "runs", "renders"])
+    def test_startup_refuses_a_symlinked_managed_directory(
+            self, tmp_path, monkeypatch, name):
+        """A managed directory linked outside the root is refused up front.
+
+        `sweep_retention` rmtrees old entries under `runs`; through a
+        `runs -> elsewhere` link it would delete directories it does not
+        own.  The server must exit 1 before anything is swept.
+        """
+        import os
+        import time
+
+        from raptor.mcp import server
+
+        monkeypatch.setattr(server, "_import_tools", lambda args: None)
+        monkeypatch.setattr(server.mcp, "run", lambda **kw: None)
+        monkeypatch.setattr(server.mcp, "_raptor_args", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_ws", None, raising=False)
+        monkeypatch.setattr(server.mcp, "_raptor_prepared", None,
+                            raising=False)
+        root = tmp_path / "workspace"
+        root.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        old = elsewhere / "precious"
+        old.mkdir(parents=True)
+        stale = time.time() - 365 * 86400
+        os.utime(old, (stale, stale))
+        (root / name).symlink_to(elsewhere, target_is_directory=True)
+
+        assert server.main(["--workspace", str(root),
+                            "--transport", "stdio"]) == 1
+        assert old.is_dir()
+
+    def test_modern_discover_and_lazy_first_call(self, tmp_path):
+        """A 2026-07-28 first frame is served, then the first call loads."""
+        from raptor.api.workspace import Workspace
+
+        root = tmp_path / "workspace"
+        writer = Workspace(root)
+        writer.create_model("Alpha")
+        writer.create_model("Beta")
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "raptor.mcp", "--transport", "stdio",
+             "--workspace", str(root)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            resp = self._send(proc, "server/discover",
+                              _modern_discover_params())
+            assert "result" in resp, resp
+            assert resp["result"]["supportedVersions"] == ["2026-07-28"]
+
+            # The first tool call builds the Workspace on demand.
+            params = {**_modern_discover_params(), "name": "list_models",
+                      "arguments": {"include_examples": False}}
+            call = self._send(proc, "tools/call", params, id=2)
+            assert "result" in call, call
+            assert not call["result"].get("isError"), call["result"]
+            models = call["result"]["structuredContent"]["models"]
+            assert {m["name"] for m in models} == {"Alpha", "Beta"}
+        finally:
+            proc.terminate()
+            proc.wait(timeout=5)
+
+    @staticmethod
+    def _send(proc, method: str, params: dict | None = None,
+              id: int = 1) -> dict:
+        proc.stdin.write(_jsonrpc_msg(method, params=params, id=id))
+        proc.stdin.flush()
+        return _read_jsonrpc(proc.stdout)
