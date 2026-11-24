@@ -315,6 +315,16 @@ with `--workspace`. It contains:
 - `renders/` — rendered PNG and SVG files;
 - `Tables/` — default export folder for spreadsheets, CSV and text.
 
+`models/`, `runs/` and `renders/` must be real directories, not symlinks. The
+server deletes old entries under `runs/` and `renders/` (see `--retain-days`),
+so a link to a directory outside the workspace, or to another of the three,
+would let it delete files it does not own. To keep the workspace on another
+disk, point `--workspace` (or a symlink to the whole workspace) there instead.
+
+The server checks the workspace when it starts and exits with an error if it
+cannot use it. It reads the model list on the first tool call, and each model
+when a tool first needs it, so the client's handshake is answered at once.
+
 Every path argument is **relative to the workspace** (or an `--allow-read` /
 `--allow-write` directory). Absolute paths and `~` are refused. Use
 `workspace_info` when you need the root or the exact rules.
@@ -904,6 +914,17 @@ File arguments are relative to the workspace. Pass `exports/model.rbds`, not
 `/home/you/exports/model.rbds`, or add the directory with `--allow-write`
 (for exports) or `--allow-read` (for inputs). Call `workspace_info` to see the
 allowed roots.
+
+### `cannot use workspace ... is a symlink`
+
+One of the workspace's `models`, `runs` or `renders` directories is a symlink.
+The server refuses to start rather than follow it, because the retention sweep
+would delete old entries wherever the link points. Move the linked directory's
+contents into a real directory of the same name, or point `--workspace` at the
+disk you want instead. A symlink to the workspace root itself is fine.
+
+`changed since start-up` is the same refusal for a workspace path or directory
+that was replaced while the server was running; restart the server.
 
 ### Models from the desktop app do not appear
 
