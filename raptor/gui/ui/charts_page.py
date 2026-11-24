@@ -28,7 +28,7 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
+    QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
     QSpinBox, QSplitter, QStackedWidget, QToolButton, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
@@ -77,6 +77,9 @@ class ChartsPage(QWidget):
     """The chart list, the chart, and the controls the chart uses."""
 
     locate_requested = Signal(str, str)
+    #: the explicit comparison changed: hierarchy ids in series order
+    #: (empty is the automatic top four); the canvas rings follow it
+    compare_changed = Signal(list)
     #: the reader asked for the downtime charts before the drivers were worked out
     drivers_requested = Signal()
     #: the reader asked to switch these run options on (run_needs keys) and run
@@ -166,6 +169,13 @@ class ChartsPage(QWidget):
         rlay.setContentsMargins(SPACING["md"], SPACING["sm"], SPACING["md"], SPACING["sm"])
         rlay.setSpacing(SPACING["sm"])
         rlay.addLayout(self._build_bar())
+        self.chip_row = QWidget()
+        self.chip_row.setObjectName("CompareChips")
+        self._chip_lay = QHBoxLayout(self.chip_row)
+        self._chip_lay.setContentsMargins(0, 0, 0, 0)
+        self._chip_lay.setSpacing(SPACING["sm"])
+        self.chip_row.hide()
+        rlay.addWidget(self.chip_row)
         self.stack = QStackedWidget()
         self.chart = ChartWidget()
         self.chart.locate_requested.connect(self.locate_requested)
@@ -443,6 +453,73 @@ class ChartsPage(QWidget):
         self.compare_button.setText(
             "Compare: top 4" if not count else
             f"Compare: {count} selected")
+        self._update_chips()
+
+    def _update_chips(self) -> None:
+        """One chip per explicitly compared hierarchy: swatch, name, close."""
+        while self._chip_lay.count():
+            item = self._chip_lay.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+        names = {int(row.get("id") or 0): str(row.get("name") or "")
+                 for row in hier.rows(self._inputs.get("attribution"))}
+        shown = [ref for ref in self._selected if ref in names]
+        for index, ref in enumerate(shown):
+            self._chip_lay.addWidget(self._make_chip(
+                ref, names[ref], hier.SERIES_COLOURS[
+                    index % len(hier.SERIES_COLOURS)]))
+        self._chip_lay.addStretch(1)
+        self.chip_row.setVisible(bool(shown))
+        self._style_chips()
+
+    def _make_chip(self, ref: int, name: str, colour: str) -> QFrame:
+        chip = QFrame()
+        chip.setObjectName("CompareChip")
+        chip.setProperty("chipColour", colour)
+        lay = QHBoxLayout(chip)
+        lay.setContentsMargins(SPACING["sm"], 2, 2, 2)
+        lay.setSpacing(SPACING["xs"])
+        swatch = QLabel()
+        swatch.setObjectName("CompareChipSwatch")
+        swatch.setFixedSize(12, 12)
+        swatch.setStyleSheet(
+            f"background: {colour}; border-radius: 6px; border: none;")
+        swatch.setAccessibleName(f"Series colour for {name}")
+        lay.addWidget(swatch)
+        label = QLabel(name)
+        label.setObjectName("CompareChipName")
+        lay.addWidget(label)
+        close = QToolButton()
+        close.setObjectName("CompareChipClose")
+        close.setText("\u00d7")
+        close.setAutoRaise(True)
+        close.setCursor(Qt.CursorShape.PointingHandCursor)
+        close.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        close.setAccessibleName(f"Remove {name} from comparison")
+        close.setToolTip(f"Remove {name} from the comparison")
+        close.clicked.connect(lambda _c=False, ref=ref: self._remove_compare(ref))
+        lay.addWidget(close)
+        return chip
+
+    def _remove_compare(self, ref: int) -> None:
+        self.set_compare([r for r in self._selected if r != ref])
+
+    def _style_chips(self) -> None:
+        """Chip colours from the active theme tokens (re-run on a switch)."""
+        c = active_colour()
+        self.chip_row.setStyleSheet(
+            f"QFrame#CompareChip {{ background: {c['group_header']};"
+            f" border: 1px solid {c['border']}; border-radius: 10px; }}"
+            f"QLabel#CompareChipName {{ color: {c['text']}; background: transparent; }}"
+            f"QToolButton#CompareChipClose {{ color: {c['muted']};"
+            f" border: none; border-radius: 8px; padding: 0 4px;"
+            f" background: transparent; }}"
+            f"QToolButton#CompareChipClose:hover {{ color: {c['text']};"
+            f" background: {c['border']}; }}"
+            f"QToolButton#CompareChipClose:focus {{ border: 2px solid"
+            f" {c['accent']}; }}")
 
     def _toggle_compare(self, ref: int, checked: bool) -> None:
         chosen = list(self._selected)
@@ -478,6 +555,7 @@ class ChartsPage(QWidget):
 
     def _on_theme_changed(self, _dark: bool) -> None:
         """The list's muted text and the painted chart follow the theme."""
+        self._style_chips()
         self._time_cache.clear()
         self._rebuild()
 
@@ -581,9 +659,12 @@ class ChartsPage(QWidget):
                                   .get("id") or 0))
             except ValueError:
                 continue
+        before = list(self._selected)
         self._selected = list(dict.fromkeys(chosen))[:4]
         self._update_compare_menu()
         self._rebuild()
+        if before != self._selected:
+            self.compare_changed.emit(list(self._selected))
 
     def selected_hierarchies(self) -> list[int]:
         return list(self._selected)
@@ -649,7 +730,10 @@ class ChartsPage(QWidget):
             self._scope = None
         valid_ids = {int(row.get("id") or 0)
                      for row in ((attribution or {}).get("hierarchies") or [])}
+        before_selected = list(self._selected)
         self._selected = [hid for hid in self._selected if hid in valid_ids]
+        if before_selected != self._selected:
+            self.compare_changed.emit(list(self._selected))
         if baseline is not None:
             self.set_baseline(baseline)
         self._update_scope_menu()

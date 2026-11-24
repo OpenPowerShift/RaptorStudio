@@ -198,6 +198,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             lambda kind, name: self.element_clicked.emit(
                 "block" if kind == "element" else kind, name))
         self._charts_page.target_changed.connect(self.set_target)
+        self._charts_page.compare_changed.connect(self.chart_compare_changed)
         self._charts_page.capacity_target_changed.connect(
             self.set_capacity_target)
         self._tabs.addTab(self._charts_page, "Charts")
@@ -563,6 +564,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
+    #: the Charts tab's explicit comparison (hierarchy ids, series order)
+    chart_compare_changed = Signal(list)
 
     def set_chart_hierarchy(self, hierarchy_id: int | None) -> None:
         """The canvas level the Charts tab follows (0/None is System)."""

@@ -12,7 +12,7 @@ from __future__ import annotations
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QFrame
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, cast
 
 from shiboken6 import isValid
@@ -1340,7 +1340,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._refresh_node_badges()
         from raptor.gui.ui.diagram_out_of_service import apply_marks
         apply_marks(self)              # U27: cut / linked elements
-        self._apply_group_view()       # a group view survives level changes
+        self._apply_compare_emphasis()  # rings + fade survive level changes
 
         log.debug("_rebuild_scene: %d blocks, %d nodes, %d events, %d "
                   "hiers, %d links placed -- entering _apply_scene_layout",
@@ -3160,6 +3160,39 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         return (kind == "hier"
                 and f"hier:{oid}" in getattr(self, "_group_hiers", ()))
 
+    #: opacity of everything that is not being compared
+    _COMPARE_FADE = 0.35
+
+    def set_compare_emphasis(self, colours: Mapping[int, str]) -> None:
+        """Ring the compared hierarchy ovals (id -> series colour) and fade
+        the rest.  View state only: no model change, no undo command."""
+        self._compare_colours = {int(k): str(v) for k, v in (colours or {}).items()}
+        self._apply_compare_emphasis()
+
+    def _apply_compare_emphasis(self) -> None:
+        colours = getattr(self, "_compare_colours", {})
+        for hid, item in getattr(self, "_hier_items", {}).items():
+            try:
+                item.set_compare_ring(colours.get(hid))
+            except RuntimeError:
+                continue
+        # a comparison fades the level only when it shows a compared oval
+        self._compare_here = any(
+            hid in colours for hid in getattr(self, "_hier_items", {}))
+        self._apply_group_view()
+
+    def _compare_active_here(self) -> bool:
+        return bool(getattr(self, "_compare_here", False))
+
+    def _opacity_for(self, kind: str, oid: int, item, keep: bool) -> float:
+        base = self._base_opacity(item)
+        if not keep:
+            return min(base, 0.25)
+        if self._compare_active_here() and not (
+                kind == "hier" and oid in getattr(self, "_compare_colours", {})):
+            return min(base, self._COMPARE_FADE)
+        return base
+
     @staticmethod
     def _base_opacity(item) -> float:
         return 0.45 if getattr(item, "_oos_state", None) == "cut" else 1.0
@@ -3179,9 +3212,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                             ("hier", getattr(self, "_hier_items", {}))):
             for oid, item in items.items():
                 try:
-                    base = self._base_opacity(item)
-                    item.setOpacity(base if self._group_keeps(kind, oid)
-                                    else min(base, 0.25))
+                    item.setOpacity(self._opacity_for(
+                        kind, oid, item, self._group_keeps(kind, oid)))
                 except RuntimeError:
                     continue
 
@@ -3210,8 +3242,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 try:
                     keep = self._group_keeps(kind, oid) and (
                         not self._focus_mode or item in chosen)
-                    base = self._base_opacity(item)
-                    item.setOpacity(base if keep else min(base, 0.25))
+                    item.setOpacity(self._opacity_for(kind, oid, item, keep))
                 except RuntimeError:
                     continue
 
