@@ -1452,6 +1452,16 @@
    "text": "Save As",
    "tooltip": "Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
   },
+  "_save_version_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Save Version Now\u2026",
+   "tooltip": "Save the current state as a named version you can come back to\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
+  },
   "_select_action": {
    "checkable": true,
    "checked": true,
@@ -1991,6 +2001,7 @@
    "_run_toggle_action": true,
    "_save_action": false,
    "_save_as_action": false,
+   "_save_version_action": false,
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,
@@ -2167,6 +2178,7 @@
    "_run_toggle_action": true,
    "_save_action": true,
    "_save_as_action": true,
+   "_save_version_action": true,
    "_select_action": true,
    "_select_all_action": true,
    "_sensitivity_action": true,
@@ -2343,6 +2355,7 @@
    "_run_toggle_action": true,
    "_save_action": false,
    "_save_as_action": false,
+   "_save_version_action": false,
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,

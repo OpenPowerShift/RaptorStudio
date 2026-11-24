@@ -386,6 +386,7 @@ documentation.
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
 |Save |Save (Ctrl+S) |Ctrl+S
 |Save As |Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
+|Save Version Now… |Save the current state as a named version you can come back to |
 |Version History… |Browse the versions you saved with Save version now; open one as a copy or restore it to the file |
 |Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
 |Quit |Quit RAPTOR Studio (Ctrl+Q) |Ctrl+Q
@@ -398,6 +399,8 @@ documentation.
 |===
 |Control |What it does |Shortcut / value
 |Import Availability Workbench… |Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent |
+|Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
+|Data Table Template… |Save the open model's block data as an Excel (.xlsx) or OpenDocument (.ods) sheet with the columns Import Table reads. Edit it, then import it back |
 |===
 
 ==== Print and Export
