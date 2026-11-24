@@ -3698,12 +3698,16 @@ their name are numbered and listed under the chart.
 
 `target` (0 to 1, e.g. 0.995) draws a dashed target line on the
 outcome, chance, convergence, availability-over-time and year charts,
-and on `annual-capacity-fan` for a capacity-weighted availability
-target, as the window's Target buttons do. The dot and convergence
-charts also mark the median. It is a visual cue only. Without
-`target`, the model's saved targets are used (`configure_system`'s
-`availability_target`, and `capacity_target` for
-`annual-capacity-fan`), when the run's model is still open.
+as the window's Target button does. The dot and convergence
+charts also mark the median. It is a visual cue only.
+`capacity_target` (0 to 1: the share of the generated flow that must be
+delivered) draws a dashed line on `capacity-through-run`,
+`capacity-band` and `annual-capacity-fan`, and the captions of
+`capacity-waterfall` and `capacity-sankey` say whether delivery met it
+(on `annual-capacity-fan`, `target` still works as the capacity target).
+Without them, the model's saved targets are used (`configure_system`'s
+`availability_target` and `capacity_target`), when the run's model is
+still open.
 
 Hierarchy charts read the hierarchy roll-up: `hierarchy-scorecard`,
 `hierarchy-pareto`, `hierarchy-treemap`, `hierarchy-sunburst`,
@@ -3728,6 +3732,7 @@ a small loss fills the figure.
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `by_hierarchy` | boolean | no | `true` | — |
+| `capacity_target` | number \| null | no | `null` | — |
 | `chart` | string | no | `trial-outcome` | — |
 | `compare_to` | string \| null | no | `null` | — |
 | `depth` | integer \| null | no | `null` | — |
@@ -3745,6 +3750,7 @@ a small loss fills the figure.
 
 Parameter notes:
 
+- `capacity_target` — `capacity_target` (0 to 1: the share of the generated flow that must be delivered) draws a dashed line on `capacity-through-run`, `capacity-band` and `annual-capacity-fan`, and the captions of `capacity-waterfall` and `capacity-sankey` say whether delivery met it (on `annual-capacity-fan`, `target`…
 - `chart` — `chart` is the chart's name: one of those listed below.
 - `compare_to` — `compare_to` names a stored run whose hierarchy table is the baseline for `hierarchy-delta`.
 - `depth` — `depth` picks a model level (`1` is the top): ranking charts show that one level, while the treemap and sunburst grow that many levels (omit it for the top level on rankings and every level on the nested charts).
@@ -3755,7 +3761,7 @@ Parameter notes:
 - `page` — For a report or slide: `page` sizes the SVG (`screen` 760 x 400, `slide` 16:9, `a4` or `a3` landscape; the bigger pages give long names more room and declare their size in mm) and `min_share` (0 to 1, e.g. 0.01) folds the items below that share of the whole into one "N others" row or cell (element…
 - `run` — `run` picks the run a one-run chart shows (1 is the first).
 - `run_id` — Id of a finished run in the workspace, from simulate, start_run/run_status or get_run_results.
-- `target` — `target` (0 to 1, e.g. 0.995) draws a dashed target line on the outcome, chance, convergence, availability-over-time and year charts, and on `annual-capacity-fan` for a capacity-weighted availability target, as the window's Target buttons do.
+- `target` — `target` (0 to 1, e.g. 0.995) draws a dashed target line on the outcome, chance, convergence, availability-over-time and year charts, as the window's Target button does.
 - `y_floor` — `y_floor` (0 to 1) fixes the bottom of an availability axis; leave it out to fit the axis to the data.
 
 **Returns**
@@ -3831,6 +3837,8 @@ Parameter notes:
 
 | Field | Type | Always present |
 | --- | --- | --- |
+| `capacity_target` | any | yes |
+| `capacity_verdict` | string | yes |
 | `caption` | string | yes |
 | `dot_target` | null \| number | yes |
 | `dots` | array<any> | yes |
