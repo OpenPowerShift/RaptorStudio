@@ -533,20 +533,31 @@ def _written(obj) -> dict[str, str]:
 _CHANGES: list[int] = []
 
 
-def _relayout(window: QWidget) -> None:
-    """Lay *window* out again now, for the text that was just replaced.
+def _relayout(root: QWidget) -> None:
+    """Lay *root* out again now, for the text that was just replaced.
 
     A translated label is usually longer than its English source. Qt only
     queues the relayout (a posted LayoutRequest), so until the event loop
     next runs the buttons still have their English widths and a grab or
     size query taken straight after a translation shows them clipped.
+
+    Only the translated subtree and the chain of layouts above it are
+    redone: the Inspector translates its rebuilt page on every selection,
+    and relaying out the whole main window there cost every click.
     """
-    if not window.isVisible():
+    if not root.isVisible():
         return
     # Innermost first: a panel with its own layout (a button row inside a
     # dialog) must settle before the layout that holds the panel asks it
-    # how big it is.
-    for widget in (*reversed(window.findChildren(QWidget)), window):
+    # how big it is; then each ancestor, up to the window.
+    chain: list[QWidget] = [*reversed(root.findChildren(QWidget)), root]
+    parent = root.parentWidget()
+    while parent is not None:
+        chain.append(parent)
+        if parent.isWindow():
+            break
+        parent = parent.parentWidget()
+    for widget in chain:
         layout = widget.layout()
         if layout is not None:
             layout.invalidate()
@@ -808,7 +819,7 @@ def translate_widgets(root: QWidget) -> None:  # noqa: C901, PLR0912 - one flat 
                                 context=WIDGET_CONTEXT)
         _TRANSLATED_WINDOWS.add(root.window())
         if _CHANGES:
-            _relayout(root.window())
+            _relayout(root)
     finally:
         _TRANSLATING = False
 
