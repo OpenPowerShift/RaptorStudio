@@ -202,12 +202,32 @@ def direct_keys(row: dict[str, Any]) -> set[tuple[str, int]]:
             if item.get("kind") is not None and item.get("id") is not None}
 
 
+#: (the hierarchies list, its length, parent id -> rows below it).  One
+#: entry: the treemap asks for the children of every row of one attribution,
+#: and scanning all rows for each made it quadratic (2,760 hierarchies took
+#: half a minute).  Held by identity, so another attribution rebuilds it.
+_CHILD_INDEX: tuple[list[Any], int, dict[int, list[dict[str, Any]]]] | None = None
+
+
+def _children_of(attribution: dict[str, Any] | None
+                 ) -> dict[int, list[dict[str, Any]]]:
+    global _CHILD_INDEX
+    held = (attribution or {}).get("hierarchies") or []
+    cached = _CHILD_INDEX
+    if cached is not None and cached[0] is held and cached[1] == len(held):
+        return cached[2]
+    index: dict[int, list[dict[str, Any]]] = {}
+    for item in held:
+        index.setdefault(int(item.get("parent") or 0), []).append(item)
+    _CHILD_INDEX = (held, len(held), index)
+    return index
+
+
 def child_rows(attribution: dict[str, Any] | None,
                row: dict[str, Any]) -> list[dict[str, Any]]:
     """The hierarchies directly below one row, largest share first."""
     hid = int(row.get("id") or 0)
-    found = [item for item in rows(attribution)
-             if int(item.get("parent") or 0) == hid]
+    found = _children_of(attribution).get(hid, [])
     return sorted(found, key=lambda item: -(
         float((item.get("dtci") or {}).get("mean") or 0.0)))
 
