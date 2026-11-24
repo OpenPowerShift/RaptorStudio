@@ -21,6 +21,9 @@ from raptor.core.history import HistoryStore, Snapshot, format_bytes
 from raptor.gui.ui.history_description import DescriptionPanel
 
 
+_CANCELLED: Any = object()
+
+
 @dataclass
 class CurrentState:
     """The working state the Current row stands for.
@@ -68,6 +71,10 @@ class HistoryDialog(QDialog):
         self._loaded: dict[str, Any] = {}
         self._snapshots: list[Snapshot] = []
         self.action: str | None = None
+        #: True while the model is being saved or a version copied in.
+        self._working = False
+        self._busy = False                      # `run_blocking`'s flag
+        self._phase_bar: Any = None
         self.snapshot: Snapshot | None = None
         self.setWindowTitle(f"Version History — {Path(file).name}")
         self.setMinimumSize(860, 520)
@@ -99,9 +106,13 @@ class HistoryDialog(QDialog):
         body.addLayout(self._build_right_column(), 3)
         lay.addLayout(body, 1)
         lay.addLayout(self._build_actions())
+        # "Saving version… 45 %" appears here while a save or copy runs.
+        self._progress_slot = QVBoxLayout()
+        lay.addLayout(self._progress_slot)
 
         box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         box.rejected.connect(self.reject)
+        self._close_box = box
         lay.addWidget(box)
         if not Path(self.file).is_file():
             self._snapshot_btn.setEnabled(False)
@@ -376,6 +387,12 @@ class HistoryDialog(QDialog):
             desc.save()
 
     def done(self, result: int) -> None:
+        if self._working:
+            # A save or a copy into History is running: closing now would
+            # abandon it half done. The dialog closes once it has finished.
+            self._note.setText(
+                i18n.tr("Saving — the dialog can be closed when it finishes."))
+            return
         self._settle_description(None)
         super().done(result)
 
@@ -467,6 +484,65 @@ class HistoryDialog(QDialog):
             lines += _diff_lines(diff)
         return stats, "\n".join(lines).strip("\n")
 
+    # -- progress host (see `save_progress.run_blocking`) -----------------
+    def add_progress_widget(self, widget: Any) -> None:
+        self._progress_slot.addWidget(widget)
+
+    def remove_progress_widget(self, widget: Any) -> None:
+        self._progress_slot.removeWidget(widget)
+
+    def show_hint(self, text: str) -> None:
+        self._note.setText(text)
+
+    def _set_working(self, working: bool) -> None:
+        """Lock the buttons while a save/copy runs; restore them after."""
+        self._working = working
+        for button in (self._snapshot_btn, self._open_btn, self._restore_btn,
+                       self._label_btn, self._delete_btn):
+            button.setEnabled(False)
+        self._list.setEnabled(not working)
+        self._close_box.setEnabled(not working)
+        if not working:
+            self._snapshot_btn.setEnabled(Path(self.file).is_file())
+            self._show_selected(self._list.currentRow())
+
+    def _save_with_progress(self) -> bool:
+        """Run the host's save of unsaved edits, mirroring its progress in
+        this dialog (the save itself runs on a worker; see `save_progress`)."""
+        from PySide6.QtCore import QTimer
+        from raptor.gui.ui.save_progress import SHOW_AFTER_MS, SaveProgressBar
+        host = self.parent()
+        sinks = getattr(host, "_save_progress_sinks", None)
+        latest: list[Any] = [0, None]
+
+        def sink(done: int, total: int | None) -> None:
+            latest[:] = [done, total]
+            if self._phase_bar is not None:
+                self._phase_bar.update_progress(done, total)
+
+        def show() -> None:
+            bar = SaveProgressBar(Path(self.file).name, self)
+            bar.update_progress(*latest)
+            self._progress_slot.addWidget(bar)
+            self._phase_bar = bar
+
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(show)
+        if sinks is not None:
+            sinks.append(sink)
+        timer.start(SHOW_AFTER_MS)
+        try:
+            return bool(self._save_current())  # type: ignore[misc]
+        finally:
+            timer.stop()
+            if sinks is not None and sink in sinks:
+                sinks.remove(sink)
+            if self._phase_bar is not None:
+                self._progress_slot.removeWidget(self._phase_bar)
+                self._phase_bar.deleteLater()
+                self._phase_bar = None
+
     def _snapshot_now(self) -> None:
         """Turn the Current state into a version, with an optional label.
 
@@ -480,13 +556,20 @@ class HistoryDialog(QDialog):
             i18n.tr("Label for the new version (optional):"))
         if not ok:
             return
-        if self._save_current is not None and not self._save_current():
+        self._set_working(True)
+        try:
+            shot, newest = self._save_and_record(label)
+        except Exception as exc:  # noqa: BLE001 - say so in the dialog
+            self._set_working(False)
+            self._note.setText(
+                i18n.tr("Could not save the version: %1").replace(
+                    "%1", str(exc)))
+            return
+        self._set_working(False)
+        if shot is _CANCELLED:
             self._note.setText(
                 i18n.tr("Saving was cancelled; no version recorded."))
             return
-        newest = self._store.snapshots(self.file)[:1]
-        shot = self._store.record(
-            self.file, reason="manual", label=label)
         if shot is None:
             shot = newest[0] if newest else None
             when = shot.time_text() if shot is not None else ""
@@ -518,6 +601,20 @@ class HistoryDialog(QDialog):
             # recorded a version usually has a reason to note why.
             if shot is not None and not shot.description:
                 self._desc.begin_edit()
+
+    def _save_and_record(self, label: str) -> tuple[Any, list[Snapshot]]:
+        """Save unsaved edits, then copy the file into History (both off the
+        GUI thread, with progress shown here)."""
+        from raptor.gui.ui.save_progress import run_blocking
+        if self._save_current is not None and not self._save_with_progress():
+            return _CANCELLED, []
+        newest = self._store.snapshots(self.file)[:1]
+        shot = run_blocking(
+            self, self,
+            lambda progress: self._store.record(
+                self.file, reason="manual", label=label, progress=progress),
+            kind="version", flag="_busy")
+        return shot, newest
 
     def _label_selected(self) -> None:
         shot = self._selected_snapshot()

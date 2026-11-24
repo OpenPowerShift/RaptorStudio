@@ -189,3 +189,88 @@ def test_save_as_a_second_time_during_a_save_is_ignored(window, monkeypatch):
                                (150, window._save_file)])
     window._save_file()
     assert calls == []
+
+
+def _history_dialog(window, qapp):
+    from raptor.gui.ui.history_dialog import HistoryDialog
+    window._save_file()                     # the file must exist
+    return HistoryDialog(window, window._current_file,
+                         current_model=window._rbd,
+                         save_current=window._save_for_history,
+                         current_state=window._history_current_state)
+
+
+def test_save_version_now_shows_progress_in_the_dialog_for_both_phases(
+        window, qapp, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    dialog = _history_dialog(window, qapp)
+    monkeypatch.setattr(QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("v1", True)))
+    window._mark_dirty()
+    probes: dict = {}
+
+    def bars():
+        return dialog.findChildren(save_progress.SaveProgressBar)
+
+    def during_save():
+        probes["save_working"] = dialog._working
+        probes["save_btn_enabled"] = dialog._snapshot_btn.isEnabled()
+        probes["save_close_enabled"] = dialog._close_box.isEnabled()
+        probes["save_bar"] = [b.label.text() for b in bars()]
+        dialog.done(0)                      # closing mid-save is refused
+        probes["still_open_1"] = dialog._working
+
+    _slow_writer(monkeypatch, [(500, during_save)], hold_ms=800)
+
+    real = dialog._store.record
+    gate = threading.Event()
+
+    def slow_record(file, **kw):
+        kw["progress"](50, 100)
+        gate.wait(10)
+        return real(file, **kw)
+
+    monkeypatch.setattr(dialog._store, "record", slow_record)
+
+    def during_record():
+        probes["rec_working"] = dialog._working
+        probes["rec_bar"] = [b.label.text() for b in bars()]
+        probes["rec_hist_enabled"] = dialog._list.isEnabled()
+        dialog.done(0)
+        probes["still_open_2"] = dialog._working
+
+    # the record phase starts after the 800 ms save; probe 500 ms into it
+    QTimer.singleShot(1400, during_record)
+    QTimer.singleShot(1500, gate.set)
+    dialog._snapshot_now()
+
+    assert probes["save_working"] and not probes["save_btn_enabled"]
+    assert not probes["save_close_enabled"] and probes["still_open_1"]
+    assert any("plant.rbdz" in t and "50 %" in t for t in probes["save_bar"])
+    assert probes["rec_working"] and probes["still_open_2"]
+    assert any("Saving version" in t and "50 %" in t
+               for t in probes["rec_bar"])
+    assert not probes["rec_hist_enabled"]
+    # finished: controls are back, the new version is listed and selected
+    assert not dialog._working and dialog._snapshot_btn.isEnabled()
+    assert dialog._close_box.isEnabled() and dialog._list.isEnabled()
+    assert len(dialog._snapshots) == 1 and dialog._snapshots[0].label == "v1"
+    assert dialog.findChildren(save_progress.SaveProgressBar) == [] or \
+        all(not b.isVisible() for b in
+            dialog.findChildren(save_progress.SaveProgressBar))
+
+
+def test_save_version_now_failure_reenables_the_dialog(
+        window, qapp, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    dialog = _history_dialog(window, qapp)
+    monkeypatch.setattr(QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("v", True)))
+
+    def boom(*a, **k):
+        raise OSError("history disk full")
+
+    monkeypatch.setattr(dialog._store, "record", boom)
+    dialog._snapshot_now()
+    assert not dialog._working and dialog._snapshot_btn.isEnabled()
+    assert "history disk full" in dialog._note.text()

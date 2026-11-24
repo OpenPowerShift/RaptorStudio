@@ -206,6 +206,51 @@ def _atomic_write(path: Path, data: bytes) -> None:
         raise
 
 
+def _stage_copy(path: Path, folder: Path, progress: Any = None
+                ) -> tuple[Path, str, int]:
+    """Stream *path* into a temp file in *folder*, hashing as it goes.
+
+    One pass, constant memory: returns ``(temp path, sha256, size)``. The
+    caller renames the temp file to its content-addressed name (an atomic
+    replace within one folder) or deletes it. ``progress(done, total)``
+    follows the bytes copied.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256()
+    done = 0
+    fd, tmp = tempfile.mkstemp(prefix="stage.", suffix=".part",
+                               dir=str(folder))
+    try:
+        with open(path, "rb") as src, os.fdopen(fd, "wb") as out:
+            total = os.fstat(src.fileno()).st_size
+            while chunk := src.read(1024 * 1024):
+                digest.update(chunk)
+                out.write(chunk)
+                done += len(chunk)
+                if progress is not None:
+                    progress(done, max(total, done))
+            out.flush()
+            os.fsync(out.fileno())
+        try:
+            os.chmod(tmp, _new_file_mode())
+        except OSError:
+            pass
+    except OSError as exc:
+        _discard(Path(tmp))
+        raise HistoryError(f"cannot read {path}: {exc}") from exc
+    except BaseException:
+        _discard(Path(tmp))
+        raise
+    return Path(tmp), digest.hexdigest(), done
+
+
+def _discard(path: Path) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 def _is_automatic(entry: dict[str, Any]) -> bool:
     return (str(entry.get("reason") or "") in AUTOMATIC_REASONS
             and not clean_label(entry.get("label"))
@@ -338,7 +383,8 @@ class HistoryStore:
     # -- writing --------------------------------------------------------
     def record(self, file: str | Path, *, reason: str = "save",
                label: str = "", data: bytes | None = None,
-               description: str = "") -> Snapshot | None:
+               description: str = "",
+               progress: Any = None) -> Snapshot | None:
         """Checkpoint the file as it is now. Returns None when unchanged.
 
         `reason` says who took it: "manual"/"snapshot" are the user's (kept
@@ -353,13 +399,33 @@ class HistoryStore:
         newest version already carries a *different* label or description,
         nothing is overwritten: a new entry is added. It names the same
         stored file, so the bytes cost no further disk.
+
+        When the file is read (no `data`) it is streamed through a temp file
+        in the history folder while it is hashed, so a large archive is never
+        held in memory; `progress(done, total)` follows those bytes and may be
+        called from the calling thread only.
         """
         path = Path(file)
+        staged: Path | None = None
+        if data is not None:
+            payload = data
+            digest = hashlib.sha256(payload).hexdigest()
+            size = len(payload)
+        else:
+            payload = None
+            staged, digest, size = _stage_copy(path, self._folder(path),
+                                               progress)
         try:
-            payload = data if data is not None else path.read_bytes()
-        except OSError as exc:
-            raise HistoryError(f"cannot read {path}: {exc}") from exc
-        digest = hashlib.sha256(payload).hexdigest()
+            return self._record_bytes(path, payload, staged, digest, size,
+                                      reason, label, description)
+        finally:
+            if staged is not None:
+                _discard(staged)      # a no-op once it was renamed into place
+
+    def _record_bytes(self, path: Path, payload: bytes | None,
+                      staged: Path | None, digest: str, size: int,
+                      reason: str, label: str, description: str
+                      ) -> Snapshot | None:
         label = clean_label(label)
         description = clean_description(description)
         with self._lock, _file_lock(self._folder(path) / "index.lock"):
@@ -396,9 +462,13 @@ class HistoryStore:
             stored = digest + suffix
             folder = self._folder(path)
             target = folder / stored
-            if not (target.is_file() and target.stat().st_size == len(payload)
+            if not (target.is_file() and target.stat().st_size == size
                     and file_digest(target) == digest):
-                _atomic_write(target, payload)
+                if staged is not None:
+                    os.replace(staged, target)
+                else:
+                    assert payload is not None
+                    _atomic_write(target, payload)
             doc = self._read_index(path)
             entries = [e for e in doc.get("snapshots", [])
                        if isinstance(e, dict)]
@@ -406,7 +476,7 @@ class HistoryStore:
                 "id": sid, "file": str(path), "created": now.isoformat(
                     timespec="seconds"),
                 "reason": str(reason or "save"), "label": label,
-                "bytes": len(payload), "sha256": digest, "stored": stored,
+                "bytes": size, "sha256": digest, "stored": stored,
                 **({"description": description} if description else {}),
             })
             doc, removed = self._prune(path, entries)
@@ -420,7 +490,7 @@ class HistoryStore:
                 id=sid, file=str(path),
                 created=now.isoformat(timespec="seconds"),
                 reason=str(reason or "save"), label=label,
-                bytes=len(payload), sha256=digest, path=target,
+                bytes=size, sha256=digest, path=target,
                 description=description)
 
     def _entry_size(self, folder: Path, entry: dict[str, Any]) -> int:
