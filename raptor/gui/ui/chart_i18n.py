@@ -417,6 +417,13 @@ def _translate_provenance(spec: Any) -> tuple[dict[str, Any], bool]:
     if isinstance(labels, dict) and labels:
         new["group_labels"] = {key: word(val) if isinstance(val, str) else val
                                for key, val in labels.items()}
+    nodes = prov.get("nodes")
+    if isinstance(nodes, list):
+        fixed = {"generated", "delivered", "lost", "unattributed"}
+        new["nodes"] = [
+            {**n, "name": word(n["name"])}
+            if isinstance(n, dict) and n.get("id") in fixed
+            and isinstance(n.get("name"), str) else n for n in nodes]
     if isinstance(prov.get("summary"), str):
         new["summary"] = translate_caption(prov["summary"])
     return new, new != prov

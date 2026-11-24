@@ -110,6 +110,9 @@ SOURCES: tuple[str, ...] = (
     "generated flow → delivered and lost → cause",
     "generated flow → delivered and lost → hierarchy → cause",
     "top level", "every level",
+    # the Sankey's fixed nodes
+    "Lost", "Lost capacity", "Delivered", "Generated energy",
+    "Not attributed", "Not in this selection",
     # the causes an outage is charged to (`CAUSE_LABELS` in the API)
     "Hands-on repair", "Waiting for a spare",
     "Waiting for people or equipment", "Logistics delay",
