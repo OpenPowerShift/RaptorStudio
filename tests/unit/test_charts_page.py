@@ -882,3 +882,23 @@ def test_no_event_log_still_shows_hierarchy_and_phase_questions(qapp):
     assert page.select("Hierarchy scorecard")
     assert "event log" in page.missing_text.text()
     assert page.missing_action.isVisibleTo(page)
+
+
+def test_scorecard_and_overlay_paint_with_baseline_and_end_labels(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.resize(900, 700)
+    page.set_baseline(list(attribution["hierarchies"][:1]))
+    page._rebuild()
+    assert page.select("Hierarchy scorecard")
+    rows = {r["name"]: r for r in page.selected_spec().series}
+    assert rows["Intake"]["baseline"]["status"] == "same"
+    assert rows["Filtration"]["baseline"]["status"] == "new"
+    assert rows["Intake"]["dots"]
+    assert not page.chart.grab().isNull()
+    page.set_compare([100])
+    assert page.select("When did each hierarchy's downtime build up?")
+    assert page.selected_spec().provenance["end_labels"]
+    assert not page.chart.grab().isNull()

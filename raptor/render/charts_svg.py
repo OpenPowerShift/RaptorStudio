@@ -1066,6 +1066,14 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
     layers = [layer for layer in spec.series if layer.get("t")]
     if not layers:
         return []
+    labelled = [layer for layer in layers if layer.get("end_text")
+                ] if spec.provenance.get("end_labels") else []
+    label_w = 0.0
+    if labelled:
+        # right margin for the direct end labels (never over a third of the chart)
+        label_w = min(max(_width(str(layer["end_text"])) for layer in labelled),
+                      area.width * 0.4)
+        area = _Box(area.left, area.top, area.right - label_w - 6, area.bottom)
     fmt = _fmt_of(spec)
     t_start = min(float(layer["t"][0]) for layer in layers)
     t_end = max(float(layer["t"][-1]) for layer in layers)
@@ -1106,6 +1114,8 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
         if layer.get("dash"):
             line = line.replace("/>", " stroke-dasharray='5,3'/>")
         out.append(line)
+    if labelled:
+        _end_labels(out, frame, labelled, pt, label_w)
     target = _target(spec)
     if target is not None and low <= target <= high:
         _target_line(out, frame, target, horizontal=True,
@@ -1120,6 +1130,30 @@ def _timeline(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901 - one pas
         label = f"median {format_value(median, fmt, 5)}"
         out.append(_text(frame.box.left + 4, y - 4, label, size=9))
     return out
+
+
+def _end_labels(out: list[str], frame: _Frame, layers: list[dict],
+                pt: Callable[[float, float], tuple[float, float]],
+                label_w: float) -> None:
+    """Name and end value beside each line's end, in the line's colour; labels
+    nudged apart so none overlap, with a leader line from a moved one."""
+    from raptor.api.insight.timecharts import spread_labels
+    ends = [pt(float(layer["t"][-1]), float(layer["y"][-1])) for layer in layers]
+    gap = LINE_H + 1.0
+    placed = spread_labels([y for _x, y in ends], gap,
+                           frame.box.top + gap / 2, frame.box.bottom - gap / 2)
+    x = frame.box.right + 8
+    for layer, (ex, ey), ly in zip(layers, ends, placed, strict=True):
+        colour = layer.get("colour") or _TONES.get(str(layer.get("tone")), ACCENT)
+        if abs(ly - ey) > 1.5:
+            out.append(_line(ex, ey, x - 2, ly, colour, width=0.8))
+        # a long name loses its tail, never the end value
+        name, value = str(layer.get("name") or ""), str(layer.get("end_value") or "")
+        text = f"{name} {value}".strip()
+        while len(name) > 1 and _width(text) > label_w:
+            name = name[:-2] + "…"
+            text = f"{name} {value}".strip()
+        out.append(_text(x, ly + 4, text, size=10, colour=colour, weight="600"))
 
 
 @dataclass
@@ -1651,7 +1685,9 @@ def _sunburst(spec: ChartSpec, area: _Box) -> list[str]:
     return out
 
 
-def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:
+def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:  # noqa: C901
+    from raptor.api.insight.charts import (
+        scorecard_badge, scorecard_strip)
     rows = spec.series
     if not rows:
         return []
@@ -1660,6 +1696,8 @@ def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:
     width = (area.width - gap * (columns - 1)) / columns
     rows_n = (len(rows) + columns - 1) // columns
     height = (area.height - gap * (rows_n - 1)) / max(1, rows_n)
+    dot_max = float(spec.provenance.get("dot_max") or 0.0)
+    badge_colours = {"good": "#1B7F4B", "bad": "#B3261E", "neutral": MUTED}
     out: list[str] = []
     for i, row in enumerate(rows):
         col, line = i % columns, i // columns
@@ -1675,13 +1713,42 @@ def _scorecard(spec: ChartSpec, area: _Box) -> list[str]:
         if _number(row.get("sem")):
             out.append(_text(x + 8, y + 58, f"± {2 * float(row['sem']) * 100:.2g} pts",
                              size=9, colour=MUTED))
-        detail = (f"{int(row.get('members') or 0)} inside · "
-                  f"{int(row.get('starters') or 0)} started")
+        badge = scorecard_badge(row)
+        if badge is not None:
+            out.append(_text(x + 8, y + 72, badge[1], size=9, weight="600",
+                             colour=badge_colours.get(badge[0], MUTED)))
+        detail = (f"{int(row.get('members') or 0)} members · "
+                  f"{int(row.get('starters') or 0)} started outages")
         out.append(_text(x + 8, y + height - 8, detail, size=9, colour=MUTED))
         cause = str(row.get("cause") or "")
         if cause:
             out.append(_text(x + width - 8, y + 18, CAUSE_LABELS.get(cause, cause),
                              size=9, anchor="end", colour=MUTED))
+        dots = row.get("dots") or []
+        if dots and height >= 64:
+            out.extend(_strip(dots, dot_max, x + width * 0.5, x + width - 12,
+                              y + height - 20, value, scorecard_strip))
+    return out
+
+
+def _strip(dots: list[dict], dot_max: float, left: float, right: float,
+           base: float, mean: float, layout: Callable[..., list[tuple[float, int]]]) -> list[str]:
+    """A tile's per-run dot strip on the scale shared by every tile, with
+    the mean as a tick and 0 and the scale's end named under it."""
+    from raptor.api.insight.charts import scorecard_scale_text
+    radius = 2.4
+    out = [_line(left, base, right, base, GRID)]
+    for dx, level in layout(dots, dot_max, right - left, radius):
+        out.append(f"<circle cx='{_fmt(left + dx)}' cy='{_fmt(base - radius - 1 - level * 2 * radius)}' "
+                   f"r='{radius}' fill='{ACCENT}' fill-opacity='0.75'/>")
+    if dot_max > 0:
+        mx = left + mean / dot_max * (right - left)
+        out.append(_line(mx, base - 24, mx, base + 3, INK, width=1.4))
+    out.append(_text(left, base + 13, "0", size=8, colour=MUTED))
+    out.append(_text(right, base + 13, scorecard_scale_text(dot_max),
+                     size=8, anchor="end", colour=MUTED))
+    out.append(_text((left + right) / 2, base + 13, "each dot a run", size=8,
+                     anchor="middle", colour=MUTED))
     return out
 
 

@@ -15,6 +15,7 @@ carries a name selects the element in the canvas when clicked.
 """
 from __future__ import annotations
 
+import bisect
 import csv
 import math
 from collections.abc import Callable, Sequence
@@ -1296,10 +1297,20 @@ class ChartWidget(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
 
-    def _paint_timeline(self, painter, spec, palette, area) -> None:
+    def _paint_timeline(self, painter, spec, palette, area) -> None:  # noqa: C901
         layers = [layer for layer in spec.series if layer.get("t")]
         if not layers:
             return self._paint_none(painter, spec, palette, area)
+        labelled = ([layer for layer in layers if layer.get("end_text")]
+                    if spec.provenance.get("end_labels") else [])
+        label_w = 0.0
+        if labelled:
+            # right margin for the direct end labels (never over a third)
+            fm = QFontMetrics(self.font())
+            label_w = min(max(fm.horizontalAdvance(str(layer["end_text"]))
+                              for layer in labelled) + 8, area.width() * 0.4)
+            area = QRectF(area.left(), area.top(),
+                          max(1.0, area.width() - label_w - 6), area.height())
         fmt = self._fmt()
         t_end = max(float(layer["t"][-1]) for layer in layers)
         t_start = min(float(layer["t"][0]) for layer in layers)
@@ -1335,12 +1346,54 @@ class ChartWidget(QWidget):
         for layer in layers:
             self._timeline_layer(painter, palette, layer, pt, y_low)
         painter.restore()
+        if labelled:
+            self._timeline_end_labels(painter, palette, frame, labelled, pt,
+                                      label_w, t_end)
         target = self._target(spec)
         if target is not None and y_low <= target <= y_high:
             self._target_line(painter, palette, frame, target, horizontal=True,
                               label=f"target {format_value(target, fmt, 5)}")
         self._probe = (frame, _timeline_reader(
             layers, fmt, str(spec.provenance.get("time_units") or ""), frame, pt))
+
+    def _timeline_end_labels(self, painter: QPainter, palette: dict[str, str],
+                             frame: _Frame, layers: list[dict],
+                             pt: Callable[[float, float], QPointF], label_w: float,
+                             t_end: float) -> None:
+        """Name and end value beside each line's end, in the line's colour;
+        labels nudged apart so none overlap, with a leader from a moved one."""
+        from raptor.api.insight.timecharts import spread_labels
+        fm = QFontMetrics(self.font())
+        ends = []
+        for layer in layers:
+            ts = [float(t) for t in layer["t"]]
+            k = max(0, bisect.bisect_right(ts, t_end) - 1)   # last visible point
+            ends.append(pt(ts[k], float(layer["y"][k])))
+        gap = fm.height() + 1.0
+        rect = frame.rect
+        placed = spread_labels([p.y() for p in ends], gap,
+                               rect.top() + gap / 2, rect.bottom() - gap / 2)
+        x = rect.right() + 8
+        bold = QFont(self.font())
+        bold.setBold(True)
+        bold_fm = QFontMetrics(bold)
+        for layer, end, ly in zip(layers, ends, placed, strict=True):
+            colour = _tone(palette, layer)
+            if abs(ly - end.y()) > 1.5:
+                painter.setPen(QPen(colour, 0.8))
+                painter.drawLine(QPointF(min(end.x(), rect.right()), end.y()),
+                                 QPointF(x - 2, ly))
+            painter.setFont(bold)
+            painter.setPen(colour)
+            value = str(layer.get("end_value") or "")
+            room = label_w - bold_fm.horizontalAdvance(f" {value}")
+            text = (bold_fm.elidedText(str(layer.get("name") or ""),
+                                       Qt.TextElideMode.ElideRight, int(max(room, 20)))
+                    + f" {value}")
+            painter.drawText(QRectF(x, ly - gap / 2, label_w + 4, gap),
+                             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                             text)
+        painter.setFont(self.font())
 
     @staticmethod
     def _timeline_layer(painter: QPainter, palette: dict[str, str], layer: dict,
@@ -1489,7 +1542,8 @@ class ChartWidget(QWidget):
                                  Qt.AlignmentFlag.AlignHCenter,
                                  "first" if column == 0 else f"then (step {column + 1})")
 
-    def _paint_scorecard(self, painter, spec, palette, area) -> None:
+    def _paint_scorecard(self, painter, spec, palette, area) -> None:  # noqa: C901
+        from raptor.api.insight.charts import scorecard_badge
         rows = spec.series
         if not rows:
             return self._paint_none(painter, spec, palette, area)
@@ -1532,9 +1586,29 @@ class ChartWidget(QWidget):
             if not compact:
                 painter.drawText(rect.adjusted(8, 0, -8, -6),
                                  Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
-                                 f"{int(row.get('members') or 0)} inside · "
-                                 f"{int(row.get('starters') or 0)} started")
+                                 f"{int(row.get('members') or 0)} members · "
+                                 f"{int(row.get('starters') or 0)} started outages")
+            badge = scorecard_badge(row)
+            if badge is not None:
+                tone, text = badge
+                painter.setPen(QColor(palette["result_green"] if tone == "good" else
+                                      palette["result_red"] if tone == "bad" else
+                                      palette["muted"]))
+                bold = QFont(self.font())
+                bold.setBold(True)
+                painter.setFont(bold)
+                badge_rect = rect.adjusted(8, 43 if compact else 60, -8, 0)
+                painter.drawText(badge_rect,
+                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+                                 QFontMetrics(bold).elidedText(
+                                     text, Qt.TextElideMode.ElideRight,
+                                     int(badge_rect.width())))
+                painter.setFont(self.font())
+            if row.get("dots") and height >= 64:
+                self._scorecard_strip(painter, palette, row, rect,
+                                      float(spec.provenance.get("dot_max") or 0.0))
             cause = str(row.get("cause") or "")
+            painter.setPen(QColor(palette["muted"]))
             if cause:
                 painter.drawText(rect.adjusted(8, 4, -8, 0),
                                  Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
@@ -1542,6 +1616,40 @@ class ChartWidget(QWidget):
             self._hit(rect, "hierarchy", str(row.get("name") or ""),
                       f"{row.get('name')}: {format_value(value, 'percent', 3)} of "
                       "system downtime")
+
+    def _scorecard_strip(self, painter: QPainter, palette: dict[str, str],
+                         row: dict, rect: QRectF, dot_max: float) -> None:
+        """The tile's per-run quantile dots, on the scale every tile shares,
+        with the mean as a tick; the scale's ends named beneath."""
+        from raptor.api.insight.charts import scorecard_scale_text, scorecard_strip
+        fm = QFontMetrics(self.font())
+        left, right = rect.left() + rect.width() * 0.5, rect.right() - 12
+        base = rect.bottom() - fm.height() - 4
+        radius = 2.6
+        painter.setPen(QPen(QColor(palette["border"]), 1))
+        painter.drawLine(QPointF(left, base), QPointF(right, base))
+        accent = QColor(palette["accent"])
+        accent.setAlphaF(0.75)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(accent)
+        for (dx, level) in scorecard_strip(row["dots"], dot_max, right - left, radius):
+            painter.drawEllipse(QPointF(left + dx, base - radius - 1 - level * 2 * radius),
+                                radius, radius)
+        if dot_max > 0:
+            mx = left + float(row.get("value") or 0.0) / dot_max * (right - left)
+            painter.setPen(QPen(QColor(palette["text"]), 1.4))
+            painter.drawLine(QPointF(mx, base - 22), QPointF(mx, base + 3))
+        painter.setPen(QColor(palette["muted"]))
+        small = QFont(self.font())
+        small.setPointSizeF(max(6.0, small.pointSizeF() - 1.5))
+        painter.setFont(small)
+        sfm = QFontMetrics(small)
+        label = QRectF(left, base + 3, right - left, sfm.height())
+        painter.drawText(label, Qt.AlignmentFlag.AlignLeft, "0")
+        painter.drawText(label, Qt.AlignmentFlag.AlignRight,
+                         scorecard_scale_text(dot_max))
+        painter.drawText(label, Qt.AlignmentFlag.AlignHCenter, "each dot a run")
+        painter.setFont(self.font())
 
     def _paint_delta(self, painter, spec, palette, area) -> None:
         rows = spec.series
