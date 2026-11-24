@@ -4269,12 +4269,60 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Localizar:</translation>
     </message>
     <message>
+      <source>Description</source>
+      <translation>Descrição</translation>
+    </message>
+    <message>
+      <source>Edit</source>
+      <translation>Editar</translation>
+    </message>
+    <message>
+      <source>Write or change this version's description (Markdown)</source>
+      <translation>Escreva ou altere a descrição desta versão (Markdown)</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Salvar</translation>
+    </message>
+    <message>
+      <source>Save the description (Ctrl+Enter)</source>
+      <translation>Salvar a descrição (Ctrl+Enter)</translation>
+    </message>
+    <message>
+      <source>Discard changes (Esc)</source>
+      <translation>Descartar as alterações (Esc)</translation>
+    </message>
+    <message>
+      <source>Version description</source>
+      <translation>Descrição da versão</translation>
+    </message>
+    <message>
+      <source>Version description (Markdown)</source>
+      <translation>Descrição da versão (Markdown)</translation>
+    </message>
+    <message>
+      <source>Markdown supported: **bold**, *italic*, lists, links…</source>
+      <translation>Markdown compatível: **negrito**, *itálico*, listas, links…</translation>
+    </message>
+    <message>
+      <source>Markdown supported: **bold**, *italic*, lists, links and headings. Ctrl+Enter saves, Esc cancels.</source>
+      <translation>Markdown compatível: **negrito**, *itálico*, listas, links e cabeçalhos. Ctrl+Enter salva, Esc cancela.</translation>
+    </message>
+    <message>
+      <source>No description. Press Edit to add one (Markdown supported).</source>
+      <translation>Nenhuma descrição. Pressione Editar para adicionar uma (Markdown compatível).</translation>
+    </message>
+    <message>
       <source>Versions are written automatically when you save. They live in your private application folder, not beside the model.</source>
       <translation>As versões são gravadas automaticamente ao salvar. Elas ficam na sua pasta privada do aplicativo, não ao lado do modelo.</translation>
     </message>
     <message>
       <source>Select a version.</source>
       <translation>Selecione uma versão.</translation>
+    </message>
+    <message>
+      <source>Model statistics</source>
+      <translation>Estatísticas do modelo</translation>
     </message>
     <message>
       <source>What this version contains</source>
@@ -4317,12 +4365,32 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Excluir versão</translation>
     </message>
     <message>
+      <source>Unsaved Description</source>
+      <translation>Descrição não salva</translation>
+    </message>
+    <message>
+      <source>The description of this version has unsaved changes.
+
+Save them?</source>
+      <translation>A descrição desta versão tem alterações não salvas.
+
+Salvá-las?</translation>
+    </message>
+    <message>
+      <source>Description saved.</source>
+      <translation>Descrição salva.</translation>
+    </message>
+    <message>
       <source>Archive with saved results</source>
       <translation>Arquivo com resultados salvos</translation>
     </message>
     <message>
       <source>The model file is missing; there is nothing to record</source>
       <translation>O arquivo do modelo está ausente; não há nada para registrar</translation>
+    </message>
+    <message>
+      <source>That version no longer exists; the description was not saved.</source>
+      <translation>Essa versão não existe mais; a descrição não foi salva.</translation>
     </message>
     <message>
       <source>Saving was cancelled; no version recorded.</source>
@@ -4777,10 +4845,6 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Antithetic draws (stored as a negative stream number)</source>
       <translation>Amostras antitéticas (armazenadas como um número de fluxo negativo)</translation>
-    </message>
-    <message>
-      <source>Markdown supported: **bold**, *italic*, lists, links…</source>
-      <translation>Markdown compatível: **negrito**, *itálico*, listas, links…</translation>
     </message>
     <message>
       <source>Free-text comment stored with the model (Part #, data source, etc.). Markdown is supported and is rendered when the comment is shown as a canvas annotation. Committed when you pause or leave the box.</source>
