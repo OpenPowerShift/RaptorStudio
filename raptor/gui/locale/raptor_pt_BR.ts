@@ -386,6 +386,14 @@
       <translation>Esmaecer tudo exceto a seleção (a topologia permanece)</translation>
     </message>
     <message>
+      <source>Tag Colours</source>
+      <translation>Cores das etiquetas</translation>
+    </message>
+    <message>
+      <source>Colour by tag: a stripe above each tagged element, one colour per tag (up to three). View only; shows beside any result overlay</source>
+      <translation>Colorir por etiqueta: uma faixa acima de cada elemento etiquetado, uma cor por etiqueta (até três). Apenas visualização; aparece junto com qualquer sobreposição de resultados</translation>
+    </message>
+    <message>
       <source>Notes</source>
       <translation>Notas</translation>
     </message>
@@ -747,11 +755,11 @@
     </message>
     <message>
       <source>Tags…</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas…</translation>
     </message>
     <message>
       <source>Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas de componentes — rótulos coloridos em elementos, que podem abranger hierarquias. Filtre o Explorador ou um gráfico por uma delas; nunca alteram a simulação</translation>
     </message>
     <message>
       <source>Import Table…</source>
@@ -2906,11 +2914,11 @@
     </message>
     <message>
       <source>Tags…</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas…</translation>
     </message>
     <message>
       <source>Tag the selected elements</source>
-      <translation type="unfinished" />
+      <translation>Etiquetar os elementos selecionados</translation>
     </message>
     <message>
       <source>Move to parent level</source>
@@ -2918,7 +2926,7 @@
     </message>
     <message>
       <source>Tag this element</source>
-      <translation type="unfinished" />
+      <translation>Etiquetar este elemento</translation>
     </message>
     <message>
       <source>Properties</source>
@@ -3914,11 +3922,11 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Show only the elements carrying a tag. Type to search.</source>
-      <translation type="unfinished" />
+      <translation>Mostrar apenas os elementos com uma etiqueta. Digite para pesquisar.</translation>
     </message>
     <message>
       <source>Filter by tag</source>
-      <translation type="unfinished" />
+      <translation>Filtrar por etiqueta</translation>
     </message>
     <message>
       <source>All elements</source>
@@ -3926,11 +3934,11 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Manage tags…</source>
-      <translation type="unfinished" />
+      <translation>Gerenciar etiquetas…</translation>
     </message>
     <message>
       <source>Create tags, apply them, and choose their colours</source>
-      <translation type="unfinished" />
+      <translation>Criar etiquetas, aplicá-las e escolher suas cores</translation>
     </message>
     <message>
       <source>Save Reduced RAPTOR Model</source>
@@ -4162,11 +4170,11 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     </message>
     <message>
       <source>Tags not supported in the .rbd format</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas não são suportadas no formato .rbd</translation>
     </message>
     <message>
       <source>The component tags cannot be stored in the .rbd format and will be DROPPED. They are navigation metadata only; the model and its results are unaffected. Save as .rbds or .rbdz to keep them.</source>
-      <translation type="unfinished" />
+      <translation>As etiquetas de componentes não podem ser gravadas no formato .rbd e serão DESCARTADAS. São apenas metadados de navegação; o modelo e seus resultados não são afetados. Salve como .rbds ou .rbdz para mantê-las.</translation>
     </message>
     <message>
       <source>Display unit not supported in the .rbd format</source>
@@ -4337,12 +4345,24 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Quatro principais por tempo de inatividade</translation>
     </message>
     <message>
+      <source>Tags overlap, so their shares do not add up to 100 %. Tag results are fixed when the model is run.</source>
+      <translation>As etiquetas se sobrepõem, então suas parcelas não somam 100 %. Os resultados por etiqueta são fixados quando o modelo é executado.</translation>
+    </message>
+    <message>
+      <source>Tags</source>
+      <translation>Etiquetas</translation>
+    </message>
+    <message>
       <source>No match</source>
       <translation>Nenhuma correspondência</translation>
     </message>
     <message>
       <source>Four are ticked, the most the comparison charts draw. Untick one to pick another.</source>
       <translation>Quatro marcadas, o máximo que os gráficos de comparação desenham. Desmarque uma para escolher outra.</translation>
+    </message>
+    <message>
+      <source>in %1</source>
+      <translation>em %1</translation>
     </message>
     <message>
       <source>%1 ticked</source>
@@ -5299,6 +5319,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Criar uma anotação de texto Markdown no diagrama a partir deste comentário, ao lado do elemento</translation>
     </message>
     <message>
+      <source>Tags:</source>
+      <translation>Etiquetas:</translation>
+    </message>
+    <message>
       <source>Phased</source>
       <translation>Faseado</translation>
     </message>
@@ -5725,6 +5749,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Stop the run before jumping through history</source>
       <translation>Pare a execução antes de navegar pelo histórico</translation>
+    </message>
+    <message>
+      <source>Tag colours off</source>
+      <translation>Cores das etiquetas desativadas</translation>
     </message>
     <message>
       <source>Select an annotation first — the z-order commands only apply to canvas annotations</source>
@@ -6305,6 +6333,14 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
     <message>
       <source>Show only results for elements inside the chosen hierarchy</source>
       <translation>Mostrar somente resultados de elementos dentro da hierarquia escolhida</translation>
+    </message>
+    <message>
+      <source>Tag:</source>
+      <translation>Etiqueta:</translation>
+    </message>
+    <message>
+      <source>Show only results for elements with this tag (a tagged hierarchy counts everything inside it). The Explorer and the canvas show the same tag.</source>
+      <translation>Mostrar apenas resultados de elementos com esta etiqueta (uma hierarquia etiquetada conta tudo o que está dentro dela). O Explorador e a tela mostram a mesma etiqueta.</translation>
     </message>
     <message>
       <source>Capacity</source>
@@ -7237,72 +7273,100 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>A exportação da tabela falhou</translation>
     </message>
     <message>
+      <source>Add tag…</source>
+      <translation>Adicionar etiqueta…</translation>
+    </message>
+    <message>
+      <source>Type a tag and press Enter. An existing tag completes as you type; a new name makes a new tag.</source>
+      <translation>Digite uma etiqueta e pressione Enter. Uma etiqueta existente é completada enquanto você digita; um nome novo cria uma nova etiqueta.</translation>
+    </message>
+    <message>
+      <source>Remove the tag %1 from this element</source>
+      <translation>Remover a etiqueta %1 deste elemento</translation>
+    </message>
+    <message>
+      <source>Remove tag %1</source>
+      <translation>Remover etiqueta %1</translation>
+    </message>
+    <message>
+      <source>Tags on this level</source>
+      <translation>Etiquetas neste nível</translation>
+    </message>
+    <message>
+      <source>Find a tag…</source>
+      <translation>Procurar etiqueta…</translation>
+    </message>
+    <message>
+      <source>Nothing on this level is tagged.</source>
+      <translation>Nada neste nível está etiquetado.</translation>
+    </message>
+    <message>
+      <source>Show the elements tagged %1</source>
+      <translation>Mostrar os elementos com a etiqueta %1</translation>
+    </message>
+    <message>
       <source>Component Tags</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas de componentes</translation>
     </message>
     <message>
       <source>Tags are labels on blocks, nodes, events and hierarchies. They may span hierarchies and overlap, and never change the simulation. Filter the Model Explorer or a chart by a tag.</source>
-      <translation type="unfinished" />
+      <translation>Etiquetas são rótulos em blocos, nós, eventos e hierarquias. Podem abranger hierarquias e se sobrepor, e nunca alteram a simulação. Filtre o Explorador do modelo ou um gráfico por uma etiqueta.</translation>
     </message>
     <message>
       <source>Search tags</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <source>Tags</source>
-      <translation type="unfinished" />
+      <translation>Pesquisar etiquetas</translation>
     </message>
     <message>
       <source>The model's tags and how many elements carry each. Selecting one edits its name, colour and description.</source>
-      <translation type="unfinished" />
+      <translation>As etiquetas do modelo e quantos elementos têm cada uma. Selecionar uma permite editar seu nome, cor e descrição.</translation>
     </message>
     <message>
       <source>Create a tag; it is applied to the elements selected on the canvas, if any</source>
-      <translation type="unfinished" />
+      <translation>Criar uma etiqueta; ela é aplicada aos elementos selecionados na tela, se houver</translation>
     </message>
     <message>
       <source>Remove the selected tag from every element; the elements are kept</source>
-      <translation type="unfinished" />
+      <translation>Remover a etiqueta selecionada de todos os elementos; os elementos são mantidos</translation>
     </message>
     <message>
       <source>Tag name</source>
-      <translation type="unfinished" />
+      <translation>Nome da etiqueta</translation>
     </message>
     <message>
       <source>Renames the tag on every element. Renaming onto a tag that already exists merges the two.</source>
-      <translation type="unfinished" />
+      <translation>Renomeia a etiqueta em todos os elementos. Renomear para uma etiqueta que já existe une as duas.</translation>
     </message>
     <message>
       <source>Tag colour</source>
-      <translation type="unfinished" />
+      <translation>Cor da etiqueta</translation>
     </message>
     <message>
       <source>Tag description</source>
-      <translation type="unfinished" />
+      <translation>Descrição da etiqueta</translation>
     </message>
     <message>
       <source>Optional note, shown in the tag's tooltips</source>
-      <translation type="unfinished" />
+      <translation>Nota opcional, mostrada nas dicas da etiqueta</translation>
     </message>
     <message>
       <source>Elements with this tag</source>
-      <translation type="unfinished" />
+      <translation>Elementos com esta etiqueta</translation>
     </message>
     <message>
       <source>Add to selection</source>
-      <translation type="unfinished" />
+      <translation>Adicionar à seleção</translation>
     </message>
     <message>
       <source>Put this tag on the elements selected on the canvas</source>
-      <translation type="unfinished" />
+      <translation>Colocar esta etiqueta nos elementos selecionados na tela</translation>
     </message>
     <message>
       <source>Remove from selection</source>
-      <translation type="unfinished" />
+      <translation>Remover da seleção</translation>
     </message>
     <message>
       <source>Take this tag off the elements selected on the canvas</source>
-      <translation type="unfinished" />
+      <translation>Tirar esta etiqueta dos elementos selecionados na tela</translation>
     </message>
     <message>
       <source>Tags for the selected elements</source>
@@ -7318,11 +7382,11 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     </message>
     <message>
       <source>Select elements on the canvas to tag them here.</source>
-      <translation type="unfinished" />
+      <translation>Selecione elementos na tela para etiquetá-los aqui.</translation>
     </message>
     <message>
       <source>Delete Tag</source>
-      <translation type="unfinished" />
+      <translation>Excluir etiqueta</translation>
     </message>
     <message>
       <source>How many inputs to vary, the likeliest downtime causes first: by the last run's downtime when there is one, otherwise by each block's own failure and repair data</source>
@@ -9873,6 +9937,18 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Operacional (+ logística, sobressalentes, equipes)</translation>
     </message>
     <message>
+      <source>Run-by-run shares are kept for a whole tag, not for a tag inside a hierarchy: choose the tag itself.</source>
+      <translation>As parcelas execução a execução são guardadas para uma etiqueta inteira, não para uma etiqueta dentro de uma hierarquia: escolha a própria etiqueta.</translation>
+    </message>
+    <message>
+      <source>Tags overlap and cut across hierarchies, so this chart cannot show one. Use a ranking, the run-to-run charts or Compare.</source>
+      <translation>As etiquetas se sobrepõem e atravessam hierarquias, então este gráfico não pode mostrar uma. Use uma classificação, os gráficos execução a execução ou Comparar.</translation>
+    </message>
+    <message>
+      <source>The outage timeline is kept per hierarchy, not per tag: use small multiples or run-by-run for tags.</source>
+      <translation>A linha do tempo de paradas é guardada por hierarquia, não por etiqueta: use pequenos múltiplos ou execução a execução para etiquetas.</translation>
+    </message>
+    <message>
       <source>%1 run</source>
       <translation>%1 execução</translation>
     </message>
@@ -9903,6 +9979,10 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>No hierarchy has downtime in these runs.</source>
       <translation>Nenhuma hierarquia tem inatividade nestas execuções.</translation>
+    </message>
+    <message>
+      <source>Tag results are fixed when the model runs; the tags changed since this run, so run again to update them.</source>
+      <translation>Os resultados por etiqueta são fixados quando o modelo é executado; as etiquetas mudaram desde esta execução, então execute novamente para atualizá-los.</translation>
     </message>
     <message>
       <source>This model has no hierarchy roll-up.</source>

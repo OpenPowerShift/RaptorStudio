@@ -83,6 +83,15 @@ SAMPLES = {
     "No hierarchy has downtime in these runs.": (
         "No hierarchy has downtime in these runs.",
         "Nenhuma hierarquia tem inatividade nestas execuções."),
+    "Tag results are fixed when the model runs; the tags changed since this "
+    "run, so run again to update them.": (
+        "No hierarchy has downtime in these runs. Tag results are fixed when "
+        "the model runs; the tags changed since this run, so run again to "
+        "update them.",
+        "Nenhuma hierarquia tem inatividade nestas execuções. Os resultados "
+        "por etiqueta são fixados quando o modelo é executado; as etiquetas "
+        "mudaram desde esta execução, então execute novamente para "
+        "atualizá-los."),
     "This model has no hierarchy roll-up.": (
         "This model has no hierarchy roll-up.",
         "Este modelo não tem consolidação por hierarquia."),

@@ -152,6 +152,13 @@ SOURCES: tuple[str, ...] = (
     "ends. Export \u25b8 Save the recorded plot rows keeps every row.",
     "Inherent (repair only)", "Achieved (+ planned maintenance)",
     "Operational (+ logistics, spares, crews)",
+    # why a chart cannot show a tag (`ChartsPage._limit_for_tags`)
+    "Run-by-run shares are kept for a whole tag, not for a tag inside a "
+    "hierarchy: choose the tag itself.",
+    "Tags overlap and cut across hierarchies, so this chart cannot show "
+    "one. Use a ranking, the run-to-run charts or Compare.",
+    "The outage timeline is kept per hierarchy, not per tag: use small "
+    "multiples or run-by-run for tags.",
     # counted nouns in a caption
     "%1 run", "%1 runs", "%1 hierarchy", "%1 hierarchies", "%1 part",
     "%1 parts",
@@ -231,6 +238,9 @@ CAPTIONS: dict[str, str] = {
     # hierarchy scorecard, Pareto, treemap, map
     "%1 holds the largest share of system downtime (%2).": "dd",
     "No hierarchy has downtime in these runs.": "",
+    # added under any chart of a tag once the tags changed after the run
+    "Tag results are fixed when the model runs; the tags changed since "
+    "this run, so run again to update them.": "",
     "This model has no hierarchy roll-up.": "",
     "%1 of system downtime is not inside a hierarchy.": "d",
     "Showing %1 of %2 hierarchies.": "dd",
