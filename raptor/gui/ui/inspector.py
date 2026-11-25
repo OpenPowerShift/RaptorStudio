@@ -156,6 +156,8 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
     #: more per-type ones, matching `DiagramView.set_element_comment`'s
     #: own `(etype, oid, text)` signature.
     element_comment_changed = Signal(str, int, str)
+    #: An element's whole new tag list: ("block:3", ["pumps", ...]).
+    element_tags_changed = Signal(str, list)
     #: (etype, id) -- General > Identity's "Convert comment to annotation"
     #: button. MainWindow forwards it to `DiagramView.comment_to_annotation`
     #: (same split as `block_comment_changed` -> `set_element_comment`).
@@ -1001,6 +1003,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
         self._row(fl, "Parent level", hier.parent_id or "Home")
         self._row(fl, "Level", hier.level)
         self._comment_row(fl, "hier", hier.id, hier.name)
+        self._tags_row(fl, "hier", hier.id)
         _gb, fl = self._group("Markers", layout)
         self._row(fl, "In node", hier.in_id)
         self._row(fl, "Out node", hier.out_id)
@@ -1051,6 +1054,7 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
                         self.event_renamed.emit(eid, new_name))
         self._row(fl, "ID", event.id)
         self._comment_row(fl, "event", event.id, event.name)
+        self._tags_row(fl, "event", event.id)
 
         _gb, fl = self._group("Firing", layout)
         param_spin = QDoubleSpinBox()

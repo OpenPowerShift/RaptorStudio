@@ -54,6 +54,7 @@ class InspectorRowsMixin(_Base):
         block_repair_stream_changed: PySide6.QtCore.SignalInstance
         comment_to_annotation_requested: PySide6.QtCore.SignalInstance
         element_comment_changed: PySide6.QtCore.SignalInstance
+        element_tags_changed: PySide6.QtCore.SignalInstance
         manage_pool_requested: PySide6.QtCore.SignalInstance
         phasing_changed: PySide6.QtCore.SignalInstance
         rates_changed: PySide6.QtCore.SignalInstance
@@ -758,6 +759,29 @@ class InspectorRowsMixin(_Base):
         form.addRow("Comment:", edit)
         self._comment_markdown_hint(form, edit)
         self._convert_comment_button(form, etype, oid, edit)
+
+    def _tags_row(self, form: QFormLayout, kind: str, oid: int) -> None:
+        """The element's tags as chips; edits go out as one
+        `element_tags_changed(ref, tags)`, which the main window makes one
+        undoable command."""
+        rbd = getattr(self, "_rbd", None)
+        if rbd is None:
+            return
+        from raptor.core import tags as T
+        from raptor.gui.ui.tag_chips import TagChips
+        try:
+            ref = T.element_ref(kind, oid)
+        except ValueError:
+            return
+        known = T.all_tags(rbd)
+        mine = T.tags_for(rbd, ref)
+        chips = TagChips(
+            mine, known, {t: T.tag_colour(rbd, t) for t in {*known, *mine}},
+            describe={t: T.tag_description(rbd, t) for t in mine})
+        chips.tags_edited.connect(
+            lambda tags, ref=ref: self.element_tags_changed.emit(ref, tags))
+        self._tag_chips = chips
+        form.addRow("Tags:", chips)
 
     def _phasing_group(self, layout: QLayout | None, kind: str, oid: int,
                        phased_now: bool,

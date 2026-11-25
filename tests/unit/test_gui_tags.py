@@ -302,3 +302,43 @@ def test_tags_are_reachable_from_the_explorer_and_the_canvas(win):
 def test_import_table_is_in_the_file_views_import_section():
     from raptor.gui.command_table import BACKSTAGE
     assert "data.import_table" in dict(BACKSTAGE)["Import"]
+
+
+def test_inspector_chips_add_and_remove_a_tag_with_one_undo_each(win, tmp_path):
+    from raptor.gui.ui.tag_chips import TagChips
+    rbd = win._rbd
+    bid = _blocks(rbd)[0]
+    T.set_tags(rbd, f"block:{bid}", ["pumps"])
+    win._inspector.show_block(bid)
+    QApplication.processEvents()
+    chips = win._inspector.findChild(TagChips)
+    assert chips is not None and chips.tags() == ["pumps"]
+    chips.add_edit.setText("  wet  area ")
+    chips.add_edit.returnPressed.emit()
+    QApplication.processEvents()
+    assert T.tags_for(rbd, f"block:{bid}") == ["pumps", "wet area"]
+    # the Inspector shows the new list
+    win._inspector.show_block(bid)
+    chips = win._inspector.findChild(TagChips)
+    assert chips.tags() == ["pumps", "wet area"]
+    chips._remove("pumps")
+    QApplication.processEvents()
+    assert T.tags_for(rbd, f"block:{bid}") == ["wet area"]
+    win._undo_stack.undo()
+    assert T.tags_for(rbd, f"block:{bid}") == ["pumps", "wet area"]
+    win._undo_stack.undo()
+    assert T.tags_for(rbd, f"block:{bid}") == ["pumps"]
+    win._inspector.show_block(bid)
+    win._inspector.resize(360, 700)
+    win._inspector.grab().save(str(tmp_path / "chips.png"))
+
+
+def test_inspector_chips_are_disabled_while_read_only(win):
+    from raptor.gui.ui.tag_chips import TagChips
+    bid = _blocks(win._rbd)[0]
+    win._inspector.show_block(bid)
+    win._inspector.set_read_only(True)
+    chips = win._inspector.findChild(TagChips)
+    assert not chips.add_edit.isEnabled()
+    win._inspector.set_read_only(False)
+    assert chips.add_edit.isEnabled()

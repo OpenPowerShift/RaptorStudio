@@ -2116,6 +2116,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda bid, txt: self._on_comment_committed("block", bid, txt))
         self._inspector.element_comment_changed.connect(
             self._on_comment_committed)
+        self._inspector.element_tags_changed.connect(
+            self._on_element_tags_changed)
         self._inspector.comment_to_annotation_requested.connect(
             lambda etype, oid: self._diagram_dock.view
             .comment_to_annotation(etype, oid))
@@ -3652,6 +3654,20 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         if exec_dialog(dialog) != QDialog.DialogCode.Accepted:
             return
         self._push_tags(dialog.result_data(), "Component tags")
+
+    def _on_element_tags_changed(self, ref: str, tags: list) -> None:
+        """An Inspector chip edit: one element's whole new tag list."""
+        from types import SimpleNamespace
+        from raptor.core import tags as tag_model
+        if self._rbd is None:
+            return
+        draft = SimpleNamespace(
+            tags=tag_model.clean_tags(getattr(self._rbd, "tags", None)),
+            tag_info=tag_model.clean_tag_info(
+                getattr(self._rbd, "tag_info", None)),
+            sections=getattr(self._rbd, "sections", None))
+        tag_model.set_tags(draft, ref, list(tags))
+        self._push_tags((draft.tags, draft.tag_info), "Edit tags")
 
     def _push_tags(self, after, text: str) -> bool:
         """Push one undoable tags change; False when nothing changed."""

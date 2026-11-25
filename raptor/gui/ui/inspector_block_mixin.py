@@ -46,6 +46,7 @@ class InspectorBlockMixin(_Base):
         _comment_setter: Any
         def _configure_tabs(self, kind: str) -> Any: ...
         def _convert_comment_button(self, form: Any, etype: str, oid: int, edit: Any) -> Any: ...
+        def _tags_row(self, form: Any, kind: str, oid: int) -> None: ...
         _current_block_id: int | None
         _current_node_id: int | None
         _deferred_tabs: dict[int, object]
@@ -189,6 +190,7 @@ class InspectorBlockMixin(_Base):
         self._comment_markdown_hint(fl, self._comment_edit)
         self._convert_comment_button(fl, "block", block.id,
                                      self._comment_edit)
+        self._tags_row(fl, "block", block.id)
 
         _gb, fl = self._group("Position", layout)
         self._position_source = block
