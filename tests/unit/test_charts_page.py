@@ -724,6 +724,11 @@ def test_scope_inside_a_parent_hierarchy_uses_its_children(qapp):
     spec = page.selected_spec()
     assert spec.title == "Inside Intake"
     assert spec.scope["name"] == "Intake"
+    # inside a hierarchy Depth opens on its direct contents (#351)
+    assert page.depth_box.currentText() == "1 level down"
+    assert {int(row["depth"]) for row in spec.series} == {0, 1}
+    page.depth_box.setCurrentIndex(page.depth_box.findData(0))   # All levels
+    spec = page.selected_spec()
     assert {int(row["depth"]) for row in spec.series} == {0, 1, 2}
     assert any("Pump house" in row["name"] for row in spec.series)
     assert page.select("Hierarchy treemap")
@@ -732,9 +737,13 @@ def test_scope_inside_a_parent_hierarchy_uses_its_children(qapp):
     assert spec.scope["name"] == "Intake"
     assert {row["name"] for row in spec.series} >= {"Pump house"}
     assert all(row["name"] != "Cooling" for row in spec.series)
+    page.depth_box.setCurrentIndex(page.depth_box.findData(1))   # 1 level down
     assert page.select("Hierarchy Pareto")
     names = {row["name"] for row in page.selected_spec().series}
     assert "Pump house" in names and "Cooling" not in names
+    page.depth_box.setCurrentIndex(page.depth_box.findData(0))   # every level
+    names = {row["name"] for row in page.selected_spec().series}
+    assert names == {"Pump", "Sluice"}
 
 
 def _deep_hierarchy_inputs():

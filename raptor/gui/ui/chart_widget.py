@@ -1625,7 +1625,10 @@ class ChartWidget(QWidget):
             what = str(spec.provenance.get("measure") or "system downtime")
             labels = {**CAUSE_LABELS, **(spec.provenance.get("group_labels") or {})}
             if str(row.get("name")) != "Not in a hierarchy":
-                self._hit(cell, str(spec.provenance.get("row_kind") or "element"),
+                # a hierarchy gathered by Depth locates as a hierarchy
+                kind = ("hierarchy" if row.get("kind") == "hierarchy"
+                        else str(spec.provenance.get("row_kind") or "element"))
+                self._hit(cell, kind,
                           str(row["name"]),
                           f"{row['name']}: {amount}"
                           + (" of " + what if fmt == "percent" else "")
@@ -2571,7 +2574,9 @@ class ChartWidget(QWidget):
             ["Name", "Value", "Share", "Cause"])
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        table.setSortingEnabled(True)
+        # Sorting is switched on only after every row is filled: with it on,
+        # each setItem re-sorts the table, so later cells landed in other
+        # rows and many showed blank (#351).
         table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.Stretch)
         for i, item in enumerate(items):
@@ -2589,7 +2594,7 @@ class ChartWidget(QWidget):
             table.setItem(i, 1, value_item)
             table.setItem(i, 2, share_item)
             table.setItem(i, 3, cause_item)
-        table.setSortingEnabled(True)
+        table.setSortingEnabled(True)       # after the fill: see above
         table.sortItems(1, Qt.SortOrder.DescendingOrder)
         layout.addWidget(table, 1)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
