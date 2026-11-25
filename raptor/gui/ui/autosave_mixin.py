@@ -134,6 +134,8 @@ class AutosaveMixin(_Base):
             # A load is replacing the model; the old one's recovery copy
             # is not this session's unsaved work.
             return
+        if getattr(self, "_save_in_progress", False):
+            return
         if getattr(self, "_run_in_progress", False):
             # Never write back into a model a live engine is reading.
             return

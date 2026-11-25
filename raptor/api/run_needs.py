@@ -20,6 +20,15 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from raptor.core import run_experiment as _rx
+
+#: The Run panel's recording check boxes and their hints, re-exported so the
+#: GUI's translation catalogue can list them without importing the engine
+#: layer (`raptor.gui` reaches `raptor.core.run_experiment` only through here).
+RECORDING_FIELDS = _rx.RECORDING_FIELDS
+RECORDING_REQUIRES = _rx.RECORDING_REQUIRES
+STATS_START_TOOLTIP = _rx._STATS_START_TOOLTIP
+
 #: Where the window keeps the run options.
 RECORDING = "Run panel ▸ Recording"
 ANALYSIS = "Run panel ▸ Results to calculate"

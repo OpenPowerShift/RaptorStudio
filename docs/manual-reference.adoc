@@ -132,7 +132,10 @@ current value).
 |Control |What it does |Shortcut / value
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
+|Tags… |Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation |
+|Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
 |Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
+|Project Health |Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings |
 |===
 
 ==== Library
@@ -338,6 +341,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
 |Focus |Dim everything except the selection (topology stays) |
+|Tag Colours |Colour by tag: a stripe above each tagged element, one colour per tag (up to three). View only; shows beside any result overlay |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean
@@ -382,7 +386,9 @@ documentation.
 |New |Create a new blank model (Ctrl+N) |Ctrl+N
 |Open |Open an .rbd or .rbds file (Ctrl+O) |Ctrl+O
 |Save |Save (Ctrl+S) |Ctrl+S
-|Save As |Save to a new .rbds or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
+|Save As |Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S) |Ctrl+Shift+S
+|Save Version Now… |Save the current state as a named version you can come back to |
+|Version History… |Browse the versions you saved with Save version now; open one as a copy or restore it to the file |
 |Close |Close the current model (with save prompt) (Ctrl+W) |Ctrl+W
 |Quit |Quit RAPTOR Studio (Ctrl+Q) |Ctrl+Q
 |Differences… |What is different between this model and another: its saved file (what you have changed), any model, or a recent one -- parameters and wiring. Nothing is run. |
@@ -394,6 +400,8 @@ documentation.
 |===
 |Control |What it does |Shortcut / value
 |Import Availability Workbench… |Open an Isograph Availability Workbench 5.0 .awb project as a new RAPTOR model; the summary lists what AWB features RAPTOR cannot represent |
+|Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
+|Data Table Template… |Save the open model's block data as an Excel (.xlsx) or OpenDocument (.ods) sheet with the columns Import Table reads. Edit it, then import it back |
 |===
 
 ==== Print and Export
@@ -408,6 +416,7 @@ documentation.
 |Export Reduced AWB Model… |Save a matched pair: a reduced RAPTOR model and the .awb it represents, for a fair engine-to-engine comparison |
 |Export Tables… |Choose which tables to write, the model's and a run's results, as CSV files, text or one spreadsheet with a tab per table |
 |Copy View |Copy the current view to the clipboard as a high-resolution PNG |
+|Share-safe Copy… |Write a copy with element names, comments and chosen annotations removed; IDs, links and data are kept |
 |===
 
 ==== AI Assistant

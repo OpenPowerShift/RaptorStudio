@@ -2568,6 +2568,10 @@
  },
  "run_story": {
   "properties": {
+   "capacity_target": {},
+   "capacity_verdict": {
+    "type": "string"
+   },
    "caption": {
     "type": "string"
    },
@@ -2639,6 +2643,8 @@
    }
   },
   "required": [
+   "capacity_target",
+   "capacity_verdict",
    "caption",
    "dot_target",
    "dots",

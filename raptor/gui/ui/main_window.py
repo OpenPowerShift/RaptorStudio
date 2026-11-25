@@ -10,7 +10,7 @@ from raptor.gui.ui.modality import exec_dialog
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
-from raptor.gui import text_editing
+from raptor.gui import i18n, text_editing
 import time
 import weakref
 from typing import Any, cast
@@ -18,7 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import (Qt, QTimer, QObject, QPoint, QEvent, QEventLoop)
 from PySide6.QtGui import (QCursor, QKeySequence, QAction, QShortcut)
 from PySide6.QtWidgets import (
-    QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QStatusBar, QFileDialog, QMessageBox,
+    QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QFileDialog, QMessageBox,
     QDialog, QFormLayout, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
 )
 
@@ -59,7 +59,7 @@ from raptor.gui.ui.data_tables import DataTablesDock
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import (
     ThemeManager, active_colour,
-    global_stylesheet,
+    global_stylesheet, px,
 )
 from raptor.gui.ui.help_mixin import HelpMixin
 from raptor.gui.ui.export_mixin import ExportMixin
@@ -351,6 +351,25 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         qapp = cast(QApplication | None, QApplication.instance())
         if qapp is not None:
             ensure_fusion(qapp)
+        # Settings migration and the UI catalogue must be in place before
+        # the ribbon copies command text into QActions.
+        settings.ensure_migrated()
+        i18n.install(qapp)
+        # Appearance must also be settled BEFORE the ribbon is built: its
+        # geometry constants scale with the UI.
+        theme = ThemeManager.instance()
+        saved_scale = settings.get_int("appearance/ui_scale", 100)
+        theme.set_scale(saved_scale)
+        if theme.scale != saved_scale:
+            # A hand-edited or older out-of-range value: keep the file in
+            # step with what was actually applied.
+            settings.set_value("appearance/ui_scale", theme.scale)
+        theme.set_high_contrast(
+            settings.get_bool("appearance/high_contrast", False))
+        theme.set_dark(settings.get_bool("appearance/dark_mode"))
+        # The window's own stylesheet outranks the application sheet, so it
+        # must be rebuilt AFTER the saved dark/contrast/scale is applied.
+        self.setStyleSheet(global_stylesheet())
 
         self._setup_ribbon()
         self._setup_central()
@@ -429,16 +448,25 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._tooltip_keeper.install(QApplication.instance())
 
         ThemeManager.instance().on_changed(self._on_theme_changed)
-        # One-shot settings migration BEFORE any read, so a user
-        # upgrading gets their preferences moved into the namespaced
-        # tree (and told if the gap was too big to interpret) rather
-        # than silently reset. See `ui/settings.py`.
-        settings.ensure_migrated()
-        # Remember the theme across launches. Applied before the window
-        # is shown, so startup doesn't flash light first; the checkable
-        # ribbon action follows via the _on_theme_changed callback.
-        ThemeManager.instance().set_dark(
-            settings.get_bool("appearance/dark_mode"))
+        # Appearance was applied before the docks existed: let every widget
+        # that registered since then style itself for the theme in force.
+        ThemeManager.instance().notify()
+        # Appearance was applied before the ribbon was built. Seed the one
+        # piece of state that `_on_theme_changed` normally mirrors: the
+        # View menu action, or a dark-mode launch left it unchecked and
+        # labelled "Dark Theme" while the window was already dark.
+        self._theme_action.blockSignals(True)
+        self._theme_action.setChecked(theme.is_dark)
+        if theme.is_dark:
+            self._theme_action.setText("Light Theme")
+        else:
+            self._theme_action.setText("Dark Theme")
+        self._theme_action.blockSignals(False)
+        # The whole window tree exists now (ribbon, docks, run panel, results
+        # and inspector): translate its English literals once. Data-driven
+        # action text and tooltips were translated where the registry built
+        # them; this covers ordinary QLabels/buttons/tabs/combos/menus.
+        i18n.translate_widgets(self)
 
     @property
     def _step_session(self):
@@ -490,7 +518,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         badges = [KeyTipBadge(FILE_KEY_TIP, ribbon.file_button, self)]
         bar = ribbon.tab_bar
         for i in range(bar.count()):
-            tip = TAB_KEY_TIPS.get(bar.tabText(i))
+            stable = (ribbon._pages[i].property("raptorPageTitle")  # noqa: SLF001
+                      if i < len(ribbon._pages) else None)
+            tip = TAB_KEY_TIPS.get(stable or bar.tabText(i))
             if tip:
                 r = bar.tabRect(i)
                 badges.append(KeyTipBadge(
@@ -516,7 +546,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """Level 2: open the tab and letter its buttons."""
         from PySide6.QtCore import QEvent
         from raptor.gui.widgets.key_tip_badge import KeyTipBadge
-        self._ribbon.select_page(title)
+        index = next((i for i, page in enumerate(self._ribbon._pages)
+                      if page.property("raptorPageTitle") == title), None)
+        if index is not None:
+            self._ribbon.select_page_index(index)
+        else:
+            self._ribbon.select_page(title)
         # The page's geometry settles on the next layout pass; badges are
         # placed from it, so run that pass now.
         QApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest)
@@ -1002,6 +1037,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_annotations_may_be_invisible)
         self._diagram_dock.view.properties_requested.connect(
             lambda: self._show_inspector_dock(expand_minimized=True))
+        self._diagram_dock.view.tags_requested.connect(
+            self._open_tags_dialog)
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -1185,6 +1222,12 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda hid: self._diagram_dock.view.enter_level(hid))
         self._explorer.ascend_requested.connect(
             self._diagram_dock.view.go_up)
+        self._explorer.manage_tags_requested.connect(
+            self._open_tags_dialog)
+        self._explorer.tag_view_changed.connect(self._on_tag_view_changed)
+        # a tag made or renamed anywhere (dialog, chips, paste, undo)
+        self._diagram_dock.view.model_changed.connect(
+            lambda *_a: self._push_tag_options())
         # Re-parents the ribbon-built Find combo into this dock's own
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
@@ -1240,6 +1283,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         dock_right.setMinimumSize(340, 1)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_right)
         self._inspector_dock = dock_right
+        self._size_inspector_dock()
 
         # Failure Effects inspector: the structured state beside the canvas
         # while Failure Effects View is enabled. It shares the Inspector's
@@ -1482,6 +1526,17 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
 
     def _on_annotation_selected(self, anno_id: int):
         self._queue_inspector_selection("annotation", anno_id)
+
+    def _on_chart_compare_changed(self, refs: list) -> None:
+        """Ring the compared hierarchy ovals in their chart colours."""
+        from raptor.api.insight.hierarchy import SERIES_COLOURS
+        # tags (negative ids) have no oval to ring
+        colours = {int(ref): SERIES_COLOURS[i % len(SERIES_COLOURS)]
+                   for i, ref in enumerate(refs or []) if int(ref) > 0}
+        try:
+            self._diagram_dock.view.set_compare_emphasis(colours)
+        except RuntimeError:
+            return
 
     def _sync_chart_selection(self):
         """Two or more selected hierarchy ovals become the chart overlay."""
@@ -1958,7 +2013,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._esc_redispatching = False
 
     def _setup_statusbar(self):
-        self._statusbar = QStatusBar()
+        self._statusbar = i18n.TranslatingStatusBar()
         self._statusbar.showMessage("Ready — Open an .rbd or .rbds file to begin (Ctrl+O)")
         self.setStatusBar(self._statusbar)
         # Never let a resizeDocks request shrink the status bar away
@@ -2063,6 +2118,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda bid, txt: self._on_comment_committed("block", bid, txt))
         self._inspector.element_comment_changed.connect(
             self._on_comment_committed)
+        self._inspector.element_tags_changed.connect(
+            self._on_element_tags_changed)
         self._inspector.comment_to_annotation_requested.connect(
             lambda etype, oid: self._diagram_dock.view
             .comment_to_annotation(etype, oid))
@@ -2300,12 +2357,16 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # Inspector via the normal selection path).
         self._results.element_clicked.connect(self._on_result_element_clicked)
         self._results.contents_changed.connect(self._sync_results_notice)
+        self._results.contents_changed.connect(self._archive_results_diverged)
         self._results.enable_requested.connect(self._turn_on_and_run)
+        self._results.chart_compare_changed.connect(self._on_chart_compare_changed)
         # A run finishing, or its results being cleared, changes what the
         # Advisor can say (precision, what drives the downtime).
         self._results.contents_changed.connect(self._refresh_advisor)
         self._results.hierarchy_filter_changed.connect(
             self._on_results_hier_filter)
+        self._results.tag_filter_changed.connect(
+            lambda tag: self._explorer.show_tag(tag))
         self._results.weak_analysis_type_changed.connect(
             self._on_weak_type_changed)
         self._results.importance_metric_changed.connect(
@@ -2313,12 +2374,26 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.y_axis_min_changed.connect(self._on_y_axis_min_changed)
         self._results.targets_changed.connect(self._on_targets_changed)
 
+    def _size_inspector_dock(self) -> None:
+        """The Inspector's narrowest width, in pixels at the current UI scale.
+
+        The forms wrap to whatever room there is, but at 150% the text is
+        half as large again while a fixed 340 px was not.
+        """
+        dock = getattr(self, "_inspector_dock", None)
+        if dock is not None:
+            dock.setMinimumSize(px(340), 1)
+
     def _on_theme_changed(self, dark: bool):
         self._theme_action.blockSignals(True)
         self._theme_action.setChecked(dark)
-        self._theme_action.setText("Light Theme" if dark else "Dark Theme")
+        if dark:
+            self._theme_action.setText("Light Theme")
+        else:
+            self._theme_action.setText("Dark Theme")
         self._theme_action.blockSignals(False)
         self.setStyleSheet(global_stylesheet())
+        self._size_inspector_dock()
         c = active_colour()
         self._ribbon._refresh_theme(c)
         self._apply_action_icons()
@@ -2690,6 +2765,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         -- so a File-menu action can fire in either while `self._rbd` is
         being read/reassigned. The model-edit case is guarded by
         `_mark_dirty`; this covers the file/lifecycle cases."""
+        if getattr(self, "_save_in_progress", False):
+            self._statusbar.showMessage(
+                i18n.tr("Saving — wait for the save to finish"), 4000)
+            return True
         if getattr(self, "_export_in_progress", False):
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Information)
@@ -2697,6 +2776,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             box.setText(f"Cannot {what} while a print/PDF export is "
                         f"running.\n\nWait for the export to finish.")
             box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+            i18n.translate_widgets(box)
             box.exec()
             return True
         if not getattr(self, "_run_in_progress", False):
@@ -2707,6 +2787,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         box.setText(f"Cannot {what} while a simulation is running.\n\n"
                     "Stop the run first.")
         box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+        i18n.translate_widgets(box)
         box.exec()
         return True
 
@@ -2855,6 +2936,31 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         if target and target[0] in ("block", "node", "event", "hier", "annotation"):
             self._inspector.clear_selection()
             self._inspector._refresh_empty_text()
+
+    def _apply_currency(self, *, changed: bool = False) -> None:
+        """Show money in the model's currency everywhere: the Run panel's
+        and the Inspector's cost boxes, the Data Tables money columns and,
+        when the currency was just `changed`, the results already on
+        screen (the Cost page, the charts, the Story, a cost overlay)."""
+        from raptor.api.money import model_currency
+        currency = model_currency(self._rbd)
+        panel = getattr(self, "_run_panel", None)
+        if panel is not None and hasattr(panel, "set_currency"):
+            panel.set_currency(currency)
+        tables = getattr(self, "_data_tables", None)
+        if tables is not None:
+            tables.set_currency(currency)
+        if not changed:
+            return
+        self._refresh_inspector()
+        results = getattr(self, "_results", None)
+        if results is not None:
+            results._populate_details(getattr(results, "_final_lines", []) or [])
+            results._refresh_charts()
+            results._refresh_story()
+        dock = getattr(self, "_diagram_dock", None)
+        if dock is not None:
+            dock.view._reapply_result_visuals()
 
     def _refresh_inspector(self):
         """Re-populate whatever element the Inspector is showing from
@@ -3087,6 +3193,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             remember = ask_again.add_box(box, "Remember my choice for every run")
             remember.setToolTip("Preferences ▸ Working ▸ Unsaved changes "
                                 "before running changes it back")
+        i18n.translate_widgets(box)
         box.exec()
         clicked = box.clickedButton()
         if clicked is cancel_btn:
@@ -3208,6 +3315,30 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         hiers = {hid: h.name for hid, h in v.hiers.items()}
         self._results.set_hierarchy_options(hiers,
                                             v._current_parent)
+        self._push_tag_options()
+
+    def _push_tag_options(self) -> None:
+        """Feed the results Tag filter with the model's tags."""
+        from raptor.core import tags as tag_model
+        if getattr(self, "_results", None) is None:
+            return
+        rbd = self._rbd
+        tags = tag_model.all_tags(rbd) if rbd is not None else []
+        self._results.set_tag_options(
+            [(t, tag_model.tag_colour(rbd, t)) for t in tags],
+            self._explorer.current_tag())
+
+    def _on_tag_view_changed(self, refs) -> None:
+        """The Explorer's tag view: dim the canvas, filter the results
+        tables (a tagged hierarchy counts what is inside it)."""
+        self._diagram_dock.view.set_tag_view(refs)
+        self._results.show_tag_filter(self._explorer.current_tag())
+        if refs is None or self._rbd is None:
+            self._results.set_tag_filter(None)
+            return
+        from raptor.core import tags as tag_model
+        names = tag_model.names_of(self._rbd, tag_model.expand(self._rbd, refs))
+        self._results.set_tag_filter(names)
 
     def _on_results_hier_filter(self, hid: int):
         """User picked a hierarchy in the results filter: navigate the
@@ -3341,9 +3472,306 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui import dialogs
         dialogs.edit_block_defaults(self)
 
+    def _jump_history(self, index: int) -> bool:
+        """Move the model to a history step atomically.
+
+        One level rebuild and one refresh for the whole jump, not one per
+        replayed command; results are discarded before the jump (never
+        midway through it), and a run or step session refuses the jump.
+        Returns False when the jump was refused or failed, so the browser
+        can say why.
+        """
+        if self._rbd is None:
+            self._statusbar.showMessage(
+                "Open or create a model before using history", 4000)
+            return False
+        if self._run_or_step_active():
+            self._statusbar.showMessage(
+                "Stop the run before jumping through history", 4000)
+            return False
+        target = max(0, min(int(index), self._undo_stack.count()))
+        if target == self._undo_stack.index():
+            return True                  # already there: nothing moved
+        if self._results.has_results():
+            from raptor.gui.ui.dialogs import question_box
+            if not question_box(
+                    self, "Jump Through History",
+                    "Changing the model history discards the results on "
+                    "screen, because they describe the model as it was "
+                    "before these edits.\n\nContinue?",
+                    yes_text="Jump and discard results", no_text="Cancel"):
+                return False
+            self._discard_results()
+        view = self._diagram_dock.view
+        view.begin_history_jump()
+        try:
+            self._undo_stack.setIndex(target)
+        except Exception as exc:  # noqa: BLE001 - a failed replay must not
+            # leave the canvas in jump mode (no rebuilds, no level switch).
+            self._statusbar.showMessage(f"History jump failed: {exc}", 6000)
+            return False
+        finally:
+            view.end_history_jump()
+            # model_changed arrives after cleanChanged during a jump; resync
+            # the dirty marker from the stack itself.
+            self._dirty = not self._undo_stack.isClean()
+            self._update_title()
+        self._statusbar.showMessage(
+            f"History: step {self._undo_stack.index()} of "
+            f"{self._undo_stack.count()}", 4000)
+        return True
+
+    def _show_undo_history(self):
+        """View ▸ Panels ▸ Model History: a modeless undo browser."""
+        if self._rbd is None:
+            self._statusbar.showMessage(
+                "Open or create a model before using history", 4000)
+            return
+        dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is not None:
+            try:
+                dialog.isVisible()       # raises if Qt deleted the object
+            except RuntimeError:
+                dialog = None            # the only way this can go stale
+        if dialog is None:
+            from raptor.gui.ui.undo_history_dialog import UndoHistoryDialog
+            dialog = UndoHistoryDialog(
+                self, self._undo_stack, on_jump=self._jump_history)
+            dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            dialog.finished.connect(
+                lambda _result: setattr(self, "_undo_history_dialog", None))
+            self._undo_history_dialog: Any = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _close_undo_history(self) -> None:
+        """Close the Model History panel: the model it lists is gone."""
+        dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is None:
+            return
+        try:
+            dialog.close()
+        except RuntimeError:             # already deleted by Qt
+            pass
+        self._undo_history_dialog = None
+
+    def _open_project_health(self):
+        """Data ▸ Project Health: statistics, findings and sharing."""
+        if self._rbd is None:
+            return
+        from raptor.api import health
+        from raptor.gui.ui.project_health_dialog import ProjectHealthDialog
+        report = health.report(self._rbd)
+        dialog = ProjectHealthDialog(
+            self, report, on_locate=self._locate_health_element,
+            on_share=self._share_safe_copy)
+        from raptor.gui.ui.modality import exec_dialog
+        exec_dialog(dialog)
+
+    def _locate_health_element(self, ref: str) -> bool:
+        kind, _, ident = str(ref).partition(":")
+        try:
+            return self._diagram_dock.view.locate_id(kind, int(ident))
+        except ValueError:
+            # Validation issues carry a human label such as
+            # "Block 101 'Utility_A'"; reuse the Issues dialog locator.
+            locate = getattr(self, "_locate_issue", None)
+            return bool(locate(ref)) if callable(locate) else False
+
+    def _share_safe_copy(self):
+        """File ▸ Share-safe Copy: declassify a copy of the open model."""
+        if self._rbd is None:
+            return
+        self._inspector.flush_pending_comment()
+        self._diagram_dock.view.write_back_to_rbd(self._rbd)
+        self._diagram_dock.view.write_back_annotations()
+        from raptor.gui.ui.project_health_dialog import ShareSafeDialog
+        folder = (Path(self._current_file).parent if self._current_file
+                  else Path.cwd())
+        # Do not put the source model's name into the shared filename or
+        # into its meta.file_name.
+        dialog = ShareSafeDialog(
+            self, str(folder / "shared-model.rbds"),
+            source=self._current_file or "")
+        from raptor.gui.ui.modality import exec_dialog
+        if exec_dialog(dialog) != QDialog.DialogCode.Accepted or not dialog.path:
+            return
+        try:
+            dest = dialog.write(self._rbd)
+        except Exception as exc:  # noqa: BLE001
+            msgbox.critical(self, "Share-safe Copy Failed",
+                            f"Could not write the copy:\n\n{exc}")
+            return
+        report = dialog.report
+        detail = report.summary() if report else ""
+        if report and report.risks:
+            detail += "\n\nResidual risk:\n" + report.risk_summary()
+        msgbox.information(self, "Share-safe Copy",
+                           f"Wrote {dest}\n\n{detail}")
+        self._statusbar.showMessage(
+            f"Share-safe copy written: {dest}", 8000)
+    def _import_data_table(self):
+        """Data ▸ Import Table: validate an .xlsx/.ods sheet and apply it
+        as one undoable step."""
+        if self._rbd is None:
+            return
+        if self._refuse_during_run("import a data table"):
+            return
+        from raptor.gui.ui import filedialogs as fdg
+        path, _filter = fdg.getOpenFileName(
+            self, "Import Data Table", "",
+            "Spreadsheets (*.xlsx *.ods);;All files (*)")
+        if not path:
+            return
+        from raptor.core.fileio.sheet_reader import SheetError, read_sheet
+        from raptor.core.import_tables import plan_import, row_snapshot
+        try:
+            sheet = read_sheet(path)
+        except (SheetError, OSError) as exc:
+            msgbox.critical(
+                self, "Import Failed",
+                f"Could not read {Path(path).name}:\n\n{exc}")
+            return
+        plan = plan_import(self._rbd, sheet, source=path)
+        if not plan.changes and not plan.problems:
+            msgbox.information(
+                self, "Import Data Table",
+                f"{Path(path).name}: nothing to change — the model already "
+                "matches the sheet.")
+            return
+        from raptor.gui.ui.import_table_dialog import (
+            ImportTableCommand, ImportTableDialog,
+        )
+        dialog = ImportTableDialog(self, plan)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before, after = row_snapshot(plan, self._rbd)
+        if before == after:
+            return
+        view = self._diagram_dock.view
+        self._undo_stack.push(ImportTableCommand(
+            view, self._rbd, before, after,
+            f"Import data table: {Path(path).name}"))
+        changed = sum(1 for oid, row in after.items()
+                      for column, value in row.items()
+                      if before[oid].get(column) != value)
+        self._statusbar.showMessage(
+            f"Imported {changed} change(s) on {len(before)} block(s) from "
+            f"{Path(path).name} — Ctrl+Z to undo", 8000)
+
+    def _export_import_template(self):
+        """File ▸ Import ▸ Data Table Template: the sheet Import Table reads."""
+        if self._rbd is None:
+            return
+        from raptor.gui.ui import filedialogs as fdg
+        base = Path(self._current_file).stem if self._current_file else "model"
+        path, chosen = fdg.getSaveFileName(
+            self, "Save Data Table Template", f"{base}_data_table.xlsx",
+            "Excel workbook (*.xlsx);;OpenDocument spreadsheet (*.ods)")
+        if not path:
+            return
+        if not path.lower().endswith((".xlsx", ".ods")):
+            path += ".ods" if "ods" in (chosen or "") else ".xlsx"
+        from raptor.core.import_tables import write_template
+        try:
+            written = write_template(self._rbd, path)
+        except OSError as exc:
+            msgbox.critical(self, "Template Not Saved",
+                            f"Could not write {path}:\n\n{exc}")
+            return
+        self._statusbar.showMessage(
+            f"Template saved: {written} — edit it, then File ▸ Import ▸ "
+            "Import Table", 10000)
+
     def _on_mass_edit(self):
         from raptor.gui.ui import dialogs
         dialogs.on_mass_edit(self)
+
+    def _selected_refs(self) -> list[str]:
+        """The canvas selection as tag references (`block:3`, ...)."""
+        from raptor.core import tags as tag_model
+        blocks, nodes, events, hiers = \
+            self._diagram_dock.view.selected_elements()
+        return ([tag_model.element_ref("block", i) for i in blocks]
+                + [tag_model.element_ref("node", i) for i in nodes]
+                + [tag_model.element_ref("event", i) for i in events]
+                + [tag_model.element_ref("hier", i) for i in hiers])
+
+    def _set_tag_colours(self, on: bool) -> None:
+        """View ▸ Tag Colours: stripes on the canvas and the legend."""
+        view = self._diagram_dock.view
+        legend = getattr(self, "_tag_legend", None)
+        if legend is None and on:
+            from raptor.gui.ui.tag_legend import TagLegend
+            # the view, not its viewport: a viewport child scrolls with
+            # the scene and slides off the canvas
+            legend = TagLegend(view)
+            legend.move(view.viewport().pos().x() + 8,
+                        view.viewport().pos().y() + 8)
+            legend.tag_clicked.connect(self._explorer.show_tag)
+            view.tag_colours_changed.connect(self._refresh_tag_legend)
+            self._tag_legend = legend
+        drawn = view.set_tag_colours(on)
+        if legend is not None:
+            legend.setVisible(bool(on))
+        if on:
+            self._refresh_tag_legend()
+            self._statusbar.showMessage(
+                f"Tag colours on — {drawn} tagged element(s) on this level", 6000)
+        else:
+            self._statusbar.showMessage("Tag colours off", 4000)
+
+    def _refresh_tag_legend(self) -> None:
+        legend = getattr(self, "_tag_legend", None)
+        if legend is None or not legend.isVisible():
+            return
+        from raptor.gui.ui.diagram_tag_stripes import legend as rows_of
+        view = self._diagram_dock.view
+        legend.set_rows(rows_of(self._rbd, view))
+        legend.raise_()
+
+    def _open_tags_dialog(self):
+        """Data ▸ Tags: edit navigation metadata as one undo step."""
+        if self._rbd is None:
+            return
+        from raptor.gui.ui.tags_dialog import TagsDialog
+        dialog = TagsDialog(self, self._rbd, self._selected_refs())
+        if exec_dialog(dialog) != QDialog.DialogCode.Accepted:
+            return
+        self._push_tags(dialog.result_data(), "Component tags")
+
+    def _on_element_tags_changed(self, ref: str, tags: list) -> None:
+        """An Inspector chip edit: one element's whole new tag list."""
+        from types import SimpleNamespace
+        from raptor.core import tags as tag_model
+        if self._rbd is None:
+            return
+        draft = SimpleNamespace(
+            tags=tag_model.clean_tags(getattr(self._rbd, "tags", None)),
+            tag_info=tag_model.clean_tag_info(
+                getattr(self._rbd, "tag_info", None)),
+            sections=getattr(self._rbd, "sections", None))
+        tag_model.set_tags(draft, ref, list(tags))
+        self._push_tags((draft.tags, draft.tag_info), "Edit tags")
+
+    def _push_tags(self, after, text: str) -> bool:
+        """Push one undoable tags change; False when nothing changed."""
+        import copy
+        from raptor.core import tags as tag_model
+        from raptor.gui.ui.tags_dialog import TagsCommand
+        before = (tag_model.clean_tags(getattr(self._rbd, "tags", None)),
+                  tag_model.clean_tag_info(
+                      getattr(self._rbd, "tag_info", None)))
+        after = (copy.deepcopy(after[0]), copy.deepcopy(after[1]))
+        if before == after:
+            return False
+        self._undo_stack.push(
+            TagsCommand(self._diagram_dock.view, before, after, text))
+        self._statusbar.showMessage(
+            f"{text}: {len(after[0])} tagged element(s) — Ctrl+Z to undo",
+            6000)
+        return True
 
 
     # --- Preferences -------------------
@@ -3611,6 +4039,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         """Confirm unsaved changes before closing."""
         # Commit a Comment draft before the unsaved-change prompt/write
         # path, so closing cannot silently discard the last few keystrokes.
+        if getattr(self, "_save_in_progress", False):
+            # Do not abandon a half-written archive: finish it, then close.
+            self._close_after_save = True
+            self._statusbar.showMessage(
+                i18n.tr("Finishing the save, then closing"), 6000)
+            event.ignore()
+            return
         self._inspector.flush_pending_comment()
         if getattr(self, "_export_in_progress", False):
             self._statusbar.showMessage(

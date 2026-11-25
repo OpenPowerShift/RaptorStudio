@@ -53,7 +53,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
         attr="_save_as_action",
         text="Save As",
         icon="save_as_icon:text",
-        tooltip="Save to a new .rbds or .rbd file (Ctrl+Shift+S)",
+        tooltip=("Save to a new .rbds, .rbdz (model + saved results) or "
+                 ".rbd file (Ctrl+Shift+S)"),
         handler="_save_file_as",
         shortcut="Ctrl+Shift+S",
         enabled_when="model_open"),
@@ -77,6 +78,26 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_new_file",
         shortcut="Ctrl+N",
         enabled_when="not_running"),
+    CommandSpec(
+        id="file.history",
+        attr="_history_action",
+        text="Version History…",
+        icon="history_clock_icon:text",
+        tooltip=(
+            "Browse the versions you saved with Save version now; open one "
+            "as a copy or restore it to the file"),
+        handler="_open_history_dialog",
+        enabled_when="has_file"),
+    CommandSpec(
+        id="file.save_version",
+        attr="_save_version_action",
+        text="Save Version Now…",
+        icon="save_version_icon:text",
+        tooltip=(
+            "Save the current state as a named version you can come back "
+            "to"),
+        handler="_save_version_now",
+        enabled_when="has_file"),
     CommandSpec(
         id="file.close_file",
         shortcut="Ctrl+W",
@@ -125,6 +146,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "Save the printable report (diagram + results + weak link) as a PDF "
             "file"),
         handler="_export_pdf",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="file.share_safe",
+        attr="_share_safe_action",
+        text="Share-safe Copy…",
+        icon="share_safe_icon:text",
+        tooltip=(
+            "Write a copy with element names, comments and chosen "
+            "annotations removed; IDs, links and data are kept"),
+        handler="_share_safe_copy",
         enabled_when="model_open"),
     CommandSpec(
         id="file.export_awb",
@@ -258,6 +289,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         on="toggled",
         checkable=True),
     CommandSpec(
+        id="view.tag_colours",
+        attr="_tag_colours_action",
+        text="Tag Colours",
+        icon="tag_colours_icon:text",
+        tooltip=("Colour by tag: a stripe above each tagged element, one "
+                 "colour per tag (up to three). View only; shows beside any "
+                 "result overlay"),
+        handler="_set_tag_colours",
+        on="toggled",
+        enabled_when="model_open",
+        checkable=True),
+    CommandSpec(
         id="view.show_annotations",
         attr="_show_annotations_action",
         text="Notes",
@@ -348,6 +391,16 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="model_info_icon:text",
         tooltip="Project Settings — simulation-wide configuration for this model",
         handler="_open_project_settings",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="home.health",
+        attr="_health_action",
+        text="Project Health",
+        icon="health_icon:text",
+        tooltip=(
+            "Project statistics and housekeeping issues: unnamed elements, "
+            "duplicate names, unused pools and validation findings"),
+        handler="_open_project_health",
         enabled_when="model_open"),
     CommandSpec(
         id="home.validate",
@@ -718,6 +771,40 @@ COMMANDS: tuple[CommandSpec, ...] = (
             " (select 2+ elements)"),
         handler="_on_mass_edit",
         enabled_when="can_mass_edit"),
+    CommandSpec(
+        id="data.tags",
+        attr="_tags_action",
+        text="Tags…",
+        icon="tag_icon:text",
+        tooltip=(
+            "Component tags — coloured labels on elements that may span "
+            "hierarchies. Filter the Explorer or a chart by one; they "
+            "never change the simulation"),
+        handler="_open_tags_dialog",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="data.import_table",
+        attr="_import_table_action",
+        text="Import Table…",
+        icon="csv_icon:text",
+        tooltip=(
+            "Import failure/repair parameters, PM settings or stock from "
+            "an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are "
+            "validated first and applied as one undo step; formula cells "
+            "use the workbook's calculated value"),
+        handler="_import_data_table",
+        enabled_when="model_open"),
+    CommandSpec(
+        id="data.import_template",
+        attr="_import_template_action",
+        text="Data Table Template…",
+        icon="table_template_icon:text",
+        tooltip=(
+            "Save the open model's block data as an Excel (.xlsx) or "
+            "OpenDocument (.ods) sheet with the columns Import Table reads. "
+            "Edit it, then import it back"),
+        handler="_export_import_template",
+        enabled_when="model_open"),
     CommandSpec(
         id="data.phases",
         attr="_phases_action",
@@ -1316,6 +1403,17 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checkable=True,
         checked=True),
     CommandSpec(
+        id="view.undo_history",
+        shortcut="Ctrl+Shift+H",
+        attr="_undo_history_action",
+        text="Model History",
+        icon="model_history_icon:text",
+        tooltip=(
+            "Browse the model's retained undo steps and jump to one "
+            "(Ctrl+Shift+H); the maximum number kept is set in Preferences"),
+        handler="_show_undo_history",
+        enabled_when="model_open"),
+    CommandSpec(
         id="view.theme",
         attr="_theme_action",
         text="Dark Theme",
@@ -1497,16 +1595,21 @@ def _p(title: str, index_attr: str, *groups: Group) -> Page:
 #: here are placed as surely as those on a ribbon page.
 BACKSTAGE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("File", ("file.new", "file.open", "file.save",
-              "file.save_as", "file.close_file", "file.quit", "home.diff")),
-    # Other tools' files opened as a new model: one tile per format, so a
-    # new importer is one more id here.
-    ("Import", ("file.import_awb",)),
+              "file.save_as", "file.save_version", "file.history",
+              "file.close_file",
+              "file.quit", "home.diff")),
+    # Other tools' files: one tile per format, so a new importer is one
+    # more id here. Availability Workbench opens a new model; a data table
+    # (.xlsx/.ods) updates the open one, and is also under Data ▸ Bulk Edit.
+    ("Import", ("file.import_awb", "data.import_table",
+                "data.import_template")),
     # U22: one Export (the file type picks what is written), then Export
     # Tables for choosing tables; the single-type commands stay in the
     # command palette and on their shortcuts.
     ("Print and Export", ("file.print", "file.export", "file.export_awb",
                           "file.preview_awb", "file.export_awb_normalized",
-                          "file.export_tables", "file.copy_view")),
+                          "file.export_tables", "file.copy_view",
+                          "file.share_safe")),
 )
 
 #: Commands with a top level entry in the File view's nav column, after
@@ -1539,6 +1642,8 @@ LAYOUT: tuple[Page, ...] = (
                        # the large ones Quick Add left a gap
                        Btn("model.quick_add"),
                        Btn("model.collapse"), Btn("model.delete"))),
+       # Project Health is on Data (Bulk Edit): a fourth large button here
+       # made the busiest tab shrink its Model group at 1280 px.
        Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
                        Btn("results.analytical", True)), priority=4),
        # Annotations are put on the canvas like elements, so they sit
@@ -1567,7 +1672,10 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
                            Btn("data.mass_edit", True),
-                           Btn("data.own_streams", True)), priority=2),
+                           Btn("data.tags", True),
+                           Btn("data.import_table", True),
+                           Btn("data.own_streams", True),
+                           Btn("home.health", True)), priority=2),
        Group("Library", (Btn("data.export_library"),
                          Btn("data.import_library")), priority=1)),
     _p("Simulate", "_simulate_page_index",
@@ -1645,8 +1753,11 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.advisor_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
+       # Focus, Tag Colours and Preferences share one column: with
+       # Preferences large the tab did not fit 1280 px on CI fonts
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
-                            Btn("view.prefs", True),
+                            Btn("view.tag_colours"),
+                            Btn("view.prefs"),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),
              priority=2)),

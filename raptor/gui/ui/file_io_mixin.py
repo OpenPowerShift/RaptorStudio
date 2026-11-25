@@ -5,9 +5,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from raptor.gui import i18n
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+import json
 import os
 import re
 from pathlib import Path
@@ -42,6 +44,21 @@ else:
     _Base = object
 
 
+def _suffix_for_filter(name_filter: str, default: str) -> str:
+    """The extension a Save dialog's chosen name filter asks for.
+
+    Qt does not append the filter's extension for us, so typing a bare
+    name while "RAPTOR Studio archives (*.rbdz)" is selected used to save
+    `plant.rbds` anyway.  Longest suffixes are checked first so `*.rbdz`
+    is not mistaken for `*.rbd`.
+    """
+    lower = (name_filter or "").lower()
+    for suffix in (".rbdz", ".rbds", ".rbd"):
+        if f"*{suffix}" in lower:
+            return suffix
+    return default
+
+
 class FileIoMixin(_Base):
     """File commands: new, open, save, save as, close, quit and the busy cursor."""
 
@@ -52,6 +69,7 @@ class FileIoMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         def _block_defaults(self) -> dict: ...
+        def _apply_hier_status(self, report_data: Any) -> None: ...
         def _bump_model_revision(self) -> None: ...
         _busy_dialog: Any  # really PySide6.QtWidgets.QProgressDialog | None
         def _cancel_pending_block_selection(self) -> None: ...
@@ -70,8 +88,10 @@ class FileIoMixin(_Base):
         _inspector: raptor.gui.ui.inspector.InspectorDock
         def _invalidate_step_session(self) -> Any: ...
         _loading_model: bool
+        _archive_baseline_file: str | None
         def _migrate_report_stream_settings(self) -> None: ...
         def _open_path(self, path: str) -> Any: ...
+        def _spawn_window(self) -> Any: ...
         _opened_legacy_format: bool
         def _populate_breakpoints(self) -> Any: ...
         def _push_hierarchy_options(self) -> Any: ...
@@ -100,6 +120,7 @@ class FileIoMixin(_Base):
         def _sync_overlay_actions(self, report_data: Any) -> None: ...
         def _sync_run_mirrors(self) -> None: ...
         def _sync_run_panel_units(self) -> None: ...
+        def _apply_currency(self, *, changed: bool = ...) -> None: ...
         def _sync_simulate_enabled_state(self) -> Any: ...
         _undo_stack: PySide6.QtGui.QUndoStack
         _units_chip: PySide6.QtWidgets.QLabel
@@ -118,7 +139,8 @@ class FileIoMixin(_Base):
         few pixels -- our global QToolButton stylesheet starves them.
         Building the dialog ourselves lets us restore sane icon sizes and
         keep the theme's stylesheet."""
-        dlg = QFileDialog(self, caption)
+        from raptor.gui.i18n import tr
+        dlg = QFileDialog(self, tr(caption, "Gui"))
         dlg.setAcceptMode(mode)
         dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         fdg.theme_file_dialog(dlg)
@@ -129,11 +151,15 @@ class FileIoMixin(_Base):
             # convention) so nothing is hidden on open; the two
             # single-format filters stay available for narrowing.
             dlg.setNameFilter(
-                "All RAPTOR models (*.rbds *.rbd);;"
-                "RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)")
+                "All RAPTOR models (*.rbds *.rbdz *.rbd);;"
+                "RAPTOR Studio models (*.rbds);;"
+                "RAPTOR Studio archives (*.rbdz);;"
+                "Classic RAPTOR (*.rbd)")
         else:
             dlg.setNameFilter(
-                "RAPTOR Studio models (*.rbds);;Classic RAPTOR (*.rbd)")
+                "RAPTOR Studio models (*.rbds);;"
+                "RAPTOR Studio archives (*.rbdz);;"
+                "Classic RAPTOR (*.rbd)")
             # The Save filter's active default matches the open file's
             # own extension. Plain Save keeps the open format; only
             # Save As deliberately suggests .rbds (its own selectFile
@@ -154,6 +180,7 @@ class FileIoMixin(_Base):
         self._invalidate_step_session()
         # Closing the model is not an edit: always return the right-hand
         # docks to their unrun state.
+        self._clear_archive_results_temp()
         self._reset_right_docks()
         # Reset the view's per-file state, then leave the canvas EMPTY.
         # It used to keep showing that placeholder model -- a diagram, a full
@@ -165,6 +192,15 @@ class FileIoMixin(_Base):
         self._bump_model_revision()      # no model: nothing to reuse
         self._rbd = None
         self._current_file = None
+        # The history goes with the model: its commands hold rows that no
+        # longer exist, so the browser must not offer a jump into them.
+        self._undo_stack.clear()
+        apply_limit = getattr(self, "_apply_undo_limit", None)
+        if apply_limit is not None:
+            apply_limit()
+        close_history = getattr(self, "_close_undo_history", None)
+        if close_history is not None:
+            close_history()
         self._dirty = False
         self._results.clear()
         self._results.forget_previous_run()
@@ -280,6 +316,9 @@ class FileIoMixin(_Base):
         a click that lands during the rebuild cannot start a second Open.
         """
         self._dock_extents_at_load_start = self._current_dock_extents()
+        # The previous archive's extracted result files belong to the old
+        # model; keep them until the new load is about to replace it.
+        self._clear_archive_results_temp()
         # Must run before `_loading_model` and before the model swap: the
         # draft belongs to the old model and its old Inspector editor.
         self._inspector.flush_pending_comment()
@@ -316,11 +355,18 @@ class FileIoMixin(_Base):
         # Inspector front, Live Log parked.
         self._reset_right_docks()
         self._current_file = path
+        #: The archive whose own results are on screen; see
+        #: `_archive_results_diverged`. Set once the open has finished.
+        self._archive_baseline_file = None
         # Retention rule: a file opened as legacy .rbd keeps saving as
         # .rbd; new models and .rbds files default to .rbds.
         self._opened_legacy_format = bool(path) and \
-            not str(path).lower().endswith(".rbds")
-        self._undo_stack.setClean()
+            not str(path).lower().endswith((".rbds", ".rbdz"))
+        # The history belongs to the previous model: its commands hold
+        # that model's blocks and rows, and jumping to one after an Open
+        # would write them into this model. Clearing also makes the
+        # configured cap apply (Qt only takes a limit on an empty stack).
+        self._undo_stack.clear()
         self._dirty = False
         # units chip
         cap_on = False
@@ -374,6 +420,9 @@ class FileIoMixin(_Base):
         v.apply_view_options(getattr(rbd, "view", None) or {})
         self._sync_link_routing_combo()
         v.load_rbd(rbd)
+        apply_limit = getattr(self, "_apply_undo_limit", None)
+        if apply_limit is not None:
+            apply_limit()
         self._sync_block_label_controls()
         # The canvas rebuild is the one long block the indicator can be
         # repainted after: without a yield it stays as the first frame
@@ -451,6 +500,7 @@ class FileIoMixin(_Base):
         # its own row.
         self._sync_run_mirrors()
         self._sync_run_panel_units()
+        self._apply_currency()
         # A new model starts on whole-model scope even if a hierarchy id
         # from the previous file happens to collide.
         self._run_scope_return_level = None
@@ -550,7 +600,8 @@ class FileIoMixin(_Base):
                 "destination.")
         box.setDetailedText(report.summary_text())
         box.setIcon(QMessageBox.Icon.Information)
-        box.exec()
+        from raptor.gui import i18n
+        i18n.exec_translated(box)
 
     def _write_model(self, path: str) -> bool:
         """Write the model in the format its EXTENSION asks for
@@ -577,6 +628,61 @@ class FileIoMixin(_Base):
         # serializing, so deleted/edited annotations don't survive in
         # the saved file.
         self._diagram_dock.view.write_back_annotations()
+        if str(path).lower().endswith(".rbdz"):
+            # The archive carries the model AND whatever result set is on
+            # screen. The model entry keeps the .rbds name so a reopened
+            # result's report cover still says the right thing.
+            from datetime import datetime
+            rbd = req(self._rbd)
+            rbd.file_name = Path(path).with_suffix(".rbds").name
+            sources = self._results.archive_payload() or {}
+            # Preserve entries from the opened archive that the dock does
+            # not regenerate (ids, data files, future entries) -- but only
+            # while the results on screen ARE that archive's. After a new
+            # run they belong to another run: merging them put the old
+            # run's event log or drivers beside the new run's figures.
+            showing_archive = bool(getattr(self._results, "_archive_source", ""))
+            old_files = (getattr(self, "_archive_files", None) or {}
+                         if showing_archive else {})
+            for name, source in old_files.items():
+                sources.setdefault(name, source)
+            if not sources and showing_archive and \
+                    getattr(self, "_archive_had_results", False):
+                msgbox.warning(
+                    self, "Archive Results Not Replaced",
+                    "This archive's saved results could not be restored, so "
+                    "saving here would discard them. Use Save As to a new "
+                    "file, or re-open the archive to recover them.")
+                return False
+            created = datetime.now().isoformat(timespec="seconds")
+            manifest: dict[str, Any] = {
+                "model": {"file_name": Path(path).name},
+            }
+            if sources is not None:
+                summary = {}
+                text = sources.get("summary.json")
+                if isinstance(text, str):
+                    try:
+                        summary = json.loads(text)
+                    except ValueError:
+                        summary = {}
+                # The manifest is what a reviewer reads before opening:
+                # name the run and the model it was run against.
+                manifest["results"] = {
+                    key: summary.get(key) for key in
+                    ("run_id", "model_hash", "num_runs", "units", "run_at",
+                     "model_name")
+                    if summary.get(key) is not None
+                }
+            # Snapshot on this thread (model text: ~20 ms); compress and
+            # write on a worker. Returns when the file is complete.
+            from raptor.gui.ui.save_progress import save_archive_blocking
+            save_archive_blocking(self, path, rbds_io.render_for_save(rbd),
+                                  sources, manifest, created)
+            # Like an .rbds save: the archive is a version, and the
+            # results it carries are now saved with it.
+            self._archive_had_results = bool(sources)
+            return True
         if str(path).lower().endswith(".rbds"):
             # Saving can re-lay out a crammed model, on the UI thread.
             rbds_io.save_rbds(req(self._rbd), path)
@@ -595,6 +701,14 @@ class FileIoMixin(_Base):
                 f"{n_ann} annotation(s) (text/shapes) cannot be "
                 f"stored in the .rbd format and will be "
                 f"DROPPED. Save as .rbds to keep them.")
+        if getattr(self._rbd, "tags", None) or \
+                getattr(self._rbd, "tag_info", None):
+            msgbox.warning(
+                self, "Tags not supported in the .rbd format",
+                "The component tags cannot be stored in the .rbd format "
+                "and will be DROPPED. They are navigation metadata only; "
+                "the model and its results are unaffected. Save as .rbds "
+                "or .rbdz to keep them.")
         if getattr(self._rbd, "display_unit", None):
             msgbox.warning(
                 self, "Display unit not supported in the .rbd format",
@@ -693,29 +807,306 @@ class FileIoMixin(_Base):
                            + crowded)
         return True
 
+    def _history_changed_on_disk(self, path: str) -> bool:
+        """True when the file no longer matches its newest recorded version.
+
+        Another program (or a previous session with history switched off)
+        can change the file while this window still shows the old model.
+        Restoring would throw that change away, so the caller warns first
+        even though the replaced bytes are recorded.
+        """
+        from raptor.api import history
+        from raptor.core.history import file_digest
+        shots = history.snapshots(path)
+        if not shots or not shots[0].sha256:
+            return False
+        disk = file_digest(path)
+        return bool(disk) and disk != shots[0].sha256
+
     def _open_model_any(self, path: str):
         """Read .rbds or legacy .rbd by extension: the loader the CLI and MCP
         server use too, with the same schema check and messages."""
         from raptor.core.fileio.model_file import load_model_file
         return load_model_file(path)
 
-    def _save_file(self):
-        if self._rbd is None:
+    def _history_current_state(self):
+        """The working state for the history dialog's Current row: the open
+        model as Save would write it, and the run its archive would carry."""
+        from raptor.gui.ui.history_dialog import CurrentState
+        self._inspector.flush_pending_comment()
+        self._diagram_dock.view.write_back_to_rbd(self._rbd)
+        self._diagram_dock.view.write_back_annotations()
+        results = self._results
+        run_id = results.run_id()
+        if (run_id is None and results.has_results()
+                and not getattr(results, "_archive_source", "")):
+            # Results with no manifest have no digest, and an archive without
+            # one has none either: None == None would call a new run "the
+            # same as the version". Results the archive did not supply are
+            # never its own, so give them an identity no archive can match.
+            run_id = f"unrecorded-{id(results._manifest)}-{self._content_stamp()}"
+        return CurrentState(self._rbd, dirty=bool(getattr(self, "_dirty", False)),
+                            run_id=run_id)
+
+    def _save_for_history(self) -> bool:
+        """Save unsaved edits so a version can checkpoint them; False when
+        the save was cancelled or failed (the model stays dirty).
+
+        A run that finishes during the save leaves the window unsaved, but
+        the save itself succeeded, so that is not a failure here.
+        """
+        if not getattr(self, "_dirty", False):
+            return True
+        return bool(self._save_file())
+
+    def _save_version_now(self):
+        """File ▸ Save Version Now: the history dialog, straight to the save."""
+        self._open_history_dialog(save_now=True)
+
+    def _open_history_dialog(self, *_checked, save_now: bool = False):
+        """File ▸ Version History: browse or restore saved versions."""
+        if not self._current_file:
             return
+        from PySide6.QtWidgets import QDialog
+        from raptor.gui.ui.history_dialog import HistoryDialog
+        from raptor.api import history
+        dialog = HistoryDialog(self, self._current_file,
+                               current_model=self._rbd,
+                               save_current=self._save_for_history,
+                               current_state=self._history_current_state,
+                               start_save=save_now)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        snapshot = dialog.snapshot
+        if snapshot is None:
+            return
+        if dialog.action == "open":
+            try:
+                rbd = self._open_model_any(str(snapshot.path))
+            except Exception as exc:  # noqa: BLE001 - show the snapshot file
+                msgbox.critical(
+                    self, "Open Version Failed",
+                    f"Could not open {snapshot.time_text()}:\n\n{exc}")
+                return
+            target = self._spawn_window()
+            target._load_into_app(rbd, None)
+            target._statusbar.showMessage(
+                f"Opened version from {snapshot.time_text()} as an unsaved "
+                "model — Save As to keep it", 10000)
+            return
+        if dialog.action == "restore":
+            if self._refuse_during_run("restore a version"):
+                return
+            if getattr(self._rbd, "protected_file", False):
+                msgbox.warning(
+                    self, "Protected File",
+                    "This model is marked as overwrite-protected: it cannot "
+                    "be restored. Save a copy instead.")
+                return
+            from raptor.gui.ui.dialogs import question_box
+            # Ask about the unsaved work FIRST: saving it must not write
+            # the model a second later overwrites.
+            if not self._confirm_discard_unsaved(closing=True):
+                return
+            if self._history_changed_on_disk(self._current_file):
+                if not question_box(
+                        self, "File Changed Outside RAPTOR Studio",
+                        f"{Path(self._current_file).name} is different on "
+                        "disk from the newest version in History: another "
+                        "program, or an earlier session, changed it.\n\n"
+                        "Restoring replaces those changes. A copy of the "
+                        "file as it is now is recorded in History first, so "
+                        "you can recover them from this list.\n\nContinue?",
+                        yes_text="Continue", no_text="Cancel"):
+                    return
+            if not question_box(
+                    self, "Restore Version",
+                    f"Replace {Path(self._current_file).name} with the version "
+                    f"from {snapshot.time_text()}?\n\nThe current file is "
+                    "recorded in History first, so this is reversible.",
+                    yes_text="Restore version", no_text="Cancel"):
+                return
+            try:
+                # Keep the state being replaced, even if it was never saved
+                # through History (an external change or an old file).
+                if Path(self._current_file).is_file():
+                    history.record(self._current_file, reason="before restore")
+                history.restore(self._current_file, snapshot.id)
+                restored = self._open_model_any(self._current_file)
+                self._load_into_app(restored, self._current_file)
+                self._arm_archive_baseline(self._current_file)
+                self._undo_stack.setClean()
+                self._dirty = False
+            except Exception as exc:  # noqa: BLE001
+                msgbox.critical(self, "Restore Failed",
+                                f"Could not restore the version:\n\n{exc}")
+                return
+            self._statusbar.showMessage(
+                f"Restored version from {snapshot.time_text()}", 8000)
+
+    def _content_stamp(self) -> tuple[int, str | None, int]:
+        """What "the document as it is now" is: undo position, the result
+        set on screen, and a counter bumped whenever the results change.
+
+        A save compares the stamp from before the write with the one after
+        it: a run that finished while the archive was being written changed
+        the document, so the file does not hold it and the window stays
+        unsaved.
+        """
+        return (self._undo_stack.index(), self._results.run_id(),
+                getattr(self, "_content_generation", 0))
+
+    def _mark_saved(self, stamp: tuple[int, str | None, int]) -> None:
+        """Clear the unsaved flag, unless the document changed mid-save."""
+        if self._undo_stack.index() == stamp[0]:
+            self._undo_stack.setClean()
+        self._dirty = self._content_stamp() != stamp
+        if self._dirty:
+            self._update_title()
+
+    def _save_failed_text(self, exc: BaseException, path: str) -> str:
+        from raptor.gui.run_text import save_disk_full_text
+        return (save_disk_full_text(exc, path)
+                or f"Failed to save:\n{exc}")
+
+    def _arm_archive_baseline(self, path: str | None) -> None:
+        """Results shown on an open `.rbdz` that are not its own make it
+        unsaved. Armed after every load of an archive (open, restore of a
+        version), not only the Open command."""
+        self._archive_baseline_file = (
+            path if path and str(path).lower().endswith(".rbdz") else None)
+
+    def _archive_results_diverged(self) -> None:
+        """Results are part of an `.rbdz` document: when the ones on screen
+        stop being the archive's own (a new run, or cleared), the document
+        has unsaved changes, so Save, the close prompt and Save version now
+        write the archive with the current results first. Plain .rbds never
+        stores results and is untouched. Runs from the Results dock's
+        `contents_changed`; ignored while a file is being opened.
+        """
+        self._content_generation = getattr(self, "_content_generation", 0) + 1
+        current = getattr(self, "_current_file", None)
+        if (not current or not str(current).lower().endswith(".rbdz")
+                or getattr(self, "_archive_baseline_file", None) != current
+                or getattr(self, "_loading_model", False)):
+            return
+        results = self._results
+        shown = results.has_results()
+        own = bool(getattr(results, "_archive_source", ""))
+        if (shown and not own) or (
+                not shown and getattr(self, "_archive_had_results", False)):
+            if not self._dirty:
+                self._dirty = True
+                self._update_title()
+
+    def _clear_archive_results_temp(self) -> None:
+        """Drop the extracted result files of a previously opened `.rbdz`."""
+        temp = getattr(self, "_archive_temp", None)
+        self._archive_temp: Any = None    # a TemporaryDirectory while open
+        self._archive_files: dict[str, Any] = {}
+        self._archive_had_results = False
+        if temp is not None:
+            try:
+                temp.cleanup()
+            except OSError:
+                pass
+
+    def _restore_archive_results(self, path: str) -> bool:
+        """Put an `.rbdz`'s saved result set back on the Results dock.
+
+        The result entries are extracted to a temporary directory and
+        passed as lazy line sources, so a 475 MB plot is never read into
+        memory just to reopen the archive.
+        """
+        from raptor.core.fileio.rbdz import extract_results
+        import json
+        import tempfile
+        self._clear_archive_results_temp()
+        temp = tempfile.TemporaryDirectory(prefix="raptor_rbdz_")
+        try:
+            files, _ = extract_results(path, temp.name)
+        except Exception as exc:  # noqa: BLE001 - show the file, don't crash
+            temp.cleanup()
+            msgbox.warning(
+                self, "Saved Results Not Read",
+                f"{Path(path).name} opened, but its saved results could not "
+                f"be read:\n\n{exc}")
+            return False
+        if not files:
+            temp.cleanup()
+            self._statusbar.showMessage(
+                f"{Path(path).name}: no saved results in this archive", 6000)
+            return False
+        summary = {}
+        summary_path = files.get("summary.json")
+        if summary_path is not None:
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                summary = {}
+        self._archive_temp = temp
+        self._archive_files = dict(files)
+        self._archive_had_results = True
+        shown = self._results.set_archive_results(
+            files, summary if isinstance(summary, dict) else {}, rbd=self._rbd,
+            source_name=str(summary.get("model_name") or Path(path).name)
+            if isinstance(summary, dict) else Path(path).name)
+        if shown:
+            self._results_show_action.setEnabled(True)
+            self._results_float_action.setEnabled(True)
+            # The archive carries the structured analyses too, so the
+            # canvas overlays and hierarchy status are available exactly
+            # as after a live run.
+            self._sync_overlay_actions(self._results._report_data)
+            self._apply_hier_status(self._results._report_data)
+            runs = summary.get("num_runs") if isinstance(summary, dict) else None
+            self._statusbar.showMessage(
+                f"Opened saved results from {Path(path).name}"
+                + (f" ({runs:,} runs)" if isinstance(runs, int) else ""), 8000)
+        else:
+            self._clear_archive_results_temp()
+        return shown
+
+
+    def _save_message(self, path: str) -> tuple[str, int]:
+        """The status-bar text after a successful save, and how long to show it."""
+        name = Path(path).name
+        if not str(path).lower().endswith(".rbdz"):
+            return i18n.tr("Saved: {name}").format(name=name), 4000
+        runs = self._results.run_count()
+        if runs == 1:
+            return i18n.tr(
+                "Saved archive: {name} ({runs:,} run of results included)"
+            ).format(name=name, runs=runs), 8000
+        if runs:
+            return i18n.tr(
+                "Saved archive: {name} ({runs:,} runs of results included)"
+            ).format(name=name, runs=runs), 8000
+        return i18n.tr(
+            "Saved archive: {name} (model only — run the model to include "
+            "results)").format(name=name), 8000
+
+    def _save_file(self) -> bool:
+        """Save to the current file. True when the file was written."""
+        if self._rbd is None or getattr(self, "_save_in_progress", False):
+            return False
         if self._current_file is None:
             # New, never-saved model: Save means "choose a location".
-            self._save_file_as()
-            return
+            return bool(self._save_file_as())
         try:
+            stamp = self._content_stamp()
             if not self._write_model(self._current_file):
                 self._statusbar.showMessage("Save cancelled")
-                return
-            self._undo_stack.setClean()
-            self._dirty = False
+                return False
+            self._mark_saved(stamp)
             self._update_title()
-            self._statusbar.showMessage(f"Saved: {Path(self._current_file).name}")
+            message, timeout = self._save_message(self._current_file)
+            self._statusbar.showMessage(message, timeout)
+            return True
         except Exception as e:
-            msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
+            msgbox.critical(self, "Save Failed",
+                            self._save_failed_text(e, self._current_file))
+            return False
 
     def _untitled_save_path(self) -> str:
         """Where Save As starts for a model with no file: its title (or
@@ -730,25 +1121,30 @@ class FileIoMixin(_Base):
             folder = os.path.expanduser("~")
         return os.path.join(folder, name + ".rbds")
 
-    def _save_file_as(self):
-        if self._rbd is None:
-            return
+    def _save_file_as(self) -> bool:
+        """Save under a new name. True when the file was written."""
+        if self._rbd is None or getattr(self, "_save_in_progress", False):
+            return False
         dlg = self._make_file_dialog("Save RBD File As", QFileDialog.AcceptMode.AcceptSave)
         # Save As suggests .rbds even for legacy files, nudging users to
         # the native format; plain Save keeps the file's own format
         # unchanged.
         suggested = self._current_file or self._untitled_save_path()
+        suffix = ".rbdz" if str(suggested).lower().endswith(".rbdz") else ".rbds"
         stem = suggested.rsplit(".", 1)[0] if "." in suggested \
             else suggested
-        suggested = stem + ".rbds"
+        suggested = stem + suffix
         dlg.selectFile(suggested)
         if not dlg.exec() or not dlg.selectedFiles():
-            return
+            return False
         path = dlg.selectedFiles()[0]
         if not path:
-            return
-        if not str(path).lower().endswith((".rbds", ".rbd")):
-            path += ".rbds"     # no extension -> new default format
+            return False
+        if not str(path).lower().endswith((".rbds", ".rbdz", ".rbd")):
+            # No extension: the filter the user chose names the format, so
+            # selecting "RAPTOR Studio archives" and typing "plant" saves
+            # plant.rbdz instead of silently falling back to .rbds.
+            path += _suffix_for_filter(dlg.selectedNameFilter(), suffix)
         from raptor.gui import open_models
         other = open_models.window_for_file(path)
         if other is not None and other is not self:
@@ -756,20 +1152,24 @@ class FileIoMixin(_Base):
                 self, "File Already Open",
                 f"{Path(path).name} is open in another RAPTOR Studio "
                 "window. Close that window or save to a different file.")
-            return
+            return False
         try:
+            stamp = self._content_stamp()
             if not self._write_model(path):
                 self._statusbar.showMessage("Save cancelled")
-                return
+                return False
         except Exception as e:
-            msgbox.critical(self, "Save Failed", f"Failed to save:\n{e}")
-            return
+            msgbox.critical(self, "Save Failed",
+                            self._save_failed_text(e, path))
+            return False
         self._current_file = path
-        self._undo_stack.setClean()
-        self._dirty = False
+        self._arm_archive_baseline(path)
+        self._mark_saved(stamp)
         # A model saved for the first time now has a file: Save becomes
         # available.
         self._refresh_commands()
         self._update_title()
         self._remember_recent(path)
-        self._statusbar.showMessage(f"Saved: {Path(path).name}")
+        message, timeout = self._save_message(path)
+        self._statusbar.showMessage(message, timeout)
+        return True

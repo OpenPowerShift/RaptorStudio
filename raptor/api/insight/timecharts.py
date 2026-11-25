@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_right
+from collections.abc import Sequence
 from typing import Any
 
 from raptor.api.insight.axes import format_value
@@ -116,14 +117,39 @@ def in_key(layer: dict[str, Any]) -> bool:
     return True
 
 
+def spread_labels(ys: Sequence[float], gap: float, top: float,
+                  bottom: float) -> list[float]:
+    """Vertical positions for direct end labels: each as near its line end
+    as possible, none closer than `gap` to another, all within top..bottom.
+
+    A forward pass pushes labels down off the one above; if the last then
+    falls below `bottom`, a backward pass pushes them back up.  Input order
+    is kept in the result.
+    """
+    order = sorted(range(len(ys)), key=lambda i: ys[i])
+    placed = [min(max(ys[i], top), bottom) for i in order]
+    for k in range(1, len(placed)):
+        placed[k] = max(placed[k], placed[k - 1] + gap)
+    if placed and placed[-1] > bottom:
+        placed[-1] = bottom
+        for k in range(len(placed) - 2, -1, -1):
+            placed[k] = min(placed[k], placed[k + 1] - gap)
+    out = [0.0] * len(ys)
+    for k, i in enumerate(order):
+        out[i] = placed[k]
+    return out
+
+
 def _spec(title: str, subtitle: str, units: str, layers: list[dict[str, Any]], *,
           caption: str, fmt: str, y_label: str, y_range: list[float] | None,
-          provenance: dict[str, Any], target: float | None = None) -> ChartSpec:
+          provenance: dict[str, Any], target: float | None = None,
+          marks: list[dict[str, Any]] | None = None) -> ChartSpec:
     return ChartSpec(
         "timeline", title, subtitle,
         x_label=f"simulated time ({units})" if units else "simulated time",
         y_label=y_label, series=layers,
-        marks=[{"kind": "target", "value": target}] if target is not None else [],
+        marks=(marks if marks is not None else
+               [{"kind": "target", "value": target}] if target is not None else []),
         caption=caption,
         provenance={"format": fmt, "time_units": units, "y_range": y_range,
                     **provenance})
@@ -444,9 +470,19 @@ def _capacity_summary(values: list[float], weights: list[float] | None,
     }
 
 
+def _capacity_mark(capacity_target: float | None, full: float) -> list[dict[str, Any]]:
+    """The capacity target as a line on the flow axis: the share of the
+    full flow it asks for (`share` lets a painter word it as a percentage)."""
+    if capacity_target is None:
+        return []
+    return [{"kind": "target", "value": capacity_target * full,
+             "share": capacity_target, "label": "capacity target"}]
+
+
 def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
                          units: str = "", generated: float | None = None,
-                         ends: list[float | None] | None = None) -> ChartSpec:
+                         ends: list[float | None] | None = None,
+                         capacity_target: float | None = None) -> ChartSpec:
     """One run's flow against what a fully working system delivers.
 
     The filled area is the flow delivered; the shaded gap above it, up to
@@ -479,6 +515,10 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
                    f"the time, lowest flow {min(flow):,.4g} of {full:,.4g}.")
     else:
         caption = f"Run {number}: lowest flow {min(flow):,.4g}."
+    if capacity_target is not None and full_time > 0:
+        caption += (" It met the capacity target."
+                    if flow_time / full_time >= capacity_target
+                    else f" It missed the capacity target {_pct(capacity_target)}.")
     layers: list[dict[str, Any]] = [
         {"name": "capacity lost", "role": "area", "tone": "down", "alpha": 0.28,
          "t": xs, "lo": fs, "hi": [full] * len(xs)},
@@ -510,7 +550,7 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
     return _spec(f"Capacity through run {number}",
                  "flow delivered against a fully working system", units, layers,
                  caption=caption, fmt="", y_label="flow",
-                 y_range=[0.0, top],
+                 y_range=[0.0, top], marks=_capacity_mark(capacity_target, full),
                  provenance={"run": number, "runs": len(cap_runs),
                              "changes": len(t), "full": full,
                              "capacity_range": _capacity_summary(flow, weights, full),
@@ -520,7 +560,8 @@ def capacity_through_run(cap_runs: list[dict[str, Any]], run: int = 1, *,
 def capacity_band(cap_runs: list[dict[str, Any]], *, units: str = "",
                   generated: float | None = None,
                   ends: list[float | None] | None = None,
-                  points: int = BAND_POINTS) -> ChartSpec:
+                  points: int = BAND_POINTS,
+                  capacity_target: float | None = None) -> ChartSpec:
     """Every run's flow at each time, as bands across the runs."""
     usable = [_until(r, _end(ends, i)) for i, r in enumerate(cap_runs) if r.get("t")]
     if len(usable) < 2:
@@ -541,6 +582,11 @@ def capacity_band(cap_runs: list[dict[str, Any]], *, units: str = "",
         caption += f" delivered {_pct(flow_time / full_time)} of their {full_name}"
     caption += (f"; the mean flow fell as low as {min(bands['mean']):,.4g} "
                 f"of {full:,.4g}.")
+    if capacity_target is not None:
+        met = sum(1 for d in delivered
+                  if d[1] > 0 and d[0] / d[1] >= capacity_target)
+        caption += (f" {met:,} of the {len(usable):,} runs delivered at or "
+                    "above the capacity target.")
     layers = _band_layers(grid, bands, what="flow")
     layers.append({"name": full_name, "role": "line", "tone": "ink",
                    "t": [0.0, horizon], "y": [full, full], "width": 1.2,
@@ -550,6 +596,7 @@ def capacity_band(cap_runs: list[dict[str, Any]], *, units: str = "",
                  "flow at each moment: where the runs agree", units, layers,
                  caption=caption, fmt="", y_label="flow",
                  y_range=[0.0, max(full, max(bands["max"])) or 1.0],
+                 marks=_capacity_mark(capacity_target, full),
                  provenance={"runs": len(usable), "horizon": horizon, "full": full,
                              "capacity_range": _capacity_summary(pooled, None, full),
                              "delivered": flow_time / full_time if full_time else None})
@@ -560,7 +607,8 @@ def time_chart(name: str, *, ao_runs: list[dict[str, Any]] | None = None,
                units: str = "", target: float | None = None,
                y_floor: float | None = None,
                generated: float | None = None,
-               ends: list[float | None] | None = None) -> ChartSpec:
+               ends: list[float | None] | None = None,
+               capacity_target: float | None = None) -> ChartSpec:
     """One of `TIME_CHARTS` by name (ValueError naming what is missing)."""
     if name.startswith("availability") or name == "interval-availability":
         if not ao_runs:
@@ -576,8 +624,9 @@ def time_chart(name: str, *, ao_runs: list[dict[str, Any]] | None = None,
         raise ValueError(message("capacity_plot"))
     if name == "capacity-through-run":
         return capacity_through_run(cap_runs, run, units=units, generated=generated,
-                                    ends=ends)
-    return capacity_band(cap_runs, units=units, generated=generated, ends=ends)
+                                    ends=ends, capacity_target=capacity_target)
+    return capacity_band(cap_runs, units=units, generated=generated, ends=ends,
+                         capacity_target=capacity_target)
 
 
 def stored_inputs(run_dir: Any) -> dict[str, Any]:

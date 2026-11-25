@@ -25,7 +25,8 @@ from PySide6.QtWidgets import (
 
 from raptor.gui.command_table import BACKSTAGE, BACKSTAGE_ACTIONS
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import TYPE, active_colour
+from raptor.gui.resources.design_tokens import (
+    TYPE, active_colour, px as _scaled)
 
 if TYPE_CHECKING:
     from raptor.gui.ui.main_window import MainWindow
@@ -82,7 +83,7 @@ class Backstage(QWidget):
         nav.setObjectName("BackstageNav")
         # 280, not 210: "Import Availability Workbench…" was cut to
         # "Import Availability Wor..."
-        nav.setFixedWidth(280)
+        nav.setFixedWidth(_scaled(280))
         nl = QVBoxLayout(nav)
         nl.setContentsMargins(0, 12, 0, 12)
         nl.setSpacing(2)
@@ -133,6 +134,9 @@ class Backstage(QWidget):
         # (`MainWindow._handle_escape_activated`): a second Esc shortcut
         # here made the key ambiguous, so neither fired.
         window.installEventFilter(self)
+        # Built on first use, after the main window's own translation pass.
+        from raptor.gui import i18n
+        i18n.translate_widgets(self)
 
     # ---- construction ---------------------------------------------------
 
@@ -208,7 +212,7 @@ class Backstage(QWidget):
         teaches. `example` None is the Blank model card."""
         card = QPushButton()
         card.setObjectName("BackstageCard")
-        card.setFixedSize(CARD_W + 2, CARD_H + 66)
+        card.setFixedSize(_scaled(CARD_W + 2), _scaled(CARD_H + 66))
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.setAccessibleName(title)
         card.setToolTip(f"{title}: {idea}")
@@ -217,7 +221,7 @@ class Backstage(QWidget):
         col.setSpacing(2)
         pic = QLabel()
         pic.setObjectName("BackstageCardPicture")
-        pic.setFixedSize(CARD_W, CARD_H)
+        pic.setFixedSize(_scaled(CARD_W), _scaled(CARD_H))
         pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col.addWidget(pic)
         name = QLabel(title)
@@ -729,7 +733,7 @@ class Backstage(QWidget):
         for btn in self.findChildren(QPushButton, "BackstageNavItem"):
             btn.setIcon(getattr(icons, btn.property("navIcon"))("#FFFFFF"))
         from raptor.gui.examples import thumbnail
-        from raptor.gui.resources.design_tokens import ThemeManager
+        from raptor.gui.resources.design_tokens import ThemeManager, scale_stylesheet
         dark = ThemeManager.instance().is_dark
         for card in self._cards:
             pic = card.findChild(QLabel, "BackstageCardPicture")
@@ -749,7 +753,7 @@ class Backstage(QWidget):
             tile_icon = tile.findChild(QLabel, "BackstageTileIcon")
             if tile_icon is not None:
                 tile_icon.setPixmap(pm)
-        self.setStyleSheet(f"""
+        self.setStyleSheet(scale_stylesheet(f"""
             #Backstage {{ background: {c['surface']}; }}
             #BackstagePage {{ background: {c['surface']}; }}
             #BackstageNav {{ background: {c['nav']}; border: none; }}
@@ -856,4 +860,4 @@ class Backstage(QWidget):
             }}
             #BackstageTipButton:hover {{ border-color: {c['accent']}; }}
             #BackstageTipButton:disabled {{ color: {c['muted']}; }}
-        """)
+        """, ThemeManager.instance().scale))

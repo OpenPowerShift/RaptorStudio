@@ -170,8 +170,10 @@ def test_compare_shows_optional_capacity_and_cost_rows(win):
         ])
         d._show_results()
 
-        headers = [d._table.verticalHeaderItem(r).text()
+        # cost rows name the model's currency: "Grand total ($)"
+        headers = [d._table.verticalHeaderItem(r).text().removesuffix(" ($)")
                    for r in range(d._table.rowCount())]
+        assert d._table.verticalHeaderItem(len(headers) - 1).text().endswith(" ($)")
         assert headers[:len(METRICS)] == [lbl for _, lbl, _ in METRICS]
         assert headers[len(METRICS):] == [
             lbl for _, lbl, _ in OPTIONAL_METRICS]
@@ -252,7 +254,7 @@ def test_compare_grand_total_best_uses_analysis_flags(win):
                 Grand_Total={"mean": 50.0})},
         ])
         d._show_results()
-        rows = {d._table.verticalHeaderItem(r).text(): r
+        rows = {d._table.verticalHeaderItem(r).text().removesuffix(" ($)"): r
                 for r in range(d._table.rowCount())}
         assert not d._table.item(rows["Grand total"], 1).font().bold()
         assert "Not comparable" in d._table.item(

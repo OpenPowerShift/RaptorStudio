@@ -162,7 +162,7 @@ class BackgroundRunMixin(_Base):
         resume_ev.set()
         stop_ev = threading.Event()
         skip_ev = threading.Event()
-        self._results.clear()   # fresh batch: no stale numbers
+        self._results.clear(keep_chart_state=True)   # fresh batch: no stale numbers
         self._diagram_dock.view.clear_result_overlays()
         self._reset_live_log()
         state["resume_ev"] = resume_ev
@@ -350,6 +350,47 @@ class BackgroundRunMixin(_Base):
                         "cost_interval"),
                     seed=run_seed or None,
                     keep_partial_logs=True)
+                # The downtime drivers are part of the result, not a later
+                # tab action: replay the event log here, in the worker,
+                # while the log and model are hot. The GUI receives a
+                # finished attribution and never replays the same data.
+                attribution = None
+                if any(logs):
+                    try:
+                        from raptor.api.insight.attribution import attribute_batch
+                        from raptor.api.progress import Cancelled
+                        experiment = (run_metadata.get("manifest") or {}) \
+                            .get("experiment") or {}
+                        start = float(experiment.get("start_stats") or 0.0)
+
+                        def drivers_progress(p) -> None:
+                            state["stage"] = ("downtime drivers", p.done,
+                                             p.total)
+
+                        class _BatchStop:
+                            """Stop *and Pause* land during the replay.
+
+                            `stop_check` is the same check the runs use: it
+                            blocks while the run is paused and returns True
+                            once Stop is pressed.
+                            """
+
+                            def is_set(inner) -> bool:
+                                return stop_check()
+
+                        attribution = attribute_batch(
+                            bg_model, logs, start_stats=start,
+                            capacity_lines=streams.get("capacity"),
+                            units=units, progress=drivers_progress,
+                            abort=_BatchStop())
+                    except Cancelled:
+                        attribution = None
+                    except Exception as exc:      # noqa: BLE001
+                        report_notes.append(
+                            "downtime attribution was not calculated: "
+                            f"{exc}")
+                        attribution = None
+                state["attribution"] = attribution
                 state["result"] = (logs, eor, fin, report_data,
                                    report_notes, ao_lines, cap_lines,
                                    cost_lines, units)
@@ -399,9 +440,12 @@ class BackgroundRunMixin(_Base):
                 import traceback
                 traceback.print_exc()
                 self._discard_report_streams(streams)
-                state["error"] = "".join(
-                    traceback.format_exception_only(type(e), e)).strip() \
-                    + "\n" + traceback.format_exc(limit=8)
+                from raptor.gui.run_text import disk_full_text
+                full = disk_full_text(e)
+                state["error_is_disk_full"] = full is not None
+                state["error"] = full or ("".join(
+                    traceback.format_exception_only(type(e), e)).strip()
+                    + "\n" + traceback.format_exc(limit=8))
             finally:
                 _resume_cyclic_gc()
                 state.update({"phase": "done", "done": True})
@@ -670,11 +714,17 @@ class BackgroundRunMixin(_Base):
         try:
             err = state.get("error")
             if err:
+                if state.get("error_is_disk_full"):
+                    msgbox.critical(self, "Out of Disk Space", err)
+                    self._statusbar.showMessage("Run failed — out of disk space")
+                    return
                 msgbox.critical(self, "Simulation Failed",
                                 f"The background run failed:\n\n{err}")
                 self._statusbar.showMessage("Run failed")
                 return
-            stopped = state["stop_ev"].is_set()
+            # The engine records whether it actually cut the batch short;
+            # `stop_ev` is also set by a Stop pressed after the last run.
+            stopped = bool((state.get("run_metadata") or {}).get("stopped"))
             importance = state.get("importance")
             if stopped:
                 requested = int((state.get("progress") or (0, 0))[1] or 0)
@@ -728,7 +778,8 @@ class BackgroundRunMixin(_Base):
                     cost_lines=cost_lines,
                     manifest=manifest_with_streams(state.get("run_metadata") or {}),
                     importance=importance,
-                    rbd=getattr(self, "_last_run_model", None))
+                    rbd=getattr(self, "_last_run_model", None),
+                    attribution=state.get("attribution"))
                 self._note_results_basis()
                 self._remember_report_streams(state.get("streams") or {})
                 self._results_show_action.setEnabled(bool(report_data))
@@ -821,8 +872,13 @@ class BackgroundRunMixin(_Base):
             if getattr(self, "_sync_stop", False) or \
                     getattr(self, "_run_in_progress", False):
                 self._sync_stop = True
-                self._statusbar.showMessage("Stop requested — finishing "
-                                            "the current run…", 6000)
+                bar = getattr(self, "_run_progress", None)
+                end_of_run = bool(bar is not None and bar.maximum() > 0
+                                  and bar.value() >= bar.maximum())
+                self._statusbar.showMessage(
+                    "Stop requested — cancelling the end-of-run passes…"
+                    if end_of_run else
+                    "Stop requested — finishing the current run…", 6000)
             return
         event = req(bg_state).get("resume_ev")
         if event is not None:

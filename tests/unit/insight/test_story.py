@@ -203,3 +203,25 @@ def test_caption_uses_the_measure_that_ranked_the_drivers():
     caption = _caption(headline, [driver],
                        {"capacity": {"elements": []}}, measure="downtime")
     assert "the loss" in caption and "lost capacity" not in caption
+
+
+def test_a_capacity_target_gets_its_own_verdict_beside_the_headline():
+    rows = [{"availability": 0.99, "capacity_weighted_availability": value,
+             "total_time": 8760.0} for value in (0.96, 0.97, 0.90, 0.99)]
+    story = build(rows, capacity_target=0.95)
+    assert story.capacity_target == 0.95
+    assert story.capacity_verdict == (
+        "Capacity delivered 95.5 % against the capacity target 95 %: met "
+        "(3 of 4 runs met the capacity target).")
+    from raptor.api.insight.story import text_lines
+    assert story.capacity_verdict in text_lines(story)
+    missed = build(rows, capacity_target=0.99).capacity_verdict
+    assert "missed by 3.5 points" in missed
+    assert story.to_dict()["capacity_verdict"] == story.capacity_verdict
+
+
+def test_no_capacity_verdict_without_a_target_or_capacity_results():
+    rows = [{"availability": 0.99, "capacity_weighted_availability": 0.97,
+             "total_time": 8760.0}] * 3
+    assert build(rows).capacity_verdict == ""
+    assert build(runs(3), capacity_target=0.95).capacity_verdict == ""

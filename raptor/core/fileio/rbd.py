@@ -246,6 +246,14 @@ class RbdFile:
     #: has no representation; the GUI confirms with the user and writes
     #: the plain values only.
     formulas: dict = field(default_factory=dict)
+    #: .rbds-only component TAGS: `{"block:3": ["pumps", "rotating"]}`.
+    #: Free-form labels for navigation and results, not simulation data.
+    #: See `raptor.core.tags`. Legacy .rbd has no representation.
+    tags: dict = field(default_factory=dict)
+    #: .rbds-only per-tag colour and description:
+    #: `{"pumps": {"colour": "#2F80ED", "description": "Feed pumps"}}`.
+    #: Optional per tag; see `raptor.core.tags`.
+    tag_info: dict = field(default_factory=dict)
     #: .rbds-only DISPLAY-unit override: view/enter time values in e.g.
     #: years on an hours-native model without hand-converting. `None` =
     #: show the model's own native `units` unchanged. Never touches a

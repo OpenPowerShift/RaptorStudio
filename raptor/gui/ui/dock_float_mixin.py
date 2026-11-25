@@ -3,6 +3,8 @@
 Expects on `self`: the docks built by `_setup_docks` and `_statusbar`."""
 from __future__ import annotations
 
+from raptor.gui.ui.dock_chrome import dock_id
+
 
 from typing import Any, TYPE_CHECKING
 from PySide6.QtCore import Qt, QTimer
@@ -210,8 +212,8 @@ class DockFloatMixin(_Base):
             btn = QToolButton(entry["titlebar"])
             btn.setText("Redock")
             btn.setAutoRaise(True)
-            btn.setToolTip(f"Redock {dock.windowTitle()}")
-            btn.setAccessibleName(f"Return {dock.windowTitle()} to the dock")
+            btn.setToolTip(f"Redock {dock_id(dock)}")
+            btn.setAccessibleName(f"Return {dock_id(dock)} to the dock")
             btn.clicked.connect(lambda _c=False, d=dock: self._redock(d))
             lay = entry["titlebar"].layout()
             if lay is not None:
@@ -307,7 +309,7 @@ class DockFloatMixin(_Base):
             # Floating is the user's next explicit state; compact must
             # not later widen/restore this dock behind their back.
             try:
-                self._compact_minimized.discard(dock.windowTitle())
+                self._compact_minimized.discard(dock_id(dock))
             except AttributeError:
                 pass
             # The un-minimise restore is deferred; the titlebar strip
@@ -557,7 +559,7 @@ class DockFloatMixin(_Base):
                  .get(dock))
         if floating:
             try:
-                self._compact_minimized.discard(dock.windowTitle())
+                self._compact_minimized.discard(dock_id(dock))
             except AttributeError:
                 pass
             if entry is not None and entry.get("closed"):

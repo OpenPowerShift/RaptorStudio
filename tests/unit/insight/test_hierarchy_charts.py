@@ -1,6 +1,8 @@
 """The hierarchy ChartSpecs: data, captions, SVG and CSV."""
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from raptor.api.insight import charts
@@ -75,6 +77,7 @@ def _attribution():
     ("hierarchy-treemap", "treemap"),
     ("hierarchy-overlay", "timeline"),
     ("hierarchy-small-multiples", "small_multiples"),
+    ("hierarchy-hops", "hops"),
     ("hierarchy-heatmap", "heatmap"),
     ("hierarchy-anatomy", "icicle"),
     ("hierarchy-ribbon", "ribbon"),
@@ -406,3 +409,70 @@ def test_the_cause_only_sankey_drops_float_noise_and_labels_its_causes():
     assert "Not attributed" not in names
     assert {"Hands-on repair", "Logistics delay"} <= names
     assert all(link["cause"] in ("repair", "logistics") for link in links)
+
+
+def test_scorecard_tiles_carry_run_dots_on_one_shared_scale():
+    spec = charts.hierarchy_scorecard(_attribution())
+    by_name = {row["name"]: row for row in spec.series}
+    assert [d["value"] for d in by_name["Intake"]["dots"]] == [0.4, 0.5, 0.6]
+    assert spec.provenance["dot_max"] == pytest.approx(0.6)
+    svg = render(spec)
+    assert "<circle" in svg and "each dot a run" in svg and "60 %" in svg
+    assert "members" in svg and "started outages" in svg and "inside" not in svg
+
+
+def test_scorecard_without_trials_has_no_strip_and_no_error():
+    attribution = _attribution()
+    for row in attribution["hierarchies"]:
+        row["trials"] = []
+    spec = charts.hierarchy_scorecard(attribution)
+    assert all(row["dots"] == [] for row in spec.series)
+    assert "<circle" not in render(spec)
+
+
+def test_scorecard_badge_names_direction_by_glyph_and_word():
+    attribution = _attribution()
+    baseline = [dict(row) for row in attribution["hierarchies"]
+                if row["id"] == 10]
+    baseline[0]["dtci"] = {"mean": 0.8, "sem": 0.05}
+    spec = charts.hierarchy_scorecard(attribution, baseline=baseline)
+    badges = {row["name"]: charts.scorecard_badge(row) for row in spec.series}
+    assert badges["Intake"] == ("good", "▼ 30 pts better")
+    assert badges["Filtration"][1].startswith("new")
+    assert "▼ 30 pts better" in render(spec)
+    worse = dict(baseline[0], dtci={"mean": 0.3, "sem": 0.05})
+    row = charts.hierarchy_scorecard(attribution, baseline=[worse]).series[0]
+    assert charts.scorecard_badge(row) == ("bad", "▲ 20 pts worse")
+    assert charts.scorecard_badge(
+        charts.hierarchy_scorecard(attribution).series[0]) is None
+
+
+def test_spread_labels_never_overlap_and_stay_inside():
+    from raptor.api.insight.timecharts import spread_labels
+    placed = spread_labels([50.0, 51.0, 52.0, 99.0], 12.0, 10.0, 100.0)
+    ordered = sorted(placed)
+    assert all(b - a >= 12.0 - 1e-9 for a, b in itertools.pairwise(ordered))
+    assert min(placed) >= 10.0 and max(placed) <= 100.0
+    assert spread_labels([], 12.0, 0.0, 10.0) == []
+
+
+def test_overlay_labels_each_line_at_its_end_and_drops_the_key():
+    spec = charts.hierarchy_overlay(_attribution())
+    assert spec.provenance["end_labels"]
+    assert all(layer["key"] is False and layer["end_text"] for layer in spec.series)
+    svg = render(spec)
+    for layer in spec.series:
+        assert layer["end_text"] in svg
+
+
+def test_the_capacity_sankey_caption_judges_delivery_against_the_target():
+    # the fixture delivers 80 of 100
+    spec = charts.chart_named("capacity-sankey", attribution=_attribution(),
+                              capacity_target=0.75)
+    assert "Delivered 80 % of the generated flow: it met the capacity target 75 %." \
+        in spec.caption
+    spec = charts.chart_named("capacity-sankey", attribution=_attribution(),
+                              capacity_target=0.9)
+    assert "missed the capacity target 90 % by 10 points" in spec.caption
+    assert "capacity target" not in charts.chart_named(
+        "capacity-sankey", attribution=_attribution()).caption

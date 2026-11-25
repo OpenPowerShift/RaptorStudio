@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLayout, QSpinBox, QTableWidget, QTableWidgetItem, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.gui import cores
 from raptor.gui.ui.analysis_dialog import AnalysisDialog, Work
 
@@ -117,7 +118,7 @@ class PrecisionDialog(AnalysisDialog):
     def show_result(self, result: Any) -> None:
         history = result.history
         watched = _watched(result.precision.metric, result.precision.on == "unavailability")
-        self.table.setHorizontalHeaderItem(1, QTableWidgetItem(watched.capitalize()))
+        self.table.setHorizontalHeaderItem(1, QTableWidgetItem(i18n.tr(watched.capitalize())))
         self.table.setRowCount(len(history))
         for index, step in enumerate(history):
             texts = (f"{step['trials']:,}",

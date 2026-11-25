@@ -20,9 +20,13 @@ datas = [
     # The File view's example-model thumbnails.
     (str(ROOT / "raptor" / "gui" / "resources" / "examples"),
      "raptor/gui/resources/examples"),
+    # Qt Linguist catalogues (UI languages).
+    (str(ROOT / "raptor" / "gui" / "locale"), "raptor/gui/locale"),
+
     (str(ROOT / "docs" / "manual.html"), "docs"),
     (str(ROOT / "docs" / "formulas.html"), "docs"),
     (str(ROOT / "docs" / "KEYBOARD_SHORTCUTS.md"), "docs"),
+    (str(ROOT / "docs" / "PROJECT_HEALTH.md"), "docs"),
     (str(ROOT / "docs" / "js"), "docs/js"),
     (str(ROOT / "docs" / "ops_asciidoctor.css"), "docs"),
     # Our licences and the third-party notices, at the bundle root.
@@ -65,6 +69,14 @@ def _bundled_licences(roots=("PySide6", "weasyprint", "XlsxWriter")):
 
 
 datas += _bundled_licences()
+
+# Qt's own qtbase_<locale>.qm: standard buttons ("Cancel", "OK") and file
+# dialogs. The GUI looks for them beside its own catalogue, and at Qt's
+# TranslationsPath; keep the path PySide6 uses so both work.
+_qt_translations = Path(importlib.metadata.distribution("PySide6").locate_file(
+    "PySide6/Qt/translations"))
+datas += [(str(p), "PySide6/Qt/translations")
+          for p in sorted(_qt_translations.glob("qtbase_*.qm"))]
 binaries = []
 
 # Windows only: WeasyPrint's PDF export needs the Pango/GLib stack that

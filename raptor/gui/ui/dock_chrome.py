@@ -21,6 +21,7 @@ from typing import Any
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QDockWidget, QHBoxLayout, QLabel, QToolButton
 
+from raptor.gui import i18n
 from raptor.gui.resources import icons
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.dock_title_widgets import _DockStub, _DockTitleBar
@@ -32,6 +33,22 @@ _NO_MAX = 16777215
 _GLYPH_COLLAPSE = {"left": "◂", "right": "▸", "bottom": "▾"}
 _GLYPH_EXPAND = {"left": "▸", "right": "◂", "bottom": "▴"}
 _SIDE = ("left", "right")
+
+
+def dock_id(dock: QDockWidget) -> str:
+    """The dock's stable, English name.
+
+    The window title is what the user reads, so it is translated; keying
+    the chrome, the compact-layout policy and the tooltips on it made them
+    depend on the language.  The id is the title as the code wrote it,
+    remembered on first use (the title bar is built before any translation
+    pass), and it is also the source text of "Minimize %1" and the like.
+    """
+    ident = dock.property("raptor_dock_id")
+    if not ident:
+        ident = dock.windowTitle()
+        dock.setProperty("raptor_dock_id", ident)
+    return str(ident)
 
 
 
@@ -104,7 +121,7 @@ class DockSlotChrome:
         if not icon.isNull():
             icon_label.setPixmap(icon.pixmap(16, 16))
         tb.addWidget(icon_label)
-        label = QLabel(dock.windowTitle())
+        label = QLabel(dock_id(dock))
         tb.addWidget(label)
         tb.addStretch(1)
 
@@ -113,8 +130,8 @@ class DockSlotChrome:
         min_btn = QToolButton()
         min_btn.setAutoRaise(True)
         min_btn.setText(self.glyph_collapse)
-        min_btn.setToolTip(f"Minimize {dock.windowTitle()}")
-        min_btn.setAccessibleName(f"Minimize {dock.windowTitle()}")
+        min_btn.setToolTip(f"Minimize {dock_id(dock)}")
+        min_btn.setAccessibleName(f"Minimize {dock_id(dock)}")
         tb.addWidget(min_btn)
 
         features = dock.features()
@@ -126,7 +143,7 @@ class DockSlotChrome:
             float_btn.setProperty("titleIcon", "float_window_icon")
             float_btn.setToolTip("Float")
             float_btn.setAccessibleName(
-                f"Float {dock.windowTitle()} in its own window")
+                f"Float {dock_id(dock)} in its own window")
             float_btn.clicked.connect(
                 lambda _checked=False, d=dock: self._toggle_float(d))
             tb.addWidget(float_btn)
@@ -136,7 +153,7 @@ class DockSlotChrome:
             close_btn.setIcon(icons.close_x_icon(active_colour()["text"]))
             close_btn.setProperty("titleIcon", "close_x_icon")
             close_btn.setToolTip("Close")
-            close_btn.setAccessibleName(f"Close {dock.windowTitle()}")
+            close_btn.setAccessibleName(f"Close {dock_id(dock)}")
             close_btn.clicked.connect(
                 lambda _checked=False, d=dock: self._close_clicked(d))
             tb.addWidget(close_btn)
@@ -146,8 +163,8 @@ class DockSlotChrome:
         # stays findable and clickable instead of the dock vanishing entirely.
         stub = None
         if self.edge in _SIDE:
-            word = {"Model Explorer": "Model"}.get(
-                dock.windowTitle(), dock.windowTitle())
+            word = i18n.translate_source(
+                {"Model Explorer": "Model"}.get(dock_id(dock), dock_id(dock)))
             stub = _DockStub(word, -90.0 if self.edge == "left" else 90.0)
             stub.setFixedWidth(24)
 
@@ -215,7 +232,7 @@ class DockSlotChrome:
         if win._dock_chrome is None:
             win._dock_chrome = {}
         first = self.entries[0]
-        win._dock_chrome[first["dock"].windowTitle()] = {
+        win._dock_chrome[dock_id(first["dock"])] = {
             "dock": first["dock"],
             "get": lambda: {"closed": bool(first["closed"]),
                             "minimized": bool(first["minimized"])},
@@ -231,8 +248,11 @@ class DockSlotChrome:
         for e in self.entries:
             collapsed = e["minimized"]
             bg = c["group_header"] if collapsed else c["surface"]
+            # Scoped to the bar: an unscoped rule cascades to the icon, the
+            # title and each button, which then paint their own boxes.
             e["titlebar"].setStyleSheet(
-                f"background: {bg}; border-bottom: 1px solid {c['border']};")
+                f"#DockTitleBar {{ background: {bg}; "
+                f"border-bottom: 1px solid {c['border']}; }}")
             icon = e["dock"].windowIcon()
             if not icon.isNull():
                 e["icon_label"].setPixmap(icon.pixmap(16, 16))
@@ -263,7 +283,7 @@ class DockSlotChrome:
         # policy. (`_compact_minimized` is absent on a window that never set it up.)
         try:
             self.win._compact_minimized.discard(
-                self.entries[0]["dock"].windowTitle())
+                dock_id(self.entries[0]["dock"]))
         except AttributeError:
             pass
         self.set_minimized(not self.entries[0]["minimized"])
@@ -319,8 +339,8 @@ class DockSlotChrome:
 
     def _label_min_button(self, e: dict[str, Any], minimized: bool) -> None:
         dock = e["dock"]
-        text = (f"Restore {dock.windowTitle()}" if minimized
-                else f"Minimize {dock.windowTitle()}")
+        text = (f"Restore {dock_id(dock)}" if minimized
+                else f"Minimize {dock_id(dock)}")
         e["min_btn"].setText(self.glyph_expand if minimized else self.glyph_collapse)
         e["min_btn"].setToolTip(text)
         e["min_btn"].setAccessibleName(text)
@@ -450,7 +470,7 @@ class DockSlotChrome:
                 # Restoring chrome (stub click, Properties, _show_inspector_dock)
                 # takes the dock back from the compact policy.
                 try:
-                    self.win._compact_minimized.discard(e["dock"].windowTitle())
+                    self.win._compact_minimized.discard(dock_id(e["dock"]))
                 except AttributeError:
                     pass
             if floating:

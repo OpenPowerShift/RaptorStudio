@@ -29,7 +29,8 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "model.add_block": "B", "model.add_node": "O",
         "model.add_event": "E", "model.add_hier": "H",
         "model.collapse": "L", "model.delete": "D", "home.syscfg": "P",
-        "home.validate": "I", "results.analytical": "A",
+        "home.validate": "I",
+        "results.analytical": "A",
         "arrange.anno_text": "T",
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
         "arrange.anno_arrow": "W", "model.import_rbd": "M",
@@ -45,7 +46,8 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     },
     "Data": {
         "data.phases": "P", "data.block_defaults": "D", "data.mass_edit": "M",
-        "data.own_streams": "S",
+        "data.tags": "G", "data.import_table": "T",
+        "data.own_streams": "S", "home.health": "H",
         "data.export_library": "E", "data.import_library": "I",
     },
     "Simulate": {
@@ -81,6 +83,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.run_toggle": "U", "view.data_tables": "D",
         "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
+        "view.tag_colours": "Y",
         "view.focus": "M", "view.show_annotations": "W",
         "view.show_comment_notes": "C",
     },

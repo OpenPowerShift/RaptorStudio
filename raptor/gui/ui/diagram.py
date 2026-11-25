@@ -12,7 +12,7 @@ from __future__ import annotations
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QFrame
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, cast
 
 from shiboken6 import isValid
@@ -222,6 +222,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: context menu was shown; this just tells MainWindow to raise/show
     #: the dock itself.
     properties_requested = Signal()
+    #: Right-click > Tags: edit the selection's tags.
+    tags_requested = Signal()
+    #: the tag stripes were redrawn (colour by tag, a level change, a tag edit)
+    tag_colours_changed = Signal()
     #: Emitted after ANY selection change, with no payload -- the one
     #: hook for UI whose enabled state depends only on "what is
     #: selected" rather than on which element it is. The z-order ribbon
@@ -272,7 +276,17 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setBackgroundBrush(QBrush(QColor(COLOUR["canvas"])))
+        # Assistive technology has no way to read a painted scene; name it
+        # and point at the text views that list the same elements.
+        self.setAccessibleName(
+            "Reliability block diagram: the Model Explorer and Data Tables "
+            "list its elements, links and values as text")
+        self._accessible_counts: tuple[int, int, int] | None = None
         self._focus_mode = False
+        #: While a history jump replays commands, level switches are
+        #: recorded and applied once at the end, not rebuilt per step.
+        self._history_jump = False
+        self._history_jump_level = None   # int | None: the level to end on
         #: With a result layer on, focus keeps what holds at least this
         #: fraction of the largest share (7.6.6); the Yellow band's edge.
         self._focus_threshold = 1 / 3
@@ -355,6 +369,9 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         #: (the engine numbers links 1..N). Same lifetime as the map above.
         self._link_file_ids_cache: list[int] | None = None
         self.model_changed.connect(self._invalidate_live_caches)
+        self.model_changed.connect(self._refresh_accessible_counts)
+        # a tag edit changes the stripes without rebuilding the scene
+        self.model_changed.connect(self._restripe_if_on)
         #: Canvas tool mode: "select" | "add_block" | "add_node" | "add_event" | "connect".
         self._tool_mode = "select"
         #: Add-tool hover-on-link state. The link is held only while it is
@@ -584,6 +601,66 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         if fixed_other_level:
             self.model_changed.emit()
 
+    def _refresh_accessible_counts(self) -> None:
+        """Recount the model for the canvas description (structural edits)."""
+        self._accessible_counts = None
+        self._refresh_accessible_summary()
+
+    def _refresh_accessible_summary(self, selected: int | None = None) -> None:
+        """Describe the canvas for assistive technology, in numbers.
+
+        A painted scene has no per-item text a screen reader can read; the
+        description says what the diagram holds and how much is selected,
+        and points at the Model Explorer / Data Tables for the elements
+        themselves. The counts are cached: `_on_selection_changed` fires
+        once per item during a rubber-band drag, and walking three sections
+        each time would be wasted work.
+        """
+        from raptor.gui import i18n
+        rbd = getattr(self, "_rbd_ref", None)
+        if rbd is None:
+            self.setAccessibleDescription(i18n.tr("No model open."))
+            return
+        if self._accessible_counts is None:
+            level = getattr(self, "_current_parent", 0)
+
+            def count(section: str, parent_col: str) -> int:
+                sec = rbd.sections.get(section)
+                if sec is None:
+                    return 0
+                total = 0
+                for row in sec.rows:
+                    if str(row.get("ID", "")).strip() in ("", "0"):
+                        continue
+                    parent = str(row.get(parent_col, "0")).strip() or "0"
+                    if (level == 0 and parent in ("", "0")) or \
+                            (level != 0 and parent == str(level)):
+                        total += 1
+                return total
+
+            self._accessible_counts = (
+                count("BLOCK_DATA", "ParentId"),
+                count("NODE_DATA", "parent"),
+                count("EVENT_DATA", "parent"))
+        blocks, nodes, events = self._accessible_counts
+        if selected is None:
+            try:
+                selected = len(self._scene.selectedItems())
+            except RuntimeError:
+                selected = 0
+        try:
+            # Counts only: the pointer to the text views lives in the
+            # accessible name, so an arrow-key nudge does not re-speak it.
+            self.setAccessibleDescription(i18n.tr(
+                "Blocks: {blocks}. Nodes: {nodes}. Events: {events}. "
+                "Selected: {n}.").format(
+                    blocks=blocks, nodes=nodes, events=events, n=selected))
+            from PySide6.QtGui import QAccessible, QAccessibleEvent
+            QAccessible.updateAccessibility(QAccessibleEvent(
+                self, QAccessible.Event.DescriptionChanged))
+        except RuntimeError:
+            pass                # the view is being torn down
+
     def _on_selection_changed(self):
         try:
             items = self._scene.selectedItems()
@@ -593,6 +670,9 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             # selection changes on dead items. Non-fatal; ignore.
             return
         self._refresh_anchor_leader()
+        if len(items) != getattr(self, "_accessible_selected", -1):
+            self._accessible_selected = len(items)
+            self._refresh_accessible_summary(len(items))
         if self._focus_mode:
             self._apply_focus(items)
         if not items:
@@ -771,6 +851,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         used = {int(a.get("id", 0)) for a in self.annotations}
         self._anno_seq = (max(used) + 1) if used else 1
         self._rbd_ref = rbd   # kept so element creation can clone real rows
+        self._accessible_counts = None
         self._model_token = clipboard_payload.new_model_token()
         # Units for the canvas labels, read once: the per-block label
         # formatter must not re-parse SYSTEM_DATA on every refresh.
@@ -794,6 +875,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # re-populates them); traversal within a model keeps them
         self._last_result_visuals = None
         self._last_hier_dsi: dict | None = None
+        # A tag view belongs to one model's element ids, but an
+        # in-model reload (Quick Add, paste data, library apply) must keep
+        # the Explorer filter and the canvas in step.
+        if rbd is not getattr(self, "_tag_model", None):
+            self._tag_view: set[str] | None = None
+            self._tag_hiers: set[str] = set()
+            self._tag_model = rbd
         self._live_state_cache = None
         self._hier_boundary_cache = None
         self._link_file_ids_cache = None
@@ -822,9 +910,19 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         log.debug("load_rbd: %d hierarchies parsed, entering _rebuild_scene",
                   len(self.hiers))
         self._rebuild_scene()
+        self._refresh_accessible_summary()
         self.level_changed.emit(0)
         log.debug("load_rbd: done")
 
+    def refresh_from_model(self) -> None:
+        """Rebuild the current level from the model rows after a bulk edit
+        that changed the `RbdFile` directly (an imported table).
+
+        The undo stack is not touched: the caller's own command already
+        records the before/after state.
+        """
+        self._rebuild_scene()
+        self.model_changed.emit()
 
     _LOCATE = {"block": ("BLOCK_DATA", "ParentId", "_block_items"),
                "node": ("NODE_DATA", "parent", "_node_items"),
@@ -1246,6 +1344,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._refresh_node_badges()
         from raptor.gui.ui.diagram_out_of_service import apply_marks
         apply_marks(self)              # U27: cut / linked elements
+        self._apply_compare_emphasis()  # rings + fade survive level changes
+        self._apply_tag_stripes()
 
         log.debug("_rebuild_scene: %d blocks, %d nodes, %d events, %d "
                   "hiers, %d links placed -- entering _apply_scene_layout",
@@ -3005,6 +3105,31 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                            "DepPM", "DepFail", "DepPMThresh",
                            "defDepStateIdle")
 
+    def begin_history_jump(self) -> None:
+        """Replay a run of commands as one step.
+
+        While the flag is set `_set_level` records the level the replay
+        needs instead of rebuilding per command, and `_ViewCmd._done`
+        leaves its refresh signal for `end_history_jump` to emit once.
+        """
+        self._history_jump = True
+        self._history_jump_level = None
+
+    def end_history_jump(self) -> None:
+        self._history_jump = False
+        level = self._history_jump_level
+        self._history_jump_level = None
+        if level is not None and level != self._current_parent:
+            # The jump can undo the hierarchy itself, or a level that no
+            # longer exists; the home level always does.
+            self._set_level(level if level in self.hiers else 0)
+        # One model_changed for the whole jump: the listeners refresh the
+        # Inspector, tables and validity once, not once per replayed step.
+        stack = getattr(self, "_stack", None)
+        flush = getattr(stack, "flush_signals", None)
+        if flush is not None:
+            flush()
+
     def set_focus_mode(self, enabled: bool) -> None:
         """Dim everything not selected; keep the topology visible."""
         self._focus_mode = bool(enabled)
@@ -3013,6 +3138,105 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         except RuntimeError:
             return
         self._apply_focus(items)
+
+    def set_tag_view(self, refs: set[str] | None) -> None:
+        """Dim everything outside a component tag view.
+
+        A tag is navigation metadata: this changes only the opacity of the
+        elements on the current level, never the model or the links.
+        Hierarchy ovals on the path to a tagged element stay bright, like
+        folders in the Explorer, so a tag that spans levels keeps its
+        context. `None` restores every element.
+        """
+        self._tag_view = set(refs) if refs is not None else None
+        rbd = getattr(self, "_rbd_ref", None)
+        from raptor.core import tags as tag_model
+        self._tag_hiers = (tag_model.ancestor_hiers(rbd, refs)
+                             if refs is not None and rbd is not None else set())
+        self._apply_tag_view()
+
+    def _restripe_if_on(self, *_args: Any) -> None:
+        if getattr(self, "_tag_colours_on", False):
+            self._apply_tag_stripes()
+
+    def set_tag_colours(self, on: bool) -> int:
+        """Colour by tag on or off; the number of elements striped here."""
+        self._tag_colours_on = bool(on)
+        return self._apply_tag_stripes()
+
+    def _apply_tag_stripes(self) -> int:
+        from raptor.gui.ui.diagram_tag_stripes import apply_stripes
+        drawn = apply_stripes(self)
+        self.tag_colours_changed.emit()
+        return drawn
+
+    def _tag_keeps(self, kind: str, oid: int) -> bool:
+        """Whether a tag view keeps this element at full opacity."""
+        refs = getattr(self, "_tag_view", None)
+        if refs is None:
+            return True
+        if f"{kind}:{oid}" in refs:
+            return True
+        return (kind == "hier"
+                and f"hier:{oid}" in getattr(self, "_tag_hiers", ()))
+
+    #: opacity of everything that is not being compared
+    _COMPARE_FADE = 0.35
+
+    def set_compare_emphasis(self, colours: Mapping[int, str]) -> None:
+        """Ring the compared hierarchy ovals (id -> series colour) and fade
+        the rest.  View state only: no model change, no undo command."""
+        self._compare_colours = {int(k): str(v) for k, v in (colours or {}).items()}
+        self._apply_compare_emphasis()
+
+    def _apply_compare_emphasis(self) -> None:
+        colours = getattr(self, "_compare_colours", {})
+        for hid, item in getattr(self, "_hier_items", {}).items():
+            try:
+                item.set_compare_ring(colours.get(hid))
+            except RuntimeError:
+                continue
+        # a comparison fades the level only when it shows a compared oval
+        self._compare_here = any(
+            hid in colours for hid in getattr(self, "_hier_items", {}))
+        self._apply_tag_view()
+
+    def _compare_active_here(self) -> bool:
+        return bool(getattr(self, "_compare_here", False))
+
+    def _opacity_for(self, kind: str, oid: int, item, keep: bool) -> float:
+        base = self._base_opacity(item)
+        if not keep:
+            return min(base, 0.25)
+        if self._compare_active_here() and not (
+                kind == "hier" and oid in getattr(self, "_compare_colours", {})):
+            return min(base, self._COMPARE_FADE)
+        return base
+
+    @staticmethod
+    def _base_opacity(item) -> float:
+        return 0.45 if getattr(item, "_oos_state", None) == "cut" else 1.0
+
+    def _apply_tag_view(self) -> None:
+        """Repaint opacity for the active tag view and focus mode."""
+        if getattr(self, "_focus_mode", False):
+            try:
+                selected = self._scene.selectedItems()
+            except RuntimeError:
+                return
+            self._apply_focus(selected)
+            return
+        for kind, items in (("block", self._block_items),
+                            ("node", self._node_items),
+                            ("event", self._event_items),
+                            ("hier", getattr(self, "_hier_items", {}))):
+            for oid, item in items.items():
+                try:
+                    item.setOpacity(self._opacity_for(
+                        kind, oid, item, self._tag_keeps(kind, oid)))
+                except RuntimeError:
+                    continue
+        self._fade_links()
 
     def set_focus_threshold(self, fraction: float) -> None:
         """Keep, in focus mode, what holds at least `fraction` (0 to 1) of
@@ -3031,14 +3255,37 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # the threshold: a big diagram reads as the few elements that matter
         chosen = set(selected) | {item for item, f in self._layer_fractions.items()
                                   if f >= self._focus_threshold}
-        for items in (self._block_items, self._node_items,
-                      self._event_items, getattr(self, "_hier_items", {})):
-            for item in items.values():
+        for kind, items in (("block", self._block_items),
+                            ("node", self._node_items),
+                            ("event", self._event_items),
+                            ("hier", getattr(self, "_hier_items", {}))):
+            for oid, item in items.items():
                 try:
-                    item.setOpacity(1.0 if (not self._focus_mode
-                                            or item in chosen) else 0.25)
+                    keep = self._tag_keeps(kind, oid) and (
+                        not self._focus_mode or item in chosen)
+                    item.setOpacity(self._opacity_for(kind, oid, item, keep))
                 except RuntimeError:
                     continue
+        self._fade_links()
+
+    def _view_fade(self, item) -> float:
+        """The view-state fade of an end item (its opacity net of the
+        out-of-service dimming, which belongs to the element alone)."""
+        try:
+            base = self._base_opacity(item)
+            return min(1.0, item.opacity() / base) if base else 1.0
+        except (RuntimeError, AttributeError):
+            return 1.0
+
+    def _fade_links(self) -> None:
+        """Fade each link to the more faded of its two ends, so a link never
+        stands out at full strength beside faded elements.  View state only."""
+        for link in self._links:
+            try:
+                link.setOpacity(min(self._view_fade(link._from),
+                                    self._view_fade(link._to)))
+            except RuntimeError:
+                continue
 
     def show_quick_add(self, at_scene: Any = None) -> None:
         """Open the Quick Add popup at the cursor or a scene point."""

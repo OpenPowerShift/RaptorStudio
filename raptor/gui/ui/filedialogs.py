@@ -78,7 +78,11 @@ def theme_file_dialog(dlg: QFileDialog) -> QFileDialog:
 
 
 def _dialog(parent, caption: str, directory: str, file_filter: str, mode) -> QFileDialog:
-    dlg = QFileDialog(parent, caption, directory, file_filter)
+    # The caption and the type filters are GUI strings; Qt's own buttons
+    # come from qtbase_<locale>.qm and need no help.
+    from raptor.gui.i18n import tr
+    dlg = QFileDialog(parent, tr(caption, "Gui"), directory,
+                      tr(file_filter, "Gui"))
     dlg.setAcceptMode(mode)
     dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
     return theme_file_dialog(dlg)

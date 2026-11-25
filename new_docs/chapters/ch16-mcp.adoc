@@ -14,7 +14,7 @@ diagram.
 This chapter covers installation, configuration for popular clients, the
 full tool catalogue, and worked examples.
 
-The server exposes *96 tools* (including the `ping` health check), a set of
+The server exposes *109 tools* (including the `ping` health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is `docs/MCP.md`; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -388,8 +388,8 @@ careful about what it exposes:
 
 . *Check the tool list.* Ask your assistant "What RAPTOR tools do you
   have?" or, in the MCP Inspector, click *Tools*. You should see the tools
-  listed below: 96 including `render_diagram`, `render_diagram_svg` and
-  `ping`, or 95 when `--no-render` hides the PNG diagram tool.
+  listed below: 109 including `render_diagram`, `render_diagram_svg` and
+  `ping`, or 108 when `--no-render` hides the PNG diagram tool.
 
 . *Ping the server.* Ask the assistant to "ping RAPTOR" or call the `ping`
   tool manually. It should return `"pong"`.
@@ -1003,6 +1003,74 @@ or `results.summary`.
   story; add `results` and `data_tables` in `sections` for the tables.
   The file goes to `Reports/<model>_<run>.pdf` unless a workspace-relative
   `path` is given.
+|===
+
+==== Tags, imports, versions and sharing
+
+Tags are labels on elements, with an optional colour and description;
+they may span hierarchies, overlap and never change the simulation. A *version* is a checkpoint you save on purpose (the desktop
+app's *File ▸ Save Version Now...*); the tools use the word snapshot only
+in `snapshot_version`'s name. See the Version History and Project Health
+guides in `docs/` for the full story.
+
+[cols="1,3",options="header"]
+|===
+| Tool | What it does
+
+| `list_tags`
+| The model's tags with colour, description and element count. `within`
+  (a hierarchy id) counts only the elements inside that hierarchy.
+
+| `tag_elements`
+| Set, add or remove tags on elements (`mode` is `replace`, `add` or
+  `remove`), named by selectors such as `Block:3` or `Hier:900`.
+
+| `describe_tag`
+| Set a tag's `colour` and `description`; a tag no element carries yet is
+  created. The model is saved.
+
+| `rename_tag`
+| Rename a tag on every element; renaming onto an existing tag merges the
+  two.
+
+| `delete_tag`
+| Remove a tag from every element. The elements are kept.
+
+| `preview_table_import`
+| Say exactly what an `.xlsx` or `.ods` sheet would change, row by row,
+  before anything is written. An `error` blocks the import; a `warning`
+  does not.
+
+| `import_table_data`
+| Apply the sheet's changes and save the model. A plan with any error is
+  refused, so a mistyped row cannot half-edit the model. One edit step;
+  `undo_last_edit` is the way back.
+
+| `project_health`
+| What is in the model and what a reviewer should tidy: element counts,
+  validator findings, unnamed or duplicate names, unused pools and the
+  prose a share-safe copy would remove. Nothing is run or changed.
+
+| `share_safe_copy`
+| Write a copy with the identifying prose removed and the data intact.
+  Group and tag names become `Group_N` and `tag_N`, group descriptions are
+  dropped, and colours and membership are kept.
+
+| `snapshot_version`
+| Record the model's file as a version now, with an optional `label` and
+  Markdown `description`. Ordinary saves record none.
+
+| `list_versions`
+| The versions kept for the model's file, newest first, with the history's
+  total size and whether it is over the 50 MB soft limit.
+
+| `label_version`
+| Name a version or give it a Markdown description; the content is
+  unchanged.
+
+| `restore_version`
+| Write a version to a new file in the workspace. The open model is not
+  changed; open the written file with `open_model`.
 |===
 
 ==== Reference

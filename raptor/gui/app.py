@@ -103,12 +103,15 @@ def _install_excepthook() -> None:
                 "uncaught exception:\n%s", detail)
             from PySide6.QtWidgets import QApplication
             if QApplication.instance() is not None:
-                msgbox.critical(
-                    None, "Unexpected Error",
-                    "RAPTOR Studio hit an unexpected error:\n\n"
-                    f"{exc_type.__name__}: {exc_value}\n\n"
+                from raptor.gui import i18n
+                template = i18n.tr(
+                    "RAPTOR Studio hit an unexpected error {details}. "
                     "Your model may not be saved. This has been written "
                     "to the log; consider saving to a new file.")
+                msgbox.critical(
+                    None, i18n.tr("Unexpected Error"),
+                    template.format(
+                        details=f"({exc_type.__name__}: {exc_value})"))
         except Exception:
             # Never let the handler itself raise -- that would recurse
             # through the excepthook.

@@ -952,6 +952,25 @@ def csv_icon(colour: str) -> QIcon:
     return _icon("csv", colour, draw)
 
 
+def table_template_icon(colour: str) -> QIcon:
+    """Data Table Template: an empty sheet of columns under a header row,
+    to fill in and import (Import Table is the table with an arrow)."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(7, 8, 34, 32)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        p.drawRect(7, 8, 34, 8)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(c, 2))
+        for x in (18, 30):
+            p.drawLine(x, 16, x, 40)
+        for y in (24, 32):
+            p.drawLine(7, y, 41, y)
+    return _icon("table_template", colour, draw)
+
+
 def cut_icon(colour: str) -> QIcon:
     def draw(p: QPainter, c: QColor):
         pen = QPen(c, 3)
@@ -1024,6 +1043,63 @@ def pencil_multi_icon(colour: str) -> QIcon:
     return _icon("massedit", colour, draw)
 
 
+def share_safe_icon(colour: str) -> QIcon:
+    """Share-safe copy: a document with a cut corner."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRect(10, 7, 28, 36)
+        p.setPen(QPen(c, 2))
+        p.drawLine(20, 17, 30, 17)
+        p.drawLine(20, 23, 30, 23)
+        p.drawLine(20, 29, 26, 29)
+    return _icon("share_safe", colour, draw)
+
+
+def health_icon(colour: str) -> QIcon:
+    """Project health: a pulse line inside a rounded frame."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(7, 8, 34, 32, 6, 6)
+        pen = QPen(c, 3)
+        p.setPen(pen)
+        p.drawLine(11, 25, 17, 25)
+        p.drawLine(17, 25, 21, 17)
+        p.drawLine(21, 17, 26, 32)
+        p.drawLine(26, 32, 30, 25)
+        p.drawLine(30, 25, 37, 25)
+    return _icon("health", colour, draw)
+
+
+def tag_icon(colour: str) -> QIcon:
+    """Component tags: a luggage-tag shape with its eyelet."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        tag = QPolygonF([QPointF(11, 14), QPointF(27, 14),
+                         QPointF(39, 24), QPointF(27, 34),
+                         QPointF(11, 34)])
+        p.drawPolygon(tag)
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(16, 21, 6, 6)
+    return _icon("tag", colour, draw)
+
+
+def tag_colours_icon(colour: str) -> QIcon:
+    """Colour by Tag: a block with a split stripe above it."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(10, 22, 28, 18, 3, 3)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for x in (10, 20, 30):
+            p.drawRect(x, 11, 8, 6)
+    return _icon("tag_colours", colour, draw)
+
+
 def droplet_icon(colour: str) -> QIcon:
     """Weak-link colouring: droplet quartered G/Y/R."""
     def draw(p: QPainter, c: QColor):
@@ -1045,6 +1121,40 @@ def history_clock_icon(colour: str) -> QIcon:
         p.drawLine(24, 16, 24, 25)
         p.drawLine(24, 25, 31, 29)
     return _icon("history", colour, draw)
+
+
+def save_version_icon(colour: str) -> QIcon:
+    """Save Version Now: the history clock with a plus, a new checkpoint
+    (Version History itself is the plain clock)."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawEllipse(6, 6, 26, 26)
+        p.setPen(QPen(c, 3))
+        p.drawLine(19, 12, 19, 20)
+        p.drawLine(19, 20, 25, 24)
+        p.setPen(_pen(c, 4))
+        p.drawLine(37, 30, 37, 44)
+        p.drawLine(30, 37, 44, 37)
+    return _icon("save_version", colour, draw)
+
+
+def model_history_icon(colour: str) -> QIcon:
+    """Model History: editing steps in a list, with a jump-to marker."""
+    def draw(p: QPainter, c: QColor):
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_outline_pen(c))
+        p.drawRoundedRect(13, 8, 28, 32, 4, 4)
+        p.setPen(QPen(c, 2))
+        p.drawLine(20, 17, 34, 17)
+        p.drawLine(20, 24, 34, 24)
+        p.drawLine(20, 31, 29, 31)
+        # The step the model jumps to, drawn entering the list.
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawPolygon(QPolygonF([QPointF(6, 19), QPointF(6, 29),
+                                 QPointF(11, 24)]))
+    return _icon("modelhistory", colour, draw)
 
 
 def folder_open_icon(colour: str) -> QIcon:

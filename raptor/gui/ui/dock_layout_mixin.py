@@ -18,7 +18,7 @@ from raptor.gui.resources.design_tokens import (
     active_colour,
 )
 from raptor.gui.ui.dock_layout_persistence_mixin import DockLayoutPersistenceMixin
-from raptor.gui.ui.dock_chrome import DockSlotChrome
+from raptor.gui.ui.dock_chrome import DockSlotChrome, dock_id
 from raptor.gui.ui.dock_float_mixin import DockFloatMixin
 from raptor.gui.ui.dock_title_widgets import _DockStub, _DockTitleBar  # noqa: F401  (re-exported)
 
@@ -156,7 +156,7 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
 
         def toggle(checked):
             try:
-                self._compact_minimized.discard(dock.windowTitle())
+                self._compact_minimized.discard(dock_id(dock))
             except AttributeError:
                 pass
             stub = (self._dock_stubs or {}).get(dock)
@@ -170,7 +170,7 @@ class DockLayoutMixin(DockFloatMixin, DockLayoutPersistenceMixin, _Base):
                     stub(False)
                 # A collapsed bottom slot is still "visible"; un-collapse
                 # it or the checkbox appears to do nothing.
-                chrome = (self._dock_chrome or {}).get(dock.windowTitle())
+                chrome = (self._dock_chrome or {}).get(dock_id(dock))
                 if chrome is None and dock in (
                         getattr(self, "_run_dock", None),
                         getattr(self, "_results_dock", None),

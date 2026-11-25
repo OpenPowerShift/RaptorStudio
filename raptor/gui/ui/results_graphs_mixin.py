@@ -74,13 +74,6 @@ class ResultsGraphsMixin(_Base):
             src, stem = getattr(self, "_cap_lines", None), "rpt_capacity_plot"
         else:
             src, stem = getattr(self, "_ao_lines", None), "rpt_availability_plot"
-        lines = self._stream_lines(src)
-        if not lines:
-            self._status_hint_f and self._status_hint_f(
-                "No plot data collected: " + run_needs.gui_hint(
-                    "capacity_plot" if kind == "capacity" else "availability_plot")
-                .replace("<b>", "").replace("</b>", ""))
-            return
         base = (self._source_file_name or "model").rsplit(".", 1)[0]
         safe = "".join(c if c.isalnum() or c in "_-" else "_"
                        for c in base)[:60] or "model"
@@ -88,6 +81,21 @@ class ResultsGraphsMixin(_Base):
             self, "Export Plot Data",
             f"{stem}_{safe}.txt", "Text (*.txt);;All (*)")
         if not path:
+            return
+        if hasattr(src, "export_to") and hasattr(src, "read_all_lines"):
+            try:
+                req(src).export_to(path)
+                self._status_hint_f and self._status_hint_f(f"Saved: {path}")
+            except OSError as e:
+                msgbox.critical(self, "Export Failed",
+                                f"Could not write {path}:\n{e}")
+            return
+        lines = self._stream_lines(src)
+        if not lines:
+            self._status_hint_f and self._status_hint_f(
+                "No plot data collected: " + run_needs.gui_hint(
+                    "capacity_plot" if kind == "capacity" else "availability_plot")
+                .replace("<b>", "").replace("</b>", ""))
             return
         try:
             if hasattr(src, "export_to"):
@@ -181,9 +189,13 @@ class ResultsGraphsMixin(_Base):
         self._charts_page.set_series(ao_runs, cap_runs)
         self._charts_page.set_cost_series(cost_runs)
         count = max(len(ao_runs), len(cap_runs))
+        from raptor.gui.ui import chart_i18n
         self._charts_page.set_note(
-            (f"The charts over time use all {total:,} recorded rows, from "
-             f"{count:,} run{'' if count == 1 else 's'}; each run is reduced "
-             f"to about {points:,} points for drawing, keeping its highs, lows "
-             "and ends. Export ▸ Save the recorded plot rows keeps every row.")
+            chart_i18n.fmt(
+                "The charts over time use all %1 recorded rows, from %2; each "
+                "run is reduced to about %3 points for drawing, keeping its "
+                "highs, lows and ends. Export \u25b8 Save the recorded plot "
+                "rows keeps every row.", f"{total:,}",
+                chart_i18n.fmt("%1 run" if count == 1 else "%1 runs",
+                               f"{count:,}"), f"{points:,}")
             if total > points * 8 else "", time_charts_only=True)

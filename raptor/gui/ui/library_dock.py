@@ -514,7 +514,8 @@ class LibraryDock(QWidget):
                         if str(r.get("ID")) == str(hiers[0])), {})
             default = str(row.get("hierarchyName") or default)
         dialog = _SaveDialog(self, default[:40], single_block)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        from raptor.gui import i18n
+        if i18n.exec_translated(dialog) != QDialog.DialogCode.Accepted:
             return
         name = dialog.name.text().strip() or default
         before = self._snapshot()

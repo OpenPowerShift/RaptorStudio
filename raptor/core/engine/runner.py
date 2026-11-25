@@ -243,6 +243,8 @@ def _run_chunks_in_pool(mp_ctx, payloads, workers, merge, runs, *,
         for i in sorted(finished):
             done = merge(finished.pop(i))
     finally:
+        if stopped and metadata_sink is not None:
+            metadata_sink["stopped"] = True
         if pending or stopped:
             pool.terminate()
         else:
@@ -652,6 +654,8 @@ def run_simulation(
         # GUI hooks: between-runs Stop breaks cleanly here; mid-run the
         # block hook (wired below) raises RunAborted instead.
         if stop_check is not None and stop_check():
+            if metadata_sink is not None:
+                metadata_sink["stopped"] = True
             break
         driver = SingleRunDriver(ctx, run_index)
         drivers.append(driver)
@@ -672,6 +676,8 @@ def run_simulation(
             driver.finalize()
         except SkipRun:
             # GUI Jump: abandon this run, keep going with the next one.
+            if metadata_sink is not None:
+                metadata_sink["skipped"] = metadata_sink.get("skipped", 0) + 1
             continue
         except RunAborted:
             # Hard abandon: discard this run's report/sinks contribution;
@@ -680,6 +686,8 @@ def run_simulation(
             # stop after a few events still shows what happened.
             if keep_partial_logs and collect_logs and driver.logs:
                 all_logs.append(list(driver.logs))
+            if metadata_sink is not None:
+                metadata_sink["stopped"] = True
             break
         logs = driver.logs
         _neg_total = negative_draw_total(_streams_of(ctx).distinct_streams())
@@ -720,6 +728,8 @@ def run_simulation(
             try:
                 progress(run_index + 1, runs)
             except RunAborted:
+                if metadata_sink is not None:
+                    metadata_sink["stopped"] = True
                 break
 
     if _capacity_sink is not None:

@@ -3,6 +3,7 @@ share of downtime and lost capacity.
 
 Expects on `self`: `_diagram_dock`, `_results_dock`, the overlay actions."""
 from __future__ import annotations
+from raptor.gui.resources.design_tokens import px as _scaled
 from raptor.api.insight.axes import pct
 
 from typing import TYPE_CHECKING, Any
@@ -88,7 +89,7 @@ class OverlayMixin(_Base):
                 act.blockSignals(False)
         # weak band widgets
         want_type = (cfg.node_anal_type or "Availability").strip()
-        i = self._weak_type_combo.findText(want_type.capitalize())
+        i = self._weak_type_combo.findData(want_type)
         if i >= 0 and self._weak_type_combo.currentIndex() != i:
             self._weak_type_combo.blockSignals(True)
             self._weak_type_combo.setCurrentIndex(i)
@@ -346,7 +347,7 @@ class OverlayMixin(_Base):
         label.setStyleSheet("QLabel { color: #EAF2FB; padding: 0 4px; }")
         slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(0, 100)
-        slider.setFixedWidth(90)
+        slider.setFixedWidth(_scaled(90))
         slider.setValue(round(100 * self._diagram_dock.view._focus_threshold))
         slider.setToolTip("Focus keeps the elements whose share is at least this "
                           "fraction of the largest; the rest are dimmed. "
@@ -554,9 +555,11 @@ class OverlayMixin(_Base):
         spread = getattr(self, "_cost_spread", False)
         v.apply_cost_colors(cost_by_block, spread=spread)
         top = max(cost_by_block.values()) if cost_by_block else 0.0
+        from raptor.api.money import amount, model_currency
         self._statusbar.showMessage(
             f"Cost colouring on{' (spread by quartile)' if spread else ''}"
-            f" — most expensive block ${top:,.2f} total life-cycle cost")
+            f" — most expensive block {amount(top, model_currency(self._rbd))}"
+            " total life-cycle cost")
         self._update_overlay_chip()
 
     def _on_spares_overlay_toggled(self, on: bool):

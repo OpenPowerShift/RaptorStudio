@@ -16,14 +16,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QSize, QStringListModel, Qt
-from PySide6.QtGui import QAction, QUndoStack
+from PySide6.QtGui import QAction, QFontMetrics, QUndoStack
 from PySide6.QtWidgets import (
     QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
     QLineEdit, QMenu, QSpinBox, QWidget,
 )
 
+from raptor.gui import i18n
+
 from raptor.gui.resources import icons
-from raptor.gui.resources.design_tokens import RIBBON, ThemeManager, active_colour
+from raptor.gui.resources.design_tokens import (
+    RIBBON, ThemeManager, active_colour, px as _scaled)
 from raptor.gui.ui.run_experiment_mixin import _ANALYSIS_TIPS
 from raptor.gui.widgets.tidy_spin import TidySpinBox
 
@@ -70,6 +73,7 @@ class RibbonBuilders(_Base):
         stack that the Undo / Redo actions wrap, and the run / step /
         export flags the other groups read."""
         self._undo_stack = QUndoStack(self)
+        self._apply_undo_limit()
         # Analyses live in the Run panel now; keep the dict present so
         # every sync path can treat the ribbon mirror as optional.
         self._analysis_actions: dict[str, QAction] = {}
@@ -101,18 +105,37 @@ class RibbonBuilders(_Base):
 
 
 
+    def _apply_undo_limit(self) -> None:
+        """Apply the user's maximum undo steps to the model history.
+
+        Qt refuses a new limit on a non-empty stack, so a change made
+        mid-session waits for the next model: `_apply_loaded_model` clears
+        the history before calling this, and the wait is what Preferences
+        says happens.
+        """
+        from raptor.gui.ui import settings as _settings
+        try:
+            limit = int(_settings.get_int("editing/undo_limit", 200))
+        except (TypeError, ValueError):
+            limit = 200
+        limit = max(0, limit)
+        if self._undo_stack.count() == 0:
+            self._undo_stack.setUndoLimit(limit)
+
     def _build_goto_combo(self, group) -> None:
         """Model > Hierarchy: jump straight to a hierarchy by name."""
         # The manual's "Goto Hierarchy drop down list box" (App. B
         # Navigate menu): jump straight to any hierarchy by name.
         self._goto_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._goto_combo.setProperty("raptor_i18n_data_items", True)
         self._goto_combo.setToolTip("Go to a hierarchy")
         # Without a placeholder this reads as a blank, broken widget; and
         # after a refresh it used to sit on the first hierarchy in the
         # list, implying that is where you are.
         self._goto_combo.setPlaceholderText("Go to hierarchy…")
         self._goto_combo.setAccessibleName("Go to hierarchy")
-        self._goto_combo.setFixedWidth(110)
+        self._goto_combo.setFixedWidth(_scaled(110))
         self._goto_combo.setFixedHeight(RIBBON["small_height"] - 2)
         self._goto_combo.setEnabled(False)
         self._goto_combo.currentIndexChanged.connect(self._on_goto_hier)
@@ -204,7 +227,7 @@ class RibbonBuilders(_Base):
         self._run_count_spin.setRange(1, 1_000_000)
         self._run_count_spin.setValue(1)
         self._run_count_spin.setGroupSeparatorShown(True)
-        self._run_count_spin.setFixedWidth(84)
+        self._run_count_spin.setFixedWidth(_scaled(84))
         self._run_count_spin.setAccessibleName("Trials")
         self._run_count_spin.setToolTip(
             "Trials the next run will use. Edit them in the Run panel "
@@ -227,7 +250,7 @@ class RibbonBuilders(_Base):
         self._cores_spin.setRange(1, cores.available())
         self._cores_spin.setValue(cores.chosen())
         self._cores_spin.setSuffix(f" of {cores.available()}")
-        self._cores_spin.setFixedWidth(84)
+        self._cores_spin.setFixedWidth(_scaled(84))
         self._cores_spin.setAccessibleName("Cores for full-speed runs")
         # Cores is edited in the Run panel; this ribbon box is a
         # read-only readout.
@@ -390,6 +413,8 @@ class RibbonBuilders(_Base):
         group.add_widget(box)
 
         self._breakpoint_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._breakpoint_combo.setProperty("raptor_i18n_data_items", True)
         self._breakpoint_combo.addItem("No breakpoint", None)
         self._breakpoint_combo.setMinimumWidth(width)
         self._breakpoint_combo.setMaximumWidth(220)
@@ -564,7 +589,7 @@ class RibbonBuilders(_Base):
         self._link_routing_combo.setToolTip(
             "How links are drawn: straight, angled (short stubs, then a "
             "straight run) or right-angle. No block is ever moved.")
-        self._link_routing_combo.setFixedWidth(118)
+        self._link_routing_combo.setFixedWidth(_scaled(118))
         self._link_routing_combo.setIconSize(QSize(20, 20))
         self._refresh_link_routing_icons()
         self._link_routing_combo.currentIndexChanged.connect(
@@ -626,7 +651,7 @@ class RibbonBuilders(_Base):
         current = str(app_settings.get("layout/direction", "LR"))
         self._layout_direction_combo.setCurrentIndex(
             max(self._layout_direction_combo.findData(current), 0))
-        self._layout_direction_combo.setFixedWidth(132)
+        self._layout_direction_combo.setFixedWidth(_scaled(132))
         self._layout_direction_combo.currentIndexChanged.connect(
             lambda _i: app_settings.set_value(
                 "layout/direction",
@@ -642,7 +667,7 @@ class RibbonBuilders(_Base):
         self._layout_columns_spin.setSpecialValueText("Auto")
         self._layout_columns_spin.setValue(int(
             app_settings.get("layout/max_columns", 0) or 0))
-        self._layout_columns_spin.setFixedWidth(72)
+        self._layout_columns_spin.setFixedWidth(_scaled(72))
         self._layout_columns_spin.valueChanged.connect(
             lambda value: app_settings.set_value("layout/max_columns",
                                                  int(value)))
@@ -662,7 +687,7 @@ class RibbonBuilders(_Base):
         self._layout_spacing_spin.setDecimals(2)
         self._layout_spacing_spin.setValue(float(
             app_settings.get("layout/spacing", 1.0) or 1.0))
-        self._layout_spacing_spin.setFixedWidth(72)
+        self._layout_spacing_spin.setFixedWidth(_scaled(72))
         self._layout_spacing_spin.valueChanged.connect(
             lambda value: app_settings.set_value("layout/spacing",
                                                  float(value)))
@@ -681,7 +706,7 @@ class RibbonBuilders(_Base):
         current_side = str(app_settings.get("layout/label_side", "auto"))
         self._layout_label_side_combo.setCurrentIndex(max(
             self._layout_label_side_combo.findData(current_side), 0))
-        self._layout_label_side_combo.setFixedWidth(86)
+        self._layout_label_side_combo.setFixedWidth(_scaled(86))
         self._layout_label_side_combo.currentIndexChanged.connect(
             lambda _i: app_settings.set_value(
                 "layout/label_side",
@@ -707,7 +732,7 @@ class RibbonBuilders(_Base):
             "What the small lines under each block name show: the mean, "
             "the mean and standard deviation, the failure/repair rate, "
             "or nothing")
-        self._block_label_combo.setFixedWidth(118)
+        self._block_label_combo.setFixedWidth(_scaled(118))
         self._block_label_combo.currentIndexChanged.connect(
             lambda _i: self._on_block_label_mode_changed())
 
@@ -717,7 +742,7 @@ class RibbonBuilders(_Base):
             "Which phase's law the block labels describe. 'Model' shows "
             "the model's own unphased data; a phase shows that phase's "
             "stress-adjusted failure time, or that the block is cut.")
-        self._block_phase_combo.setFixedWidth(190)
+        self._block_phase_combo.setFixedWidth(_scaled(190))
         self._block_phase_combo.currentIndexChanged.connect(
             lambda _i: self._on_block_label_phase_changed())
 
@@ -781,16 +806,16 @@ class RibbonBuilders(_Base):
     def _build_weak_link_settings(self, group) -> None:
         """Results > Weak Link: metric and G/Y, Y/R thresholds."""
         self._weak_type_combo = QComboBox()
-        self._weak_type_combo.addItem("Availability")
-        self._weak_type_combo.addItem("Dependability")
-        self._weak_type_combo.addItem("Reliability")
+        for metric in ("Availability", "Dependability", "Reliability"):
+            self._weak_type_combo.addItem(metric, metric)
         self._weak_type_combo.setAccessibleName("Weak Link metric")
         self._weak_type_combo.setToolTip(
             "Which metric the Weak Link bands use: dependability "
             "excludes standby/PM/dependency time")
-        self._weak_type_combo.currentTextChanged.connect(
-            lambda t: self._on_weak_type_changed(t))
-        self._weak_type_combo.setFixedWidth(118)
+        self._weak_type_combo.currentIndexChanged.connect(
+            lambda _i: self._on_weak_type_changed(
+                self._weak_type_combo.currentData() or ""))
+        self._weak_type_combo.setFixedWidth(_scaled(118))
         self._gy_spin = QDoubleSpinBox()
         # Six decimals: a highly available model's blocks differ in the
         # fourth (0.99968 vs 0.99961), which three could not set apart.
@@ -833,12 +858,19 @@ class RibbonBuilders(_Base):
             spin.valueChanged.connect(commit_bands)
         # Stacked three high with their labels lined up, like any other
         # column of small controls.
-        for text, widget in (("Metric", self._weak_type_combo),
-                             ("Green ≥", self._gy_spin),
-                             ("Red <", self._yr_spin)):
+        rows = (("Metric", self._weak_type_combo),
+                ("Green ≥", self._gy_spin), ("Red <", self._yr_spin))
+        # Wide enough for the longest label in the user's language
+        # ("Vermelho <" is longer than "Red <"; a fixed 48 px clipped it).
+        metrics = QFontMetrics(self.font())
+        label_width = max(_scaled(48), max(
+            metrics.horizontalAdvance(i18n.translate_source(text))
+            for text, _w in rows) + _scaled(6))
+        for text, widget in rows:
             if widget is not self._weak_type_combo:
-                widget.setFixedWidth(118)
-            group.add_widget(_labeled_box(text, widget, label_width=48))
+                widget.setFixedWidth(_scaled(118))
+            group.add_widget(_labeled_box(text, widget,
+                                          label_width=label_width))
 
     def _init_find_box(self) -> None:
         """The Find box. Not on the ribbon: _setup_docks re-parents it into the Explorer."""

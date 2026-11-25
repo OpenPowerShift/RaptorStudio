@@ -91,6 +91,8 @@ class ScopeBox(QComboBox):
 
     def __init__(self, rbd: Any, combo: QComboBox, homes: list[int | None]) -> None:
         super().__init__()
+        # Hierarchy names are model data, not chrome.
+        self.setProperty("raptor_ignore_i18n", True)
         self._combo = combo
         self._homes = list(homes)
         self._paths = hierarchy_paths(rbd)

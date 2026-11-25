@@ -266,6 +266,112 @@ def _rd_base_dict(rd: RunReportData) -> dict[str, object]:
     }
 
 
+def _jsonable(value: Any) -> Any:
+    """Dataclass/dict/list to plain JSON types (int keys become strings)."""
+    import dataclasses
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _jsonable(dataclasses.asdict(value))
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if hasattr(value, "__dict__") and not isinstance(value, type):
+        # A reopened archive's rows are SimpleNamespaces; re-saving them
+        # must not fail on the way back to JSON.
+        return _jsonable(vars(value))
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def archive_detail(rd: RunReportData) -> dict[str, Any]:
+    """The structured per-run detail an `.rbdz` result set carries.
+
+    The Capacity, Cost and Weak Link pages read objects, not the report
+    text: per-node means, cost rows and per-block state times. The flat
+    per-run row (`_rd_to_dict`) keeps the headline figures, so this is the
+    extra that lets reopening an archive show those pages as the run did.
+    Everything is plain JSON; keys of per-element maps are strings.
+    """
+    out: dict[str, Any] = {}
+    cap = rd.capacity
+    if cap is not None:
+        out["capacity"] = {
+            "units_produced": float(cap.units_produced),
+            "ave_lost_flow": float(cap.ave_lost_flow),
+            "flow_generated": int(cap.flow_generated),
+            "system_node_id": int(cap.system_node_id),
+            "nodes": _jsonable(cap.nodes),
+        }
+    if rd.cost is not None:
+        out["cost"] = _jsonable(rd.cost)
+    for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
+                "hier_dsi"):
+        value = getattr(rd, key, None)
+        if value:
+            out[key] = _jsonable(value)
+    return out
+
+
+def restore_archive_detail(row: dict[str, Any]) -> dict[str, Any]:
+    """`archive_detail` back into the attribute objects the pages read.
+
+    Returns a dict of the run fields that were stored (`capacity`, `cost`,
+    the weak-link maps). Their nested dicts become attribute objects, and
+    element-keyed maps get their integer ids back (JSON only has string
+    keys). Absent detail yields an empty dict, so an archive written by an
+    older build keeps working.
+    """
+    from types import SimpleNamespace
+
+    def ns(value: Any) -> Any:
+        if isinstance(value, dict):
+            return SimpleNamespace(**{k: ns(v) for k, v in value.items()})
+        if isinstance(value, list):
+            return [ns(item) for item in value]
+        return value
+
+    def by_int(mapping: Any) -> dict[int, Any]:
+        if not isinstance(mapping, dict):
+            return {}
+        out: dict[int, Any] = {}
+        for key, value in mapping.items():
+            try:
+                out[int(key)] = ns(value)
+            except (TypeError, ValueError):
+                continue            # a hand-edited or corrupt archive
+        return out
+
+    out: dict[str, Any] = {}
+    cap = row.get("capacity")
+    if isinstance(cap, dict):
+        out["capacity"] = SimpleNamespace(
+            units_produced=cap.get("units_produced"),
+            ave_lost_flow=cap.get("ave_lost_flow"),
+            flow_generated=cap.get("flow_generated"),
+            system_node_id=cap.get("system_node_id"),
+            nodes=by_int(cap.get("nodes")))
+    cost = row.get("cost")
+    if isinstance(cost, dict):
+        # Rebuild every stored field, not a hand-written subset: a field
+        # added to `CostRunReport` is archived by the writer above and must
+        # come back without a second edit here.
+        fields = dict(cost)
+        for key in ("blocks", "events", "hiers"):
+            if key in fields:
+                fields[key] = by_int(fields[key])
+        for key in ("spare_pools", "resources"):
+            if isinstance(fields.get(key), dict):
+                fields[key] = {k: ns(v) for k, v in fields[key].items()}
+        out["cost"] = SimpleNamespace(**fields)
+    for key in ("weak_stats", "weak_nodes", "weak_events", "weak_hiers",
+                "hier_dsi"):
+        # The weak-link maps are read with `.get(...)`; they stay dicts,
+        # only their integer element keys come back.
+        if isinstance(row.get(key), dict):
+            out[key] = {int(k): dict(v) if isinstance(v, dict) else v
+                        for k, v in row[key].items()}
+    return out
+
+
 def model_units(rbd: RbdFile) -> str:
     """The model's time units ('hours', 'miles', ...), or ''.
 
@@ -738,9 +844,7 @@ def run(
             "what drives the downtime.")
         attribution = False
     if attribution:
-        from raptor.api.insight.attribution import (
-            attribute_logs, model_hierarchies, model_phases,
-        )
+        from raptor.api.insight.attribution import attribute_batch
         from raptor.core import run_experiment
         experiment = run_experiment.normalise(getattr(sim_rbd, "experiment", None) or {})
         from raptor.api.progress import Cancelled
@@ -748,11 +852,15 @@ def run(
             capacity_runs = _capacity_runs(sim_rbd, cap_lines, mhash,
                                            capacity_rule, abort=abort,
                                            progress=insight_progress)
-            attributed = attribute_logs(
+            # The same end-of-run pass the GUI's worker and its synchronous
+            # path use, so the capacity split, phases, hierarchies and unit
+            # label cannot differ between the surfaces.
+            attributed = attribute_batch(
+                sim_rbd,
                 [log if isinstance(log, list) else [log] for log in event_logs],
-                float(experiment.get("start_stats") or 0.0), abort=abort,
-                progress=insight_progress, with_outages=True, capacity=capacity_runs,
-                phases=model_phases(sim_rbd), hierarchies=model_hierarchies(sim_rbd))
+                start_stats=float(experiment.get("start_stats") or 0.0),
+                capacity=capacity_runs, units=model_units(sim_rbd),
+                abort=abort, progress=insight_progress)
         except Cancelled:
             # stopped during the replay: the simulated runs are still kept
             attributed = None
@@ -762,7 +870,6 @@ def run(
                 "again with fewer runs, or a longer limit, to see what drives "
                 "the downtime.")
     if attribution and attributed is not None:
-        attributed["units"] = model_units(sim_rbd)
         # the outage intervals go in their own file: they are large and only
         # the period (yearly) view reads them
         outages = attributed.pop("outages", None)

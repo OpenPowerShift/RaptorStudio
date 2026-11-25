@@ -65,6 +65,9 @@ CATEGORIES: list[tuple[str, str, str]] = [
      "Read, page, plot and export the numbers from a completed run."),
     ("meta", "Meta and documentation",
      "Discover distributions and read the documentation the server ships."),
+    ("project", "Project health, sharing and versions",
+     "Review a model's completeness, write a share-safe copy, and keep or "
+     "restore versions of its file."),
 ]
 
 #: Every registered tool belongs to exactly one category.  A new tool is a
@@ -173,6 +176,22 @@ TOOL_CATEGORY: dict[str, str] = {
     "list_distributions": "meta",
     "read_doc": "meta",
     "search_docs": "meta",
+    # Project health, sharing and versions
+    "project_health": "project",
+    "share_safe_copy": "project",
+    "list_versions": "project",
+    "snapshot_version": "project",
+    "label_version": "project",
+    "restore_version": "project",
+    # Tags
+    "list_tags": "build-edit",
+    "tag_elements": "build-edit",
+    "describe_tag": "build-edit",
+    "rename_tag": "build-edit",
+    "delete_tag": "build-edit",
+    # Spreadsheet import
+    "preview_table_import": "build-edit",
+    "import_table_data": "build-edit",
 }
 
 #: A short, valid argument object for every tool.  ``<model_id>`` and
@@ -284,6 +303,29 @@ EXAMPLES: dict[str, dict[str, Any]] = {
                     "detail": "full"},
     "diff_models": {"model_a": "<model_id_a>", "model_b": "<model_id_b>",
                     "detail": "summary"},
+    "project_health": {"model_id": "<model_id>"},
+    "share_safe_copy": {"model_id": "<model_id>", "output": "shared/pump",
+                        "annotations": "all"},
+    "list_versions": {"model_id": "<model_id>", "limit": 10},
+    "snapshot_version": {"model_id": "<model_id>", "label": "sent to review"},
+    "label_version": {"model_id": "<model_id>",
+                      "snapshot_id": "<snapshot_id>", "label": "released"},
+    "restore_version": {"model_id": "<model_id>",
+                        "snapshot_id": "<snapshot_id>",
+                        "output": "restored/pump.rbds"},
+    "list_tags": {"model_id": "<model_id>", "within": 900},
+    "describe_tag": {"model_id": "<model_id>", "tag": "rotating",
+                     "colour": "#2E7D32", "description": "Moving parts"},
+    "rename_tag": {"model_id": "<model_id>", "tag": "rotating",
+                   "new_name": "rotating equipment"},
+    "delete_tag": {"model_id": "<model_id>", "tag": "rotating"},
+    "tag_elements": {"model_id": "<model_id>",
+                     "elements": ["Block:3", "Block:4"],
+                     "tags": ["rotating"], "mode": "add"},
+    "preview_table_import": {"model_id": "<model_id>",
+                             "path": "imports/blocks.xlsx"},
+    "import_table_data": {"model_id": "<model_id>",
+                          "path": "imports/blocks.xlsx"},
     "extract_hierarchy": {"model_id": "<model_id>",
                           "hierarchy": "Cooling loop", "report_only": True},
     "validate_model": {"model_id": "<model_id>"},
@@ -565,6 +607,34 @@ def _parameters(schema: dict[str, Any],
 #: output schema.  The catalogue must still give a reader the return summary,
 #: so keep these next to the examples and check them in the docs test.
 RETURN_NOTES: dict[str, str] = {
+    "preview_table_import": "`{source, sheet, summary, applied, changes: "
+                            "[{row, ref, id, name, field, old, new, "
+                            "formula}], problems: [{row, level, message, "
+                            "ref}], blocked}`.",
+    "import_table_data": "The same object with `applied` true and only "
+                         "the changes that were written; an error in any "
+                         "row refuses the whole import.",
+    "list_tags": "`{tags: [{tag, colour, description, elements}], count, "
+                 "within}`.",
+    "describe_tag": "`{tag, colour, description, elements}`.",
+    "rename_tag": "`{from, to, elements, merged}`.",
+    "delete_tag": "`{deleted, elements}`.",
+    "tag_elements": "`{changed: [{ref, tags}], count, mode}`.",
+    "project_health": "`{counts, summary, annotations, text_annotations, "
+                      "comments, formulas, rates, errors, warnings, issues}`; "
+                      "each issue is `{severity, message, element}`.",
+    "share_safe_copy": "`{path, removed, summary, counts: {names, comments, "
+                       "text_annotations, graphic_annotations, metadata, "
+                       "advisor, rates}, residual_risk}`.",
+    "list_versions": "`{file, total, total_bytes, soft_limit_bytes, "
+                     "over_soft_limit, versions: [{snapshot_id, created, "
+                     "reason, label, bytes}]}`, newest first.",
+    "snapshot_version": "`{created, file, version: {snapshot_id, created, "
+                        "reason, label, bytes}}`; `created` is false when "
+                        "the file was unchanged.",
+    "label_version": "`{file, snapshot_id, label}`.",
+    "restore_version": "`{path, snapshot_id, created, bytes}` for the "
+                       "written copy.",
     "delete_link": "`{deleted, kind, id}` for the removed link.",
     "move_element": "`{moved, parent, element}` — the selector, its new "
                     "parent and the moved element row.",

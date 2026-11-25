@@ -4,7 +4,7 @@ _raptor() {
     case "${COMP_WORDS[i]}" in -*) ;; *) cmd="${COMP_WORDS[i]}"; break;; esac
   done
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert describe diff doctor edit estimate explain extract fev fit get gui help info library mcp optimise recommend register-file-types render report run schema sensitivity set simulate spf step sweep tables validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
+    COMPREPLY=( $(compgen -W "advise analytic compare completion config convert declassify describe diff doctor edit estimate explain extract fev fit get gui health help history import-table info library mcp optimise recommend register-file-types render report run schema sensitivity set simulate spf step sweep tables tags validate whatif --color --config --debug --dev-features --help --log-file --log-level --no-config --quiet --verbose --version" -- "$cur") ); return
   fi
   case "$cmd" in
     advise) opts="--format --help --ignore --jobs --list-rules --min-severity --only --progress --reason --restore --simulate --skip --strict --target --why" ;;
@@ -13,6 +13,7 @@ _raptor() {
     completion) opts="--help" ;;
     config) opts="--help" ;;
     convert) opts="--allow-lossy --dry-run --format --help --no-sidecar --normalize-out --report --strict --to" ;;
+    declassify) opts="--annotations --help --keep-advisor --keep-comments --keep-metadata --keep-names --keep-rates" ;;
     describe) opts="--element --format --help" ;;
     diff) opts="--all --exit-code --format --help --ignore --match --only" ;;
     doctor) opts="--format --help" ;;
@@ -24,7 +25,10 @@ _raptor() {
     fit) opts="--block --format --help --law --quantile --repair" ;;
     get) opts="--format --help" ;;
     gui) opts="--help --new --theme" ;;
+    health) opts="--format --help" ;;
     help) opts="--help" ;;
+    history) opts="--describe --description --description-file --force --format --help --label --output --restore --snapshot" ;;
+    import-table) opts="--format --help --in-place --sheet" ;;
     info) opts="--element --format --help" ;;
     library) opts="--help" ;;
     mcp) opts="" ;;
@@ -42,6 +46,7 @@ _raptor() {
     step) opts="--break --events --fine --format --help --run --until" ;;
     sweep) opts="--analysis --block-streams --format --help --importance --jobs --length --max-trials --metric --min-trials --precision --precision-batch --precision-confidence --precision-metric --runs --save-model --seed --set --set-file --stats-start --stop --timeout --vary --weak-type" ;;
     tables) opts="--analysis --block-streams --capacity-rule --case-sensitive --column --drivers --find --format --help --importance --in-place --jobs --length --list --max-trials --min-trials --output --precision --precision-batch --precision-confidence --precision-metric --replace --run --runs --save-model --seed --set --set-file --stats-start --stop --table --timeout --weak-type --whole" ;;
+    tags) opts="--help" ;;
     validate) opts="--format --help --strict" ;;
     whatif) opts="--change --change-file --format --help --jobs --name --note --precision --progress --requirement --save --seed --timeout --trials" ;;
   esac

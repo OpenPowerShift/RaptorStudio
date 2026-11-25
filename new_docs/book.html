@@ -9827,7 +9827,7 @@ diagram.</p>
 full tool catalogue, and worked examples.</p>
 </div>
 <div class="paragraph">
-<p>The server exposes <strong>96 tools</strong> (including the <code>ping</code> health check), a set of
+<p>The server exposes <strong>109 tools</strong> (including the <code>ping</code> health check), a set of
 resources, and three prompts. A standalone guide to installing, connecting,
 concepts and task recipes is <code>docs/MCP.md</code>; the exhaustive, generated
 catalogue of every tool, parameter, return field and example is
@@ -10354,8 +10354,8 @@ output, which is handy in scripts.</p>
 <li>
 <p><strong>Check the tool list.</strong> Ask your assistant "What RAPTOR tools do you
 have?" or, in the MCP Inspector, click <strong>Tools</strong>. You should see the tools
-listed below: 96 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
-<code>ping</code>, or 95 when <code>--no-render</code> hides the PNG diagram tool.</p>
+listed below: 109 including <code>render_diagram</code>, <code>render_diagram_svg</code> and
+<code>ping</code>, or 108 when <code>--no-render</code> hides the PNG diagram tool.</p>
 </li>
 <li>
 <p><strong>Ping the server.</strong> Ask the assistant to "ping RAPTOR" or call the <code>ping</code>
@@ -11158,7 +11158,99 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_reference">23.6.10. Reference</h4>
+<h4 id="_tags_imports_versions_and_sharing">23.6.10. Tags, imports, versions and sharing</h4>
+<div class="paragraph">
+<p>Tags are labels on elements, with an optional colour and description;
+they may span hierarchies, overlap and never change the simulation. A <strong>version</strong> is a checkpoint you save on purpose (the desktop
+app&#8217;s <strong>File ▸ Save Version Now&#8230;&#8203;</strong>); the tools use the word snapshot only
+in <code>snapshot_version&#8217;s name. See the Version History and Project Health
+guides in `docs/</code> for the full story.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tool</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_tags</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The model&#8217;s tags with colour, description and element count. <code>within</code>
+  (a hierarchy id) counts only the elements inside that hierarchy.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>tag_elements</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set, add or remove tags on elements (<code>mode</code> is <code>replace</code>, <code>add</code> or
+  <code>remove</code>), named by selectors such as <code>Block:3</code> or <code>Hier:900</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>describe_tag</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set a tag&#8217;s <code>colour</code> and <code>description</code>; a tag no element carries yet is
+  created. The model is saved.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>rename_tag</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rename a tag on every element; renaming onto an existing tag merges the
+  two.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>delete_tag</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Remove a tag from every element. The elements are kept.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>preview_table_import</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Say exactly what an <code>.xlsx</code> or <code>.ods</code> sheet would change, row by row,
+  before anything is written. An <code>error</code> blocks the import; a <code>warning</code>
+  does not.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>import_table_data</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply the sheet&#8217;s changes and save the model. A plan with any error is
+  refused, so a mistyped row cannot half-edit the model. One edit step;
+  <code>undo_last_edit</code> is the way back.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>project_health</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What is in the model and what a reviewer should tidy: element counts,
+  validator findings, unnamed or duplicate names, unused pools and the
+  prose a share-safe copy would remove. Nothing is run or changed.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>share_safe_copy</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write a copy with the identifying prose removed and the data intact.
+  Group and tag names become <code>Group_N</code> and <code>tag_N</code>, group descriptions are
+  dropped, and colours and membership are kept.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>snapshot_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Record the model&#8217;s file as a version now, with an optional <code>label</code> and
+  Markdown <code>description</code>. Ordinary saves record none.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list_versions</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The versions kept for the model&#8217;s file, newest first, with the history&#8217;s
+  total size and whether it is over the 50 MB soft limit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>label_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name a version or give it a Markdown description; the content is
+  unchanged.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>restore_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write a version to a new file in the workspace. The open model is not
+  changed; open the written file with <code>open_model</code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_reference">23.6.11. Reference</h4>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
 <col style="width: 25%;">
@@ -11196,7 +11288,7 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_resources">23.6.11. Resources</h4>
+<h4 id="_resources">23.6.12. Resources</h4>
 <div class="paragraph">
 <p>Read-only URIs a client can browse or read:</p>
 </div>
@@ -11248,7 +11340,7 @@ or <code>results.summary</code>.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_prompts">23.6.12. Prompts</h4>
+<h4 id="_prompts">23.6.13. Prompts</h4>
 <div class="paragraph">
 <p>Conversation starters that appear in your client&#8217;s prompt menu:</p>
 </div>
@@ -12694,7 +12786,14 @@ PNG/SVG/CSV export. <strong>Target</strong> draws an availability target on the 
 chance, time and year charts; <strong>Capacity target</strong> does the same on the
 capacity year chart. The dot plots mark the median and quartiles, and a
 chart over time can be dragged (or Ctrl+wheeled) to zoom its time axis,
-with a double-click to restore the whole run. The set includes:</p>
+with a double-click to restore the whole run.</p>
+</div>
+<div class="paragraph">
+<p>The list on the left groups the charts by the question they answer. Click a
+group&#8217;s heading to see its charts as small pictures, each with a line on
+what it answers; <strong>All charts</strong>, above the first group, shows every group
+on one long page under its own heading, so you can scroll the lot and open
+the one you want. The search box narrows both. The set includes:</p>
 </div>
 <div class="ulist">
 <ul>

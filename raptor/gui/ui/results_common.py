@@ -17,13 +17,22 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.api.insight import measures
-from raptor.gui.resources.design_tokens import SPACING, active_colour
+from raptor.gui.resources.design_tokens import SPACING, active_colour, px
 
 
 def _mono_font() -> QFont:
+    # Start from the application font so the OS font size and the
+    # interface scale both carry over; only the family changes.
+    from PySide6.QtWidgets import QApplication
     f = QFont("Consolas, Menlo, Monaco, monospace")
     f.setStyleHint(QFont.StyleHint.Monospace)
-    f.setPointSize(10)
+    app_font = QApplication.font() if QApplication.instance() else QFont()
+    if app_font.pointSizeF() > 0:
+        f.setPointSizeF(app_font.pointSizeF())
+    elif app_font.pixelSize() > 0:
+        f.setPixelSize(app_font.pixelSize())
+    else:
+        f.setPointSize(10)
     return f
 
 
@@ -514,7 +523,7 @@ class _MetricCard(QFrame):
                   "worse": c.get("failed")}.get(verdict, c.get("muted"))
         weight = 600 if verdict in ("better", "worse") else 400
         self._change.setStyleSheet(
-            f"QLabel {{ color: {colour}; font-size: 11px; "
+            f"QLabel {{ color: {colour}; font-size: {px(11)}px; "
             f"font-weight: {weight}; background: transparent; }}")
 
     def change_text(self) -> str:

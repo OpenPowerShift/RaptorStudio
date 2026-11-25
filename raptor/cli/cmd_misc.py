@@ -41,6 +41,68 @@ def add_parser(sub: Any) -> None:
     d.add_argument("-f", "--format", choices=("text", "json"), default="text")
     d.set_defaults(func=doctor_command)
 
+    h = sub.add_parser(
+        "history", help="list, save, describe or restore versions of a model",
+        description="Version checkpoints: list, save (snapshot) with an "
+                    "optional label and Markdown description, describe, or "
+                    "restore. Versions live in the user's private state "
+                    "folder, not beside the model.")
+    h.add_argument("model", metavar="MODEL")
+    h.add_argument("--snapshot", action="store_true",
+                   help="record the file as it is now")
+    h.add_argument("--label", metavar="TEXT",
+                   help="label the snapshot (with --snapshot); an unchanged "
+                        "file names its newest version if that has no "
+                        "label, otherwise a new version is added")
+    h.add_argument("--description", metavar="TEXT",
+                   help="Markdown description for the snapshot (with "
+                        "--snapshot), or with --describe for that version")
+    h.add_argument("--description-file", metavar="PATH",
+                   help="read the Markdown description from a file ('-' "
+                        "is standard input)")
+    h.add_argument("--describe", metavar="SNAPSHOT",
+                   help="set (or with an empty description, clear) the "
+                        "description of an existing snapshot")
+    h.add_argument("--restore", metavar="SNAPSHOT",
+                   help="write this snapshot to --output (or --force over MODEL)")
+    h.add_argument("-o", "--output", metavar="PATH",
+                   help="destination for --restore")
+    h.add_argument("--force", action="store_true",
+                   help="allow --restore to overwrite MODEL or an existing "
+                        "--output")
+    h.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    h.set_defaults(func=history_command)
+    hh = sub.add_parser(
+        "health", help="summarise a model's size, completeness and issues",
+        description="Project health: element counts, validation findings, "
+                    "unnamed elements, duplicate block names and unused pools.")
+    hh.add_argument("model", metavar="MODEL")
+    hh.add_argument("-f", "--format", choices=("text", "json"), default="text")
+    hh.set_defaults(func=health_command)
+
+    dd = sub.add_parser(
+        "declassify", help="write a share-safe copy with names/notes removed",
+        description="Write a declassified .rbds: element names become type "
+                    "labels, and comments, chosen annotations, project "
+                    "metadata, rate names/formulas and Advisor notes can be "
+                    "removed. IDs, links and data are kept.")
+    dd.add_argument("model", metavar="MODEL")
+    dd.add_argument("output", metavar="OUTPUT")
+    dd.add_argument("--annotations", choices=("keep", "text", "all"),
+                    default="all",
+                    help="remove no annotations, text only, or every shape")
+    dd.add_argument("--keep-names", action="store_true",
+                    help="keep element and hierarchy names")
+    dd.add_argument("--keep-comments", action="store_true",
+                    help="keep element comments")
+    dd.add_argument("--keep-metadata", action="store_true",
+                    help="keep the print title block and project preferences")
+    dd.add_argument("--keep-advisor", action="store_true",
+                    help="keep the reasons attached to dismissed Advisor findings")
+    dd.add_argument("--keep-rates", action="store_true",
+                    help="keep the rate library and field formulas")
+    dd.set_defaults(func=declassify_command)
+
     r = sub.add_parser(
         "register-file-types",
         help="open .rbds and .rbd files with RAPTOR Studio (this user only)",
@@ -56,6 +118,204 @@ def add_parser(sub: Any) -> None:
     r.add_argument("--dry-run", action="store_true",
                    help="list the changes without making them")
     r.set_defaults(func=register_file_types_command)
+
+
+def _history_check_options(args: Any) -> None:
+    if args.snapshot and args.restore:
+        raise CliError("--snapshot and --restore are separate actions", X.USAGE)
+    if args.label and not args.snapshot:
+        raise CliError("--label needs --snapshot", X.USAGE)
+    if args.description is not None and args.description_file:
+        raise CliError("use --description or --description-file, not both",
+                       X.USAGE)
+    has_text = args.description is not None or args.description_file
+    if has_text and not (args.snapshot or args.describe):
+        raise CliError("--description needs --snapshot or --describe",
+                       X.USAGE)
+    if args.describe and (args.snapshot or args.restore):
+        raise CliError("--describe is a separate action", X.USAGE)
+    if args.describe and not has_text:
+        raise CliError("--describe needs --description or "
+                       "--description-file", X.USAGE)
+    if args.output and not args.restore:
+        raise CliError("-o/--output needs --restore", X.USAGE)
+    if args.force and not args.restore:
+        raise CliError("--force needs --restore", X.USAGE)
+
+
+def _description_text(args: Any) -> str:
+    if args.description_file:
+        try:
+            if args.description_file == "-":
+                return sys.stdin.read()
+            return Path(args.description_file).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise CliError(f"could not read {args.description_file}: {exc}",
+                           X.USAGE) from exc
+    return args.description or ""
+
+
+def _history_describe(model: Path, args: Any) -> int:
+    from raptor.api import history
+    if not model.is_file():
+        raise CliError(f"file not found: {model}", X.USAGE)
+    text = _description_text(args)
+    if not history.set_description(model, args.describe, text):
+        raise CliError(f"no version {args.describe!r} for {model}", X.USAGE)
+    print(f"described {args.describe}" if text.strip()
+          else f"cleared the description of {args.describe}")
+    return X.OK
+
+
+def _history_snapshot(model: Path, label: str, description: str = "") -> int:
+    from raptor.api import history
+    from raptor.core.history import HistoryError
+    if not model.is_file():
+        raise CliError(f"file not found: {model}", X.USAGE)
+    try:
+        shot = history.record(model, reason="manual", label=label,
+                              description=description)
+    except HistoryError as exc:
+        raise CliError(str(exc), X.RUNTIME) from exc
+    if shot is None:
+        print("nothing to record: the file is identical to the latest "
+              "version")
+        return X.OK
+    suffix = f"  {shot.label}" if shot.label else ""
+    print(f"recorded {shot.id} ({shot.size_text()}){suffix}")
+    return X.OK
+
+
+def _history_restore(model: Path, args: Any) -> int:
+    from raptor.api import history
+    from raptor.core.history import HistoryError
+    if not args.output and not args.force:
+        raise CliError("--restore needs -o/--output, or --force to "
+                       "overwrite the model", X.USAGE)
+    if args.output and Path(args.output).exists() and not args.force:
+        raise CliError(f"{args.output} exists; add --force to overwrite",
+                       X.USAGE)
+    try:
+        target = history.restore(model, args.restore, args.output or model)
+    except FileNotFoundError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    except HistoryError as exc:
+        raise CliError(str(exc), X.RUNTIME) from exc
+    except OSError as exc:
+        raise CliError(f"could not write {args.output or model}: {exc}",
+                       X.OUTPUT) from exc
+    print(f"restored {target}")
+    return X.OK
+
+
+def _history_list(model: Path, fmt: str) -> int:
+    from raptor.api import history
+    from raptor.core.history import file_digest
+    if not model.is_file():
+        raise CliError(f"file not found: {model}", X.USAGE)
+    from raptor.core.history import format_bytes
+    shots = history.snapshots(model)
+    total, limit = history.usage(model), history.soft_limit()
+    digest = file_digest(model)
+    current = [s.id for s in shots if s.sha256 and s.sha256 == digest]
+    if fmt == "json":
+        emit_json({"schema": "raptor-history/1", "model": str(model),
+                   "current": digest or None,
+                   "current_id": current[0] if current else None,
+                   "total_bytes": total, "soft_limit_bytes": limit,
+                   "snapshots": [
+                       {"id": s.id, "created": s.created, "reason": s.reason,
+                        "label": s.label, "description": s.description,
+                        "bytes": s.bytes, "sha256": s.sha256,
+                        "current": s.id in current}
+                       for s in shots]}, None)
+        return X.OK
+    if not shots:
+        print(f"no saved versions of {model}")
+        return X.OK
+    for shot in shots:
+        label = f"  {shot.label}" if shot.label else ""
+        if shot.description:
+            label += "  [described]"
+        mark = "*" if shot.id in current else " "
+        print(f"{mark} {shot.id}  {shot.time_text()}  {shot.reason:<8} "
+              f"{shot.size_text():>9}{label}")
+    print(f"{len(shots)} version(s), {format_bytes(total)} on disk "
+          "(identical files are stored once)")
+    if total > limit:
+        print(f"warning: this history is over {format_bytes(limit)}. Versions "
+              "you saved are never deleted automatically; remove ones you no "
+              "longer need in the app's Version History (Delete version).")
+    return X.OK
+
+
+def history_command(args: Any) -> int:
+    _history_check_options(args)
+    model = Path(args.model)
+    if args.snapshot:
+        return _history_snapshot(model, args.label or "",
+                                 _description_text(args))
+    if args.describe:
+        return _history_describe(model, args)
+    if args.restore:
+        return _history_restore(model, args)
+    return _history_list(model, args.format)
+
+
+def health_command(args: Any) -> int:
+    from raptor.api import health
+    try:
+        rbd = health.load(args.model)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not read {args.model}: {exc}", X.USAGE) from exc
+    report = health.report(rbd)
+    if args.format == "json":
+        emit_json({"schema": "raptor-health/1", "model": args.model,
+                   "counts": report.counts,
+                   "annotations": report.annotations,
+                   "text_annotations": report.text_annotations,
+                   "comments": report.comments,
+                   "formulas": report.formulas, "rates": report.rates,
+                   "issues": [{"severity": i.severity, "message": i.message,
+                               "element": i.element} for i in report.issues]},
+                  None)
+        return X.INVALID if report.errors else X.OK
+    print(report.summary())
+    if not report.issues:
+        print("no issues")
+    for issue in report.issues:
+        print(f"{issue.severity.upper():<7} {issue.text()}")
+    return X.INVALID if report.errors else X.OK
+
+
+def declassify_command(args: Any) -> int:
+    from raptor.api import health
+    from raptor.core.redact import RedactOptions, write_share_copy
+    try:
+        rbd = health.load(args.model)
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not read {args.model}: {exc}", X.USAGE) from exc
+    options = RedactOptions(
+        names=not args.keep_names,
+        comments=not args.keep_comments,
+        annotations=args.annotations,
+        metadata=not args.keep_metadata,
+        advisor=not args.keep_advisor,
+        rates=not args.keep_rates)
+    try:
+        dest, report = write_share_copy(
+            rbd, args.output, options, source=args.model)
+    except ValueError as exc:
+        raise CliError(str(exc), X.USAGE) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise CliError(f"could not write {args.output}: {exc}", X.OUTPUT) from exc
+    print(f"wrote {dest}")
+    print(report.summary())
+    if report.risks:
+        print("residual risk:")
+        for risk in report.risks:
+            print(f"- {risk}")
+    return X.OK
 
 
 def register_file_types_command(args: Any) -> int:
@@ -121,13 +381,17 @@ def config_path() -> Path:
     return Path(base) / "raptor-studio" / "config.toml"
 
 
-def config_command(args: Any) -> int:
+def config_command(args: Any) -> int:  # noqa: C901
+    from PySide6.QtCore import QCoreApplication, QSettings
+    # The GUI writes QSettings under this identity; a bare QSettings in
+    # the CLI used to land in "Unknown Organization.conf".
+    QCoreApplication.setOrganizationName("OpenPowerShift")
+    QCoreApplication.setApplicationName("RAPTOR Studio")
     if args.action == "path":
-        print(config_path())
+        print(QSettings().fileName())
         return X.OK
     from raptor.gui.ui import settings
     if args.action == "list":
-        from PySide6.QtCore import QSettings
         s = QSettings()
         for k in sorted(s.allKeys()):
             print(f"{k}={s.value(k)}")
@@ -144,6 +408,18 @@ def config_command(args: Any) -> int:
         v: Any = args.value
         low = v.lower()
         v = True if low == "true" else False if low == "false" else v
+        if args.key == "appearance/ui_scale":
+            from raptor.gui.resources.scale import SCALE_MAX, SCALE_MIN
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE) from None
+            if not SCALE_MIN <= v <= SCALE_MAX:
+                raise CliError(
+                    f"appearance/ui_scale must be an integer "
+                    f"{SCALE_MIN}..{SCALE_MAX}", X.USAGE)
         settings.set_value(args.key, v)
     elif args.action == "unset":
         settings.remove(args.key)

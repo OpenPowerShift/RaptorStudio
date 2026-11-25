@@ -1,6 +1,7 @@
 """Undo commands for the diagram canvas: each captures the old value and
 re-applies via the view's `_apply_*` helpers or its file rows."""
 from __future__ import annotations
+import copy
 from typing import Any
 from PySide6.QtGui import (
     QUndoCommand,
@@ -85,12 +86,21 @@ class _ViewCmd(QUndoCommand):
             return
         if level and level not in getattr(v, "hiers", {}):
             return                       # not there (yet): act where we are
+        if getattr(v, "_history_jump", False):
+            v._history_jump_level = level
+            return
         v._set_level(level)
 
     def _done(self):
         if self._v._loading:
             return
         pending = getattr(self._v, "_pending_signals", None)
+        # A history jump replays many commands: one refresh at the end
+        # instead of one per step (as for a macro, below).
+        if getattr(self._v, "_history_jump", False) and pending is not None:
+            if self.changed_signal not in pending:
+                pending.append(self.changed_signal)
+            return
         if getattr(self, "_in_macro", False) and pending is not None:
             # One step of a macro (a multi-row Data Tables edit, its undo):
             # the stack emits the signal once when the macro is done
@@ -691,6 +701,10 @@ class DeleteCmd(_ViewCmd):
             {r.get("eventName") for r in self.event_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
+        # Tags are keyed by id; a deleted element's id can be
+        # reused by the next new block, so drop its bindings reversibly.
+        rbd = getattr(view, "_rbd_ref", None)
+        self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     def _drop_comments(self) -> None:
         _drop_comment_rows(self._v, self.comment_rows,
@@ -716,10 +730,17 @@ class DeleteCmd(_ViewCmd):
                                  if _safe_int(r.get("ID")) in dead}
         v._remove_ids(dead_b, dead_n, dead_e, dead_l)
         self._drop_comments()
+        rbd = getattr(v, "_rbd_ref", None)
+        if rbd is not None:
+            from raptor.core import tags
+            tags.prune(rbd, tags.valid_refs_from_model(rbd))
         self._done()
 
     def undo(self):
         v = self._v
+        rbd = getattr(v, "_rbd_ref", None)
+        if rbd is not None:
+            rbd.tags = copy.deepcopy(self._tags_before)
         self._restore_comments()
         at = getattr(self, "_at", {})
         for section, saved in (("BLOCK_DATA", self.block_rows),
@@ -933,6 +954,10 @@ class DissolveCmd(_ViewCmd):
             {r.get("Name") for r in self.marker_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
+        # Tags are keyed by id; a deleted element's id can be
+        # reused by the next new block, so drop its bindings reversibly.
+        rbd = getattr(view, "_rbd_ref", None)
+        self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     @staticmethod
     def _row_by_id(section, oid):
@@ -973,7 +998,11 @@ class DissolveCmd(_ViewCmd):
                 row = self._row_by_id(link_section, lid)
                 if row is not None:
                     row.update(new)
+            # the oval and its port nodes are gone: so are their tags
+            from raptor.core import tags
+            tags.prune(rbd, tags.valid_refs_from_model(rbd))
         else:
+            rbd.tags = copy.deepcopy(self._tags_before)
             _restore_comment_rows(v, self.comment_rows)
             hier_section.rows.append(dict(self.hier_row))
             node_section = rbd.sections["NODE_DATA"]

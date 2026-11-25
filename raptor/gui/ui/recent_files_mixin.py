@@ -45,6 +45,7 @@ class RecentFilesMixin(_Base):
         def _confirm_discard_unsaved(self, *, closing: bool = ...) -> bool: ...
         _current_file: str | None
         _dirty: bool
+        _archive_baseline_file: str | None
         def _doc_candidates(self, name: str) -> Any: ...
         _inspector: raptor.gui.ui.inspector.InspectorDock
         def _load_into_app(self, rbd: Any, path: str | None) -> Any: ...
@@ -195,4 +196,7 @@ class RecentFilesMixin(_Base):
                 self, "Open Failed", f"Could not open {path}:\n\n{e}")
             return
         self._load_into_app(rbd, path)
+        if str(path).lower().endswith(".rbdz"):
+            self._restore_archive_results(path)
+            self._archive_baseline_file = path
         self._remember_recent(path)

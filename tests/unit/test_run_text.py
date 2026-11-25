@@ -15,3 +15,34 @@ def test_a_stop_between_runs_reports_how_many_finished():
 def test_a_stop_mid_run_says_the_partial_log_was_kept_and_lingers():
     text, timeout = run_outcome_text(stopped=True, completed=2, logs=3, event_log_lines=9)
     assert text.startswith("Stopped — partial event log kept") and timeout == 10000
+
+
+def test_a_stop_before_any_run_says_there_are_no_results():
+    text, timeout = run_outcome_text(stopped=True, completed=0, logs=0,
+                                     event_log_lines=0)
+    assert text == "Stopped before any run completed — no results"
+    assert timeout == 10000
+
+
+def test_a_full_disk_or_quota_is_explained_not_dumped(tmp_path):
+    import errno
+    from raptor.gui.run_text import disk_full_text
+    quota = OSError(122, "Disk quota exceeded")
+    text = disk_full_text(quota)
+    assert text is not None and "disk quota is used up" in text
+    assert "Errno" not in text and "Traceback" not in text
+    full = OSError(errno.ENOSPC, "No space left on device",
+                   str(tmp_path / "raptor_cost.txt"))
+    text = disk_full_text(full)
+    assert text is not None and "disk is full" in text
+    assert str(tmp_path) in text
+    # Wrapped by the engine's own error, the cause is still found.
+    try:
+        try:
+            raise full
+        except OSError as inner:
+            raise RuntimeError("merge failed") from inner
+    except RuntimeError as outer:
+        assert disk_full_text(outer) is not None
+    assert disk_full_text(ValueError("bad model")) is None
+    assert disk_full_text(OSError(errno.EACCES, "denied")) is None

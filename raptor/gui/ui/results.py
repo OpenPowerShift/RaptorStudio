@@ -24,11 +24,14 @@ from __future__ import annotations
 
 import html
 import itertools
+import json
 import re
 import weakref
 
 from raptor.api import run_needs
 from raptor.api.presentation import probability_text
+from raptor.gui import i18n
+from raptor.gui.ui.drivers_page import CANCELLED_TEXT
 from raptor.gui.ui.qtcompat import req
 
 from PySide6.QtWidgets import QAbstractItemView
@@ -50,7 +53,9 @@ from raptor.api.tables import parse_final_sections
 from raptor.core.engine import weak_metric
 from raptor.gui.ui.event_log_model import HEADERS, EventLogModel
 from raptor.gui.ui.table_filter_bar import attach_if_large
-from raptor.gui.resources.design_tokens import ThemeManager, SPACING, TYPE, active_colour
+from raptor.gui.resources.design_tokens import (
+    ThemeManager, SPACING, TYPE, active_colour, px,
+)
 from raptor.gui.ui.results_pages_mixin import ResultsPagesMixin
 from raptor.gui.ui.results_graphs_mixin import ResultsGraphsMixin
 from raptor.gui.ui.results_raw_mixin import ResultsRawMixin
@@ -181,6 +186,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.element_clicked.connect(
             lambda kind, _id, name: self.element_clicked.emit(kind, name))
         self._drivers_stale = False
+        #: Attribution already known — computed by the run, or read from an
+        #: `.rbdz` — applied once instead of replaying the event log.
+        self._precomputed_attribution: dict | None = None
         self._period_summary: dict | None = None
         self._drivers_page.enable_requested.connect(self.enable_requested)
         self._tabs.addTab(self._drivers_page, "Drivers")
@@ -190,6 +198,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             lambda kind, name: self.element_clicked.emit(
                 "block" if kind == "element" else kind, name))
         self._charts_page.target_changed.connect(self.set_target)
+        self._charts_page.compare_changed.connect(self.chart_compare_changed)
         self._charts_page.capacity_target_changed.connect(
             self.set_capacity_target)
         self._tabs.addTab(self._charts_page, "Charts")
@@ -436,8 +445,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         lay.addWidget(self._story_page)
 
         self._runs_table = QTreeWidget()
-        self._runs_table.setHeaderLabels(["Run", "Availability", "MTBDE", "MDT",
-                                          "System Failures"])
+        self._runs_table.setHeaderLabels([
+            i18n.tr("Run", "Results"), "Availability", "MTBDE", "MDT",
+            "System Failures"])
         self._runs_table.setRootIsDecorated(False)
         self._runs_table.setUniformRowHeights(True)
         self._header_tooltips(self._runs_table)
@@ -484,6 +494,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         bar.addWidget(self._hier_filter_label)
         from PySide6.QtWidgets import QComboBox
         self._hier_filter_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        self._hier_filter_combo.setProperty("raptor_i18n_data_items", True)
         self._hier_filter_combo.addItem("All", 0)
         self._hier_filter_combo.setToolTip(
             "Show only results for elements inside the chosen "
@@ -492,6 +504,29 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._hier_filter_combo.currentIndexChanged.connect(
             self._on_hier_filter_changed)
         bar.addWidget(self._hier_filter_combo)
+        # Tag: the same view the Explorer's tag box gives (MainWindow keeps
+        # the two in step), so the tables, the Explorer and the canvas
+        # never show different tags.
+        self._tag_filter_label = QLabel("Tag:")
+        bar.addWidget(self._tag_filter_label)
+        self._tag_filter_combo = QComboBox()
+        self._tag_filter_combo.setProperty("raptor_i18n_data_items", True)
+        self._tag_filter_combo.setEditable(True)
+        self._tag_filter_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._tag_filter_combo.setMinimumContentsLength(12)
+        completer = self._tag_filter_combo.completer()
+        if completer is not None:
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.setCompletionMode(completer.CompletionMode.PopupCompletion)
+        self._tag_filter_combo.setToolTip(
+            "Show only results for elements with this tag (a tagged "
+            "hierarchy counts everything inside it). The Explorer and the "
+            "canvas show the same tag.")
+        self._tag_filter_combo.addItem("All", "")
+        self._tag_filter_combo.activated.connect(self._on_tag_filter_chosen)
+        bar.addWidget(self._tag_filter_combo)
+        self._tag_filter_label.setVisible(False)
+        self._tag_filter_combo.setVisible(False)
         bar.addStretch(1)
         holder = QWidget()
         hv = QVBoxLayout(holder)
@@ -552,6 +587,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     #: User picked a hierarchy in the filter combo (id, or 0 = all)
     hierarchy_filter_changed = Signal(int)
+    #: the Charts tab's explicit comparison (hierarchy ids, series order)
+    chart_compare_changed = Signal(list)
 
     def set_chart_hierarchy(self, hierarchy_id: int | None) -> None:
         """The canvas level the Charts tab follows (0/None is System)."""
@@ -598,6 +635,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         combo.setEnabled(has)
         combo.setVisible(has)
         self._hier_filter_label.setVisible(has)
+        self._update_tag_filter_visibility()
 
     def _has_per_hier_results(self) -> bool:
         """True when any ELEMENT-level results table has rows. Measure
@@ -624,6 +662,46 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     return True
                 break
         return False
+
+    #: User picked a tag in the results filter ("" = all)
+    tag_filter_changed = Signal(str)
+
+    def set_tag_options(self, tags: list[tuple[str, str]],
+                        current: str = "") -> None:
+        """MainWindow pushes [(tag, colour)] for the Tag filter."""
+        from raptor.gui.ui.tags_dialog import swatch
+        combo = self._tag_filter_combo
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("All", "")
+        for tag, colour in tags:
+            combo.addItem(swatch([colour]), tag, tag)
+        index = combo.findData(current) if current else 0
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._update_tag_filter_visibility()
+
+    def show_tag_filter(self, tag: str) -> None:
+        """Mirror the Explorer's tag without emitting."""
+        combo = self._tag_filter_combo
+        index = combo.findData(tag) if tag else 0
+        combo.blockSignals(True)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+
+    def _on_tag_filter_chosen(self, index: int) -> None:
+        self.tag_filter_changed.emit(str(self._tag_filter_combo.itemData(index) or ""))
+
+    def _update_tag_filter_visibility(self) -> None:
+        combo = getattr(self, "_tag_filter_combo", None)
+        if combo is None:
+            return
+        idx = self._details_tabs.currentIndex()
+        title = self._details_tabs.tabText(idx) if idx >= 0 else ""
+        has = (title not in ("Summary", "Logistics", "Advanced")
+               and combo.count() > 1 and self._has_per_hier_results())
+        combo.setVisible(has)
+        self._tag_filter_label.setVisible(has)
 
     def _on_hier_filter_changed(self, index: int):
         hid = self._hier_filter_combo.itemData(index)
@@ -1286,6 +1364,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         """A result set is on screen (as opposed to the placeholder)."""
         return bool(self._report_data or self._event_logs)
 
+    def run_count(self) -> int:
+        """How many runs the result set on screen holds."""
+        return len(self._report_data)
+
     def ran_without_event_log(self) -> bool:
         """The results on screen were made with Detailed event log off
         (from the run's own record, not the panel as it is now)."""
@@ -1329,6 +1411,253 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         run_at=getattr(self, "_run_at", None),
                         manifest=getattr(self, "_manifest", None))
 
+    # ---- `.rbdz` archive --------------------------------------------------
+
+    def run_id(self) -> str | None:
+        """Identity of the result set on screen (None: none), the digest an
+        archive records as `run_id`; cheap, unlike `archive_payload`."""
+        if not self.has_results():
+            return None
+        from raptor.core.run_manifest import manifest_digest
+        manifest = self._manifest or {}
+        return manifest_digest(manifest) if manifest else None
+
+    def archive_payload(self) -> dict[str, Any] | None:
+        """The result files and summary an `.rbdz` save should carry.
+
+        Returns None before a run.  Large sinks are passed as streams (the
+        archive writer reads their files), never joined here.
+        """
+        if not self.has_results():
+            return None
+        from raptor.api.run import _rd_to_dict
+
+        def text(value: Any) -> str:
+            if value is None:
+                return ""
+            if hasattr(value, "read_all_lines"):
+                lines = value.read_all_lines()
+            else:
+                lines = list(value)
+            return "\n".join(str(x) for x in lines)
+
+        sources: dict[str, Any] = {}
+        if self._final_lines:
+            sources["final_results.txt"] = text(self._final_lines)
+        eor = getattr(self, "_eor_lines", None)
+        if eor is not None and (not hasattr(eor, "__len__") or len(eor)):
+            sources["end_of_run.txt"] = eor
+        if self._event_logs:
+            from raptor.core.engine.eventlog import format_event_log_file
+            import time as _time
+            # A list of lines, not one joined string: the archive writer
+            # streams it, so a large batch never exists twice in memory.
+            sources["events.txt"] = format_event_log_file(
+                self._event_logs, self._source_file_name or "model.rbds",
+                _time.ctime())
+        ao = getattr(self, "_ao_lines", None)
+        if ao is not None and (not hasattr(ao, "__len__") or len(ao)):
+            sources["availability_plot.txt"] = ao
+        for key, attr in (("capacity.txt", "_cap_lines"),
+                          ("cost.txt", "_cost_lines")):
+            value = getattr(self, attr, None)
+            if value is not None and (not hasattr(value, "__len__")
+                                      or len(value)):
+                sources[key] = value
+        run_rows = [rd for rd in self._report_data if rd is not None]
+        if run_rows:
+            from raptor.api.run import archive_detail
+            rows = []
+            for rd in run_rows:
+                row = _rd_to_dict(rd)
+                # The Capacity, Cost and Weak Link pages read objects that
+                # the flat figures do not carry; store them so reopening
+                # the archive shows the pages as the run did.
+                detail = archive_detail(rd)
+                if detail:
+                    row["archive_detail"] = detail
+                # Scalars the pages read directly; `_rd_to_dict` keeps the
+                # headline figures, these are the weak-link denominators.
+                row["missions_attempted"] = int(
+                    getattr(rd, "missions_attempted", 0) or 0)
+                for key in ("mission_green_percent", "mission_yellow_percent",
+                            "mission_red_percent"):
+                    row[key] = getattr(rd, key, None)
+                rows.append(row)
+            sources["per_run.json"] = json.dumps(rows)
+        attribution = (self._drivers_page.attribution()
+                       if hasattr(self, "_drivers_page") else None)
+        if attribution:
+            doc = dict(attribution)
+            if getattr(self, "_outages", None) is not None:
+                doc["outages"] = self._outages
+            sources["attribution.json"] = json.dumps(doc)
+        from raptor.core.fileio.rbdz import RESULTS_FORMAT_ID, RESULTS_VERSION
+        from raptor.core.run_manifest import manifest_digest
+        run_manifest = self._manifest or {}
+        summary = {
+            "format": RESULTS_FORMAT_ID,
+            "version": RESULTS_VERSION,
+            # What the reviewer's first questions are: which run, and
+            # which model it was run against (the archive's own model may
+            # have been edited since).
+            "run_id": manifest_digest(run_manifest) if run_manifest else None,
+            "model_hash": run_manifest.get("model_hash"),
+            "model_name": self._source_file_name or "",
+            "units": self._units or "",
+            "num_runs": len(run_rows),
+            "run_at": (self._run_at.isoformat()
+                       if getattr(self, "_run_at", None) else None),
+            "manifest": run_manifest,
+            "has_phases": any(bool(getattr(d, "has_phases", False))
+                              for d in run_rows),
+        }
+        sources["summary.json"] = json.dumps(summary, indent=1)
+        return sources
+
+    def set_archive_results(self, files: dict[str, Any],
+                            summary: dict[str, Any] | None = None,
+                            rbd=None, source_name: str = "") -> bool:
+        """Put an `.rbdz` archive's saved result set on screen.
+
+        `files` maps archive entry names to extracted paths (or text).
+        The per-run rows are restored as lightweight run objects: the
+        Overview, Final Results, Event Log and Charts read the same
+        fields they read after a live run.  Attribution is applied from
+        the archive rather than replaying the event log.
+        """
+        from types import SimpleNamespace
+        from raptor.core.fileio.rbdz import ArchivedLines
+        from raptor.api.run import restore_archive_detail
+
+        def source(name: str) -> Any:
+            value = files.get(name)
+            if value is None:
+                return None
+            return value
+
+        def lines(name: str) -> list[str]:
+            value = source(name)
+            if value is None:
+                return []
+            if hasattr(value, "read_all_lines"):
+                return value.read_all_lines()
+            if hasattr(value, "read_text"):
+                try:
+                    return value.read_text(encoding="utf-8",
+                                           errors="replace").splitlines()
+                except OSError:
+                    return []
+            if isinstance(value, (str, bytes)):
+                text = value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+                return text.splitlines()
+            return list(value)
+
+        def object_lines(name: str) -> Any:
+            value = source(name)
+            return ArchivedLines(value) if value is not None else []
+
+        def load_json(name: str, fallback):
+            value = source(name)
+            if value is None:
+                return fallback
+            if hasattr(value, "read_text"):
+                try:
+                    return json.loads(value.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    return fallback
+            if isinstance(value, (str, bytes)):
+                try:
+                    return json.loads(value)
+                except ValueError:
+                    return fallback
+            return fallback
+
+        summary = summary if isinstance(summary, dict) else {}
+        run_rows = load_json("per_run.json", [])
+        if not isinstance(run_rows, list):
+            run_rows = []
+        from raptor.core.fileio.rbdz import RESULTS_VERSION
+        try:
+            results_version = int(summary.get("version") or 1)
+        except (TypeError, ValueError):
+            results_version = 1
+        # Detail arrived in results schema 2; a shape from a newer build
+        # than this one is not guessed at.
+        detail_ok = 2 <= results_version <= RESULTS_VERSION
+        has_phases = bool(summary.get("has_phases"))
+        runs = []
+        for index, row in enumerate(run_rows):
+            if not isinstance(row, dict):
+                continue
+            values = {
+                "run_number": index + 1,
+                "cost": None, "capacity": None, "weak_stats": None,
+                "weak_nodes": None, "weak_events": None, "weak_hiers": None,
+                "has_phases": has_phases, "rcond_assigned": False,
+                "mission_green_percent": None,
+                "mission_yellow_percent": None,
+                "mission_red_percent": None,
+                "dependability": row.get("dependability"),
+                "green_percent": row.get("green_percent"),
+                "yellow_percent": row.get("yellow_percent"),
+                "red_percent": row.get("red_percent"),
+                "ending_sim_time": row.get("ending_sim_time") or 0.0,
+                "missions_attempted": row.get("missions_attempted") or 0,
+            }
+            values.update({k: v for k, v in row.items()
+                           if k != "archive_detail"})
+            if detail_ok:
+                for key, value in restore_archive_detail(
+                        row.get("archive_detail") or {}).items():
+                    values[key] = value
+            runs.append(SimpleNamespace(**values))
+
+        event_text = lines("events.txt")
+        # The event log file starts with a three-line title header; the
+        # per-run logs start at the first Begin_Run marker. Drop the header
+        # so run 1 is the user's run 1, not a header-only log.
+        start = next((i for i, line in enumerate(event_text)
+                      if re.search(r"Begin_Run_\d+", line)), None)
+        if start is not None:
+            event_text = event_text[start:]
+        event_logs: list[list[str]] = []
+        for line in event_text:
+            if re.search(r"Begin_Run_\d+", line) or not event_logs:
+                event_logs.append([])
+            event_logs[-1].append(line)
+        if event_logs and not any(event_logs):
+            event_logs = []
+
+        attribution = load_json("attribution.json", None)
+        if not isinstance(attribution, dict):
+            attribution = None
+        units = str(summary.get("units") or "")
+        run_at = None
+        raw_run_at = summary.get("run_at")
+        if isinstance(raw_run_at, str) and raw_run_at:
+            from datetime import datetime
+            try:
+                run_at = datetime.fromisoformat(raw_run_at)
+            except ValueError:
+                run_at = None
+        # Only `summary.manifest` is the RUN manifest the result pages
+        # expect; the archive's own manifest is format metadata, not a run.
+        run_manifest = summary.get("manifest")
+        self.set_results(
+            event_logs, object_lines("end_of_run.txt"),
+            lines("final_results.txt"), report_data=runs, units=units,
+            notes=[], ao_lines=object_lines("availability_plot.txt"),
+            cap_lines=object_lines("capacity.txt"),
+            cost_lines=object_lines("cost.txt"),
+            manifest=run_manifest if isinstance(run_manifest, dict) else None,
+            importance=None, rbd=rbd, attribution=attribution,
+            run_at=run_at)
+        self._source_file_name = str(summary.get("model_name") or "")
+        self._archive_source = source_name or self._source_file_name
+        self._refresh_scope_banner()
+        return bool(runs or event_logs)
+
     # ---- Drivers (downtime attribution) -----------------------------------
     #: Above this many event-log lines the attribution waits until the tab
     #: is opened, so a large run's results appear without the extra pass.
@@ -1338,53 +1667,121 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         if self._drivers_stale and self._tabs.widget(index) is self._drivers_page:
             self._refresh_drivers()
 
+    def attribution(self) -> dict | None:
+        """The attribution on screen, or None before it has been worked out."""
+        page = getattr(self, "_drivers_page", None)
+        return page.attribution() if page is not None else None
+
+    def _clear_drivers(self) -> None:
+        """Forget the drivers on screen (no log, deferred, or failed).
+
+        Clears the outage timeline and the period summary too: the Story
+        and the Charts read all three, and a new result set must never be
+        shown with the previous one's drivers.
+        """
+        self._outages = None
+        self._period_summary = None
+        self._drivers_page.set_attribution(None)
+        self._drivers_page.set_periods(None)
+
     def _refresh_drivers(self) -> None:
         """Work out what caused the downtime from this result set's event logs."""
         self._drivers_stale = False
         # never export a previous result set's periods with this one
         self._period_summary = None
-        logs = [log for log in (self._event_logs or []) if log]
-        if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
-            self._drivers_page.set_attribution(None)
-            self._drivers_page.set_periods(None)
+        ready = self._precomputed_attribution
+        if ready is not None:
+            # Worked out by the run itself: apply it, never replay.
+            self._precomputed_attribution = None
+            self._apply_attribution(ready)
             return
-        from raptor.api.insight.attribution import attribute_logs
+        raw_logs = list(self._event_logs or [])
+        logs = [log for log in raw_logs if log]
+        if not logs or not any(hasattr(line, "type") for line in logs[0][:50]):
+            self._clear_drivers()
+            return
+        from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
         experiment = (self._manifest or {}).get("experiment") or {}
-        big = sum(len(log) for log in logs) > self.DRIVERS_EAGER_LINES
+        total_lines = sum(len(log) for log in logs)
+        big = total_lines > self.DRIVERS_EAGER_LINES
+
+        progress = None
+        if big:
+            from PySide6.QtWidgets import QProgressDialog
+            progress = QProgressDialog(
+                "Working out what caused the downtime…", "Cancel",
+                0, max(1, len(logs)), self)
+            progress.setWindowTitle("Downtime drivers")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setAutoClose(False)
+            progress.setAutoReset(False)
+            progress.show()
+            QApplication.processEvents()
 
         def show(p) -> None:
-            # a long replay says where it has got to and keeps the window alive
-            if big and (p.done % 10 == 0 or p.done == p.total):
-                self._drivers_page.caption.setText(p.text() + " runs…")
+            if progress is None:
+                return
+            if progress.wasCanceled():
+                raise Cancelled()
+            if p.total:
+                progress.setMaximum(int(p.total))
+            progress.setValue(int(p.done))
+            progress.setLabelText(p.text() + " runs…")
+            if p.done % 10 == 0 or p.done == p.total:
                 QApplication.processEvents()
 
-        cap_runs = None
-        if getattr(self, "_rbd", None) is not None and self._cap_lines:
-            try:
-                from raptor.api.insight.capacity_attribution import capacity_runs
-                cap_runs = capacity_runs(self._rbd, self._cap_lines)
-            except Exception:  # noqa: BLE001 - capacity is an extra, not the page
-                import logging
-                logging.getLogger(__name__).exception("lost-capacity split failed")
         if big:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             start = float(experiment.get("start_stats") or 0.0)
-            from raptor.api.insight.attribution import model_hierarchies, model_phases
             rbd = getattr(self, "_rbd", None)
-            attribution = attribute_logs(logs, start, progress=show,
-                                         with_outages=True, capacity=cap_runs,
-                                         phases=model_phases(rbd),
-                                         hierarchies=model_hierarchies(rbd))
+            attribution = attribute_batch(
+                # Pass the unfiltered logs: capacity tracks are paired by
+                # run position, so filtering empty logs here shifts them.
+                rbd, raw_logs, start_stats=start,
+                capacity_lines=getattr(self, "_cap_lines", None),
+                units=getattr(self, "_units", ""), progress=show)
+        except Cancelled:
+            # Cancelling the extra pass must not lose the results. Say so
+            # instead of showing the "turn the event log on" prompt: the
+            # log is there, this pass was declined.
+            self._outages = None
+            self._period_summary = None
+            self._drivers_page.set_unavailable(CANCELLED_TEXT)
+            self._drivers_page.set_periods(None)
+            self._drivers_stale = True
+            return
         except Exception:  # noqa: BLE001 - a view must never break showing results
             import logging
             logging.getLogger(__name__).exception("downtime attribution failed")
-            self._drivers_page.set_attribution(None)
+            self._clear_drivers()
             return
         finally:
+            if progress is not None:
+                progress.close()
+                progress.deleteLater()
             if big:
                 QApplication.restoreOverrideCursor()
-        attribution["units"] = self._units
+        if attribution is None:
+            self._clear_drivers()
+            return
+        self._apply_attribution(attribution)
+
+    def note_drivers_cancelled(self) -> None:
+        """Say the drivers pass was cancelled, not that the log is missing."""
+        self._outages = None
+        self._period_summary = None
+        self._drivers_page.set_unavailable(CANCELLED_TEXT)
+        self._drivers_page.set_periods(None)
+        self._drivers_stale = True
+
+    def _apply_attribution(self, attribution: dict) -> None:
+        """Put a finished attribution (computed or supplied by the run) on
+        every surface that reads it."""
+        attribution = dict(attribution)
+        attribution.setdefault("units", getattr(self, "_units", "") or "")
         outages = attribution.pop("outages", None)
         # the run-to-run state ribbon draws from the outage timeline
         self._outages = outages
@@ -1393,6 +1790,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._drivers_page.set_periods(self._period_summary)
         self._refresh_story()
         self._refresh_charts()
+        # The Drivers page fills itself after the run, outside the window's
+        # first pass (it may also be the lazy path, opened long after).
+        i18n.translate_widgets(self._drivers_page)
 
     def _yearly(self, outages: dict | None) -> dict | None:
         """Year-by-year availability (and, with capacity analysis,
@@ -1414,11 +1814,17 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                               rows=True, units=self._units)
 
     def _schedule_drivers(self) -> None:
+        if self._precomputed_attribution is not None:
+            self._refresh_drivers()
+            return
         lines = sum(len(log) for log in (self._event_logs or []))
         showing = self._tabs.currentWidget() is self._drivers_page
         if showing or lines <= self.DRIVERS_EAGER_LINES:
             self._refresh_drivers()
         else:
+            # Deferred: drop the previous run's drivers now, so the Story
+            # and the Charts cannot read them for this result set.
+            self._clear_drivers()
             self._drivers_stale = True
 
     @property
@@ -1440,6 +1846,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._capacity_target = value if value and 0.0 < value <= 1.0 else None
         if hasattr(self, "_charts_page"):
             self._charts_page.set_capacity_target(self._capacity_target)
+        self._refresh_story()
         self.targets_changed.emit(self._target, self._capacity_target)
 
     def set_targets(self, targets: dict | None) -> None:
@@ -1474,12 +1881,18 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._requested_runs = (requested, why) if requested else None
         self._refresh_story()
 
-    def clear(self):
-        """Reset every result surface to the pre-run placeholder state."""
+    def clear(self, keep_chart_state=False):
+        """Reset every result surface to the pre-run placeholder state.
+
+        `keep_chart_state` is for a re-run of the SAME model: the Charts
+        baseline and the explicit compare picks are the user's reference
+        for "what changed", so they survive the wipe. Opening, closing or
+        otherwise replacing the model calls this without it."""
         self._requested_runs = None
         self._manifest = None
         self._rbd = None
         self._period_summary = None
+        self._archive_source = ""
         self._outages = None
         self._chart_hierarchy = 0
         if hasattr(self, "_story_page"):
@@ -1487,6 +1900,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._event_logs = []
         self._drivers_stale = False
         self._drivers_page.set_attribution(None)
+        self._precomputed_attribution = None
+        self._clear_drivers()
         self._report_data = []
         self._importance = None
         self._importance_metric = "Availability"
@@ -1530,8 +1945,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._raw_sources = {}
         if hasattr(self, "_charts_page"):
             self._charts_page.set_series([], [])
-            self._charts_page.set_compare([])
-            self._charts_page.set_baseline(None)
+            if not keep_chart_state:
+                self._charts_page.set_compare([])
+                self._charts_page.set_baseline(None)
             self._charts_page.set_inputs()
             self._charts_page.set_note("")
         self._tabs.hide()
@@ -1547,14 +1963,21 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     manifest: dict | None = None,
                     importance: dict | None = None,
                     rbd=None,
-                    progress=None):
+                    progress=None,
+                    attribution: dict | None = None,
+                    run_at=None):
         # The run manifest travels WITH the results, so a result set can
         # say what it is without trusting a model file that may since
         # have been edited. It also means changing a run setting (trial
         # count, run length, which analyses ran) does not retroactively
         # invalidate results already on screen -- the model hash in the
         # manifest covers engineering content only.
+        self._archive_source = ""
         self._manifest = dict(manifest) if manifest else None
+        #: An attribution that travels with the results (a run that worked it
+        #: out up front, or an `.rbdz` that stored it) replaces the replay.
+        self._precomputed_attribution = (
+            dict(attribution) if attribution else None)
         # The run on screen until now becomes "the run before" -- unless
         # this is the same run again (importance variants populate twice).
         shown = getattr(self, "_shown_figures", None)
@@ -1565,7 +1988,9 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._rbd = rbd
         self._refresh_scope_banner()
         from datetime import datetime
-        self._run_at = datetime.now()
+        # A live run is "now"; an archive passes the time it was run, so the
+        # Story, Charts and Run Info say when that run happened.
+        self._run_at = run_at or datetime.now()
         self._event_logs = event_logs
         self._report_data = list(report_data or [])
         # The importance analysis belongs to a run, not to the model, so it
@@ -1693,6 +2118,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                         self._log_tree, v))
         self._update_log_empty_state()
         self._refresh_theme()
+        # Every result page above was built after the window's first
+        # translation pass, so its static labels, headers and accessible
+        # names are still English: translate the dock once, now that it
+        # is complete.
+        i18n.translate_widgets(self)
         self.contents_changed.emit()
 
     def set_importance(self, importance: dict | None) -> None:
@@ -1721,6 +2151,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         # the Charts page's importance quadrant reads the same measures: it
         # stayed greyed out ("Needs importance measures") after they came
         self._refresh_charts()
+        i18n.translate_widgets(self)     # the new page was built just now
         self.contents_changed.emit()
 
     # ------------------------------------------------------------------
@@ -1738,15 +2169,28 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def _refresh_scope_banner(self) -> None:
         """State, in the dock itself, when the numbers are an isolated
-        hierarchy run rather than whole-model results."""
+        hierarchy run or a saved result set rather than a live run."""
         banner = getattr(self, "_scope_banner", None)
         if banner is None:
             return
         iso = (getattr(self, "_manifest", None) or {}).get("isolation")
+        archive = getattr(self, "_archive_source", "")
         if not iso:
-            banner.clear()
-            banner.setToolTip("")
-            banner.setVisible(False)
+            if archive:
+                from html import escape
+                banner.setText(
+                    f"<b>Saved results from "
+                    f"{escape(str(archive))}.</b> Read-only snapshot: edits "
+                    "to the model do not update these numbers. Save As a new "
+                    ".rbdz to attach a new run.")
+                banner.setToolTip(
+                    "The archive carries the model and run settings it was "
+                    "made with.")
+                banner.setVisible(True)
+            else:
+                banner.clear()
+                banner.setToolTip("")
+                banner.setVisible(False)
             return
         from html import escape
         name = escape(str(iso.get("hierarchy") or "hierarchy"))
@@ -1795,7 +2239,11 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             return
         bits = []
         if m.get("trials"):
-            bits.append(f"{m['trials']:,} trial(s)")
+            trials = int(m["trials"])
+            if trials == 1:
+                bits.append(i18n.tr("{n:,} trial").format(n=trials))
+            else:
+                bits.append(i18n.tr("{n:,} trials").format(n=trials))
         if m.get("termination_type"):
             cond = m.get("term_condition")
             bits.append(f"stop: {m['termination_type']}"
@@ -1864,7 +2312,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 except Exception:  # noqa: BLE001 - only a reference line
                     generated = None
             model_hier = model_phases = None
+            tags_changed = False
             if getattr(self, "_rbd", None) is not None:
+                from raptor.api.insight.hierarchy import tags_changed as _changed
+                tags_changed = _changed(attribution, self._rbd)
                 from raptor.api.insight.attribution import (
                     model_hierarchies, model_phases as phases_of,
                 )
@@ -1881,7 +2332,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 generated=generated, target=self._target,
                 hierarchy=self._chart_hierarchy or None,
                 model_hierarchies=model_hier, model_phases=model_phases,
-                currency=getattr(self._rbd, "currency", None))
+                currency=getattr(self._rbd, "currency", None),
+                tags_changed=tags_changed)
             self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging
@@ -1967,7 +2419,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                            or manifest.get("digest") or ""),
                 requested_runs=(self._requested_runs or (None, ""))[0],
                 truncated=(self._requested_runs or (None, ""))[1],
-                currency=getattr(getattr(self, "_rbd", None), "currency", None))
+                currency=getattr(getattr(self, "_rbd", None), "currency", None),
+                capacity_target=self._capacity_target)
             page.set_story(story)
             page.set_target_note("target set on the Charts page and saved with "
                                  "the model" if self._target is not None
@@ -2255,7 +2708,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             # summary in main_window.py: an unscoped background
             # declaration on a widget also paints the tooltip window
             # shown for it -- black tip box in light theme).
-            lbl.setStyleSheet(f"color: {text_colour}; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {text_colour}; font-size: {px(11)}px;")
 
     def _parse_final_sections(self, lines: list[str]):
         """-> [(section_title, [column_names], [(label, [values])])] for the
@@ -2544,13 +2997,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self.setStyleSheet(f"""
             QWidget {{ background: {c['surface']}; }}
             QLabel#ResultsPlaceholder {{
-                color: {c['muted']}; font-size: {TYPE['body']}px; background: transparent;
+                color: {c['muted']}; font-size: {px(TYPE['body'])}px; background: transparent;
             }}
             QLabel#SummarySentence {{
-                color: {c['text']}; font-size: {TYPE['body']}px; background: transparent;
+                color: {c['text']}; font-size: {px(TYPE['body'])}px; background: transparent;
             }}
             QLabel#GYRLabel {{
-                color: {c['muted']}; font-size: {TYPE['caption']}px; background: transparent;
+                color: {c['muted']}; font-size: {px(TYPE['caption'])}px; background: transparent;
             }}
             QFrame#MetricCard {{
                 background: {c['canvas']};
@@ -2558,17 +3011,17 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 border-radius: 8px;
             }}
             QLabel#MetricTitle {{
-                color: {c['muted']}; font-size: {TYPE['caption']}px;
+                color: {c['muted']}; font-size: {px(TYPE['caption'])}px;
                 font-weight: 600; background: transparent;
             }}
             QLabel#MetricValue {{
-                color: {c['text']}; font-size: 22px; font-weight: 700; background: transparent;
+                color: {c['text']}; font-size: {px(22)}px; font-weight: 700; background: transparent;
             }}
             QLabel#MetricRange {{
-                color: {c['muted']}; font-size: 10px; background: transparent;
+                color: {c['muted']}; font-size: {px(10)}px; background: transparent;
             }}
             QLabel#MetricCaption {{
-                color: {c['muted']}; font-size: 11px; background: transparent;
+                color: {c['muted']}; font-size: {px(11)}px; background: transparent;
             }}
             QTreeWidget {{
                 background: {c['surface']}; color: {c['text']};
@@ -2580,16 +3033,16 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 border-radius: 8px;
             }}
             QLabel#SectionTitle {{
-                color: {c['text']}; font-size: {TYPE['label']}px;
+                color: {c['text']}; font-size: {px(TYPE['label'])}px;
                 font-weight: 700; background: transparent;
             }}
             QLabel#TableTitle {{
-                color: {c['text']}; font-size: {TYPE['body'] + 2}px;
+                color: {c['text']}; font-size: {px(TYPE['body'] + 2)}px;
                 font-weight: 600; background: transparent;
                 padding-top: 6px;
             }}
             QLabel#SectionNote {{
-                color: {c['muted']}; font-size: 11px; background: transparent;
+                color: {c['muted']}; font-size: {px(11)}px; background: transparent;
             }}
             QTableWidget {{
                 background: {c['surface']}; color: {c['text']};
@@ -2604,7 +3057,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             QPushButton {{
                 background: {c['canvas']}; color: {c['text']};
                 border: 1px solid {c['border']}; border-radius: 4px;
-                padding: 3px 10px; font-size: 11px;
+                padding: {px(3)}px {px(10)}px; font-size: {px(11)}px;
             }}
             QPushButton:hover {{
                 border-color: {c['accent']}; color: {c['accent']};

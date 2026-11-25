@@ -76,6 +76,14 @@ complete -c raptor -n '__fish_seen_subcommand_from convert' -l normalize-out
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l report
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l strict
 complete -c raptor -n '__fish_seen_subcommand_from convert' -l to
+complete -c raptor -n '__fish_use_subcommand' -a declassify
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l annotations
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l help
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-advisor
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-comments
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-metadata
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-names
+complete -c raptor -n '__fish_seen_subcommand_from declassify' -l keep-rates
 complete -c raptor -n '__fish_use_subcommand' -a describe
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l element
 complete -c raptor -n '__fish_seen_subcommand_from describe' -l format
@@ -167,8 +175,27 @@ complete -c raptor -n '__fish_use_subcommand' -a gui
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l help
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l new
 complete -c raptor -n '__fish_seen_subcommand_from gui' -l theme
+complete -c raptor -n '__fish_use_subcommand' -a health
+complete -c raptor -n '__fish_seen_subcommand_from health' -l format
+complete -c raptor -n '__fish_seen_subcommand_from health' -l help
 complete -c raptor -n '__fish_use_subcommand' -a help
 complete -c raptor -n '__fish_seen_subcommand_from help' -l help
+complete -c raptor -n '__fish_use_subcommand' -a history
+complete -c raptor -n '__fish_seen_subcommand_from history' -l describe
+complete -c raptor -n '__fish_seen_subcommand_from history' -l description
+complete -c raptor -n '__fish_seen_subcommand_from history' -l description-file
+complete -c raptor -n '__fish_seen_subcommand_from history' -l force
+complete -c raptor -n '__fish_seen_subcommand_from history' -l format
+complete -c raptor -n '__fish_seen_subcommand_from history' -l help
+complete -c raptor -n '__fish_seen_subcommand_from history' -l label
+complete -c raptor -n '__fish_seen_subcommand_from history' -l output
+complete -c raptor -n '__fish_seen_subcommand_from history' -l restore
+complete -c raptor -n '__fish_seen_subcommand_from history' -l snapshot
+complete -c raptor -n '__fish_use_subcommand' -a import-table
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l format
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l help
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l in-place
+complete -c raptor -n '__fish_seen_subcommand_from import-table' -l sheet
 complete -c raptor -n '__fish_use_subcommand' -a info
 complete -c raptor -n '__fish_seen_subcommand_from info' -l element
 complete -c raptor -n '__fish_seen_subcommand_from info' -l format
@@ -377,6 +404,8 @@ complete -c raptor -n '__fish_seen_subcommand_from tables' -l table
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l timeout
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l weak-type
 complete -c raptor -n '__fish_seen_subcommand_from tables' -l whole
+complete -c raptor -n '__fish_use_subcommand' -a tags
+complete -c raptor -n '__fish_seen_subcommand_from tags' -l help
 complete -c raptor -n '__fish_use_subcommand' -a validate
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l format
 complete -c raptor -n '__fish_seen_subcommand_from validate' -l help

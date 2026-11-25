@@ -45,6 +45,7 @@ As `.rbds`.
   "comments":       [ {"type": "...", "id": 1, "name": "...",
                        "text": "..."} ],
   "rates": [...], "formulas": {...}, "annotations": [...],
+  "tags": {"block:3": ["pumps"]}, "tag_info": {"pumps": {...}},
   "display_unit": "...", "view_transform": {...}, "project_meta": {...},
   "targets": {"availability": 0.995, "capacity": 0.98},
   "currency": "€"
@@ -691,6 +692,36 @@ touching any stored value: an hours-native model can be viewed in years.
 "display_unit": "years"
 ```
 
+## Component tags (.rbds only)
+
+Tags are free-form labels for navigation and results. They are not
+simulation structure: a tag may span hierarchies, and tags overlap. They
+are saved with the model and dropped by the legacy `.rbd` writer, with the
+same warning as annotations.
+
+```json
+"tags": {
+  "block:3": ["pumps", "rotating"],
+  "block:4": ["pumps", "standby"],
+  "hier:7": ["intake"]
+},
+"tag_info": {
+  "pumps": {"colour": "#2F80ED", "description": "Duty and standby pumps"},
+  "spares": {}
+}
+```
+
+A reference is `block:<id>`, `node:<id>`, `event:<id>` or `hier:<id>`.
+Missing, malformed or dangling references are ignored on read, never
+fatal. Tags are at most 48 characters; case is kept, so `Pumps` and
+`pumps` are two tags.
+
+`tag_info` is optional per tag. `colour` is a six-digit hex value such as
+`#2F80ED` (stored uppercase); a tag without one takes a colour from its
+name, so a colour equal to that default is not stored. `description` is at
+most 400 characters. An entry with no elements carrying the tag (`"spares":
+{}` above) is a tag created on purpose and kept.
+
 ## Result targets (.rbds only)
 
 `targets` holds the dashed target lines from the Charts tab, as fractions
@@ -708,9 +739,13 @@ drops them with a warning.
 
 ## Currency (.rbds only)
 
-`currency` is the symbol or code printed in front of money in the cost
-charts, the Story and the report: `"$"`, `"€"`, `"AUD"`, at most 8
-characters.
+`currency` is the symbol or code printed with money everywhere the
+application shows it: the cost charts, the Story and the report, the cost
+boxes in the Run panel, the Inspector and the pool dialogs, the Data Tables
+money columns ("Initial cost (€)"), the Results Cost page, the canvas Cost
+and Spares overlays, the optimisers, Recommend and Compare. Values are
+`"$"`, `"€"`, `"AUD"` and so on, at most 8 characters, set in
+**Preferences ▸ This model**.
 
 ```json
 "currency": "€"

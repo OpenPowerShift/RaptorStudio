@@ -82,6 +82,9 @@ class WhatIfDialog(AnalysisDialog):
         changes and the add/remove buttons."""
         from raptor.gui.ui.element_picker import ScopeBox, searchable
         self._block = searchable(QComboBox())
+        # The entries are the model's own block names: never translate them
+        # (a block called "Run" must stay "Run" for the look-up below).
+        self._block.setProperty("raptor_ignore_i18n", True)
         self._block.setMinimumWidth(180)
         self._block.setToolTip("The block the preset changes: type part of a "
                                "name to find it")
@@ -118,7 +121,8 @@ class WhatIfDialog(AnalysisDialog):
         presets = self._preset_row()
 
         self.scenarios = QTableWidget(0, 2)
-        self.scenarios.setHorizontalHeaderLabels(("Scenario", "Changes (separate with ;)"))
+        self.scenarios.setHorizontalHeaderLabels(
+            ("Scenario", "Changes (separate with ;)"))
         for column, tip in enumerate(SCENARIO_TIPS):
             if (heading := self.scenarios.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)
@@ -218,7 +222,8 @@ class WhatIfDialog(AnalysisDialog):
 
     def build_result_area(self) -> QWidget:
         self.table = QTableWidget(0, len(RESULT_COLUMNS))
-        self.table.setHorizontalHeaderLabels(RESULT_COLUMNS)
+        self.table.setHorizontalHeaderLabels(
+            RESULT_COLUMNS)
         for column, tip in enumerate(RESULT_TIPS):
             if (heading := self.table.horizontalHeaderItem(column)) is not None:
                 heading.setToolTip(tip)

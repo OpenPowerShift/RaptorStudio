@@ -86,6 +86,7 @@ Front* and *Bring Forward* disabled.
 | Ctrl+Shift+E | Show or hide the Model Explorer |
 | Ctrl+Shift+I | Show or hide the Inspector |
 | Ctrl+Shift+D | Show or hide the Data Tables |
+| Ctrl+Shift+H | Show the Model History — the retained undo steps, with jump-to-step |
 | Ctrl+, | Preferences… |
 | Ctrl+Shift+P / Ctrl+K | Run a Command…: search every command by name |
 

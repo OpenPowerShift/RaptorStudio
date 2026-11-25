@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from raptor.gui.ui.inspector_common import (
     _SIM_START,
+    WrappingCheckBox,
     _WordWrapCheckBox,
 )
 
@@ -12,7 +13,7 @@ from raptor.gui.ui.qtcompat import req
 
 from typing import TYPE_CHECKING, Any
 from PySide6.QtWidgets import (
-    QWidget, QCheckBox, QDoubleSpinBox, QComboBox, QPushButton,
+    QWidget, QDoubleSpinBox, QComboBox, QPushButton,
     QRadioButton, QButtonGroup,
 )
 
@@ -45,6 +46,7 @@ class InspectorBlockMixin(_Base):
         _comment_setter: Any
         def _configure_tabs(self, kind: str) -> Any: ...
         def _convert_comment_button(self, form: Any, etype: str, oid: int, edit: Any) -> Any: ...
+        def _tags_row(self, form: Any, kind: str, oid: int) -> None: ...
         _current_block_id: int | None
         _current_node_id: int | None
         _deferred_tabs: dict[int, object]
@@ -188,6 +190,7 @@ class InspectorBlockMixin(_Base):
         self._comment_markdown_hint(fl, self._comment_edit)
         self._convert_comment_button(fl, "block", block.id,
                                      self._comment_edit)
+        self._tags_row(fl, "block", block.id)
 
         _gb, fl = self._group("Position", layout)
         self._position_source = block
@@ -231,8 +234,10 @@ class InspectorBlockMixin(_Base):
         from PySide6.QtWidgets import QPushButton
         button = QPushButton("Estimate from experience…")
         button.setToolTip(
-            "No data? Say what share " + ("fails" if use == "fail" else "is repaired")
-            + " by a given age (one in ten by 100 hours, half by 300) and fit "
+            "No data? Say what share fails by a given age (one in ten by 100 hours, half by 300) and fit "
+            "a Weibull, lognormal or exponential law to the answers."
+            if use == "fail" else
+            "No data? Say what share is repaired by a given age (one in ten by 100 hours, half by 300) and fit "
             "a Weibull, lognormal or exponential law to the answers.")
         button.clicked.connect(lambda: self.experience_requested.emit(block_id, use))
         form.addRow("", button)
@@ -347,7 +352,7 @@ class InspectorBlockMixin(_Base):
         restore_combo.currentIndexChanged.connect(_restore_type_chosen)
         fl.addRow("Restoration factor:", restore_spin)
 
-        gd_cb = QCheckBox(
+        gd_cb = WrappingCheckBox(
             "This block's mean life changes following a failure")
         gd_cb.setToolTip(
             "Reliability growth or decay: after each failure the block's "
@@ -457,6 +462,9 @@ class InspectorBlockMixin(_Base):
         fl.addRow("Type:", type_combo)
 
         pool_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        pool_combo.setProperty("raptor_i18n_data_items", True)
+        pool_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         pool_combo.addItem("(none)", "")
         pools_sec = (self._rbd.sections.get("SPARE_POOL_DATA")
                      if self._rbd else None)
@@ -470,7 +478,8 @@ class InspectorBlockMixin(_Base):
         pool_combo.setToolTip("Spare pool this block draws from")
         pool_combo.activated.connect(
             lambda _i, b=bid2, cmb=pool_combo:
-            self.pool_name_changed.emit(b, cmb.currentText()))
+            self.pool_name_changed.emit(
+                b, cmb.currentText() if cmb.currentData() else "(none)"))
         fl.addRow("Pool:", pool_combo)
         manage_pools_btn = QPushButton("Manage Spare Pools…")
         manage_pools_btn.setToolTip(
@@ -606,6 +615,9 @@ class InspectorBlockMixin(_Base):
             "unlike a spare (consumed permanently). A block uses at "
             "most one resource pool.")
         res_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        res_combo.setProperty("raptor_i18n_data_items", True)
+        res_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         res_combo.addItem("(none)", "")
         res_sec = (self._rbd.sections.get("RESOURCE_DATA")
                   if self._rbd else None)
@@ -698,6 +710,9 @@ class InspectorBlockMixin(_Base):
         trig_cb = _WordWrapCheckBox("Triggered by a PM trigger")
         trig_cb.setChecked(bool(block.pm_triggered))
         trig_combo = QComboBox()
+        # Model names, not chrome: never run them through the catalogue.
+        trig_combo.setProperty("raptor_i18n_data_items", True)
+        trig_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
         trig_combo.addItem("(none)", "")
         trig_sec = (self._rbd.sections.get("TRIGGERS")
                     if self._rbd else None)
@@ -710,17 +725,21 @@ class InspectorBlockMixin(_Base):
             trig_combo.setCurrentIndex(max(ti2, 0))
         trig_combo.setEnabled(block.pm_triggered)
 
+        def _trig_text() -> str:
+            # The first entry is chrome and may be translated: the model is
+            # always told the English word.
+            return trig_combo.currentText() if trig_combo.currentData() else "(none)"
+
         def _trig_toggled(on: bool):
             self.block_pm_trig_changed.emit(
-                block_id, on, trig_combo.currentText())
+                block_id, on, _trig_text())
             trig_combo.setEnabled(on)
         def _trig_name(chosen: str):
             if block.pm_triggered:
                 self.block_pm_trig_changed.emit(
                     block_id, True, chosen)
         trig_cb.toggled.connect(_trig_toggled)
-        trig_combo.activated.connect(lambda _i: _trig_name(
-            trig_combo.currentText()))
+        trig_combo.activated.connect(lambda _i: _trig_name(_trig_text()))
         fl.addRow(trig_cb)
         fl.addRow("Trigger name:", trig_combo)
         manage_trig_btn = QPushButton("Manage Triggers…")
@@ -868,18 +887,20 @@ class InspectorBlockMixin(_Base):
         # Wording matches Raptor 7's own Costs tab rather than generic
         # column-name-derived labels -- e.g. "Rebate or disposal" not
         # "Done Fixed", "Recurring spare" not "Per spare".
-        labels = ["Initial acquisition", "Running (/time)",
-                  "Standby (/time)", "Idle downtime (/time)",
+        labels = ["Initial acquisition", "Running (/\u2060time)",
+                  "Standby (/\u2060time)", "Idle downtime (/\u2060time)",
                   "Hands-on maintenance, fixed cost",
-                  "Hands-on maintenance (/time)",
-                  "Logistical hold (/time)",
+                  "Hands-on maintenance (/\u2060time)",
+                  "Logistical hold (/\u2060time)",
                   "Preventive maintenance, fixed cost",
-                  "Preventive maintenance (/time)",
-                  "Preventive maintenance hold (/time)",
+                  "Preventive maintenance (/\u2060time)",
+                  "Preventive maintenance hold (/\u2060time)",
                   "Rebate or disposal, fixed cost",
-                  "Permanently done (/time)",
+                  "Permanently done (/\u2060time)",
                   "Recurring spare", "Emergency spare additional cost"]
         cost_id = block.id
+        from raptor.api.money import model_currency, prefix
+        money_prefix = prefix(model_currency(getattr(self, "_rbd", None)))
         spins: list[QDoubleSpinBox] = []
         _gb, fl = self._group("Costs (edit all, then Apply)", layout)
 
@@ -890,7 +911,12 @@ class InspectorBlockMixin(_Base):
             sp = QDoubleSpinBox()
             sp.setRange(-BLOCK_COST_LIMIT, BLOCK_COST_LIMIT)
             sp.setDecimals(BLOCK_COST_DECIMALS)
+            sp.setPrefix(money_prefix)
             sp.setValue(float(getattr(block, attr)))
+            # Its size hint is sized for the whole range (12+ digits), which
+            # beside a wrapped pt-BR label overflowed a 340 px dock on some
+            # fonts; let it narrow like the Inspector's other number fields.
+            sp.setMinimumWidth(96)
             if cost_field_readonly(block, attr):
                 # The engine reads these two only for
                 # SparingType.INFINITE (block_lifecycle.py); a Pooled
@@ -902,7 +928,7 @@ class InspectorBlockMixin(_Base):
                 sp.setToolTip(POOLED_COST_TIP)
             spins.append(sp)
             form_add(sp, label)
-        always_cb = QCheckBox("Always add Done cost at run end")
+        always_cb = WrappingCheckBox("Always add Done cost at run end")
         always_cb.setChecked(bool(block.always_add_done_cost))
 
         def commit_always(on: bool, bid=block.id):

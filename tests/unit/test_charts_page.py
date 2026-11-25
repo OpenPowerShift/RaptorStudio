@@ -226,6 +226,90 @@ def test_the_lost_capacity_sankey_can_drop_the_hierarchy_and_delivered(qapp):
                for node in spec.provenance["nodes"])
 
 
+def _sankey_page(lost: float, delivered: float):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": lost + delivered,
+        "delivered_energy": {"mean": delivered}, "lost_energy": {"mean": lost},
+        "elements": [
+            {"kind": "block", "id": 1, "name": "Pump",
+             "lost_energy": {"mean": lost * 0.6}, "share": {"mean": 0.6},
+             "causes": {"repair": 1.0}, "main_cause": "repair"},
+            {"kind": "block", "id": 2, "name": "Filter",
+             "lost_energy": {"mean": lost * 0.4}, "share": {"mean": 0.4},
+             "causes": {"pm": 1.0}, "main_cause": "pm"}],
+        "causes": {"repair": {"mean": lost * 0.6}, "pm": {"mean": lost * 0.4}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    page.select("Lost capacity by hierarchy and cause")
+    return page
+
+
+def test_a_small_loss_starts_the_sankey_at_the_loss_and_says_so(qapp):
+    page = _sankey_page(lost=1.0, delivered=999.0)       # 0.1 % lost
+    spec = page.selected_spec()
+    assert not page.sankey_delivered.isChecked()
+    assert spec.provenance["nodes"][0]["id"] == "lost"
+    assert "lost flow only" in spec.caption
+    page.sankey_delivered.setChecked(True)               # the reader's choice sticks
+    assert any(n["id"] == "delivered" for n in page.selected_spec().provenance["nodes"])
+    assert "lost flow only" not in page.selected_spec().caption
+
+
+def test_a_large_loss_keeps_the_delivered_branch(qapp):
+    page = _sankey_page(lost=200.0, delivered=800.0)     # 20 % lost
+    assert page.sankey_delivered.isChecked()
+    assert "lost flow only" not in page.selected_spec().caption
+
+
+def test_the_toolbar_buttons_are_framed_and_the_pickers_have_a_caret(qapp):
+    page = ChartsPage()
+    for button in (page.scope_button, page.compare_button, page.follow_button,
+                   page.sankey_delivered, page.hops_play):
+        assert "border: 1px solid" in button.styleSheet()
+    assert "padding-right" in page.scope_button.styleSheet()
+    assert "padding-right" in page.compare_button.styleSheet()
+
+
+def test_enter_opens_the_scope_picker(qapp):
+    from PySide6.QtCore import QEvent
+    from PySide6.QtGui import QKeyEvent
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return,
+                      Qt.KeyboardModifier.NoModifier)
+    assert page.eventFilter(page.scope_button, event)
+    assert page.picker("scope").isVisible()
+    page.picker("scope").hide()
+
+
+def test_a_narrow_page_swaps_the_chart_list_for_a_grouped_drop_down(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    page.resize(1000, 700)
+    page.show()
+    assert not page.nav_combo.isVisible() and page._left.isVisible()
+    page.resize(420, 700)
+    assert page.nav_combo.isVisible() and not page._left.isVisible()
+    # a heading row per group, the charts indented beneath it
+    texts = [page.nav_combo.itemText(i) for i in range(page.nav_combo.count())]
+    assert any(t.startswith("    ") for t in texts)
+    assert any(heading and not t.startswith(" ")
+               for (heading, _name), t in zip(page._combo_rows, texts, strict=True))
+    row = next(i for i, (heading, name) in enumerate(page._combo_rows)
+               if not heading and name == "hierarchy-pareto")
+    page.nav_combo.activated.emit(row)
+    assert page.selected_key() == "hierarchy-pareto"
+    assert page.nav_combo.currentIndex() == row
+    page.hide()
+
+
 def test_a_gathered_treemap_cell_carries_its_members_for_details(qapp):
     page = ChartsPage()
     per_run, attribution, _importance = _inputs()
@@ -288,9 +372,11 @@ def test_the_list_is_grouped_by_question(qapp):
                     importance=importance, units="hours", run_id="r_1")
     groups = [page.nav.topLevelItem(i).text(0)
               for i in range(page.nav.topLevelItemCount())]
-    assert groups[:4] == ["THE ANSWER", "BY HIERARCHY", "OVER TIME", "WHY IT GOES DOWN"]
-    # a heading cannot be chosen
-    assert not page.nav.topLevelItem(0).flags() & Qt.ItemFlag.ItemIsSelectable
+    # All charts first: every group on one page
+    assert groups[:5] == ["ALL CHARTS", "THE ANSWER", "BY HIERARCHY", "OVER TIME",
+                          "WHY IT GOES DOWN"]
+    # a heading can be chosen: it shows the group's overview
+    assert page.nav.topLevelItem(0).flags() & Qt.ItemFlag.ItemIsSelectable
 
 
 def test_every_drawable_chart_paints_and_exports(qapp, tmp_path):
@@ -761,15 +847,19 @@ def test_nested_scope_sunburst_and_treemap_draw_inside_one_hierarchy(qapp):
     assert any(row["name"] == "Pump house" for row in spec.series)
 
 
-def test_scope_menu_lists_nested_hierarchies_indented(qapp):
+def test_scope_picker_lists_nested_hierarchies_under_their_parent(qapp):
     page = ChartsPage()
     per_run, attribution, importance = _deep_hierarchy_inputs()
     page.set_inputs(per_run=per_run, attribution=attribution,
                     importance=importance, units="hours", run_id="r_1")
-    texts = [action.text() for action in page.scope_menu.actions()]
-    assert "System" in texts
-    assert any(text == "Intake" for text in texts)
-    assert any(text == "  Pump house" for text in texts)
+    tree = page.picker("scope").tree
+    top = [tree.topLevelItem(i).text(0) for i in range(tree.topLevelItemCount())]
+    assert top[0] == "System"
+    assert "Intake" in top
+    intake = next(tree.topLevelItem(i) for i in range(tree.topLevelItemCount())
+                  if tree.topLevelItem(i).text(0) == "Intake")
+    assert [intake.child(i).text(0) for i in range(intake.childCount())] == [
+        "Pump house"]
 
 
 def test_a_theme_change_keeps_the_chart_and_repaints_the_list(qapp):
@@ -882,3 +972,116 @@ def test_no_event_log_still_shows_hierarchy_and_phase_questions(qapp):
     assert page.select("Hierarchy scorecard")
     assert "event log" in page.missing_text.text()
     assert page.missing_action.isVisibleTo(page)
+
+
+def test_scorecard_and_overlay_paint_with_baseline_and_end_labels(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_1")
+    page.resize(900, 700)
+    page.set_baseline(list(attribution["hierarchies"][:1]))
+    page._rebuild()
+    assert page.select("Hierarchy scorecard")
+    rows = {r["name"]: r for r in page.selected_spec().series}
+    assert rows["Intake"]["baseline"]["status"] == "same"
+    assert rows["Filtration"]["baseline"]["status"] == "new"
+    assert rows["Intake"]["dots"]
+    assert not page.chart.grab().isNull()
+    page.set_compare([100])
+    assert page.select("When did each hierarchy's downtime build up?")
+    assert page.selected_spec().provenance["end_labels"]
+    assert not page.chart.grab().isNull()
+
+
+def test_the_capacity_target_button_shows_on_every_chart_that_uses_it(qapp):
+    from raptor.gui.ui.charts_page import CAPACITY_TARGET_CHARTS
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 80.0}, "lost_energy": {"mean": 20.0},
+        "elements": [{"kind": "block", "id": 1, "name": "Pump",
+                      "lost_energy": {"mean": 20.0}, "share": {"mean": 1.0},
+                      "causes": {"repair": 1.0}, "main_cause": "repair"}],
+        "causes": {"repair": {"mean": 20.0}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", generated=100.0)
+    page.set_series(*_series())
+    for key in CAPACITY_TARGET_CHARTS:
+        if key == "annual-capacity-fan":
+            continue            # needs a year-long run: covered above
+        page.select(key)
+        assert page.capacity_target_button.isVisibleTo(page), key
+    for key in ("availability-band", "lost-capacity-pareto", "trial-outcome"):
+        page.select(key)
+        assert not page.capacity_target_button.isVisibleTo(page), key
+
+
+def test_changing_the_capacity_target_rebuilds_the_chart_on_show(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 80.0}, "lost_energy": {"mean": 20.0},
+        "elements": [{"kind": "block", "id": 1, "name": "Pump",
+                      "lost_energy": {"mean": 20.0}, "share": {"mean": 1.0},
+                      "causes": {"repair": 1.0}, "main_cause": "repair"}],
+        "causes": {"repair": {"mean": 20.0}}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", generated=100.0)
+    page.set_series(*_series())
+    page.select("capacity-band")
+    assert not page.selected_spec().marks
+    page.set_capacity_target(0.9)
+    spec = page.selected_spec()
+    assert spec.marks[0]["share"] == 0.9
+    assert "capacity target" in spec.caption
+    assert page.capacity_target_button.text() == "Capacity target: 90 %"
+    page.select("capacity-waterfall")
+    assert "missed the capacity target 90 % by 10 points" in page.selected_spec().caption
+    page.set_capacity_target(None)
+    assert "capacity target" not in page.selected_spec().caption
+    page.select("capacity-band")
+    assert not page.selected_spec().marks
+
+
+def test_a_builder_value_error_is_shown_not_logged_as_an_error(qapp, caplog):
+    import logging
+
+    from raptor.gui.ui.charts_page import _Entry
+    page = ChartsPage()
+
+    def entry(build):
+        return _Entry("x-chart", "X chart", "Why it goes down", build)
+
+    def refuse():
+        raise ValueError("Nothing to show, here is why.")
+
+    def bug():
+        raise RuntimeError("boom")
+    with caplog.at_level(logging.DEBUG):
+        assert page._safe(entry(refuse)) is None
+    assert page._build_errors["x-chart"] == "Nothing to show, here is why."
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
+        assert page._safe(entry(bug)) is None
+    assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+
+def test_the_lost_capacity_sankey_is_greyed_out_when_nothing_was_lost(qapp):
+    page = ChartsPage()
+    per_run, attribution, importance = _hierarchy_inputs()
+    attribution = dict(attribution)
+    attribution["capacity"] = {
+        "rule": "proportional", "generated": 100.0,
+        "delivered_energy": {"mean": 100.0}, "lost_energy": {"mean": 0.0},
+        "elements": [], "causes": {}}
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours")
+    entry = next(e for e in page._catalogue()
+                 if e.key == "capacity-sankey")
+    assert "No capacity was lost" in entry.missing

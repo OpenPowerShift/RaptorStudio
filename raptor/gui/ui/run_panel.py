@@ -46,6 +46,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.core import run_experiment as rx
+from raptor.gui import i18n
 from raptor.core.model import SystemConfig
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.widgets.tidy_spin import TidySpinBox
@@ -723,15 +724,15 @@ class RunPanel(QWidget):
     def _cores_words(self) -> str:
         """'8 cores', or '1 core (Animate)': what the run will use."""
         if getattr(self, "_cores_animate", False):
-            return "1 core (Animate)"
+            return i18n.translate_source("1 core (Animate)")
         n = int(self._cores.value())
-        return f"{n} core{'s' if n != 1 else ''}"
+        return i18n.translate_source(f"{n} core{'s' if n != 1 else ''}")
 
     def more_options_summary(self) -> str:
         """The closed header's text: scope and cores, always; the seed
         too when it is not Raptor 7's fixed table."""
         scope = (self._scope.currentText().strip() if self._scope_hid
-                 else "Whole model")
+                 else i18n.translate_source("Whole model"))
         text = f"{scope} · {self._cores_words()}"
         exp = getattr(self, "_exp", None)
         if exp and exp.get("seed_mode", "fixed") != "fixed":
@@ -744,7 +745,8 @@ class RunPanel(QWidget):
         button = getattr(self, "_more_button", None)
         if button is None:
             return
-        button.setText(f"More options: {self.more_options_summary()}")
+        button.setText(i18n.translate_source(
+            f"More options: {self.more_options_summary()}"))
         button.setArrowType(Qt.ArrowType.DownArrow if button.isChecked()
                             else Qt.ArrowType.RightArrow)
         button.setAccessibleDescription(
@@ -1148,6 +1150,12 @@ class RunPanel(QWidget):
             self._loading = False
         self.set_enabled(enabled)
         self._refresh()
+
+    def set_currency(self, currency: str) -> None:
+        """Show the model's currency in front of the two cost fields."""
+        from raptor.api.money import prefix
+        for field in (self._system_red_cost_field, self._lost_flow_cost_field):
+            field.setPrefix(prefix(currency))
 
     def set_system_config(self, cfg: SystemConfig | None) -> None:
         """Show the model's system values without emitting edits back.

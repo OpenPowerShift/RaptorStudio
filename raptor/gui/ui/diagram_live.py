@@ -2,6 +2,7 @@
 colours during a run, weak-link / capacity / cost / spares bands, and the
 live-state cache re-applied on level changes. A mixin of `DiagramView`."""
 from __future__ import annotations
+from raptor.api import money
 from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.qtcompat import req
@@ -822,7 +823,7 @@ class LiveOverlayMixin:
                           spread: bool = False):
         """Results Overlay: colour BLOCKS by total life-cycle cost
         (`RunReportData.cost.blocks[bid].total` -- purchase+operating+
-        sparing+disposal). No natural 0-100% scale for a dollar figure
+        sparing+disposal). No natural 0-100% scale for a money figure
         across arbitrary models, so bands are relative to this model's
         own most expensive block (>= 2/3 of max = Red, >= 1/3 = Yellow)
         rather than a fixed threshold that would mean nothing from one
@@ -837,16 +838,17 @@ class LiveOverlayMixin:
         shown = sorted(cost for bid, cost in cost_by_block.items()
                        if bid in self._block_items)
         spread = spread and len(shown) >= 2 and shown[0] < shown[-1]
+        currency = money.model_currency(self._rbd_ref)
         if spread:
             q1, _median, q3 = statistics.quantiles(shown, n=4,
                                                    method="inclusive")
             if q1 == q3:            # most blocks tie: split at the ends
                 q1, q3 = shown[0], shown[-1]
-            basis = (f"(spread by quartile: Red ≥ ${q3:,.2f}, "
-                     f"Green ≤ ${q1:,.2f})")
+            basis = (f"(spread by quartile: Red ≥ {money.amount(q3, currency)}, "
+                     f"Green ≤ {money.amount(q1, currency)})")
         else:
             basis = (f"(relative to this model's most expensive "
-                     f"block, ${max_cost:,.2f})")
+                     f"block, {money.amount(max_cost, currency)})")
 
         def band(cost: float) -> str:
             if spread:
@@ -866,9 +868,9 @@ class LiveOverlayMixin:
             name = getattr(block, "name", "") or f"Block {bid}"
             item.set_live_fill(
                 colour,
-                f"Cost — {name}: ${cost:,.2f} total life-cycle cost "
+                f"Cost — {name}: {money.amount(cost, currency)} total life-cycle cost "
                 f"→ {band_name}\n{basis}")
-            item.set_result_badge("$", colour)
+            item.set_result_badge(money.glyph(currency), colour)
         # U14: a hierarchy shows what its blocks cost in total, banded
         # against the dearest hierarchy on this level (a sum would always
         # outrank single blocks)
@@ -887,9 +889,10 @@ class LiveOverlayMixin:
             name = getattr(self.hiers.get(hid), "name", "") or f"Hierarchy {hid}"
             oval.set_live_fill(
                 colour,
-                f"Cost — {name}: ${total:,.2f} total life-cycle cost of the "
-                f"{len(inside)} block(s) inside → {band_name}\n(relative to the "
-                f"dearest hierarchy on this level, ${dearest:,.2f})")
+                f"Cost — {name}: {money.amount(total, currency)} total life-cycle "
+                f"cost of the {len(inside)} block(s) inside → {band_name}\n"
+                f"(relative to the dearest hierarchy on this level, "
+                f"{money.amount(dearest, currency)})")
 
     def apply_importance_colors(self: DiagramView, values: dict[int, float],  # type: ignore[misc]
                                 *, measure: str = "Birnbaum",
@@ -958,6 +961,7 @@ class LiveOverlayMixin:
         overlay."""
         c = ThemeManager.instance().colour
         sparing_cost = sparing_cost or {}
+        currency = money.model_currency(self._rbd_ref)
         self._last_result_visuals = {
             "kind": "spares", "exhausted_frac": dict(exhausted_frac),
             "sparing_cost": dict(sparing_cost)}
@@ -969,7 +973,7 @@ class LiveOverlayMixin:
                             else (c["result_green"], "Green"))
             block = self.blocks.get(bid)
             name = getattr(block, "name", "") or f"Block {bid}"
-            cost_txt = (f", ${sparing_cost[bid]:,.2f} sparing cost"
+            cost_txt = (f", {money.amount(sparing_cost[bid], currency)} sparing cost"
                        if bid in sparing_cost else "")
             item.set_live_fill(
                 colour,
@@ -991,7 +995,7 @@ class LiveOverlayMixin:
                 colour,
                 f"Spares — {name}: {len(short)} of {len(bids)} block(s) inside "
                 f"had spares or life exhausted"
-                + (f", ${spend:,.2f} sparing cost" if spend else "")
+                + (f", {money.amount(spend, currency)} sparing cost" if spend else "")
                 + f" → {'Red' if short else 'Green'}")
 
     def _level_hier_of(self: DiagramView, kind: str, oid: int) -> int | None:  # type: ignore[misc]

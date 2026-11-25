@@ -26,7 +26,9 @@ ask to change:
   copy becomes independent there. Own-node (-1) and whole-system (-2) stay;
 * columns the target does not have (another phase count) are dropped and
   columns the target has that the copy lacks take the target's defaults;
-* annotation anchors are cleared (they name source elements).
+* annotation anchors are cleared (they name source elements);
+* tags go on the copies; a tag's colour and description are added only
+  when the target has none for that tag.
 
 Pasting into the same model it was copied from changes none of that.
 """
@@ -48,7 +50,8 @@ VERSION = 1
 #: and the same model token is a same-model paste.
 PROCESS_TOKEN = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"
 
-_KINDS = frozenset({"block", "node", "event", "hier", "link", "annotation"})
+_KINDS = frozenset({"block", "node", "event", "hier", "link", "annotation",
+                    "tags", "taginfo"})
 _SECTION_OF = {"block": "BLOCK_DATA", "node": "NODE_DATA",
                "event": "EVENT_DATA", "hier": "HIERARCHY_DATA",
                "link": "LINK_DATA"}
@@ -89,6 +92,8 @@ def summary_text(buffer: Buffer, source_name: str = "") -> str:
     """The plain-text flavour: what a text editor shows on paste."""
     counts: dict[str, int] = {}
     for kind, _row in buffer:
+        if kind in ("tags", "taginfo"):
+            continue
         counts[kind] = counts.get(kind, 0) + 1
     plural = {"block": "blocks", "node": "nodes", "event": "events",
               "hier": "hierarchies", "link": "links",
@@ -226,7 +231,9 @@ def adapt_for_target(rbd: Any, payload: Payload, *, same_model: bool
     t = _Target(rbd)
     out: Buffer = []
     for kind, row in payload.buffer:
-        if kind == "annotation":
+        if kind in ("tags", "taginfo"):
+            out.append((kind, dict(row)))       # ids are mapped at paste
+        elif kind == "annotation":
             out.append((kind, {k: v for k, v in row.items()
                                if k not in ("anchor", "comment_of")}))
         else:

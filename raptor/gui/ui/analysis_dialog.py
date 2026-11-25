@@ -159,7 +159,8 @@ class AnalysisDialog(QDialog):
         self._applied: set[Any] = set()
         self.setWindowTitle(self.TITLE)
         self.setModal(False)
-        self.resize(*self.SIZE)
+        from raptor.gui.ui.modality import fit_dialog
+        fit_dialog(self, *self.SIZE)
         self._timer = QTimer(self)
         self._timer.setInterval(150)
         self._timer.timeout.connect(self._poll)

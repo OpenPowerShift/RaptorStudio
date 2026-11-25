@@ -459,6 +459,10 @@ def extract(rbd: RbdFile, hierarchy: str | int,
                      "unless it is changed (system.flow); the hierarchy's real input flow may be less.")
     if not (p.blocks or p.events or p.hiers):
         raise IsolationError(f"hierarchy {hier.get('hierarchyName')!r} contains no blocks, events or hierarchies")
+    # The extract keeps its elements' ids, so their tags stand as they are;
+    # tags on the elements left behind (and their colours) do not travel.
+    from raptor.core import tags as _tags
+    _tags.keep_only_present(out)
     record = IsolationRecord(hierarchy=hier.get("hierarchyName", ""), hierarchy_id=hid,
                              treatments=t, hazards=hazards, notes=notes)
     return out, record

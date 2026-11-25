@@ -276,6 +276,24 @@ def build_schema() -> dict[str, Any]:
                                      "value": {"type": "number"},
                                      "description": {"type": "string"}}}},
             "formulas": {"type": "object", "additionalProperties": {"type": "object"}},
+            "tags": {
+                "type": "object",
+                "description": "Free-form labels for navigation, keyed by "
+                               "element reference ('block:3', 'hier:7').",
+                "additionalProperties": {
+                    "type": "array", "items": {"type": "string"}}},
+            "tag_info": {
+                "type": "object",
+                "description": "Optional colour and description per tag. A "
+                               "tag without a colour takes one from its "
+                               "name; an entry with no elements is an "
+                               "empty tag kept on purpose.",
+                "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "colour": {"type": "string"},
+                        "description": {"type": "string"}}}},
             "display_unit": {"type": ["string", "null"]},
             "currency": {
                 "type": "string", "minLength": 1, "maxLength": 8,

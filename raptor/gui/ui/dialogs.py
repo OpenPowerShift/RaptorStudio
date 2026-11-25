@@ -4,25 +4,25 @@ Each function takes the MainWindow instance (`win`) and builds/opens
 one dialog. MainWindow keeps thin delegating methods so existing
 wiring and tests keep working."""
 from __future__ import annotations
-from raptor.gui.ui.modality import exec_dialog
-
-from raptor.gui.ui.qtcompat import req
-
-from raptor.gui.ui import msgbox
 
 import json
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtWidgets import (
     QDialog, QFormLayout, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QComboBox, QSpinBox, QDoubleSpinBox,
     QGroupBox, QWidget, QListWidget, QAbstractItemView, QTabWidget, QMessageBox, QScrollArea, QFrame,
 )
+from raptor.gui.resources.design_tokens import px as _scaled
 from raptor.gui.ui import filedialogs as fdg
 from raptor.gui.ui import settings
+from raptor.gui.resources.scale import SCALE_STEPS, normalise_scale
 from raptor.gui.ui.diagram_commands import apply_row_edits
 from raptor.gui.ui.main_window import _TERMINATION_CHOICES
+from raptor.gui.ui.modality import exec_dialog
+from raptor.gui.ui.qtcompat import req
+from raptor.gui.ui import msgbox
 
 
 def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
@@ -40,6 +40,8 @@ def ask_apply_to_rows(parent, n: int) -> tuple[bool, bool]:
     again = QCheckBox("Don't ask again")
     box.setCheckBox(again)
     box.setDefaultButton(yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes, again.isChecked()
 
@@ -72,6 +74,8 @@ def question_box(parent, title: str, text: str, *,
     no = box.addButton(no_text, QMessageBox.ButtonRole.NoRole)
     no.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogNoButton))
     box.setDefaultButton(no if not default_yes else yes)
+    from raptor.gui import i18n
+    i18n.translate_widgets(box)
     box.exec()
     return box.clickedButton() is yes
 
@@ -337,7 +341,7 @@ def _pref_row(form, label, widget, why, scope, reset=None, builtins=()):
     if reset is not None:
         btn = QPushButton("Reset")
         btn.setToolTip(f"Restore the default ({', '.join(builtins) or 'default'})")
-        btn.setFixedWidth(56)
+        btn.setFixedWidth(_scaled(56))
         btn.clicked.connect(lambda _=False, w=widget, r=reset: r(w))
         lay.addWidget(btn)
     form.addRow(label, box)
@@ -364,7 +368,7 @@ class _SectionPages(QWidget):
         self._nav = QListWidget()
         self._nav.setObjectName("PreferencesSections")
         self._nav.setAccessibleName("Preference sections")
-        self._nav.setFixedWidth(150)
+        self._nav.setFixedWidth(_scaled(150))
         self._nav.currentRowChanged.connect(self._jump)
         # clicking the entry that is already selected must still jump (the row did not change)
         self._nav.itemClicked.connect(lambda item: self._jump(self._nav.row(item)))
@@ -615,8 +619,10 @@ def show_preferences(win):
     units = QComboBox()
     units.setEditable(True)
     for u in ("hours", "days", "weeks", "cycles"):
-        units.addItem(u)
-    units.setCurrentText(prefs["units"])
+        units.addItem(u, u)
+    index = units.findData(prefs["units"])
+    if index >= 0:
+        units.setCurrentIndex(index)
     units.setToolTip("Time unit a newly created model starts in")
     _pref_row(
         new_form, "Time units for new models:", units,
@@ -656,6 +662,64 @@ def show_preferences(win):
         "Switches the whole application, including the chart surfaces and "
         "the cause fills' dark variants. The View menu has the same switch.",
         "app")
+    scale = QComboBox()
+    saved_scale = normalise_scale(
+        _settings.get_int("appearance/ui_scale", 100))
+    for percent in SCALE_STEPS:
+        scale.addItem(f"{percent}%", percent)
+    index = scale.findData(saved_scale)
+    if index < 0:
+        # The CLI accepts any whole percent in 100..200. Show that value
+        # rather than snapping the user's choice back to 100%.
+        scale.addItem(f"{saved_scale}% (custom)", saved_scale)
+        index = scale.count() - 1
+    scale.setCurrentIndex(index)
+    scale.setToolTip("Scales text, spacing and control sizes")
+    _pref_row(
+        app_form, "Interface scale:", scale,
+        "Enlarges text, spacing and controls together for a high-DPI or "
+        "low-vision display. 100% is the design size; takes effect after "
+        "you restart RAPTOR Studio.", "app",
+        reset=lambda w: w.setCurrentIndex(max(0, w.findData(100))),
+        builtins=("100%",))
+
+    contrast = QCheckBox("High-contrast colours")
+    contrast.setChecked(_settings.get_bool(
+        "appearance/high_contrast", False))
+    contrast.setToolTip(
+        "Black/white surfaces, stronger borders and text, visible focus rings")
+    _pref_row(
+        app_form, "Contrast:", contrast,
+        "Keeps the semantic state colours but makes the window, text, "
+        "borders and focus rings high contrast. Useful in bright rooms or "
+        "for low vision.", "app")
+
+    reduce_motion = QCheckBox("Reduce motion")
+    reduce_motion.setChecked(_settings.get_bool(
+        "appearance/reduce_motion", False))
+    reduce_motion.setToolTip(
+        "Turns off animated charts: the Play control is disabled and the "
+        "static summary is shown")
+    _pref_row(
+        app_form, "Motion:", reduce_motion,
+        "Charts that can animate (the run-by-run hierarchy plot) never play "
+        "while this is on; the static summary is shown instead. Animation "
+        "is always opt-in.", "app")
+
+    from raptor.gui import i18n as _i18n
+    language = QComboBox()
+    language.addItem("System language", "system")
+    for code, name in _i18n.available_locales():
+        language.addItem(name, code)
+    current_language = str(_settings.get("appearance/language", "system"))
+    language.setCurrentIndex(max(0, language.findData(current_language)))
+    language.setToolTip("UI language; takes effect on the next launch")
+    _pref_row(
+        app_form, "Language:", language,
+        "The translated interface. English is the source language; a "
+        "catalogue is shipped for each listed language. Takes effect when "
+        "the application is restarted.", "app")
+
     from raptor.api.insight import palette as _palette
     palette_box = QComboBox()
     for key in _palette.names():
@@ -701,6 +765,20 @@ def show_preferences(win):
         "Minutes between recovery copies. Only active while auto-save "
         "is on.", "app",
         reset=lambda w: w.setValue(5), builtins=("5",))
+
+    undo_limit = QSpinBox()
+    undo_limit.setRange(0, 10_000)
+    undo_limit.setSpecialValueText("Unlimited")
+    undo_limit.setValue(int(_settings.get_int("editing/undo_limit", 200)))
+    undo_limit.setToolTip(
+        "How many editing steps Undo/Redo keeps for the model")
+    _pref_row(
+        work_form, "History steps:", undo_limit,
+        "Maximum undo/redo steps kept. This is a count, not a byte "
+        "budget: one step can hold a large edit's old and new values. "
+        "0 = unlimited. A change applies when the current model is "
+        "closed or the next is loaded.", "app",
+        reset=lambda w: w.setValue(200), builtins=("200",))
 
     save_before_run = QComboBox()
     save_before_run.addItem("Don't save automatically", "never")
@@ -935,11 +1013,15 @@ def show_preferences(win):
     # Write through the one accessor per key, so nothing can be dropped
     # the way the old write-the-whole-blob call dropped
     # `parallel_workers` (it was never IN the blob).
-    _settings.set_value("new_model/units",
-                        units.currentText().strip() or "hours")
+    chosen_units = units.currentData() or units.currentText().strip()
+    _settings.set_value("new_model/units", chosen_units or "hours")
     _settings.set_value("experiments/last_used", prof.currentData())
     _settings.set_value("files/autosave", autosave.isChecked())
     _settings.set_value("files/autosave_min", mins.value())
+    _settings.set_value("editing/undo_limit", undo_limit.value())
+    apply_limit = getattr(win, "_apply_undo_limit", None)
+    if apply_limit is not None:
+        apply_limit()
     _settings.set_value("files/save_before_run", save_before_run.currentData())
     if ask_again_btn.isChecked():
         _ask_again.ask_all_again()
@@ -978,6 +1060,15 @@ def show_preferences(win):
     palette_key = str(palette_box.currentData() or _palette.DEFAULT)
     palette_changed = _settings.get("appearance/chart_palette", _palette.DEFAULT) != palette_key
     _settings.set_value("appearance/chart_palette", palette_key)
+    old_scale = _settings.get_int("appearance/ui_scale", 100)
+    _settings.set_value("appearance/ui_scale", scale.currentData())
+    _settings.set_value("appearance/high_contrast", contrast.isChecked())
+    _settings.set_value("appearance/reduce_motion", reduce_motion.isChecked())
+    results_dock = getattr(win, "_results", None)
+    if results_dock is not None and hasattr(results_dock, "_charts_page"):
+        results_dock._charts_page.sync_motion_setting()
+    from raptor.gui.resources.design_tokens import ThemeManager
+    ThemeManager.instance().set_high_contrast(contrast.isChecked())
     _palette.set_active(palette_key)
     if palette_changed:
         results = getattr(win, "_results", None)
@@ -998,10 +1089,7 @@ def show_preferences(win):
         if new_currency != getattr(win._rbd, "currency", DEFAULT_CURRENCY):
             win._rbd.currency = new_currency
             win._mark_dirty()
-            results = getattr(win, "_results", None)
-            if results is not None:       # captions are written in the currency
-                results._refresh_charts()
-                results._refresh_story()
+            win._apply_currency(changed=True)
         new_du = parse_display_unit(display_unit_combo.currentText())
         if new_du != getattr(win._rbd, "display_unit", None):
             win._inspector.set_display_unit(new_du)
@@ -1016,7 +1104,23 @@ def show_preferences(win):
                                         if shown else "")
             win._mark_dirty()
             win._refresh_inspector()
-    win._statusbar.showMessage("Preferences saved")
+    _settings.set_value("appearance/language", str(language.currentData()))
+    scale_changed = int(scale.currentData()) != old_scale
+    language_changed = str(language.currentData()) != current_language
+    if scale_changed and language_changed:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to apply the "
+            "interface scale and language", 8000)
+    elif language_changed:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to change language",
+            8000)
+    elif scale_changed:
+        win._statusbar.showMessage(
+            "Preferences saved — restart RAPTOR Studio to apply the "
+            "interface scale", 8000)
+    else:
+        win._statusbar.showMessage("Preferences saved")
 
 
 

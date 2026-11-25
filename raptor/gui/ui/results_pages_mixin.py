@@ -3,6 +3,7 @@
 Expects on `self`: the results tabs and the report data held by `ResultsDock`."""
 from __future__ import annotations
 
+from raptor.gui import i18n
 from raptor.gui.ui.results_common import (
     IMPORTANCE_HEADER_TIPS,
     RAW_VALUE_ROLE,
@@ -112,10 +113,16 @@ class ResultsPagesMixin(_Base):
 
         caps = [d.capacity for d in self._report_data if d.capacity is not None]
         if not caps:
-            msg = QLabel(
-                "No capacity analysis in this model.\n\n"
-                "Enable Capacity in the Run panel's Analysis section, "
-                "give Start a Flow Generated value, and run again.")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Capacity detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No capacity analysis in this model.\n\n"
+                    "Enable Capacity in the Run panel's Analysis section, "
+                    "give Start a Flow Generated value, and run again.")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)
@@ -368,11 +375,17 @@ class ResultsPagesMixin(_Base):
             v.setContentsMargins(SPACING["md"], SPACING["md"],
                                  SPACING["md"], SPACING["md"])
             v.setSpacing(SPACING["sm"])
-            msg = QLabel(
-                "No Weak Link analysis in this model.\n\n"
-                "Weak Link Analysis is turned on in the Run panel's "
-                "Analysis section — enable it and rerun to see "
-                "per-element availability/dependability here.")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Weak Link detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No Weak Link analysis in this model.\n\n"
+                    "Weak Link Analysis is turned on in the Run panel's "
+                    "Analysis section — enable it and rerun to see "
+                    "per-element availability/dependability here.")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)
@@ -864,10 +877,16 @@ class ResultsPagesMixin(_Base):
 
         costs = [d.cost for d in self._report_data if d.cost is not None]
         if not costs:
-            msg = QLabel(
-                "No cost analysis in this model.\n\n"
-                "Cost is simulated when Cost is enabled in the Run panel's "
-                "Analysis section (and blocks define costs).")
+            if getattr(self, "_archive_source", ""):
+                msg = QLabel(i18n.tr(
+                    "This saved result set has no Cost detail — it was "
+                    "written by an older build. Run the model again to see "
+                    "this page."))
+            else:
+                msg = QLabel(
+                    "No cost analysis in this model.\n\n"
+                    "Cost is simulated when Cost is enabled in the Run "
+                    "panel's Analysis section (and blocks define costs).")
             msg.setObjectName("SectionNote")
             msg.setWordWrap(True)
             v.addWidget(msg)
@@ -875,8 +894,11 @@ class ResultsPagesMixin(_Base):
             self._cost_tables: list[QTableWidget] = []
             return page
 
+        from raptor.api.money import amount, model_currency
+        currency = model_currency(getattr(self, "_rbd", None))
+
         def money(x: float) -> str:
-            return f"{x:,.2f}"
+            return amount(x, currency)
 
         def mean_over(getter):
             vals = [getter(cst) for cst in costs]
@@ -1014,8 +1036,10 @@ class ResultsPagesMixin(_Base):
                 (money(avg("sparing")), avg("sparing")),
                 (money(avg("disposal")), avg("disposal")),
                 (money(avg("total")), avg("total"))])
-        add_table(f"Blocks ({len(block_rows)}) -- life-cycle costs",
-                  self._COST_HEADERS, block_rows,
+        add_table(
+            i18n.tr("Blocks ({count}) -- life-cycle costs").format(
+                count=len(block_rows)),
+            self._COST_HEADERS, block_rows,
                   "Purchase + Operating + Sparing + Disposal = Total",
                   sort_key="COST::BLOCKS",
                   default_sort=(5, Qt.SortOrder.DescendingOrder))
@@ -1046,8 +1070,9 @@ class ResultsPagesMixin(_Base):
             time_unit = f" ({self._units})" if self._units else ""
             add_table(
                 "Pools",
-                ["Name", "Initial", f"New Spares / Per-Time{time_unit}",
-                 f"Emer. Shipping / Per-Use{time_unit}", "Total"],
+                ["Name", "Initial",
+                 i18n.tr("New Spares / Per-Time") + time_unit,
+                 i18n.tr("Emer. Shipping / Per-Use") + time_unit, "Total"],
                 pool_rows, sort_key="COST::POOLS",
                 default_sort=(4, Qt.SortOrder.DescendingOrder))
 
@@ -1121,8 +1146,22 @@ class ResultsPagesMixin(_Base):
         self._allowed_names = allowed_names
         self._apply_level_filter()
 
+    def set_tag_filter(self, names: set[str] | None) -> None:
+        """`None` = no tag filter; a name set hides element rows outside
+        it, on top of the hierarchy scope."""
+        self._tag_names = names
+        self._apply_level_filter()
+
     def _hierarchy_row_visible(self, table: QTableWidget, row: int,
                                allowed: set[str] | None = None) -> bool:
+        """The hierarchy scope and the tag filter, both."""
+        if not self._name_row_visible(table, row, allowed):
+            return False
+        tagged = getattr(self, "_tag_names", None)
+        return tagged is None or self._name_row_visible(table, row, tagged)
+
+    def _name_row_visible(self, table: QTableWidget, row: int,
+                          allowed: set[str] | None = None) -> bool:
         """Whether `row` belongs to the current hierarchy scope.
 
         Shared by `_apply_level_filter` and the table's FilterBar: sorting

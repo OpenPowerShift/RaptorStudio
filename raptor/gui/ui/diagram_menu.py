@@ -42,6 +42,8 @@ class ContextMenuMixin:
         their enabled state is the only way to keep the "disabled when
         appropriate" contract honest.
         """
+        from raptor.gui import i18n
+        i18n.translate_widgets(menu)
         return menu.exec(self.viewport().mapToGlobal(
             event.position().toPoint()))
 
@@ -115,6 +117,9 @@ class ContextMenuMixin:
                 comment_act0.setEnabled(self.has_convertible_comment(
                     kind0, oid0))
             remove_links_act0 = menu.addAction("Remove Links")
+            tags_act0 = menu.addAction("Tags…")
+            tags_act0.setToolTip(
+                "Tag the selected elements")
             # The count includes the annotations -- the delete takes
             # them along now, so the number has to (and `sel_count`
             # alone misses arrows, which are not ItemIsMovable).
@@ -127,6 +132,8 @@ class ContextMenuMixin:
                 self.comment_to_annotation(kind0, oid0)
             elif chosen0 is remove_links_act0:
                 self.remove_links_selected()
+            elif chosen0 is tags_act0:
+                self.tags_requested.emit()
             elif chosen0 is del_act:
                 self.delete_selected()
             elif chosen0 is out_act:
@@ -154,6 +161,7 @@ class ContextMenuMixin:
                 hid_menu.addSeparator()
                 from raptor.gui.ui.diagram_out_of_service import add_submenu
                 add_submenu(self, hid_menu, [("hier", int(it2._hier_id))])
+                tags_h = hid_menu.addAction("Tags…")
                 hid_menu.addSeparator()
                 del_h = hid_menu.addAction("Delete hierarchy")
                 chosen_h = self._exec_menu(hid_menu, event)
@@ -175,6 +183,10 @@ class ContextMenuMixin:
                     self._scene.clearSelection()
                     it2.setSelected(True)
                     self.comment_to_annotation("hier", it2._hier_id)
+                elif chosen_h is tags_h:
+                    self._scene.clearSelection()
+                    it2.setSelected(True)
+                    self.tags_requested.emit()
                 elif chosen_h is del_h:
                     self._scene.clearSelection()
                     it2.setSelected(True)
@@ -379,6 +391,12 @@ class ContextMenuMixin:
         # the Inspector's content -- `properties_requested` only needs to
         # make MainWindow actually show/raise the dock itself.
         props_action = None
+        tags_action = None
+        if kind != "Link":
+            menu.addSeparator()
+            tags_action = menu.addAction("Tags…")
+            tags_action.setToolTip(
+                "Tag this element")
         if _properties_offered(kind, n_sel):
             menu.addSeparator()
             props_action = menu.addAction("Properties")
@@ -448,6 +466,8 @@ class ContextMenuMixin:
             self.delete_selected()
         elif chosen is props_action:
             self.properties_requested.emit()
+        elif tags_action is not None and chosen is tags_action:
+            self.tags_requested.emit()
         elif chosen is dep_action:
             self._on_dep_click(clicked)
         else:

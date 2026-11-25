@@ -66,6 +66,15 @@ SCHEMA_VERSION = 2
 DEFAULTS: dict[str, Any] = {
     # appearance/
     "appearance/dark_mode": False,
+    # Interface scale (percent), high-contrast palette and UI language.
+    # Accessibility/presentation preferences, not model data.
+    "appearance/ui_scale": 100,
+    "appearance/high_contrast": False,
+    # Reduced motion: chart animations (the run-by-run hierarchy plot) stay
+    # off and their Play control is disabled.
+    "appearance/reduce_motion": False,
+    # UI language: "system" or a locale code with a shipped catalogue.
+    "appearance/language": "system",
     # Chart palette: the cause fills on every chart, report and saved image.
     "appearance/chart_palette": "muted",
     # View > Annotations: whether the canvas draws the annotations, and
@@ -84,6 +93,9 @@ DEFAULTS: dict[str, Any] = {
     # files/
     "files/autosave": False,
     "files/autosave_min": 5,
+    # Maximum undo steps kept for the model; 0 means no limit. A cap keeps
+    # a long session on a large model from growing memory without bound.
+    "editing/undo_limit": 200,
     # "never" | "ask" | "always": whether to save (or prompt to save)
     # unsaved changes before a run starts, since the results otherwise
     # silently reflect a different model than what is on disk.

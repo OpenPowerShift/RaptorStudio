@@ -98,13 +98,18 @@ def _downtime_text(row: dict[str, Any], units: str) -> str:
     return "—" if avoided is None else downtime_words(avoided, units)
 
 
-def _cost_text(row: dict[str, Any]) -> str:
+def _cost_text(row: dict[str, Any], currency: str = "$") -> str:
+    from raptor.api.insight.axes import with_currency
     cost = row["cost"]
     parts = []
     if cost["unit"] is not None:
-        parts.append(f"{cost['unit']:,.6g} a unit")
-    if cost["run_total_change"] is not None:
-        parts.append(f"run cost {cost['run_total_change']:+,.6g}")
+        parts.append(with_currency(f"{cost['unit']:,.6g}", currency) + " a unit")
+    change = cost["run_total_change"]
+    if change is not None:
+        # a signed change: "+$1,200" / "-$300"
+        sign = "-" if change < 0 else "+"
+        parts.append(f"run cost {sign}"
+                     + with_currency(f"{abs(change):,.6g}", currency))
     return "; ".join(parts) or (cost["note"] or "unknown")
 
 
@@ -298,11 +303,13 @@ class RecommendDialog(QDialog):
         self._sync_buttons()
 
     def _show(self, result: Any) -> None:
+        from raptor.api.money import model_currency
         units = str(result.base.get("units") or "time units")
         self.table.setRowCount(len(result.rows))
         for index, row in enumerate(result.rows):
             texts = (row["name"], row["verdict"], _gain_text(row),
-                     _downtime_text(row, units), _cost_text(row))
+                     _downtime_text(row, units),
+                     _cost_text(row, model_currency(getattr(self._win, "_rbd", None))))
             for column, text in enumerate(texts):
                 item = QTableWidgetItem(text)
                 item.setToolTip(f"{row['name']}\n{'; '.join(row['changes'])}\n\n"

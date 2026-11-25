@@ -25,21 +25,32 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt, QTimer, Signal
+from PySide6.QtGui import (
+    QAction, QActionGroup, QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap,
+    QPolygonF, QShortcut,
+)
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
+    QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton,
     QSpinBox, QSplitter, QStackedWidget, QToolButton, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
+from raptor.gui import i18n
 from raptor.api import run_needs
 from raptor.api.insight import charts, hierarchy as hier, timecharts
+from raptor.api.insight.axes import pct
 from raptor.gui.resources.design_tokens import SPACING, active_colour
-from raptor.gui.ui import chart_export
+from raptor.gui.ui import chart_descriptions, chart_export, chart_i18n
+from raptor.gui.ui.chart_group_overview import (
+    ASPECT, CardData, ChartGroupOverview, Section,
+)
 from raptor.gui.ui.chart_widget import ChartWidget
+from raptor.gui.ui.flow_layout import FlowLayout
+from raptor.gui.ui.hierarchy_tree_popup import HierarchyTreePopup
 
 _KEY = Qt.ItemDataRole.UserRole
+_GROUP = Qt.ItemDataRole.UserRole + 1
 
 
 @dataclass
@@ -54,17 +65,29 @@ class _Entry:
     needs: tuple[str, ...] = ()  # run options the button turns on (run_needs keys)
 
 
+#: The heading above the groups that shows every group's cards on one page.
+ALL_CHARTS = "All charts"
+
 #: Groups in the order the list shows them.
 GROUPS = ("The answer", "By hierarchy", "Over time", "Why it goes down",
           "Lost capacity", "Year by year", "Cost", "What matters most")
 
 #: The smallest height the chart is drawn at; a shorter page scrolls.
 CHART_MIN_HEIGHT = 340
+#: Milliseconds a run stays up in the run-by-run hierarchy animation.
+HOPS_INTERVAL_MS = 500
 
 #: The charts that draw a target line, where the Target button is shown.
 TARGET_CHARTS = ("trial-outcome", "ecdf", "convergence", "availability-through-run",
                  "interval-availability", "availability-band", "availability-ladder",
                  "downtime-waterfall", "annual-fan", "annual-dots")
+
+#: The charts that use the capacity target: a line on the two capacity charts
+#: over time and the year fan, a met/missed sentence in the waterfall's and
+#: Sankey's caption.
+CAPACITY_TARGET_CHARTS = ("capacity-through-run", "capacity-band",
+                          "capacity-waterfall", "capacity-sankey",
+                          "annual-capacity-fan")
 
 _RECORD_AO = ("These charts are drawn from the availability plot. "
               + run_needs.gui_hint("availability_plot"))
@@ -72,10 +95,34 @@ _RECORD_CAP = ("These charts are drawn from the capacity plot. "
                + run_needs.gui_hint("capacity_plot"))
 
 
+class _PickerButton(QToolButton):
+    """A toolbar button that opens a picker: a caret on its right edge says
+    so (a bare QToolButton reads as a label)."""
+
+    CARET_ROOM = 22
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt name
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        colour = QColor(active_colour()["text"])
+        if not self.isEnabled():
+            colour = QColor(active_colour()["muted"])
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(colour)
+        cx, cy = self.width() - self.CARET_ROOM / 2 - 1, self.height() / 2
+        painter.drawPolygon(QPolygonF([QPointF(cx - 4, cy - 2), QPointF(cx + 4, cy - 2),
+                                       QPointF(cx, cy + 3)]))
+        painter.end()
+
+
 class ChartsPage(QWidget):
     """The chart list, the chart, and the controls the chart uses."""
 
     locate_requested = Signal(str, str)
+    #: the explicit comparison changed: hierarchy ids in series order
+    #: (empty is the automatic top four); the canvas rings follow it
+    compare_changed = Signal(list)
     #: the reader asked for the downtime charts before the drivers were worked out
     drivers_requested = Signal()
     #: the reader asked to switch these run options on (run_needs keys) and run
@@ -112,6 +159,9 @@ class ChartsPage(QWidget):
         self._depth = 0
         #: hierarchy ids picked for the overlay; empty means the top four
         self._selected: list[int] = []
+        self._pickers: dict[str, HierarchyTreePopup] = {}
+        self._picker_source: dict[str, tuple[int, str]] = {}
+        self._picker_attr: dict[str, Any] = {}
         #: a previous run's hierarchy rows, kept across a re-run
         self._baseline_rows: list[dict[str, Any]] | None = None
         self._baseline_label: str | None = None
@@ -124,6 +174,15 @@ class ChartsPage(QWidget):
         self._capacity_axis_mode = "auto"
         self._capacity_axis_value: float | None = None
         self._capacity_axis_range: tuple[float, float] | None = None
+        #: run-by-run hierarchy plot: None shows the static summary, an
+        #: int the run being shown. Never started on its own.
+        self._hops_frame: int | None = None
+        #: overview pictures: key -> (spec drawn, look it was drawn in, picture)
+        self._thumbs: dict[str, tuple[Any, tuple, QPixmap]] = {}
+        self._thumb_widget: ChartWidget | None = None
+        self._hops_timer = QTimer(self)
+        self._hops_timer.setInterval(HOPS_INTERVAL_MS)
+        self._hops_timer.timeout.connect(self._hops_tick)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -145,6 +204,8 @@ class ChartsPage(QWidget):
         escape = QShortcut(QKeySequence("Escape"), self.search)
         escape.activated.connect(self.search.clear)
         left_lay.addWidget(self.search)
+        #: the All charts heading (see `ALL_CHARTS`), set by `_rebuild`
+        self._all_item: QTreeWidgetItem | None = None
         self.nav = QTreeWidget()
         self.nav.setObjectName("ChartList")
         self.nav.setHeaderHidden(True)
@@ -152,19 +213,45 @@ class ChartsPage(QWidget):
         self.nav.setIndentation(10)
         self.nav.setUniformRowHeights(True)
         self.nav.setMinimumWidth(150)
+        self.nav.setExpandsOnDoubleClick(False)
         self.nav.currentItemChanged.connect(self._on_current)
-        # a heading folds its group away (the list is long on a short dock)
-        self.nav.itemClicked.connect(
-            lambda item, _col: item.setExpanded(not item.isExpanded())
-            if item.childCount() else None)
+        # A heading shows its group's overview (see `_on_nav_clicked`); its
+        # caret, the Left/Right keys and a second click fold it away (the
+        # list is long on a short dock).
+        self._press_was_current = False
+        self.nav.viewport().installEventFilter(self)
+        self.nav.itemClicked.connect(self._on_nav_clicked)
+        self.nav.itemExpanded.connect(self._sync_caret)
+        self.nav.itemCollapsed.connect(self._sync_caret)
         left_lay.addWidget(self.nav, 1)
         split.addWidget(left)
+        self._left = left
+        self._narrow = False
 
         right = QWidget()
         rlay = QVBoxLayout(right)
         rlay.setContentsMargins(SPACING["md"], SPACING["sm"], SPACING["md"], SPACING["sm"])
         rlay.setSpacing(SPACING["sm"])
+        # In a narrow dock the 210 px chart list would take half the width:
+        # a grouped drop-down above the chart stands in for it.
+        self.nav_combo = QComboBox()
+        self.nav_combo.setObjectName("ChartListCombo")
+        self.nav_combo.setAccessibleName("Chart")
+        self.nav_combo.setToolTip("Choose a chart; the groups are the headings")
+        self.nav_combo.setMaxVisibleItems(24)
+        self.nav_combo.hide()
+        #: per drop-down row: (is a heading, group name or chart key)
+        self._combo_rows: list[tuple[bool, str]] = []
+        self.nav_combo.activated.connect(self._on_combo_activated)
+        rlay.addWidget(self.nav_combo)
         rlay.addLayout(self._build_bar())
+        self.chip_row = QWidget()
+        self.chip_row.setObjectName("CompareChips")
+        self._chip_lay = QHBoxLayout(self.chip_row)
+        self._chip_lay.setContentsMargins(0, 0, 0, 0)
+        self._chip_lay.setSpacing(SPACING["sm"])
+        self.chip_row.hide()
+        rlay.addWidget(self.chip_row)
         self.stack = QStackedWidget()
         self.chart = ChartWidget()
         self.chart.locate_requested.connect(self.locate_requested)
@@ -173,6 +260,10 @@ class ChartsPage(QWidget):
         self.chart_scroll = self._scrolling(self.chart)
         self.stack.addWidget(self.chart_scroll)
         self.stack.addWidget(self._build_missing_panel())
+        self.overview = ChartGroupOverview()
+        self.overview.set_providers(self._thumb_cached, self._thumb_render)
+        self.overview.chart_chosen.connect(self._open_chart)
+        self.stack.addWidget(self.overview)
         rlay.addWidget(self.stack, 1)
         self.note = QLabel("")
         self.note.setObjectName("SectionNote")
@@ -185,9 +276,12 @@ class ChartsPage(QWidget):
         split.setSizes([210, 800])
         from raptor.gui.resources.design_tokens import ThemeManager
         ThemeManager.instance().on_changed(self._on_theme_changed)
+        self._style_bar()
+        for picker_button in (self.scope_button, self.compare_button):
+            picker_button.installEventFilter(self)     # Enter opens it too
         self._sync_controls(None)
-        self._update_scope_menu()
-        self._update_compare_menu()
+        self._update_scope_button()
+        self._update_compare_button()
         self._update_depth_menu()
 
     @staticmethod
@@ -201,19 +295,19 @@ class ChartsPage(QWidget):
         scroll.setWidget(chart)
         return scroll
 
-    def _build_bar(self) -> QHBoxLayout:  # noqa: PLR0915
-        """Run picker, axis floor and Export: shown only where a chart uses them."""
-        bar = QHBoxLayout()
-        bar.setSpacing(SPACING["sm"])
-        self.scope_button = QToolButton()
+    def _build_bar(self) -> FlowLayout:  # noqa: PLR0915
+        """Run picker, axis floor and Export: shown only where a chart uses
+        them.  The row wraps in a narrow dock rather than squeezing its
+        buttons (pt-BR's longer words read "Comparar...incipais")."""
+        bar = FlowLayout(spacing=SPACING["sm"])
+        self.scope_button = _PickerButton()
         self.scope_button.setText("Scope: System")
-        self.scope_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.scope_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.scope_button.setToolTip(
             "Show the charts for the whole system or for one hierarchy. "
             "It follows the canvas unless you pick a scope here.")
-        self.scope_menu = QMenu(self.scope_button)
-        self.scope_button.setMenu(self.scope_menu)
+        self.scope_button.setAccessibleName("Chart scope")
+        self.scope_button.clicked.connect(lambda _c=False: self._open_picker("scope"))
         bar.addWidget(self.scope_button)
         self.follow_button = QToolButton()
         self.follow_button.setText("Follow canvas")
@@ -258,22 +352,23 @@ class ChartsPage(QWidget):
         self.sankey_delivered.setToolTip(
             "Show the delivered branch. Turn it off when the loss is a small "
             "share of the generated flow, so the lost flow fills the figure")
-        self.sankey_delivered.toggled.connect(lambda _on: self._show_current())
+        self._compare_applies = False
+        self._chips_shown = 0
+        self._sankey_auto = True     # the loss is small: start from it, until the user chooses
+        self.sankey_delivered.toggled.connect(self._on_sankey_delivered)
         bar.addWidget(self.sankey_delivered)
-        self.compare_button = QToolButton()
+        self.compare_button = _PickerButton()
         self.compare_button.setAccessibleName("Compare hierarchies")
         self.compare_button.setText("Compare: top 4")
-        self.compare_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.compare_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.compare_button.setToolTip(
             "Pick two to four hierarchies for the overlay. With none picked, "
             "the four with the most downtime are compared.")
-        self.compare_menu = QMenu(self.compare_button)
-        self.compare_button.setMenu(self.compare_menu)
+        self.compare_button.clicked.connect(lambda _c=False: self._open_picker("compare"))
         bar.addWidget(self.compare_button)
         self.baseline_button = QToolButton()
         self.baseline_button.setAccessibleName("Hierarchy baseline")
-        self.baseline_button.setText("Baseline: none")
+        self._retext(self.baseline_button, "Baseline: none")
         self.baseline_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.baseline_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.baseline_button.setToolTip(
@@ -287,7 +382,30 @@ class ChartsPage(QWidget):
         self.clear_baseline_action.setEnabled(False)
         self.baseline_button.setMenu(self.baseline_menu)
         bar.addWidget(self.baseline_button)
-        self.run_label = QLabel("Run")
+        self.hops_play = QToolButton()
+        self.hops_play.setText("Play")
+        self.hops_play.setAccessibleName("Play or pause the run-by-run animation")
+        self.hops_play.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_play.clicked.connect(self.toggle_hops_play)
+        self.hops_step = QToolButton()
+        self.hops_step.setText("Step")
+        self.hops_step.setAccessibleName("Show the next run")
+        self.hops_step.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_step.setToolTip("Show the next run (pauses the animation)")
+        self.hops_step.clicked.connect(self.step_hops)
+        self.hops_summary = QToolButton()
+        self.hops_summary.setText("Summary")
+        self.hops_summary.setAccessibleName("Back to the summary of all runs")
+        self.hops_summary.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.hops_summary.setToolTip("Stop and show every run at once")
+        self.hops_summary.clicked.connect(lambda _c=False: self.stop_hops(reset=True))
+        self.hops_label = QLabel("")
+        self.hops_label.setObjectName("SectionNote")
+        self.hops_label.setAccessibleName("Run being shown")
+        for hops_widget in (self.hops_play, self.hops_step, self.hops_summary,
+                            self.hops_label):
+            bar.addWidget(hops_widget)
+        self.run_label = QLabel(i18n.tr("Run", "Results"))
         self.run_box = QSpinBox()
         self.run_box.setMinimum(1)
         self.run_box.setAccelerated(True)
@@ -304,9 +422,10 @@ class ChartsPage(QWidget):
         self.target_button = self._target_control()
         self.capacity_target_button = QPushButton("Capacity target: none")
         self.capacity_target_button.setToolTip(
-            "A target capacity-weighted availability drawn on the year-by-year "
-            "capacity chart. Saved in the model file; the simulation does not "
-            "change.")
+            "A target share of the generated flow that must be delivered, drawn "
+            "as a dashed line on the capacity charts and judged (met or "
+            "missed) in their captions. Saved in the model file; the "
+            "simulation does not change.")
         self.capacity_target_button.clicked.connect(self._ask_capacity_target)
         self.capacity_axis_button = self._capacity_axis_control()
         self.fold_box = QComboBox()
@@ -399,62 +518,177 @@ class ChartsPage(QWidget):
         attribution = self._inputs.get("attribution")
         return hier.scope_meta(attribution, self._scope_row())
 
+    @staticmethod
+    def _retext(widget: Any, text: str) -> None:
+        """Set text built at run time, in the GUI language: the English is
+        written and the widget pass translates it, so switching the language
+        back restores the English."""
+        widget.setText(text)
+        i18n.translate_widgets(widget)
+
     def _scope_text(self) -> str:
         row = self._scope_row()
         if row is None:
             return "Scope: System"
+        if hier.is_tag(row) and not row.get("within"):
+            return "Scope: #" + str(row.get("name") or "")
+        if hier.is_tag(row):
+            return ("Scope: #" + str(row.get("name") or "") + " in "
+                    + " > ".join(str(p) for p in (row.get("path") or [])[:-1]))
         return "Scope: " + " > ".join(str(part) for part in row.get("path") or [row["name"]])
 
-    def _update_scope_menu(self) -> None:
-        self.scope_menu.clear()
-        attribution = self._inputs.get("attribution")
-        system = self.scope_menu.addAction("System")
-        system.setCheckable(True)
-        system.setChecked(self._scope_row() is None)
-        system.triggered.connect(lambda _c=False: self.set_scope(None, follow=False))
-        for row in hier.rows(attribution):
-            text = "  " * max(0, int(row.get("depth") or 1) - 1) + str(row["name"])
-            action = self.scope_menu.addAction(text)
-            action.setCheckable(True)
-            action.setChecked((self._scope_row() or {}).get("id") == row.get("id"))
-            ref = int(row.get("id") or 0)
-            action.triggered.connect(
-                lambda _c=False, ref=ref: self.set_scope(ref, follow=False))
-        self.scope_button.setText(self._scope_text())
+    def _update_scope_button(self) -> None:
+        self._retext(self.scope_button, self._scope_text())
+        picker = self._pickers.get("scope")
+        if picker is not None and picker.isVisible():
+            picker.set_current(self._scope_picker_current())
 
-    def _update_compare_menu(self) -> None:
-        self.compare_menu.clear()
-        attribution = self._inputs.get("attribution")
-        top = self.compare_menu.addAction("Top four by downtime")
-        top.setCheckable(True)
-        top.setChecked(not self._selected)
-        top.triggered.connect(lambda _c=False: self.set_compare([]))
-        self.compare_menu.addSeparator()
-        for row in hier.rows(attribution):
-            indent = "  " * max(0, int(row.get("depth") or 1) - 1)
-            action = self.compare_menu.addAction(indent + str(row["name"]))
-            action.setCheckable(True)
-            action.setChecked(int(row.get("id") or 0) in self._selected)
-            ref = int(row.get("id") or 0)
-            action.triggered.connect(
-                lambda checked=False, ref=ref: self._toggle_compare(ref, checked))
+    def _scope_picker_current(self) -> list[int]:
+        row = self._scope_row()
+        return [int(row.get("id") or 0)] if row is not None else []
+
+    def _update_compare_button(self) -> None:
         count = len(self._selected)
-        self.compare_button.setText(
-            "Compare: top 4" if not count else
-            f"Compare: {count} selected")
+        self._retext(self.compare_button,
+                     "Compare: top 4" if not count else
+                     f"Compare: {count} selected")
+        picker = self._pickers.get("compare")
+        if picker is not None and picker.isVisible():
+            picker.set_current(list(self._selected))
+        self._update_chips()
 
-    def _toggle_compare(self, ref: int, checked: bool) -> None:
-        chosen = list(self._selected)
-        if checked and ref not in chosen:
-            if len(chosen) >= 4:
-                # The comparison charts take four branches; refuse the fifth
-                # rather than leave a selection that cannot be drawn.
-                self._update_compare_menu()
-                return
-            chosen.append(ref)
-        elif not checked and ref in chosen:
-            chosen.remove(ref)
-        self.set_compare(chosen)
+    def picker(self, mode: str) -> HierarchyTreePopup:
+        """The scope or compare picker, built on first use and rebuilt only
+        when the hierarchies changed (a 3,000-row tree is not free)."""
+        picker = self._pickers.get(mode)
+        if picker is None:
+            picker = HierarchyTreePopup(mode, self)
+            picker.scope_chosen.connect(
+                lambda ref: self.set_scope(ref or None, follow=False))
+            picker.compare_chosen.connect(self.set_compare)
+            self._pickers[mode] = picker
+        attribution = self._inputs.get("attribution")
+        source = (id(attribution), i18n.current_locale())
+        if self._picker_source.get(mode) != source or self._picker_attr.get(mode) is not attribution:
+            current = (self._scope_picker_current() if mode == "scope"
+                       else list(self._selected))
+            picker.set_rows(
+                hier.rows(attribution), current=current,
+                tags=hier.tag_rows(attribution),
+                within=(hier.tag_within_rows(attribution)
+                        if mode == "scope" else ()))
+            self._picker_source[mode] = source
+            self._picker_attr[mode] = attribution
+        else:
+            picker.set_current(self._scope_picker_current() if mode == "scope"
+                               else list(self._selected))
+        i18n.translate_widgets(picker)
+        return picker
+
+    def _open_picker(self, mode: str) -> None:
+        button = self.scope_button if mode == "scope" else self.compare_button
+        self.picker(mode).popup_below(button)
+
+    def _update_chips(self) -> None:
+        """One chip per explicitly compared hierarchy: swatch, name, close."""
+        while self._chip_lay.count():
+            item = self._chip_lay.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+        attribution = self._inputs.get("attribution")
+        names = {int(row.get("id") or 0): str(row.get("name") or "")
+                 for row in hier.rows(attribution)}
+        names.update({int(row.get("id") or 0): "#" + str(row.get("name") or "")
+                      for row in hier.tag_rows(attribution)})
+        shown = [ref for ref in self._selected if ref in names]
+        for index, ref in enumerate(shown):
+            self._chip_lay.addWidget(self._make_chip(
+                ref, names[ref], hier.SERIES_COLOURS[
+                    index % len(hier.SERIES_COLOURS)]))
+        self._chip_lay.addStretch(1)
+        self._chips_shown = len(shown)
+        self.chip_row.setVisible(bool(shown) and self._compare_applies)
+        self._style_chips()
+
+    def _make_chip(self, ref: int, name: str, colour: str) -> QFrame:
+        chip = QFrame()
+        chip.setObjectName("CompareChip")
+        chip.setProperty("chipColour", colour)
+        lay = QHBoxLayout(chip)
+        lay.setContentsMargins(SPACING["sm"], 2, 2, 2)
+        lay.setSpacing(SPACING["xs"])
+        swatch = QLabel()
+        swatch.setObjectName("CompareChipSwatch")
+        swatch.setFixedSize(12, 12)
+        swatch.setStyleSheet(
+            f"background: {colour}; border-radius: 6px; border: none;")
+        lay.addWidget(swatch)
+        label = QLabel(name)
+        label.setObjectName("CompareChipName")
+        lay.addWidget(label)
+        close = QToolButton()
+        close.setObjectName("CompareChipClose")
+        close.setText("\u00d7")
+        close.setAutoRaise(True)
+        close.setCursor(Qt.CursorShape.PointingHandCursor)
+        close.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        remove = i18n.tr("Remove {name} from comparison", "Results").format(
+            name=name)
+        close.setAccessibleName(remove)
+        close.setToolTip(remove)
+        close.clicked.connect(lambda _c=False, ref=ref: self._remove_compare(ref))
+        lay.addWidget(close)
+        return chip
+
+    def _remove_compare(self, ref: int) -> None:
+        self.set_compare([r for r in self._selected if r != ref])
+
+    def _style_bar(self) -> None:
+        """Frame the toolbar's buttons (the dock's own style leaves a bare
+        QToolButton looking like a label) and put a caret on the two that
+        open a picker.  Theme tokens, so light, dark and contrast follow."""
+        from PySide6.QtGui import QColor
+
+        c = active_colour()
+        rim = QColor(c["border"])
+        ink = QColor(c["muted"])
+        edge = QColor((rim.red() + ink.red()) // 2, (rim.green() + ink.green()) // 2,
+                      (rim.blue() + ink.blue()) // 2).name()
+        base = (
+            f"QToolButton {{ background: {c['surface']}; color: {c['text']};"
+            f" border: 1px solid {edge}; border-radius: 4px;"
+            f" padding: 3px {SPACING['sm']}px; }}"
+            f"QToolButton:hover {{ background: {c['canvas']};"
+            f" border-color: {c['accent']}; }}"
+            f"QToolButton:pressed {{ background: {c['border']}; }}"
+            f"QToolButton:focus {{ border: 2px solid {c['accent']}; }}"
+            f"QToolButton:checked {{ background: rgba(20, 121, 201, 0.14);"
+            f" border-color: {c['accent']}; color: {c['accent']}; }}")
+        caret = f"QToolButton {{ padding-right: {_PickerButton.CARET_ROOM}px; }}"
+        for button in (self.follow_button, self.sankey_delivered,
+                       self.hops_play, self.hops_step, self.hops_summary):
+            button.setStyleSheet(base)
+        for button in (self.scope_button, self.compare_button):
+            button.setStyleSheet(base + caret)
+        for button in (self.baseline_button, self.export_button):
+            button.setStyleSheet(base)
+
+    def _style_chips(self) -> None:
+        """Chip colours from the active theme tokens (re-run on a switch)."""
+        c = active_colour()
+        self.chip_row.setStyleSheet(
+            f"QFrame#CompareChip {{ background: {c['group_header']};"
+            f" border: 1px solid {c['border']}; border-radius: 10px; }}"
+            f"QLabel#CompareChipName {{ color: {c['text']}; background: transparent; }}"
+            f"QToolButton#CompareChipClose {{ color: {c['muted']};"
+            f" border: none; border-radius: 8px; padding: 0 4px;"
+            f" background: transparent; }}"
+            f"QToolButton#CompareChipClose:hover {{ color: {c['text']};"
+            f" background: {c['border']}; }}"
+            f"QToolButton#CompareChipClose:focus {{ border: 2px solid"
+            f" {c['accent']}; }}")
 
     def _on_depth_changed(self, _index: int) -> None:
         self._depth = int(self.depth_box.currentData() or 0)
@@ -477,6 +711,8 @@ class ChartsPage(QWidget):
 
     def _on_theme_changed(self, _dark: bool) -> None:
         """The list's muted text and the painted chart follow the theme."""
+        self._style_chips()
+        self._style_bar()
         self._time_cache.clear()
         self._rebuild()
 
@@ -508,6 +744,8 @@ class ChartsPage(QWidget):
         row = self._scope_row()
         if row is None:
             return None
+        if hier.is_tag(row):
+            return [int(row.get("id") or 0)] if row.get("trials") else None
         prefix = hier.path_text(row) + " > "
         children = [item for item in hier.rows(self._inputs.get("attribution"))
                     if item is not row and hier.path_text(item).startswith(prefix)
@@ -527,21 +765,53 @@ class ChartsPage(QWidget):
         return charts.hierarchy_treemap(
             attribution, self._scope, depth=nested_depth)
 
+    def _on_sankey_delivered(self, _on: bool) -> None:
+        self._sankey_auto = False        # an explicit choice sticks
+        self._show_current()
+
+    #: Below this share of the generated flow the loss is a sliver next to
+    #: the delivered branch, so the Sankey starts from the loss instead.
+    SANKEY_SMALL_LOSS = 0.10
+
     def _capacity_sankey_spec(self) -> charts.ChartSpec:
-        """The lost-capacity Sankey with the grouping controls applied."""
+        """The lost-capacity Sankey with the grouping controls applied.
+
+        Design: when the loss is under 10 % of the generated flow the
+        Delivered branch would take the whole height and leave the loss and
+        its hierarchy and cause columns a few pixels.  The chart then starts
+        at the loss ("Lost only", the existing Delivered button turned off)
+        and the caption says so; clicking Delivered turns the whole flow
+        back on and the choice sticks."""
         attribution = self._inputs.get("attribution") or {}
         by_hierarchy = bool(self.sankey_box.currentData())
-        return charts.capacity_sankey(
+        capacity = attribution.get("capacity") or {}
+        lost = float((capacity.get("lost_energy") or {}).get("mean") or 0.0)
+        delivered = float((capacity.get("delivered_energy") or {}).get("mean") or 0.0)
+        share = lost / (lost + delivered) if lost + delivered > 0 else 1.0
+        if self._sankey_auto:
+            want = share >= self.SANKEY_SMALL_LOSS
+            if want != self.sankey_delivered.isChecked():
+                self.sankey_delivered.blockSignals(True)
+                self.sankey_delivered.setChecked(want)
+                self.sankey_delivered.blockSignals(False)
+        shown = self.sankey_delivered.isChecked()
+        spec = charts.capacity_sankey(
             attribution, self._scope,
             None if self._scope is not None else (self._selected or None),
-            by_hierarchy=by_hierarchy,
-            show_delivered=self.sankey_delivered.isChecked())
+            by_hierarchy=by_hierarchy, show_delivered=shown,
+            capacity_target=self._capacity_target)
+        if self._sankey_auto and not shown:
+            spec.caption += (
+                f" Showing the lost flow only: it is {pct(share)} of the "
+                f"generated flow ({delivered:,.0f} was delivered). Press "
+                "Delivered to draw the whole flow.")
+        return spec
 
     def _on_follow_toggled(self, on: bool) -> None:
         self._follow_canvas = bool(on)
         if on:
             self._scope = self._canvas_hierarchy or None
-            self._update_scope_menu()
+            self._update_scope_button()
             self._time_cache.clear()
             self._rebuild()
 
@@ -554,7 +824,7 @@ class ChartsPage(QWidget):
         if ref == self._scope:
             return
         self._scope = ref
-        self._update_scope_menu()
+        self._update_scope_button()
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -567,7 +837,7 @@ class ChartsPage(QWidget):
             self.follow_button.setChecked(self._follow_canvas)
             self.follow_button.blockSignals(False)
         self._scope = scope if scope not in (0, "0", "") else None
-        self._update_scope_menu()
+        self._update_scope_button()
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -580,9 +850,12 @@ class ChartsPage(QWidget):
                                   .get("id") or 0))
             except ValueError:
                 continue
+        before = list(self._selected)
         self._selected = list(dict.fromkeys(chosen))[:4]
-        self._update_compare_menu()
+        self._update_compare_button()
         self._rebuild()
+        if before != self._selected:
+            self.compare_changed.emit(list(self._selected))
 
     def selected_hierarchies(self) -> list[int]:
         return list(self._selected)
@@ -594,20 +867,21 @@ class ChartsPage(QWidget):
         self._baseline_rows = list(attribution["hierarchies"])
         run = self._inputs.get("run_id")
         self._baseline_label = f"run {run}" if run else "this run"
-        self.baseline_button.setText("Baseline: set")
+        self._retext(self.baseline_button, "Baseline: set")
         self.clear_baseline_action.setEnabled(True)
         self._rebuild()
 
     def _clear_baseline(self) -> None:
         self._baseline_rows = None
         self._baseline_label = None
-        self.baseline_button.setText("Baseline: none")
+        self._retext(self.baseline_button, "Baseline: none")
         self.clear_baseline_action.setEnabled(False)
         self._rebuild()
 
     def set_baseline(self, rows: list[dict[str, Any]] | None) -> None:
         self._baseline_rows = list(rows) if rows else None
-        self.baseline_button.setText("Baseline: set" if rows else "Baseline: none")
+        self._retext(self.baseline_button,
+                     "Baseline: set" if rows else "Baseline: none")
         self.clear_baseline_action.setEnabled(bool(rows))
 
     # -- input ----------------------------------------------------------
@@ -626,7 +900,8 @@ class ChartsPage(QWidget):
                    baseline: list[dict[str, Any]] | None = None,
                    model_hierarchies: bool | None = None,
                    model_phases: bool | None = None,
-                   currency: str | None = None) -> None:
+                   currency: str | None = None,
+                   tags_changed: bool = False) -> None:
         """Rebuild the list from whatever this result set has, money in
         `currency` (the model's; "$" when not given).
 
@@ -641,18 +916,30 @@ class ChartsPage(QWidget):
                         "generated": generated,
                         "model_hierarchies": model_hierarchies,
                         "model_phases": model_phases,
-                        "currency": currency}
+                        "currency": currency, "tags_changed": tags_changed}
+        self._sankey_auto = True
         if self._follow_canvas:
             self._scope = int(hierarchy) if hierarchy else None
         if self._scope is not None and self._scope_row() is None:
             self._scope = None
         valid_ids = {int(row.get("id") or 0)
-                     for row in ((attribution or {}).get("hierarchies") or [])}
-        self._selected = [hid for hid in self._selected if hid in valid_ids]
+                     for row in (((attribution or {}).get("hierarchies") or [])
+                                 + hier.tag_rows(attribution))}
+        before_selected = list(self._selected)
+        # An empty reset (the dock was cleared ahead of a re-run of the same
+        # model) holds the picks; the run's own attribution prunes them.
+        if attribution is not None or not self._selected:
+            self._selected = [hid for hid in self._selected
+                              if hid in valid_ids]
+        if before_selected != self._selected or (
+                self._selected and attribution is not None):
+            # Re-sent after a re-run too: the canvas rings were drawn for the
+            # previous result set.
+            self.compare_changed.emit(list(self._selected))
         if baseline is not None:
             self.set_baseline(baseline)
-        self._update_scope_menu()
-        self._update_compare_menu()
+        self._update_scope_button()
+        self._update_compare_button()
         self._update_depth_menu()
         self._time_cache.clear()
         self._rebuild()
@@ -701,8 +988,12 @@ class ChartsPage(QWidget):
     # -- the list -------------------------------------------------------
 
     def _rebuild(self) -> None:  # noqa: C901 - one list rebuild
+        self.stop_hops(reset=True, redraw=False)
         current = self.selected_key() or self._wanted
-        folded = {item.text(0) for item in self._groups() if not item.isExpanded()}
+        heading_shown = self.selected_group()
+        self._thumbs.clear()
+        folded = {self._group_name(item) for item in self._groups()
+                  if not item.isExpanded()}
         self._entries = {e.key: e for e in self._catalogue()}
         self._build_errors = {}
         self._specs = {}
@@ -718,13 +1009,18 @@ class ChartsPage(QWidget):
         heading.setBold(True)
         muted = QColor(palette["muted"])
         chosen: QTreeWidgetItem | None = None
+        self._add_all_item(heading, muted)
         for group in GROUPS:
             members = [e for e in self._entries.values() if e.group == group]
             if not members:
                 continue
-            parent = QTreeWidgetItem([group.upper()])
-            parent.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            parent.setToolTip(0, "Click to fold or unfold this group")
+            parent = QTreeWidgetItem([i18n.tr(group).upper()])
+            parent.setData(0, _GROUP, group)
+            parent.setFlags(Qt.ItemFlag.ItemIsEnabled
+                            | Qt.ItemFlag.ItemIsSelectable)
+            parent.setToolTip(0, i18n.tr(
+                "Click to see this group's charts; click the arrow to fold "
+                "or unfold it"))
             parent.setFont(0, heading)
             parent.setForeground(0, muted)
             self.nav.addTopLevelItem(parent)
@@ -733,28 +1029,104 @@ class ChartsPage(QWidget):
                 parent.addChild(item)
                 if entry.key == current:
                     chosen = item
-            parent.setExpanded(parent.text(0) not in folded
+            parent.setExpanded(self._group_name(parent) not in folded
                                or (chosen is not None and chosen.parent() is parent))
         if chosen is None:
             chosen = self._first_available()
         self.nav.blockSignals(False)
-        if chosen is not None:
+        for head in self._groups():
+            self._sync_caret(head)
+        shown = (self._heading(heading_shown) if heading_shown else None)
+        if shown is not None:
+            self.nav.setCurrentItem(shown)
+        elif chosen is not None:
             self.nav.setCurrentItem(chosen)
         if self.search.text():
             self._filter_charts(self.search.text())
+        self._sync_nav_combo()
         self._show_current()
+
+    def _add_all_item(self, font: QFont, colour: QColor) -> None:
+        """The All charts heading, above the groups."""
+        every = QTreeWidgetItem([i18n.tr(ALL_CHARTS).upper()])
+        every.setData(0, _GROUP, ALL_CHARTS)
+        every.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+        every.setToolTip(0, i18n.tr(
+            "Every group's charts on one page, under a heading per group"))
+        every.setFont(0, font)
+        every.setForeground(0, colour)
+        self.nav.addTopLevelItem(every)
+        self._all_item = every
+
+    #: Below this page width the chart list gives way to the drop-down.
+    NARROW_WIDTH = 600
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt name
+        super().resizeEvent(event)
+        narrow = self.width() < self.NARROW_WIDTH
+        if narrow != self._narrow:
+            self._narrow = narrow
+            self._left.setVisible(not narrow)
+            self.nav_combo.setVisible(narrow)
+            self._sync_nav_combo()
+
+    def _combo_row_of(self, item: QTreeWidgetItem | None) -> int:
+        if item is None:
+            return -1
+        key = str(item.data(0, _KEY) or "")
+        want = (False, key) if key else (True, self._group_name(item))
+        return self._combo_rows.index(want) if want in self._combo_rows else -1
+
+    def _sync_nav_combo(self) -> None:
+        """Mirror the chart list in the drop-down: a bold heading per group,
+        its charts indented under it, an unavailable chart in italics."""
+        combo = self.nav_combo
+        combo.blockSignals(True)
+        combo.clear()
+        self._combo_rows = []
+        if self._all_item is not None:
+            combo.addItem(self._all_item.text(0))
+            combo.setItemData(combo.count() - 1, self._all_item.font(0),
+                              Qt.ItemDataRole.FontRole)
+            self._combo_rows.append((True, ALL_CHARTS))
+        for head in self._groups():
+            combo.addItem(head.text(0))
+            combo.setItemData(combo.count() - 1, head.font(0), Qt.ItemDataRole.FontRole)
+            self._combo_rows.append((True, self._group_name(head)))
+            for index in range(head.childCount()):
+                child = head.child(index)
+                if child is None or child.isHidden():
+                    continue
+                combo.addItem("    " + child.text(0))
+                combo.setItemData(combo.count() - 1, child.font(0),
+                                  Qt.ItemDataRole.FontRole)
+                combo.setItemData(combo.count() - 1, child.toolTip(0),
+                                  Qt.ItemDataRole.ToolTipRole)
+                self._combo_rows.append((False, str(child.data(0, _KEY) or "")))
+        combo.setCurrentIndex(self._combo_row_of(self.nav.currentItem()))
+        combo.blockSignals(False)
+
+    def _on_combo_activated(self, index: int) -> None:
+        if not 0 <= index < len(self._combo_rows):
+            return
+        heading, name = self._combo_rows[index]
+        item = (self._heading(name) if heading else
+                next((i for i in self._chart_items()
+                      if str(i.data(0, _KEY)) == name), None))
+        if item is not None:
+            self.nav.setCurrentItem(item)
 
     def _filter_charts(self, text: str) -> None:
         """Show only charts whose title, key or group matches the search."""
         needle = " ".join(text.lower().split())
         groups = self._groups()
         if needle and self._search_folded is None:
-            self._search_folded = {group.text(0): group.isExpanded()
+            self._search_folded = {self._group_name(group): group.isExpanded()
                                    for group in groups}
         if not needle and self._search_folded is not None:
             folded, self._search_folded = self._search_folded, None
             for group in groups:
-                group.setExpanded(folded.get(group.text(0), True))
+                group.setExpanded(folded.get(self._group_name(group), True))
         first: QTreeWidgetItem | None = None
         for group in groups:
             any_visible = False
@@ -762,7 +1134,8 @@ class ChartsPage(QWidget):
                 item = group.child(index)
                 entry = self._entries.get(str(item.data(0, _KEY) or ""))
                 haystack = " ".join((
-                    group.text(0), item.text(0),
+                    group.text(0), item.text(0), self._group_name(group),
+                    entry.title if entry else "",
                     entry.key if entry else "", entry.group if entry else "",
                     entry.missing if entry else "")).lower()
                 visible = not needle or all(part in haystack
@@ -775,13 +1148,19 @@ class ChartsPage(QWidget):
             group.setHidden(not any_visible)
             if needle and any_visible:
                 group.setExpanded(True)
+        self._after_filter(needle, first)
+
+    def _after_filter(self, needle: str, first: QTreeWidgetItem | None) -> None:
+        """Keep a shown chart in view, and the cards in step with the search."""
         current = self.nav.currentItem()
         if needle and (current is None or current.isHidden()) and first is not None:
             self.nav.setCurrentItem(first)
+        elif self.selected_group() is not None:
+            self._show_current()
 
     def _item(self, entry: _Entry, muted: QColor) -> QTreeWidgetItem:
         """One chart's row: greyed, with the reason, when it cannot be drawn."""
-        item = QTreeWidgetItem([entry.title])
+        item = QTreeWidgetItem([i18n.tr(entry.title)])
         item.setData(0, _KEY, entry.key)
         if entry.missing:
             italic = QFont(self.nav.font())
@@ -791,14 +1170,22 @@ class ChartsPage(QWidget):
             item.setToolTip(0, entry.missing)
         else:
             spec = self._specs.get(entry.title)
-            item.setToolTip(0, (f"{entry.title} — {spec.subtitle}"
+            spec = chart_i18n.translate_spec(spec)
+            title = i18n.tr(entry.title)
+            item.setToolTip(0, (f"{title} — {spec.subtitle}"
                                 if spec is not None and spec.subtitle
-                                else entry.title))
+                                else title))
         return item
+
+    @staticmethod
+    def _group_name(item: QTreeWidgetItem) -> str:
+        """A heading's English name (the text shown may be translated)."""
+        return str(item.data(0, _GROUP) or item.text(0))
 
     def _groups(self) -> list[QTreeWidgetItem]:
         items = (self.nav.topLevelItem(i) for i in range(self.nav.topLevelItemCount()))
-        return [item for item in items if item is not None]
+        return [item for item in items
+                if item is not None and item.data(0, _GROUP) != ALL_CHARTS]
 
     def _chart_items(self) -> list[QTreeWidgetItem]:
         children = (parent.child(j) for parent in self._groups()
@@ -817,6 +1204,10 @@ class ChartsPage(QWidget):
         periods = i.get("periods")
         report_data = i.get("report_data") or []
         target, units = i.get("target"), i.get("units") or ""
+        if attribution and units and not attribution.get("units"):
+            # captions such as the overlay's "Intake caused 42.8 h" read the
+            # units from the attribution; the GUI passes them separately
+            attribution = {**attribution, "units": units}
         row = self._scope_row()
         source = hier.scoped(attribution, row) if row is not None else (attribution or {})
         scope_reason = ("This chart is system-wide and has no per-hierarchy "
@@ -919,7 +1310,9 @@ class ChartsPage(QWidget):
         no_compare = ("" if has_comparable else
                       "No hierarchy has downtime to compare in this run.")
         add("hierarchy-scorecard", "Hierarchy scorecard", "By hierarchy",
-            lambda: charts.hierarchy_scorecard(attribution or {}, depth=self._ranking_depth()),
+            lambda: charts.hierarchy_scorecard(
+                attribution or {}, depth=self._ranking_depth(),
+                baseline=self._baseline_rows),
             scope_reason or no_hier)
         add("hierarchy-pareto", "Hierarchy Pareto", "By hierarchy",
             lambda: charts.hierarchy_pareto(attribution or {}, self._scope,
@@ -933,6 +1326,10 @@ class ChartsPage(QWidget):
         add("hierarchy-small-multiples", "Is the hierarchy ranking stable?", "By hierarchy",
             lambda: charts.hierarchy_small_multiples(attribution or {}, chosen,
                                                             depth=self._ranking_depth()),
+            no_hier or no_overlap or no_compare)
+        add("hierarchy-hops", "Which hierarchy is worse, run by run?", "By hierarchy",
+            lambda: charts.hierarchy_hops(attribution or {}, chosen,
+                                          depth=self._ranking_depth()),
             no_hier or no_overlap or no_compare)
         add("hierarchy-delta", "Hierarchy change against baseline", "By hierarchy",
             lambda: charts.hierarchy_delta(
@@ -1056,6 +1453,11 @@ class ChartsPage(QWidget):
         no_capacity = ("" if a.get("capacity") else
                        drivers_missing() or "Lost capacity needs the capacity "
                        "analysis. " + run_needs.gui_hint("capacity"))
+        # the analysis ran but nothing was lost: the Sankey has no flow to draw
+        _lost = ((a.get("capacity") or {}).get("lost_energy") or {}).get("mean")
+        no_lost = (charts._no_capacity(a)
+                   if a.get("capacity") and _lost is not None
+                   and float(_lost) <= 0 else "")
         capacity_needs: tuple[str, ...] = (
             () if a.get("capacity") or action else
             ("capacity",) if attribution else ("attribution", "capacity"))
@@ -1065,7 +1467,8 @@ class ChartsPage(QWidget):
                 ("capacity-vs-downtime", "Downtime against lost capacity",
                  lambda: charts.capacity_vs_downtime(a)),
                 ("capacity-waterfall", "Lost capacity by cause",
-                 lambda: charts.capacity_waterfall(a)),
+                 lambda: charts.capacity_waterfall(
+                     a, self._capacity_target if row is None else None)),
                 ("lost-capacity-treemap", "Lost capacity treemap",
                  lambda: charts.lost_capacity_treemap(a))):
             add(key, title, "Lost capacity", build,
@@ -1074,7 +1477,7 @@ class ChartsPage(QWidget):
         if has_hier:
             add("capacity-sankey", "Lost capacity by hierarchy and cause",
                 "Lost capacity", self._capacity_sankey_spec,
-                no_capacity or no_overlap)
+                no_capacity or no_lost or no_overlap)
 
         ends = [float(row["ending_sim_time"]) for row in per_run
                 if isinstance(row.get("ending_sim_time"), (int, float))]
@@ -1174,6 +1577,7 @@ class ChartsPage(QWidget):
             entries = [entry for entry in entries
                        if not entry.key.startswith("phase-")
                        and entry.key != "hierarchy-phase-heatmap"]
+        entries = self._limit_for_tags(entries, row, chosen_rows)
         if row is not None:
             # Scoped, the hierarchy Pareto already ranks the children and
             # elements inside the scope with a stated denominator, and the
@@ -1181,6 +1585,49 @@ class ChartsPage(QWidget):
             entries = [entry for entry in entries
                        if entry.key not in ("downtime-pareto",
                                             "hierarchy-anatomy")]
+        return entries
+
+    #: The charts a tag scope can draw. A tag is a set of elements that may
+    #: overlap other tags and cut across hierarchies, so a part-of-a-whole
+    #: chart (sunburst, treemap, stacked overlay, unassigned remainder) or a
+    #: tree view would draw something false; contribution charts are fine.
+    TAG_SCOPE_CHARTS = frozenset({
+        "trial-outcome", "ecdf", "convergence", "hierarchy-pareto",
+        "hierarchy-small-multiples", "hierarchy-hops", "hierarchy-heatmap",
+        "component-failures", "cost-pareto", "importance-quadrant"})
+    #: Charts that need the per-run list a tag-within row does not keep.
+    TAG_PER_RUN_CHARTS = frozenset({
+        "trial-outcome", "ecdf", "convergence",
+        "hierarchy-small-multiples", "hierarchy-hops"})
+    #: Comparison charts that accept tags among the compared rows.
+    TAG_COMPARE_CHARTS = frozenset({
+        "hierarchy-small-multiples", "hierarchy-hops"})
+
+    def _limit_for_tags(self, entries: list[_Entry],
+                        row: dict[str, Any] | None,
+                        chosen_rows: list[dict[str, Any]]) -> list[_Entry]:
+        """Mark the charts a tag scope or a tag comparison cannot draw."""
+        tag_scope = hier.is_tag(row)
+        tag_compare = any(hier.is_tag(item) for item in chosen_rows)
+        if not (tag_scope or tag_compare):
+            return entries
+        for entry in entries:
+            if entry.missing:
+                continue
+            if (tag_scope and (row or {}).get("within")
+                    and entry.key in self.TAG_PER_RUN_CHARTS):
+                entry.missing = ("Run-by-run shares are kept for a whole "
+                                 "tag, not for a tag inside a hierarchy: "
+                                 "choose the tag itself.")
+            elif tag_scope and entry.key not in self.TAG_SCOPE_CHARTS:
+                entry.missing = ("Tags overlap and cut across hierarchies, "
+                                 "so this chart cannot show one. Use a "
+                                 "ranking, the run-to-run charts or "
+                                 "Compare.")
+            elif tag_compare and entry.key == "hierarchy-overlay":
+                entry.missing = ("The outage timeline is kept per "
+                                 "hierarchy, not per tag: use small "
+                                 "multiples or run-by-run for tags.")
         return entries
 
     # -- showing a chart ------------------------------------------------
@@ -1195,12 +1642,19 @@ class ChartsPage(QWidget):
             with currency(self._inputs.get("currency")):
                 spec = entry.build()
                 return charts.with_currency_stamp(spec) if spec is not None else None
+        except ValueError as exc:
+            # a builder's "cannot draw this, here is why": not a bug
+            logging.getLogger(__name__).debug("no %s: %s", entry.key, exc)
+            self._build_errors[entry.key] = str(exc)
+            return None
         except Exception as exc:  # noqa: BLE001 - one bad chart must not break the tab
             logging.getLogger(__name__).exception("could not build %s", entry.key)
             self._build_errors[entry.key] = str(exc)
             return None
 
-    def _time_spec(self, key: str) -> charts.ChartSpec | None:
+    def _time_spec(self, key: str, *, quiet: bool = False) -> charts.ChartSpec | None:
+        """A recorded-plot chart; `quiet` returns None on failure instead of
+        switching the page to the explanation (the overview's pictures)."""
         run = self.run_box.value() if key in timecharts.PER_RUN_CHARTS else 0
         cache_key = (key, run, self._y_floor)
         if cache_key not in self._time_cache:
@@ -1212,34 +1666,51 @@ class ChartsPage(QWidget):
                     key, ao_runs=self._ao_runs, cap_runs=self._cap_runs,
                     run=max(1, run), units=i.get("units") or "",
                     target=i.get("target"), y_floor=self._y_floor or None,
+                    capacity_target=self._capacity_target,
                     generated=i.get("generated"),
                     ends=ends if any(e is not None for e in ends) else None)
             except ValueError as exc:
-                self._show_missing(self._entries[key].title, str(exc), "")
+                if not quiet:
+                    self._show_missing(self._entries[key].title, str(exc), "")
                 return None
         return self._time_cache[cache_key]
 
     def _on_current(self, current: QTreeWidgetItem | None, _previous) -> None:
         if current is not None and current.data(0, _KEY):
+            if str(current.data(0, _KEY)) != self._wanted:
+                self.stop_hops(reset=True, redraw=False)
             self._wanted = str(current.data(0, _KEY))
+        if self._combo_rows:
+            self.nav_combo.blockSignals(True)
+            self.nav_combo.setCurrentIndex(self._combo_row_of(current))
+            self.nav_combo.blockSignals(False)
         self._show_current()
 
-    def _show_current(self) -> None:  # noqa: C901 - one branch per chart shape
+    def _show_current(self) -> None:  # noqa: C901, PLR0912 - one branch per chart shape
         key = self.selected_key()
         entry = self._entries.get(key or "")
         self._sync_controls(entry)
         self._sync_note()
+        group = self.selected_group()
+        if group is not None:
+            self._show_overview(group)
+            return
         if entry is None:
             self.chart.set_spec(None)
             self.stack.setCurrentWidget(self.chart_scroll)
             return
         if entry.missing:
-            self._show_missing(entry.title, entry.missing, entry.action)
+            self._show_missing(i18n.tr(entry.title), entry.missing, entry.action)
             return
+        spec: charts.ChartSpec | None
         if entry.key == "hierarchy-map":
             spec = self._hierarchy_map_spec()
         elif entry.key == "capacity-sankey":
             spec = self._capacity_sankey_spec()
+        elif entry.key == "hierarchy-hops":
+            static_spec = self._specs.get(entry.title)
+            spec = (charts.hops_frame(static_spec, self._hops_frame)
+                    if static_spec is not None else None)
         elif entry.key == "hierarchy-ribbon":
             try:
                 spec = charts.hierarchy_ribbon(
@@ -1253,7 +1724,7 @@ class ChartsPage(QWidget):
                     else self._specs.get(entry.title))
         if spec is None:
             self._show_missing(
-                entry.title,
+                i18n.tr(entry.title),
                 self._build_errors.get(entry.key,
                                        "This chart cannot be drawn from this "
                                        "result."), "")
@@ -1262,13 +1733,205 @@ class ChartsPage(QWidget):
         folding = charts.parse_fold(self.fold_box.currentData())
         if folding:
             spec = charts.fold_small(spec, **folding)
+        tag_note = ""
+        if self._inputs.get("tags_changed") and (
+                hier.is_tag(self._scope_row())
+                or any(int(ref) < 0 for ref in self._selected)):
+            tag_note = ("Tag results are fixed when the model runs; the "
+                        "tags changed since this run, so run again to "
+                        "update them.")
         if self._scope_row() is not None:
             spec = hier.annotate(spec, self._scope_meta())
+        if tag_note and tag_note not in (spec.caption or ""):
+            spec.caption = f"{spec.caption} {tag_note}".strip()
         if entry.key in ("capacity-through-run", "capacity-band"):
             spec = self._apply_capacity_axis(spec)
-        self.chart.set_spec(spec)
+        self.chart.set_spec(chart_i18n.translate_spec(spec))
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
+
+    # -- group headings and the group overview ----------------------------
+
+    def selected_group(self) -> str | None:
+        """The English name of the group whose heading is current, if any."""
+        item = self.nav.currentItem()
+        if item is None or item.data(0, _KEY):
+            return None
+        if item is self._all_item:
+            return ALL_CHARTS
+        if not item.childCount():
+            return None
+        return self._group_name(item)
+
+    def _heading(self, group: str) -> QTreeWidgetItem | None:
+        if group == ALL_CHARTS:
+            return self._all_item
+        return next((h for h in self._groups() if self._group_name(h) == group),
+                    None)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802 - Qt name
+        """Two clicks on a heading are told apart before the list sees them:
+        one on its arrow only folds (`_caret_hit`), and one on a heading
+        that is not current shows its overview (`_on_nav_clicked`)."""
+        if (obj is not self.nav.viewport()
+                and obj in (getattr(self, "scope_button", None),
+                            getattr(self, "compare_button", None))
+                and event.type() == QEvent.Type.KeyPress
+                and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)):
+            self._open_picker("scope" if obj is self.scope_button else "compare")
+            return True
+        if obj is self.nav.viewport() and event.type() in (
+                QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                QEvent.Type.MouseButtonDblClick):
+            item = self.nav.itemAt(event.position().toPoint())
+            if item is not None and self._caret_hit(
+                    item, event.position().toPoint()):
+                if event.type() == QEvent.Type.MouseButtonPress:
+                    item.setExpanded(not item.isExpanded())
+                return True
+            if event.type() == QEvent.Type.MouseButtonPress:
+                self._press_was_current = (item is not None
+                                           and item is self.nav.currentItem())
+        return super().eventFilter(obj, event)
+
+    def _caret_hit(self, item: QTreeWidgetItem, pos: QPoint) -> bool:
+        if not item.childCount() or item.data(0, _KEY):
+            return False
+        rect = self.nav.visualItemRect(item)
+        return pos.x() < rect.left() + self.nav.iconSize().width() + 6
+
+    def _on_nav_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:
+        """A heading: the first click shows its overview (and unfolds it); a
+        click on the heading already shown folds or unfolds it."""
+        if not item.childCount() or item.data(0, _KEY):
+            return
+        if self._press_was_current:
+            item.setExpanded(not item.isExpanded())
+        else:
+            item.setExpanded(True)
+
+    def _sync_caret(self, item: QTreeWidgetItem) -> None:
+        """The arrow beside a heading: down when open, right when folded."""
+        if item.data(0, _KEY) or not item.childCount():
+            return
+        size = max(10, self.nav.fontMetrics().height() - 4)
+        ratio = self.nav.devicePixelRatioF()
+        pixmap = QPixmap(int(size * ratio), int(size * ratio))
+        pixmap.setDevicePixelRatio(ratio)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(active_colour()["muted"]))
+        from PySide6.QtCore import QPointF
+        m = size * 0.2
+        if item.isExpanded():
+            points = [QPointF(m, size * 0.32), QPointF(size - m, size * 0.32),
+                      QPointF(size / 2, size * 0.72)]
+        else:
+            points = [QPointF(size * 0.32, m), QPointF(size * 0.72, size / 2),
+                      QPointF(size * 0.32, size - m)]
+        painter.drawPolygon(QPolygonF(points))
+        painter.end()
+        self.nav.setIconSize(pixmap.deviceIndependentSize().toSize())
+        item.setIcon(0, QIcon(pixmap))
+
+    def _open_chart(self, key: str) -> None:
+        """A card was chosen: show that chart."""
+        if self.select(key):
+            self.nav.setFocus()
+
+    def _cards(self, heading: QTreeWidgetItem) -> list[CardData]:
+        """The cards for a heading's charts that the search leaves shown."""
+        cards: list[CardData] = []
+        for index in range(heading.childCount()):
+            item = heading.child(index)
+            entry = self._entries.get(str(item.data(0, _KEY) or ""))
+            if item.isHidden() or entry is None:
+                continue
+            cards.append(CardData(
+                entry.key, i18n.tr(entry.title),
+                i18n.tr(chart_descriptions.describe(entry.key)),
+                i18n.translate_source(entry.missing) if entry.missing else ""))
+        return cards
+
+    def _show_overview(self, group: str) -> None:
+        blurb = i18n.tr(chart_descriptions.GROUP_BLURBS.get(group, ""))
+        self.chart.set_spec(None)
+        if group == ALL_CHARTS:
+            sections = []
+            for head in self._groups():
+                cards = self._cards(head)
+                if head.isHidden() or not cards:
+                    continue
+                name = self._group_name(head)
+                sections.append(Section(
+                    i18n.tr(name),
+                    i18n.tr(chart_descriptions.GROUP_BLURBS.get(name, "")), cards))
+            if not sections:
+                blurb = i18n.tr("No chart matches the search.")
+            self.overview.show_sections(group, i18n.tr(group), blurb, sections)
+        else:
+            heading = self._heading(group)
+            self.overview.show_group(
+                group, i18n.tr(group), blurb,
+                self._cards(heading) if heading is not None else [])
+        self.stack.setCurrentWidget(self.overview)
+
+    # -- the overview's pictures ------------------------------------------
+
+    def _thumb_look(self, width: int) -> tuple:
+        """What a picture depends on besides its chart: its size, the theme,
+        the UI scale and the language."""
+        colour = active_colour()
+        return (width, colour["surface"], colour["text"],
+                round(self.font().pointSizeF(), 1),
+                round(self.devicePixelRatioF(), 2), i18n.current_locale())
+
+    def _thumb_spec(self, key: str, *, build: bool) -> charts.ChartSpec | None:
+        entry = self._entries.get(key)
+        if entry is None or entry.missing:
+            return None
+        if key in timecharts.TIME_CHARTS:
+            if build:
+                return self._time_spec(key, quiet=True)
+            run = self.run_box.value() if key in timecharts.PER_RUN_CHARTS else 0
+            return self._time_cache.get((key, run, self._y_floor))
+        return self._specs.get(entry.title)
+
+    def _thumb_cached(self, key: str, width: int) -> QPixmap | None:
+        """The picture already drawn from the chart as it stands, if any."""
+        held = self._thumbs.get(key)
+        spec = self._thumb_spec(key, build=False)
+        if held is None or spec is None or held[0] is not spec \
+                or held[1] != self._thumb_look(width):
+            return None
+        return held[2]
+
+    def _thumb_render(self, key: str, width: int) -> QPixmap | None:
+        """Draw a chart small: its plot alone, in the GUI language, at the
+        size it will be shown (not a big picture scaled down, which thins
+        every line and shrinks every label)."""
+        spec = self._thumb_spec(key, build=True)
+        if spec is None:
+            return None
+        height = int(width * ASPECT)
+        if self._thumb_widget is None:
+            self._thumb_widget = ChartWidget()
+            self._thumb_widget.thumbnail = True
+        widget = self._thumb_widget
+        small = QFont(self.font())      # a card's chart reads at a glance: smaller type
+        small.setPointSizeF(max(6.5, small.pointSizeF() - 1.5))
+        widget.setFont(small)
+        widget.resize(width, height)
+        widget.set_spec(chart_i18n.translate_spec(spec))
+        ratio = self.devicePixelRatioF()
+        pixmap = QPixmap(int(width * ratio), int(height * ratio))
+        pixmap.setDevicePixelRatio(ratio)
+        widget.render(pixmap)
+        widget.set_spec(None)
+        self._thumbs[key] = (spec, self._thumb_look(width), pixmap)
+        return pixmap
 
     def _on_missing_action(self) -> None:
         entry = self._entries.get(self.selected_key() or "")
@@ -1277,11 +1940,90 @@ class ChartsPage(QWidget):
         else:
             self.drivers_requested.emit()
 
+    # -- run-by-run hierarchy plot (opt-in animation) ---------------------
+
+    @staticmethod
+    def motion_reduced() -> bool:
+        from raptor.gui.ui import settings
+        return settings.get_bool("appearance/reduce_motion", False)
+
+    def _hops_runs(self) -> int:
+        entry = self._entries.get("hierarchy-hops")
+        spec = self._specs.get(entry.title) if entry is not None else None
+        return int(spec.provenance.get("runs") or 0) if spec is not None else 0
+
+    def sync_motion_setting(self) -> None:
+        """Apply a changed Reduce motion setting: stop and disable Play."""
+        if self.motion_reduced():
+            self.stop_hops(reset=True)
+        else:
+            self._sync_hops()
+
+    def _sync_hops(self) -> None:
+        runs = self._hops_runs()
+        playing = self._hops_timer.isActive()
+        reduced = self.motion_reduced()
+        self._retext(self.hops_play, "Pause" if playing else "Play")
+        self.hops_play.setEnabled(runs > 1 and not reduced)
+        self.hops_play.setToolTip(
+            "Reduce motion is on (Preferences > Appearance): the animation "
+            "is off. Use Step to go through the runs one at a time."
+            if reduced else
+            "Animate through the runs, one at a time, to see how often the "
+            "ranking changes")
+        self.hops_step.setEnabled(runs > 1)
+        self.hops_summary.setEnabled(self._hops_frame is not None)
+        self._retext(self.hops_label,
+                     f"Run {self._hops_frame + 1} of {runs}"
+                     if self._hops_frame is not None
+                     else (f"All {runs} runs" if runs else ""))
+
+    def toggle_hops_play(self) -> None:
+        if self._hops_timer.isActive():
+            self._hops_timer.stop()
+            self._sync_hops()
+            return
+        if self.motion_reduced() or self._hops_runs() < 2:
+            return
+        self._hops_timer.start()
+        self._hops_tick()
+
+    def step_hops(self) -> None:
+        """Show the next run (and pause: stepping is manual)."""
+        self._hops_timer.stop()
+        self._hops_tick()
+
+    def _hops_tick(self) -> None:
+        runs = self._hops_runs()
+        if runs < 1:
+            self._hops_timer.stop()
+            return
+        self._hops_frame = 0 if self._hops_frame is None else (self._hops_frame + 1) % runs
+        if self.selected_key() == "hierarchy-hops":
+            self._show_current()
+        else:
+            self.stop_hops(reset=True, redraw=False)
+
+    def stop_hops(self, *, reset: bool = False, redraw: bool = True) -> None:
+        """Stop the timer; `reset` also returns to the static summary."""
+        self._hops_timer.stop()
+        changed = reset and self._hops_frame is not None
+        if reset:
+            self._hops_frame = None
+        if changed and redraw and self.selected_key() == "hierarchy-hops":
+            self._show_current()
+        elif hasattr(self, "hops_play"):
+            self._sync_hops()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
+        self.stop_hops()
+        super().hideEvent(event)
+
     def _show_missing(self, title: str, text: str, action: str) -> None:
         self.chart.set_spec(None)
         self.missing_title.setText(title)
-        self.missing_text.setText(text)
-        self.missing_action.setText(action)
+        self.missing_text.setText(i18n.translate_source(text))
+        self.missing_action.setText(i18n.translate_source(action))
         self.missing_action.setVisible(bool(action))
         self.stack.setCurrentIndex(1)
 
@@ -1294,11 +2036,15 @@ class ChartsPage(QWidget):
         has_hier = self._has_hierarchies()
         self.scope_button.setVisible(has_hier)
         self.follow_button.setVisible(has_hier)
-        self.compare_button.setVisible(
+        self._compare_applies = bool(
             has_hier and key in charts.MULTI_HIERARCHY_CHARTS
             # Cause only has no hierarchy column to compare
             and not (key == "capacity-sankey"
                      and not self.sankey_box.currentData()))
+        self.compare_button.setVisible(self._compare_applies)
+        # the chips belong to Compare: no row where Compare does not apply
+        # (other charts, an unavailable chart, the group overview)
+        self.chip_row.setVisible(self._compare_applies and self._chips_shown > 0)
         self.baseline_button.setVisible(has_hier and key == "hierarchy-delta")
         per_run = key in timecharts.PER_RUN_CHARTS or key == "hierarchy-ribbon"
         runs = (int((self._inputs.get("attribution") or {}).get("runs") or 0)
@@ -1307,7 +2053,9 @@ class ChartsPage(QWidget):
         self.run_box.blockSignals(True)
         self.run_box.setMaximum(max(1, runs))
         self.run_box.blockSignals(False)
-        self.run_of.setText(f"of {runs:,}" if runs else "")
+        self.run_of.setText(
+            i18n.translate_source(f" of {runs}").strip().replace(
+                str(runs), f"{runs:,}") if runs else "")
         for widget in (self.run_label, self.run_box, self.run_of):
             widget.setVisible(per_run)
         floor = key in ("availability-through-run", "interval-availability",
@@ -1317,12 +2065,13 @@ class ChartsPage(QWidget):
             key in ("capacity-through-run", "capacity-band"))
         self.target_button.setVisible(
             key in TARGET_CHARTS and self._scope_row() is None)
-        self.capacity_target_button.setVisible(key == "annual-capacity-fan")
+        self.capacity_target_button.setVisible(
+            key in CAPACITY_TARGET_CHARTS and self._scope_row() is None)
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
         depth_charts = {
             "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-heatmap",
             "hierarchy-phase-heatmap", "hierarchy-small-multiples",
-            "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
+            "hierarchy-hops", "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
             "hierarchy-delta"}
         self.depth_box.setVisible(
             has_hier and key in depth_charts
@@ -1334,6 +2083,10 @@ class ChartsPage(QWidget):
         self._sync_target_text()
         self.export_button.setEnabled(bool(key))
         self.raw_action.setVisible(key in timecharts.TIME_CHARTS)
+        for hops_widget in (self.hops_play, self.hops_step, self.hops_summary,
+                            self.hops_label):
+            hops_widget.setVisible(key == "hierarchy-hops")
+        self._sync_hops()
 
     @property
     def fold_mode(self) -> str:
@@ -1352,9 +2105,9 @@ class ChartsPage(QWidget):
             self.page_actions[page].setChecked(True)
 
     def _sync_floor_text(self) -> None:
-        self.floor_button.setText(
-            "Axis from: auto" if self._y_floor <= 0
-            else f"Axis from: {100 * self._y_floor:.4g} %")
+        self._retext(self.floor_button,
+                     "Axis from: auto" if self._y_floor <= 0
+                     else f"Axis from: {100 * self._y_floor:.4g} %")
 
     def _capacity_axis_control(self) -> QToolButton:
         """The capacity charts' y-axis presets (the axis is visual only)."""
@@ -1463,7 +2216,7 @@ class ChartsPage(QWidget):
                 "probability": "Y axis: probability band",
                 "exceedance": "Y axis: exceedance",
                 "numeric": "Y axis: numeric"}.get(mode, "Y axis: auto")
-        self.capacity_axis_button.setText(text)
+        self._retext(self.capacity_axis_button, text)
 
     @staticmethod
     def _capacity_key(share: float) -> str:
@@ -1591,14 +2344,17 @@ class ChartsPage(QWidget):
 
     def _sync_target_text(self) -> None:
         target = self.target
-        self.target_button.setText("Target: none" if target is None
-                                   else f"Target: {100 * target:.6g} %")
+        self._retext(self.target_button, "Target: none" if target is None
+                     else f"Target: {100 * target:.6g} %")
+
+    def _sync_capacity_target_text(self) -> None:
+        self._retext(self.capacity_target_button,
+                     "Capacity target: none" if self._capacity_target is None else
+                     f"Capacity target: {100 * self._capacity_target:.6g} %")
 
     def set_capacity_target(self, value: float | None) -> None:
         self._capacity_target = value if value and 0 < value <= 1 else None
-        self.capacity_target_button.setText(
-            "Capacity target: none" if self._capacity_target is None else
-            f"Capacity target: {100 * self._capacity_target:.6g} %")
+        self._sync_capacity_target_text()
         self._time_cache.clear()
         self._rebuild()
 

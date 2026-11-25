@@ -45,7 +45,7 @@ from raptor.core.analytical.network import MAX_VARIABLES
 from raptor.gui.ui.table_filter_bar import FilterBar
 from raptor.gui.ui import msgbox
 from raptor.gui.resources.design_tokens import (
-    RADIUS, SPACING, TYPE, ThemeManager, active_colour)
+    RADIUS, SPACING, TYPE, ThemeManager, active_colour, px)
 
 #: Curve points drawn when the user leaves "Curve at times" blank.
 _AUTO_CURVE_POINTS = 41
@@ -72,8 +72,9 @@ _MEASURE_HELP = {
 
 
 def _px(key: str) -> int:
-    """A type-scale size in pixels (the token table also holds the font family)."""
-    return cast(int, TYPE[key])
+    """A type-scale size in pixels at the current interface scale (the
+    token table also holds the font family)."""
+    return px(cast(int, TYPE[key]))
 
 
 def _run_length(rbd: Any) -> float | None:
@@ -378,7 +379,8 @@ class AnalyticDialog(QDialog):
         self._watch.timeout.connect(self._check_model)
         self.setWindowTitle("Analytical Analysis")
         self.setModal(False)
-        self.resize(900, 720)
+        from raptor.gui.ui.modality import fit_dialog
+        fit_dialog(self, 900, 720)
         self._build()
         ThemeManager.instance().on_changed(self._on_theme_changed)
         self._restyle()
@@ -1024,10 +1026,10 @@ class AnalyticDialog(QDialog):
             f"border-left: {SPACING['xs']}px solid {c['accent']}; "
             f"border-radius: {RADIUS['control']}px; "
             f"padding: {SPACING['sm']}px {SPACING['md']}px; }}"
-            f"QLabel#DialogHeading {{ font-size: {TYPE['title']}px; "
+            f"QLabel#DialogHeading {{ font-size: {_px('title')}px; "
             f"font-weight: 600; color: {c['text']}; }}"
             f"QLabel#SectionNote {{ color: {c['muted']}; "
-            f"font-size: {TYPE['label']}px; }}"
+            f"font-size: {_px('label')}px; }}"
             f"QFrame#NoticeCard {{ background: {c['canvas']}; "
             f"border: 1px solid {c['border']}; "
             f"border-radius: {RADIUS['card']}px; }}"
@@ -1037,11 +1039,11 @@ class AnalyticDialog(QDialog):
             f"border: 1px solid {c['border']}; "
             f"border-radius: {RADIUS['card']}px; }}"
             f"QLabel#MetricCaption {{ color: {c['muted']}; "
-            f"font-size: {TYPE['caption']}px; background: transparent; }}"
-            f"QLabel#MetricValue {{ color: {c['text']}; font-size: 22px; "
+            f"font-size: {_px('caption')}px; background: transparent; }}"
+            f"QLabel#MetricValue {{ color: {c['text']}; font-size: {px(22)}px; "
             f"font-weight: 600; background: transparent; }}"
             f"QLabel#MetricSub {{ color: {c['muted']}; "
-            f"font-size: {TYPE['caption']}px; background: transparent; }}"
+            f"font-size: {_px('caption')}px; background: transparent; }}"
             f"QTabWidget#AnalyticTabs::pane {{ border: none; "
             f"border-top: 1px solid {c['border']}; }}"
             f"QTableWidget#ElementTable::item {{ padding: 0 {SPACING['sm']}px; }}"
@@ -1827,7 +1829,8 @@ class AnalyticDialog(QDialog):
              if p["value"] is not None], result.get("units", ""))
         table = self._curve_table
         table.setColumnCount(2)
-        table.setHorizontalHeaderLabels(["Time", "Reliability"])
+        table.setHorizontalHeaderLabels(
+            ["Time", "Reliability"])
         table.setRowCount(len(points))
         for row, point in enumerate(points):
             table.setItem(row, 0, _NumItem(point["time"]))

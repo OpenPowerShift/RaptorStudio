@@ -1092,8 +1092,9 @@ class CompareDialog(_BatchDialog):
         from PySide6.QtWidgets import QFileDialog
         from raptor.gui.ui.filedialogs import theme_file_dialog
         start = os.path.dirname(self._win._current_file or "") or os.getcwd()
-        dlg = QFileDialog(self, "Add models to compare", start,
-                          "Raptor models (*.rbd *.rbds)")
+        from raptor.gui.i18n import tr
+        dlg = QFileDialog(self, tr("Add models to compare", "Gui"), start,
+                          tr("Raptor models (*.rbd *.rbds)", "Gui"))
         dlg.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         theme_file_dialog(dlg)
         dlg.setFileMode(QFileDialog.FileMode.ExistingFiles)
@@ -1167,7 +1168,12 @@ class CompareDialog(_BatchDialog):
         self._table.setColumnCount(len(labels))
         self._table.setHorizontalHeaderLabels(labels)
         self._table.setRowCount(len(rows))
-        self._table.setVerticalHeaderLabels([lbl for _, lbl, _ in rows])
+        from raptor.api.money import heading, model_currency
+        currency = model_currency(getattr(getattr(self, "_win", None), "_rbd", None))
+        money_keys = {key for key, _, _ in COST_METRICS}
+        self._table.setVerticalHeaderLabels(
+            [heading(lbl, currency) if key in money_keys else lbl
+             for key, lbl, _ in rows])
         for r, (key, _, higher) in enumerate(rows):
             vals = [None if e.get("error") else _mean(e, key)
                     for e in entries]

@@ -117,7 +117,7 @@ class FevInspectorDock(QWidget):
 
     def _build_table(self) -> QTableWidget:
         table = QTableWidget(0, len(_HEADERS))
-        table.setHorizontalHeaderLabels(list(_HEADERS))
+        table.setHorizontalHeaderLabels(_HEADERS)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)

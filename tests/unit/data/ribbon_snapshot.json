@@ -851,6 +851,16 @@
    "text": "User Guide",
    "tooltip": "Open the User Guide: reliability simulation from scratch, with companion models"
   },
+  "_health_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Project Health",
+   "tooltip": "Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings\n\nUnavailable: open or create a model first"
+  },
   "_hier_home_action": {
    "checkable": false,
    "checked": false,
@@ -870,6 +880,16 @@
    "shortcuts": [],
    "text": "Up",
    "tooltip": "Ascend one hierarchy level (or double-click an Out marker)"
+  },
+  "_history_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Version History\u2026",
+   "tooltip": "Browse the versions you saved with Save version now; open one as a copy or restore it to the file\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
   },
   "_import_awb_action": {
    "checkable": false,
@@ -900,6 +920,26 @@
    "shortcuts": [],
    "text": "Import RBD",
    "tooltip": "Merge an existing model file in as one hierarchy: its Start/End markers become the new level's In/Out\n\nUnavailable: open or create a model first"
+  },
+  "_import_table_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Import Table\u2026",
+   "tooltip": "Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value\n\nUnavailable: open or create a model first"
+  },
+  "_import_template_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Data Table Template\u2026",
+   "tooltip": "Save the open model's block data as an Excel (.xlsx) or OpenDocument (.ods) sheet with the columns Import Table reads. Edit it, then import it back\n\nUnavailable: open or create a model first"
   },
   "_importance_overlay_action": {
    "checkable": true,
@@ -1400,7 +1440,17 @@
     "Ctrl+Shift+S"
    ],
    "text": "Save As",
-   "tooltip": "Save to a new .rbds or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
+   "tooltip": "Save to a new .rbds, .rbdz (model + saved results) or .rbd file (Ctrl+Shift+S)\n\nUnavailable: open or create a model first"
+  },
+  "_save_version_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Save Version Now\u2026",
+   "tooltip": "Save the current state as a named version you can come back to\n\nUnavailable: this model has not been saved yet \u2014 use Save As"
   },
   "_select_action": {
    "checkable": true,
@@ -1436,6 +1486,16 @@
    "shortcuts": [],
    "text": "Sensitivity\u2026",
    "tooltip": "Which inputs the result is most sensitive to: each block's life and repair, PM intervals, spare stock and crews moved low and high one at a time with paired runs, drawn as a tornado, widest swing first. Runs on copies.\n\nUnavailable: open or create a model first"
+  },
+  "_share_safe_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Share-safe Copy\u2026",
+   "tooltip": "Write a copy with element names, comments and chosen annotations removed; IDs, links and data are kept\n\nUnavailable: open or create a model first"
   },
   "_shortcuts_action": {
    "checkable": false,
@@ -1645,6 +1705,26 @@
    "text": "Project Settings",
    "tooltip": "Project Settings \u2014 simulation-wide configuration for this model\n\nUnavailable: open or create a model first"
   },
+  "_tag_colours_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Tag Colours",
+   "tooltip": "Colour by tag: a stripe above each tagged element, one colour per tag (up to three). View only; shows beside any result overlay\n\nUnavailable: open or create a model first"
+  },
+  "_tags_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Tags\u2026",
+   "tooltip": "Component tags \u2014 coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation\n\nUnavailable: open or create a model first"
+  },
   "_terminate_action": {
    "checkable": false,
    "checked": false,
@@ -1680,6 +1760,18 @@
    ],
    "text": "Undo",
    "tooltip": "Undo the last edit (Ctrl+Z)"
+  },
+  "_undo_history_action": {
+   "checkable": false,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [
+    "Ctrl+Shift+H"
+   ],
+   "text": "Model History",
+   "tooltip": "Browse the model's retained undo steps and jump to one (Ctrl+Shift+H); the maximum number kept is set in Preferences\n\nUnavailable: open or create a model first"
   },
   "_validate_action": {
    "checkable": false,
@@ -1862,11 +1954,15 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": false,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": false,
    "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,
+   "_import_table_action": false,
+   "_import_template_action": false,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
@@ -1914,9 +2010,11 @@
    "_run_toggle_action": true,
    "_save_action": false,
    "_save_as_action": false,
+   "_save_version_action": false,
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,
+   "_share_safe_action": false,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -1937,9 +2035,12 @@
    "_stop_run_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
+   "_tag_colours_action": false,
+   "_tags_action": false,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": false,
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -2031,11 +2132,15 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": true,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": true,
    "_import_awb_action": true,
    "_import_library_action": true,
    "_import_rbd_action": true,
+   "_import_table_action": true,
+   "_import_template_action": true,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
@@ -2083,9 +2188,11 @@
    "_run_toggle_action": true,
    "_save_action": true,
    "_save_as_action": true,
+   "_save_version_action": true,
    "_select_action": true,
    "_select_all_action": true,
    "_sensitivity_action": true,
+   "_share_safe_action": true,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -2106,9 +2213,12 @@
    "_stop_run_action": false,
    "_sweep_action": true,
    "_syscfg_action": true,
+   "_tag_colours_action": true,
+   "_tags_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": true,
    "_validate_action": true,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -2200,11 +2310,15 @@
    "_focus_event_action": true,
    "_formulas_action": true,
    "_guide_action": true,
+   "_health_action": false,
    "_hier_home_action": false,
    "_hier_up_action": false,
+   "_history_action": false,
    "_import_awb_action": true,
    "_import_library_action": false,
    "_import_rbd_action": false,
+   "_import_table_action": false,
+   "_import_template_action": false,
    "_importance_overlay_action": false,
    "_inspector_toggle_action": true,
    "_jump_action": false,
@@ -2252,9 +2366,11 @@
    "_run_toggle_action": true,
    "_save_action": false,
    "_save_as_action": false,
+   "_save_version_action": false,
    "_select_action": true,
    "_select_all_action": false,
    "_sensitivity_action": false,
+   "_share_safe_action": false,
    "_shortcuts_action": true,
    "_show_annotations_action": true,
    "_show_comment_notes_action": true,
@@ -2275,9 +2391,12 @@
    "_stop_run_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
+   "_tag_colours_action": false,
+   "_tags_action": false,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
+   "_undo_history_action": false,
    "_validate_action": false,
    "_weak_color_action": false,
    "_weak_spread_action": false,
@@ -2623,7 +2742,22 @@
       {
        "kind": "action",
        "large": true,
+       "text": "Tags\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Import Table\u2026"
+      },
+      {
+       "kind": "action",
+       "large": true,
        "text": "Separate Streams"
+      },
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Project Health"
       }
      ],
      "title": "Bulk Edit"
@@ -3151,7 +3285,12 @@
       },
       {
        "kind": "action",
-       "large": true,
+       "large": false,
+       "text": "Tag Colours"
+      },
+      {
+       "kind": "action",
+       "large": false,
        "text": "Preferences\u2026"
       },
       {

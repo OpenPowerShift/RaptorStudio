@@ -253,3 +253,20 @@ def test_apply_part_type_takes_a_model_part_by_its_name(server, model):
     applied = _ok(_call(server, "apply_part_type", model_id=model,
                         part="PumpType", elements=["Pump"]))
     assert applied["count"] == 1
+
+
+def test_read_only_tag_edits_are_refused_before_the_model_changes(server, model):
+    """A refused tag edit must not leave the open model changed in memory:
+    the gate runs before the edit, not only at the save."""
+    from raptor.api import tags
+    from raptor.mcp import context
+    import raptor.mcp.tools_tags as tt
+    ws = context.workspace()
+    assert tags.list_tags(ws, model)["tags"] == []
+    server.mcp._raptor_args.read_only = True
+    try:
+        assert tt.tag_elements(model, ["Block:1"], ["pump"]).is_error
+        assert tt.describe_tag(model, "pump", colour="#123456").is_error
+    finally:
+        server.mcp._raptor_args.read_only = False
+    assert tags.list_tags(ws, model)["tags"] == []

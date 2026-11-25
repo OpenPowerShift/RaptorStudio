@@ -133,7 +133,13 @@ PNG/SVG/CSV export. **Target** draws an availability target on the outcome,
 chance, time and year charts; **Capacity target** does the same on the
 capacity year chart. The dot plots mark the median and quartiles, and a
 chart over time can be dragged (or Ctrl+wheeled) to zoom its time axis,
-with a double-click to restore the whole run. The set includes:
+with a double-click to restore the whole run.
+
+The list on the left groups the charts by the question they answer. Click a
+group's heading to see its charts as small pictures, each with a line on
+what it answers; **All charts**, above the first group, shows every group
+on one long page under its own heading, so you can scroll the lot and open
+the one you want. The search box narrows both. The set includes:
 
 * the run-to-run dot plot and **Chance of reaching a value**: the share of
   runs on the horizontal axis and the value they reached on the vertical, so

@@ -47,6 +47,7 @@ class StepMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         _NO_BREAKPOINT: str
+        _debug_page_index: int
         _breakpoint_combo: PySide6.QtWidgets.QComboBox
         def _build_run_manifest(self, rbd: Any = ..., isolation: Any = ..., seed: int = ...) -> dict: ...
         def _clear_run_eta(self) -> None: ...
@@ -105,7 +106,7 @@ class StepMixin(_Base):
             self._last_run_model = step_model
             self._step_sink = []
             self._step_ao: list[str] = []
-            self._results.clear()   # new debug session: clear stale results
+            self._results.clear(keep_chart_state=True)   # new debug session: clear stale results
             self._diagram_dock.view.clear_result_overlays()
             self._edit_run_abandoned = False
             # The session spans the configured runs, as Raptor 7's does: Jump goes on to the next run
@@ -126,7 +127,7 @@ class StepMixin(_Base):
             # is on Debug. Starting one used to leave the ribbon where it
             # was, with nothing on screen to end the session by.
             try:
-                self._ribbon.select_page("Debug")
+                self._ribbon.select_page_index(self._debug_page_index)
             except (AttributeError, KeyError):
                 pass
         return self._step_session

@@ -402,6 +402,16 @@
    "model_id"
   ]
  },
+ "delete_tag": {
+  "params": [
+   "model_id",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "tag"
+  ]
+ },
  "describe_metrics": {
   "params": [
    "model_id",
@@ -417,6 +427,18 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "describe_tag": {
+  "params": [
+   "colour",
+   "description",
+   "model_id",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "tag"
   ]
  },
  "diff_models": {
@@ -652,6 +674,17 @@
    "path"
   ]
  },
+ "import_table_data": {
+  "params": [
+   "model_id",
+   "path",
+   "sheet"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
  "insert_assembly": {
   "params": [
    "library_path",
@@ -663,6 +696,18 @@
   "required": [
    "model_id",
    "part"
+  ]
+ },
+ "label_version": {
+  "params": [
+   "description",
+   "label",
+   "model_id",
+   "snapshot_id"
+  ],
+  "required": [
+   "model_id",
+   "snapshot_id"
   ]
  },
  "list_advisor_rules": {
@@ -702,6 +747,24 @@
   "params": [
    "model_id",
    "run_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "list_tags": {
+  "params": [
+   "model_id",
+   "within"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "list_versions": {
+  "params": [
+   "limit",
+   "model_id"
   ],
   "required": [
    "model_id"
@@ -840,6 +903,25 @@
   "params": [],
   "required": []
  },
+ "preview_table_import": {
+  "params": [
+   "model_id",
+   "path",
+   "sheet"
+  ],
+  "required": [
+   "model_id",
+   "path"
+  ]
+ },
+ "project_health": {
+  "params": [
+   "model_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
  "read_doc": {
   "params": [
    "limit",
@@ -871,6 +953,18 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "rename_tag": {
+  "params": [
+   "model_id",
+   "new_name",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "new_name",
+   "tag"
   ]
  },
  "render_diagram": {
@@ -924,9 +1018,23 @@
    "table"
   ]
  },
+ "restore_version": {
+  "params": [
+   "force",
+   "model_id",
+   "output",
+   "snapshot_id"
+  ],
+  "required": [
+   "model_id",
+   "output",
+   "snapshot_id"
+  ]
+ },
  "run_chart": {
   "params": [
    "by_hierarchy",
+   "capacity_target",
    "chart",
    "compare_to",
    "depth",
@@ -1041,6 +1149,22 @@
    "state"
   ]
  },
+ "share_safe_copy": {
+  "params": [
+   "advisor",
+   "annotations",
+   "comments",
+   "metadata",
+   "model_id",
+   "names",
+   "output",
+   "rates"
+  ],
+  "required": [
+   "model_id",
+   "output"
+  ]
+ },
  "simulate": {
   "params": [
    "attribution",
@@ -1072,6 +1196,16 @@
    "model_id",
    "offset",
    "workers"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "snapshot_version": {
+  "params": [
+   "description",
+   "label",
+   "model_id"
   ],
   "required": [
    "model_id"
@@ -1120,6 +1254,19 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "tag_elements": {
+  "params": [
+   "elements",
+   "mode",
+   "model_id",
+   "tags"
+  ],
+  "required": [
+   "elements",
+   "model_id",
+   "tags"
   ]
  },
  "undo_last_edit": {

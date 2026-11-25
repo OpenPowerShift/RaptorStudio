@@ -49,6 +49,7 @@ class NavigationMixin(_Base):
         # `x: Any  # really T | None` marks an attribute the host sets to None first and
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
+        _history_jump_level: int | None
         _DEP_TARGET_KINDS: Any
         _LOCATE: dict[str, tuple[str, str, str]]
         _LOG_ELEMENT_KINDS: dict[str, tuple[str, str, str]]
@@ -112,6 +113,9 @@ class NavigationMixin(_Base):
         self._set_level(0)
 
     def _set_level(self, parent_id: int):
+        if getattr(self, "_history_jump", False):
+            self._history_jump_level = parent_id
+            return
         # A Comment draft belongs to an element on the level being left;
         # flush it before the scene (and Inspector) is rebuilt.
         self.level_about_to_change.emit()

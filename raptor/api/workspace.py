@@ -121,6 +121,10 @@ def rbds_only_content(rbd: RbdFile) -> list[str]:  # noqa: C901, PLR0912
         lost.append("rate definitions")
     if getattr(rbd, "formulas", None):
         lost.append("formulas")
+    if getattr(rbd, "tags", None):
+        lost.append("component tags")
+    if getattr(rbd, "tag_info", None):
+        lost.append("tag colours and descriptions")
     block = rbd.sections.get("BLOCK_DATA")
     if block is not None:
         for row in block.rows:
@@ -560,10 +564,10 @@ class Workspace:
         src = Path(path).resolve()
         if not src.is_file():
             raise WorkspaceFileNotFound(f"File not found: {src}")
-        if src.suffix.lower() not in (".rbds", ".rbd"):
+        if src.suffix.lower() not in (".rbds", ".rbdz", ".rbd"):
             raise WorkspaceArgumentError(
                 f"Unrecognised format: {src.suffix!r}.  "
-                "Expected .rbds or .rbd"
+                "Expected .rbds, .rbdz or .rbd"
             )
         try:
             source_bytes = src.stat().st_size
@@ -584,6 +588,12 @@ class Workspace:
         # intact, which is why open_model does not rewrite the model.
         snapshot = model_dir / f"source{src.suffix}"
         shutil.copyfile(src, snapshot)
+        if src.suffix.lower() == ".rbdz":
+            # The workspace's live copy is always `model.rbds`; an archive
+            # has no bare model file to reuse, so write the parsed model
+            # once. The archive snapshot stays beside it for provenance.
+            save_rbds(rbd, str(model_dir / "model.rbds"),
+                      meta={"file_name": rbd.file_name})
         handle = ModelHandle(
             model_id=model_id,
             name=src.stem,
@@ -729,7 +739,7 @@ class Workspace:
                 # workspaces created before snapshots existed.
                 snapshot = next(
                     (model_dir / f"source{suffix}"
-                     for suffix in (".rbds", ".rbd")
+                     for suffix in (".rbds", ".rbdz", ".rbd")
                      if (model_dir / f"source{suffix}").is_file()), None)
                 if snapshot is None:
                     source = self._index[model_id].get("source") or ""
@@ -1426,7 +1436,7 @@ class Workspace:
             materialised = (
                 (model_dir / "model.rbds").exists()
                 or any((model_dir / f"source{suffix}").exists()
-                       for suffix in (".rbds", ".rbd")))
+                       for suffix in (".rbds", ".rbdz", ".rbd")))
             meta: dict[str, Any] = {}
             if meta_path.exists():
                 try:

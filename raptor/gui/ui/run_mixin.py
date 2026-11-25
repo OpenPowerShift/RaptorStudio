@@ -10,6 +10,7 @@ from raptor.gui.ui.foreground_run import ForegroundRun
 from raptor.gui.ui.qtcompat import req
 
 from raptor.gui.ui import msgbox
+from raptor.gui import i18n
 import time
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
@@ -35,6 +36,22 @@ def _system_units(rbd):
     except (ValueError, KeyError):
         pass
     return None
+
+
+class _WindowStop:
+    """The window's Stop flag as the `is_set()` abort that
+    `raptor.api.progress.check` accepts.
+
+    A synchronous run's `_sync_stop` is a latched one-way abort, so it is
+    read live rather than turned into a `threading.Event` (which would have
+    to be created, set and cleared in step with it).
+    """
+
+    def __init__(self, window: Any):
+        self._window = window
+
+    def is_set(self) -> bool:
+        return bool(getattr(self._window, "_sync_stop", False))
 
 
 if TYPE_CHECKING:
@@ -314,7 +331,7 @@ class RunMixin(_Base):
     def _present_baseline_results(self, *, logs, eor, fin, report_data,
                                   notes, ao_lines, cap_lines, cost_lines,
                                   units, manifest, importance_total=None,
-                                  rbd=None):
+                                  rbd=None, attribution=None):
         """Put the finished baseline on screen while importance runs.
 
         Called once per run, on the GUI thread. `follow_up=True` keeps the
@@ -330,7 +347,7 @@ class RunMixin(_Base):
             logs, eor, fin, report_data=report_data, units=units,
             notes=notes, ao_lines=ao_lines, cap_lines=cap_lines,
             cost_lines=cost_lines, manifest=manifest, importance=None,
-            follow_up=True, rbd=rbd)
+            follow_up=True, rbd=rbd, attribution=attribution)
         if not ok:
             return False
         self._note_results_basis()
@@ -487,7 +504,7 @@ class RunMixin(_Base):
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(run_btn)
         again = ask_again.add_box(box, "Don't warn me about long runs")
-        box.exec()
+        i18n.exec_translated(box)
         if box.clickedButton() is run_btn:
             if again.isChecked():
                 ask_again.stop_asking("confirm/long_run")
@@ -505,6 +522,10 @@ class RunMixin(_Base):
             self._statusbar.showMessage(
                 "Still rendering the previous results — try again in a "
                 "moment.", 5000)
+            return False
+        if getattr(self, "_save_in_progress", False):
+            self._statusbar.showMessage(
+                i18n.tr("Saving — wait for the save to finish"), 4000)
             return False
         if self._step_finalize_state is not None:
             self._statusbar.showMessage(
@@ -528,7 +549,7 @@ class RunMixin(_Base):
         box.setText(run_dialog_text(preflight))
         run_btn = box.addButton("Run Anyway", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        box.exec()
+        i18n.exec_translated(box)
         if box.clickedButton() is not run_btn:
             self._statusbar.showMessage("Run cancelled — fix the model "
                                         "problems listed, or Run Anyway")
@@ -664,14 +685,86 @@ class RunMixin(_Base):
             return
         except Exception as e:
             self._abandon_foreground_run(streams)
+            from raptor.gui.run_text import disk_full_text
+            full = disk_full_text(e)
+            if full:
+                msgbox.critical(self, "Out of Disk Space", full)
+                self._statusbar.showMessage("Run failed — out of disk space")
+                return
             msgbox.critical(self, "Simulation Failed", f"The run failed:\n\n{e}")
             self._statusbar.showMessage("Run failed")
             return
         QApplication.restoreOverrideCursor()
+        attribution = self._compute_drivers_now(
+            run_model, event_logs, run_metadata, units,
+            streams.get("capacity"), report_notes)
         self._present_foreground_run(
             run_model, event_logs, end_of_run_lines, final_results_lines,
             streams=streams, report_data=report_data, report_notes=report_notes,
-            run_metadata=run_metadata)
+            run_metadata=run_metadata, attribution=attribution)
+
+    def _compute_drivers_now(self, rbd, logs, run_metadata, units,
+                             cap_lines=None, notes=None):
+        """The end-of-run attribution pass, with the run's own progress bar.
+
+        Runs before the results are presented, so the Story, Drivers, Charts
+        and the canvas all read one finished attribution instead of each
+        one replaying the log later. A missing event log simply returns
+        None and leaves the lazy Drivers path in place.
+
+        The event loop is pumped while the pass runs -- as the batch's own
+        progress hook does -- so the window keeps painting and Stop still
+        lands: the same `_sync_stop` flag ends the replay, and the results
+        are presented without drivers. A failure is noted and never costs
+        the batch its results.
+        """
+        if not any(logs or ()):
+            return None
+        from raptor.api.insight.attribution import attribute_batch
+        from raptor.api.progress import Cancelled
+        experiment = (run_metadata.get("manifest") or {}).get("experiment") or {}
+        start = float(experiment.get("start_stats") or 0.0)
+        last_pump = 0.0
+
+        def show(p) -> None:
+            nonlocal last_pump
+            pct = min(100, 100 * int(p.done) // int(p.total)) if p.total else 0
+            if p.total:
+                self._run_progress.setRange(0, 100)
+                self._run_progress.setValue(pct)
+                self._run_progress_label.setText(f"{pct}%")
+            else:
+                # unknown total: a busy bar, never a made-up share
+                self._run_progress.setRange(0, 0)
+                self._run_progress_label.setText("…")
+            self._statusbar.showMessage(p.text())
+            now = time.monotonic()
+            # One repaint every 50 ms is enough to look alive; pumping in
+            # between would only slow the replay down. Full events (not
+            # `ExcludeUserInputEvents`) so the Stop button lands here too.
+            if now - last_pump >= 0.05 or (p.total and p.done >= p.total):
+                last_pump = now
+                QApplication.processEvents()
+
+        self._run_progress.setVisible(True)
+        self._run_progress_label.setVisible(True)
+        try:
+            return attribute_batch(
+                rbd, logs, start_stats=start, capacity_lines=cap_lines,
+                units=units, progress=show, abort=_WindowStop(self))
+        except Cancelled:
+            return None
+        except Exception as exc:  # noqa: BLE001 - never lose the results for this
+            import logging
+            logging.getLogger(__name__).exception("downtime attribution failed")
+            if notes is not None:
+                notes.append(
+                    f"downtime attribution was not calculated: {exc}")
+            return None
+        finally:
+            # The bar belongs to the percentage stages again (results,
+            # importance), whichever way the pass ended.
+            self._run_progress.setRange(0, 100)
 
     def _lock_for_foreground_run(self) -> None:
         """Re-entrancy guard and a clean slate for a synchronous batch: Run is
@@ -680,7 +773,7 @@ class RunMixin(_Base):
         self._run_in_progress = True
         self._refresh_commands()
         self._disable_run_panel_for_run()
-        self._results.clear()
+        self._results.clear(keep_chart_state=True)
         # The live-frame fingerprint belongs to the previous run (a
         # stopped run left its last state in it).
         self._live_sig = None
@@ -714,7 +807,8 @@ class RunMixin(_Base):
 
     def _present_foreground_run(self, run_model, event_logs, end_of_run_lines,
                                 final_results_lines, *, streams, report_data,
-                                report_notes, run_metadata) -> None:
+                                report_notes, run_metadata,
+                                attribution=None) -> None:
         """Put a finished (or stopped) batch's results on screen and release the UI."""
         ao_lines = streams.get("ao")
         cap_lines = streams.get("capacity")
@@ -790,7 +884,7 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     units=units, manifest=manifest_with_streams(run_metadata),
-                    rbd=run_model,
+                    rbd=run_model, attribution=attribution,
                     importance_total=importance_total)
                 importance = self._importance_for(run_model, report_data)
             overlays = (self._checked_overlay_state()
@@ -813,7 +907,8 @@ class RunMixin(_Base):
                     notes=report_notes, ao_lines=ao_lines,
                     cap_lines=cap_lines, cost_lines=cost_lines,
                     manifest=manifest_with_streams(run_metadata),
-                    importance=importance, rbd=run_model)
+                    importance=importance, rbd=run_model,
+                    attribution=attribution)
                 self._note_results_basis()
                 self._remember_report_streams(streams)
                 self._results_show_action.setEnabled(bool(report_data))
@@ -835,7 +930,14 @@ class RunMixin(_Base):
             self._update_status_summary(report_data, units)
             from raptor.core import diagnostics as _dg
             self._diag(_dg.end_simulation_line())
-            self._show_run_outcome(event_logs, len(report_data))
+            stopped = bool(run_metadata.get("stopped"))
+            if stopped and attribution is None and event_logs:
+                # The Stop landed in the drivers pass, not in a run: say
+                # that the drivers were cancelled instead of falling back
+                # to the "turn the event log on" caption.
+                self._results.note_drivers_cancelled()
+            self._show_run_outcome(event_logs, len(report_data),
+                                   stopped=stopped)
         finally:
             # The run is over whether or not presenting its results raised:
             # leaving Run disabled (or `_sync_stop` latched) is the stranding
@@ -850,10 +952,17 @@ class RunMixin(_Base):
             self._pause_action.setText("Pause")
             self._sync_stop = False
 
-    def _show_run_outcome(self, event_logs, completed: int) -> None:
-        """Status line for how the batch ended: stopped (and where) or completed."""
+    def _show_run_outcome(self, event_logs, completed: int, *,
+                          stopped: bool) -> None:
+        """Status line for how the batch ended: stopped (and where) or completed.
+
+        `stopped` is the engine's own record (`metadata_sink["stopped"]`),
+        not the GUI's one-way Stop flag: a Stop pressed after the last run
+        -- during the drivers pass, or while results are parsed -- sets that
+        flag but stopped no run, and the batch is still complete.
+        """
         text, timeout = run_outcome_text(
-            stopped=bool(getattr(self, "_sync_stop", False)), completed=completed,
+            stopped=stopped, completed=completed,
             logs=len(event_logs),
             event_log_lines=sum(len(lines) for lines in event_logs))
         self._statusbar.showMessage(text, timeout)
@@ -964,7 +1073,7 @@ class RunMixin(_Base):
         again = QCheckBox(neg.DIALOG_DONT_SHOW)
         box.setCheckBox(again)
         box.addButton(QMessageBox.StandardButton.Ok)
-        box.exec()
+        i18n.exec_translated(box)
         if again.isChecked():
             self._rbd.section("SYSTEM_DATA").rows[0]["ShowNegErrMsg"] = "1"
             self._mark_dirty()

@@ -1,0 +1,38 @@
+.TH "RAPTOR-HISTORY" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-history \- list, save, describe or restore versions of a model
+.SH SYNOPSIS
+\fBraptor history\fR [\-h] [\-\-snapshot] [\-\-label TEXT] [\-\-description TEXT] [\-\-description\-file PATH] [\-\-describe SNAPSHOT] [\-\-restore SNAPSHOT] [\-o PATH] [\-\-force] [\-f {text,json}] MODEL
+.SH DESCRIPTION
+Version checkpoints: list, save (snapshot) with an optional label and Markdown description, describe, or restore. Versions live in the user's private state folder, not beside the model.
+.SH OPTIONS
+.SS Options
+.TP
+\fB\-\-snapshot\fR
+record the file as it is now
+.TP
+\fB\-\-label\fR \fITEXT\fR
+label the snapshot (with \-\-snapshot); an unchanged file names its newest version if that has no label, otherwise a new version is added
+.TP
+\fB\-\-description\fR \fITEXT\fR
+Markdown description for the snapshot (with \-\-snapshot), or with \-\-describe for that version
+.TP
+\fB\-\-description\-file\fR \fIPATH\fR
+read the Markdown description from a file ('\-' is standard input)
+.TP
+\fB\-\-describe\fR \fISNAPSHOT\fR
+set (or with an empty description, clear) the description of an existing snapshot
+.TP
+\fB\-\-restore\fR \fISNAPSHOT\fR
+write this snapshot to \-\-output (or \-\-force over MODEL)
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fIPATH\fR
+destination for \-\-restore
+.TP
+\fB\-\-force\fR
+allow \-\-restore to overwrite MODEL or an existing \-\-output
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH SEE ALSO
+\fBraptor\fR(1)

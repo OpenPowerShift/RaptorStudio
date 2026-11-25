@@ -29,14 +29,18 @@ Block states come from the line's action, sub-divided by its comment:
 """
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from typing import Any
 
 from raptor.api.insight.capacity_attribution import (
     CapacityRun, CapacityTracker, aggregate_capacity,
 )
+
+log = logging.getLogger(__name__)
 
 CAUSES = ("repair", "wait_spare", "wait_resource", "logistics", "pm", "pm_wait",
           "dependency", "done", "other")
@@ -461,11 +465,204 @@ def model_hierarchies(rbd: Any) -> dict[str, Any] | None:  # noqa: C901
             "members": members, "children": children, "direct": direct}
 
 
+#: Tag rows carry negative ids so every lookup that expects a hierarchy's
+#: integer id works unchanged and can never meet a real hierarchy (ids >= 1).
+#: A tag's id is -key, with key from the tag's name (so a chart's choice
+#: survives a re-run that adds other tags); "tag within hierarchy" is
+#: -(TAG_WITHIN_BASE * key + hid). Both stay well inside 2**53.
+TAG_WITHIN_BASE = 1_000_000
+_TAG_KEYS = 999_983
+
+
+def _tag_keys(names: list[str]) -> dict[str, int]:
+    """A stable small positive key per tag; a rare clash moves on by one."""
+    import zlib
+    out: dict[str, int] = {}
+    used: set[int] = set()
+    for name in sorted(names):
+        key = zlib.crc32(name.encode("utf-8")) % _TAG_KEYS + 1
+        while key in used:
+            key = key % _TAG_KEYS + 1
+        used.add(key)
+        out[name] = key
+    return out
+
+
+def tag_signature(rbd: Any) -> str:
+    """A short fingerprint of the model's tags, stored with the results so
+    a chart can say the tags changed since the run."""
+    import hashlib
+    import json
+    from raptor.core import tags as _tags
+    data = json.dumps(_tags.clean_tags(getattr(rbd, "tags", None)),
+                      sort_keys=True)
+    return hashlib.sha1(data.encode("utf-8")).hexdigest()[:12]
+
+
+def model_tags(rbd: Any) -> dict[str, Any] | None:
+    """The model's tags as attribution keys, for the roll-up in `aggregate`.
+
+    ``members``: ``{tag: {(kind, id), ...}}`` -- blocks and events (what can
+    start an outage); a tagged hierarchy contributes everything inside it.
+    ``colours`` / ``descriptions``: ``{tag: text}``. ``signature``: see
+    `tag_signature`. None when the model has no tags.
+    """
+    from raptor.core import tags as _tags
+    if rbd is None:
+        return None
+    index = _tags.tag_index(rbd)
+    if not index:
+        return None
+    members: dict[str, set[Key]] = {}
+    for tag, refs in index.items():
+        keys: set[Key] = set()
+        for ref in _tags.expand(rbd, refs):
+            parsed = _tags.parse_ref(ref)
+            if parsed is not None and parsed[0] in ("block", "event"):
+                keys.add(parsed)
+        members[tag] = keys
+    return {"members": members,
+            "colours": {t: _tags.tag_colour(rbd, t) for t in index},
+            "descriptions": {t: _tags.tag_description(rbd, t) for t in index},
+            "signature": tag_signature(rbd)}
+
+
+def _tag_rows(trials: list[TrialAttribution], tags: dict[str, Any],
+              hierarchies: dict[str, Any] | None,
+              phases: list[dict[str, Any]] | None
+              ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """`(tag rows, tag-within-hierarchy rows)`, worked out from the tags
+    at run time.
+
+    A tag row has a hierarchy row's shape (members, per-run shares, causes,
+    phases), so a chart scoped to a tag reads it like a hierarchy. The
+    within rows are one per (tag, hierarchy) pair that shares an element,
+    without the per-run list or member lists: a pair is cheap (each tagged
+    element adds to at most the eight hierarchies above it) but a per-run
+    list on each would not be.
+    """
+    phase_names = _phase_names(trials, phases)
+    names = sorted(tags["members"], key=str.casefold)
+    keys_of = _tag_keys(names)
+    rows, within = [], []
+    hier_paths = (hierarchies or {}).get("paths") or {}
+    hier_names = (hierarchies or {}).get("names") or {}
+    of = (hierarchies or {}).get("of") or {}
+    parent = (hierarchies or {}).get("parent") or {}
+
+    def path_of(hid: int) -> list[str]:
+        if hid in hier_paths:
+            return list(hier_paths[hid])
+        out: list[int] = []
+        while hid and hid not in out and len(out) < 16:
+            out.append(hid)
+            hid = parent.get(hid, 0)
+        return [str(hier_names.get(h, h)) for h in reversed(out)]
+
+    for tag in names:
+        keys = tags["members"][tag]
+        number = keys_of[tag]
+        base = {"kind": "tag", "tag": tag,
+                "colour": tags.get("colours", {}).get(tag, ""),
+                "description": tags.get("descriptions", {}).get(tag, "")}
+        rows.append({**base, "id": -number, "name": tag,
+                     "path": [f"Tag: {tag}"], "depth": 1, "parent": -1,
+                     "within": 0, **_rollup(trials, keys, phase_names)})
+        # each tagged element counts in every hierarchy above it
+        inside: dict[int, set[Key]] = {}
+        for key in keys:
+            hid = of.get(key, 0)
+            seen: set[int] = set()
+            while hid and hid not in seen:
+                seen.add(hid)
+                inside.setdefault(hid, set()).add(key)
+                hid = parent.get(hid, 0)
+        for hid in sorted(inside):
+            path = path_of(hid)
+            within.append({
+                **base, "id": -(TAG_WITHIN_BASE * number + hid),
+                "name": tag, "path": [*path, f"Tag: {tag}"],
+                "depth": len(path) + 1, "parent": -1, "within": hid,
+                **_rollup(trials, inside[hid], phase_names, per_run=False)})
+    rows.sort(key=lambda r: (-(r["dtci"]["mean"] or 0.0), str(r["name"])))
+    return rows, within
+
+
 def _zero_stat(n: int) -> dict[str, Any]:
     """A share that is a real zero: zero, not missing.  A healthy hierarchy
     disappeared from the roll-up because its red time was zero, so a reader
     could not tell "nothing failed" from "not analysed"."""
     return {"mean": 0.0, "sem": None, "min": 0.0, "max": 0.0, "n": n}
+
+
+def _phase_names(trials: list[TrialAttribution],
+                 phases: list[dict[str, Any]] | None) -> list[str]:
+    """Phase order from the model; any phase an old log names but the model
+    does not is kept after it, in first-seen order."""
+    names = [str(item.get("name")) for item in phases or []]
+    for trial in trials:
+        for name in trial.phase_initiated:
+            if name not in names:
+                names.append(name)
+    return names
+
+
+def _rollup(trials: list[TrialAttribution], keys: set[Key],
+            phase_names: list[str], *, per_run: bool = True,
+            listed: bool = True) -> dict[str, Any]:
+    """One set of elements' share of system downtime, pooled over the runs.
+
+    The share is the Red time of the outages started by anything in *keys*,
+    pooled over the runs like an element's DTCI, so its interval is honest
+    (the members' errors are correlated; summing their intervals would not
+    be). A hierarchy row and a tag row are both this, so the two cannot
+    compute a measure differently. `per_run=False` leaves out the per-run
+    list and `listed=False` the member lists (the light within-rows).
+    """
+    n = len(trials)
+    den = [t.red_time for t in trials]
+    red = [sum(t.initiated[k].red_time for k in keys if k in t.initiated)
+           for t in trials]
+    causes = ({c: sum(t.initiator_cause.get(k, {}).get(c, 0.0)
+                      for t in trials for k in keys) / n
+               for c in CAUSES} if n else {})
+    causes = {c: v for c, v in causes.items() if v > 0}
+    total = sum(causes.values())
+    started = {k for t in trials for k in keys if k in t.initiated}
+    share = _ratio_stat(red, den) if any(den) else _zero_stat(n)
+    if not any(red) and share.get("mean") is None:
+        share = _zero_stat(n)
+    phase_red = {
+        name: sum(t.phase_initiated.get(name, {}).get(key, 0.0)
+                  for t in trials for key in keys)
+        for name in phase_names
+    }
+    phase_total = sum(phase_red.values())
+    row: dict[str, Any] = {
+        "member_count": len(keys),
+        "starter_count": len(started),
+        # kept for callers that read the old field: it was the number of
+        # elements that started an outage, not the membership count
+        "elements": len(started),
+        "dtci": share, "red_time": _stat(red),
+        "causes": {c: v / total for c, v in causes.items()} if total else {},
+        "main_cause": max(causes, key=lambda c: causes[c]) if causes else None,
+        "phase_red": phase_red,
+        "phase_shares": ({name: value / phase_total
+                          for name, value in phase_red.items()}
+                         if phase_total else {}),
+    }
+    if listed:
+        row["members"] = [{"kind": key[0], "id": key[1]} for key in sorted(keys)]
+        row["starters"] = [{"kind": key[0], "id": key[1]}
+                           for key in sorted(started)]
+    if per_run:
+        row["trials"] = [{"red_time": value,
+                          "dtci": (value / account.red_time
+                                   if account.red_time > 0 else 0.0),
+                          "system_red_time": account.red_time}
+                         for value, account in zip(red, trials, strict=True)]
+    return row
 
 
 def _hierarchy_rows(trials: list[TrialAttribution],  # noqa: C901
@@ -502,15 +699,7 @@ def _hierarchy_rows(trials: list[TrialAttribution],  # noqa: C901
         for key, hid in (hierarchies.get("of") or {}).items():
             direct.setdefault(hid, set()).add(key)
     paths = hierarchies.get("paths") or {}
-    den = [t.red_time for t in trials]
-    n = len(trials)
-    # Phase order comes from the model; any phase an old log names but the
-    # model does not is kept after it, in first-seen order.
-    phase_names = [str(item.get("name")) for item in phases or []]
-    for trial in trials:
-        for name in trial.phase_initiated:
-            if name not in phase_names:
-                phase_names.append(name)
+    phase_names = _phase_names(trials, phases)
     rows = []
 
     def path_names(hid: int) -> list[str]:
@@ -524,51 +713,16 @@ def _hierarchy_rows(trials: list[TrialAttribution],  # noqa: C901
     for hid, keys in members.items():
         if not keys:
             continue
-        red = [sum(t.initiated[k].red_time for k in keys if k in t.initiated)
-               for t in trials]
-        causes = ({c: sum(t.initiator_cause.get(k, {}).get(c, 0.0)
-                          for t in trials for k in keys) / n
-                   for c in CAUSES} if n else {})
-        causes = {c: v for c, v in causes.items() if v > 0}
-        total = sum(causes.values())
-        started = {k for t in trials for k in keys if k in t.initiated}
         own = set(direct.get(hid) or ())
-        share = _ratio_stat(red, den) if any(den) else _zero_stat(n)
-        if not any(red) and share.get("mean") is None:
-            share = _zero_stat(n)
-        per_run = [{"red_time": value,
-                    "dtci": (value / account.red_time
-                             if account.red_time > 0 else 0.0),
-                    "system_red_time": account.red_time}
-                   for value, account in zip(red, trials, strict=True)]
-        phase_red = {
-            name: sum(t.phase_initiated.get(name, {}).get(key, 0.0)
-                      for t in trials for key in keys)
-            for name in phase_names
-        }
-        phase_total = sum(phase_red.values())
+        row = _rollup(trials, keys, phase_names)
         rows.append({
             "kind": "hier", "id": hid, "name": names.get(hid, f"Hierarchy {hid}"),
             "path": path_names(hid),
             "depth": len(path_names(hid)),
             "parent": parent.get(hid, 0),
-            "members": [{"kind": key[0], "id": key[1]} for key in sorted(keys)],
-            "member_count": len(keys),
+            **row,
             "direct_members": [{"kind": key[0], "id": key[1]} for key in sorted(own)],
             "direct_count": len(own),
-            "starters": [{"kind": key[0], "id": key[1]} for key in sorted(started)],
-            "starter_count": len(started),
-            # kept for callers that read the old field: it was the number of
-            # elements that started an outage, not the membership count
-            "elements": len(started),
-            "dtci": share, "red_time": _stat(red),
-            "causes": {c: v / total for c, v in causes.items()} if total else {},
-            "main_cause": max(causes, key=lambda c: causes[c]) if causes else None,
-            "phase_red": phase_red,
-            "phase_shares": ({name: value / phase_total
-                              for name, value in phase_red.items()}
-                             if phase_total else {}),
-            "trials": per_run,
             "child_ids": list((hierarchies.get("children") or {}).get(hid) or []),
         })
     rows.sort(key=lambda r: (-(r["dtci"]["mean"] or 0.0), r["name"]))
@@ -785,7 +939,8 @@ def _duration_hist(durations: list[float], bins: int = 12) -> list[dict[str, flo
 
 def aggregate(trials: list[TrialAttribution],
               phases: list[dict[str, Any]] | None = None,
-              hierarchies: dict[str, Any] | None = None) -> dict[str, Any]:
+              hierarchies: dict[str, Any] | None = None,
+              tags: dict[str, Any] | None = None) -> dict[str, Any]:
     """Statistics over runs, JSON-safe. One sample per run for every measure;
     a run with no outage gives no sample to the shares (DTCI, DECI, FCI).
     `hierarchies` (`model_hierarchies(rbd)`) adds `hierarchies`: each
@@ -846,6 +1001,11 @@ def aggregate(trials: list[TrialAttribution],
         result["phases"] = phase_rows
     if hierarchies:
         result["hierarchies"] = _hierarchy_rows(trials, hierarchies, phases)
+    if tags:
+        # Fixed at run time: tags edited afterwards change nothing here.
+        result["tags"], result["tag_within"] = _tag_rows(
+            trials, tags, hierarchies, phases)
+        result["tag_signature"] = tags.get("signature", "")
     return result
 
 
@@ -949,7 +1109,8 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
                    total: int | None = None, with_outages: bool = False,
                    capacity: Iterable[CapacityRun | None] | None = None,
                    phases: list[dict[str, Any]] | None = None,
-                   hierarchies: dict[str, Any] | None = None) -> dict[str, Any]:
+                   hierarchies: dict[str, Any] | None = None,
+                   tags: dict[str, Any] | None = None) -> dict[str, Any]:
     """Attribution for a whole batch from its per-run event logs.
 
     `progress` (a `raptor.api.progress.ProgressFn`) is told after each run;
@@ -960,6 +1121,7 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
     so the lost flow is attributed to the elements that were down.
     `phases` (`model_phases(rbd)`) adds `phases`: downtime by mission phase.
     `hierarchies` (`model_hierarchies(rbd)`) adds the hierarchy roll-up.
+    `tags` (`model_tags(rbd)`) adds a roll-up per tag, fixed at run time.
     """
     from raptor.api.progress import check, report
     if total is None and hasattr(logs, "__len__"):
@@ -971,7 +1133,62 @@ def attribute_logs(logs: Iterable[Iterable[Any]], start_stats: float = 0.0, *,
         cap_run = next(capacity_runs, None) if capacity_runs is not None else None
         trials.append(attribute_trial(lines, start_stats, cap_run, phases))
         report(progress, "attribute", ATTRIBUTE_LABEL, i, total)
-    result = aggregate(trials, phases, hierarchies)
+    result = aggregate(trials, phases, hierarchies, tags)
     if with_outages:
         result["outages"] = outage_record(trials, hierarchies)
+    return result
+
+
+def attribute_batch(rbd: Any, logs: Iterable[Iterable[Any]] | None, *,
+                    start_stats: float = 0.0,
+                    capacity_lines: Iterable[str] | None = None,
+                    capacity: Iterable[CapacityRun | None] | None = None,
+                    units: str = "", progress: Any = None,
+                    abort: Any = None) -> dict[str, Any] | None:
+    """The whole attribution pass for one finished batch, or None.
+
+    One entry point for the GUI's worker, its synchronous path and
+    `raptor.api.run`, so the capacity split, the model's phases and
+    hierarchies, and the unit label cannot drift between them.
+
+    `capacity_lines` is the batch's capacity sink; `capacity` is an
+    already-computed track per run (in run order), for a caller that had to
+    build it with its own model key, rule, progress or abort. A capacity
+    split that fails is logged and left out: it is an extra, not the page.
+
+    `progress` is a `raptor.api.progress.ProgressFn`; `abort` is a
+    `threading.Event` (anything with `is_set()`). A cancelled pass raises
+    `raptor.api.progress.Cancelled`.
+    """
+    runs = list(logs or [])
+    if not any(runs):
+        return None
+    if capacity is None and rbd is not None and capacity_lines:
+        from raptor.api.progress import Cancelled
+        try:
+            from raptor.api.insight.capacity_attribution import capacity_runs
+            # Stop must land here too: building the split walks the Failure
+            # Effects machinery, which can be slow on a large model.
+            capacity = capacity_runs(rbd, capacity_lines, abort=abort)
+        except Cancelled:
+            raise
+        except Exception:      # noqa: BLE001 - capacity is an optional extra
+            log.exception("lost-capacity split failed")
+            capacity = None
+    if capacity is None:
+        trial_logs = [lines for lines in runs if lines]
+    else:
+        # The sink holds one track per run, in run order: pair the two
+        # BEFORE dropping runs without an event log, or every later run
+        # would be charged the previous run's flow.
+        pairs = [(lines, track) for lines, track in
+                 zip_longest(runs, capacity, fillvalue=None) if lines]
+        trial_logs = [lines for lines, _track in pairs]
+        capacity = [track for _lines, track in pairs]
+    result = attribute_logs(
+        trial_logs, start_stats, progress=progress, abort=abort,
+        with_outages=True, capacity=capacity,
+        phases=model_phases(rbd), hierarchies=model_hierarchies(rbd),
+        tags=model_tags(rbd))
+    result["units"] = units
     return result

@@ -27,6 +27,11 @@ class _DockTitleBar(QWidget):
 
     def __init__(self, dock: QDockWidget, window):
         super().__init__()
+        # A plain QWidget ignores a stylesheet background unless asked to
+        # paint it; without this the bar showed the window behind it while
+        # its children painted the bar colour in boxes of their own.
+        self.setObjectName("DockTitleBar")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._dock = dock
         self._window = window
         self._press_global = None
@@ -148,7 +153,8 @@ class _DockStub(QWidget):
         p.setPen(QColor(c["text"]))
         f = self.font()
         f.setBold(True)
-        f.setPointSize(10)
+        # Keep the application font's size: it carries the interface scale
+        # and the OS font, unlike a hard-coded point size.
         p.setFont(f)
         p.translate(self.width() / 2, self.height() / 2)
         p.rotate(self._angle)

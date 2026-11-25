@@ -897,3 +897,23 @@ def test_properties_requested_shows_and_raises_inspector_dock(qapp,
                         lambda: shown.append("raise"))
     w._diagram_dock.view.properties_requested.emit()
     assert shown == ["show", "raise"]
+
+
+def test_engine_records_whether_it_stopped_the_batch():
+    """The GUI's outcome line must not have to infer a stop from counts."""
+    from raptor.core.engine.runner import run_simulation
+    from raptor.core.engine.errors import RunAborted
+    rbd = load_rbd(os.path.join(GOLD, "TwoBlockRedundancy", "input.rbd"))
+
+    meta: dict = {}
+
+    def progress(done, total):
+        if done >= 3:
+            raise RunAborted()
+
+    run_simulation(rbd, num_runs=10, progress=progress, metadata_sink=meta)
+    assert meta.get("stopped") is True
+
+    clean: dict = {}
+    run_simulation(rbd, num_runs=2, metadata_sink=clean)
+    assert clean.get("stopped") is not True
