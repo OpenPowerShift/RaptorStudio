@@ -7277,6 +7277,10 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Adicionar etiqueta…</translation>
     </message>
     <message>
+      <source>Add a tag to this element</source>
+      <translation>Adicionar uma etiqueta a este elemento</translation>
+    </message>
+    <message>
       <source>Type a tag and press Enter. An existing tag completes as you type; a new name makes a new tag.</source>
       <translation>Digite uma etiqueta e pressione Enter. Uma etiqueta existente é completada enquanto você digita; um nome novo cria uma nova etiqueta.</translation>
     </message>

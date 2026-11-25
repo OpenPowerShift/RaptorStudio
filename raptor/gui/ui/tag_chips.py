@@ -46,6 +46,7 @@ class TagChips(QWidget):
         self.add_edit = QLineEdit()
         self.add_edit.setObjectName("TagAdd")
         self.add_edit.setPlaceholderText(i18n.tr("Add tag…"))
+        self.add_edit.setAccessibleName(i18n.tr("Add a tag to this element"))
         self.add_edit.setToolTip(i18n.tr(
             "Type a tag and press Enter. An existing tag completes as you "
             "type; a new name makes a new tag."))
