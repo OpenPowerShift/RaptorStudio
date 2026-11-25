@@ -372,7 +372,9 @@ def test_the_list_is_grouped_by_question(qapp):
                     importance=importance, units="hours", run_id="r_1")
     groups = [page.nav.topLevelItem(i).text(0)
               for i in range(page.nav.topLevelItemCount())]
-    assert groups[:4] == ["THE ANSWER", "BY HIERARCHY", "OVER TIME", "WHY IT GOES DOWN"]
+    # All charts first: every group on one page
+    assert groups[:5] == ["ALL CHARTS", "THE ANSWER", "BY HIERARCHY", "OVER TIME",
+                          "WHY IT GOES DOWN"]
     # a heading can be chosen: it shows the group's overview
     assert page.nav.topLevelItem(0).flags() & Qt.ItemFlag.ItemIsSelectable
 

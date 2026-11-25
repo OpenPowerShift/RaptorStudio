@@ -42,7 +42,9 @@ from raptor.api.insight import charts, hierarchy as hier, timecharts
 from raptor.api.insight.axes import pct
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_descriptions, chart_export, chart_i18n
-from raptor.gui.ui.chart_group_overview import ASPECT, CardData, ChartGroupOverview
+from raptor.gui.ui.chart_group_overview import (
+    ASPECT, CardData, ChartGroupOverview, Section,
+)
 from raptor.gui.ui.chart_widget import ChartWidget
 from raptor.gui.ui.flow_layout import FlowLayout
 from raptor.gui.ui.hierarchy_tree_popup import HierarchyTreePopup
@@ -62,6 +64,9 @@ class _Entry:
     action: str = ""           # a button that fixes it, when there is one
     needs: tuple[str, ...] = ()  # run options the button turns on (run_needs keys)
 
+
+#: The heading above the groups that shows every group's cards on one page.
+ALL_CHARTS = "All charts"
 
 #: Groups in the order the list shows them.
 GROUPS = ("The answer", "By hierarchy", "Over time", "Why it goes down",
@@ -199,6 +204,8 @@ class ChartsPage(QWidget):
         escape = QShortcut(QKeySequence("Escape"), self.search)
         escape.activated.connect(self.search.clear)
         left_lay.addWidget(self.search)
+        #: the All charts heading (see `ALL_CHARTS`), set by `_rebuild`
+        self._all_item: QTreeWidgetItem | None = None
         self.nav = QTreeWidget()
         self.nav.setObjectName("ChartList")
         self.nav.setHeaderHidden(True)
@@ -1002,6 +1009,7 @@ class ChartsPage(QWidget):
         heading.setBold(True)
         muted = QColor(palette["muted"])
         chosen: QTreeWidgetItem | None = None
+        self._add_all_item(heading, muted)
         for group in GROUPS:
             members = [e for e in self._entries.values() if e.group == group]
             if not members:
@@ -1028,9 +1036,7 @@ class ChartsPage(QWidget):
         self.nav.blockSignals(False)
         for head in self._groups():
             self._sync_caret(head)
-        shown = next((h for h in self._groups()
-                      if heading_shown and self._group_name(h) == heading_shown),
-                     None)
+        shown = (self._heading(heading_shown) if heading_shown else None)
         if shown is not None:
             self.nav.setCurrentItem(shown)
         elif chosen is not None:
@@ -1039,6 +1045,18 @@ class ChartsPage(QWidget):
             self._filter_charts(self.search.text())
         self._sync_nav_combo()
         self._show_current()
+
+    def _add_all_item(self, font: QFont, colour: QColor) -> None:
+        """The All charts heading, above the groups."""
+        every = QTreeWidgetItem([i18n.tr(ALL_CHARTS).upper()])
+        every.setData(0, _GROUP, ALL_CHARTS)
+        every.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+        every.setToolTip(0, i18n.tr(
+            "Every group's charts on one page, under a heading per group"))
+        every.setFont(0, font)
+        every.setForeground(0, colour)
+        self.nav.addTopLevelItem(every)
+        self._all_item = every
 
     #: Below this page width the chart list gives way to the drop-down.
     NARROW_WIDTH = 600
@@ -1066,6 +1084,11 @@ class ChartsPage(QWidget):
         combo.blockSignals(True)
         combo.clear()
         self._combo_rows = []
+        if self._all_item is not None:
+            combo.addItem(self._all_item.text(0))
+            combo.setItemData(combo.count() - 1, self._all_item.font(0),
+                              Qt.ItemDataRole.FontRole)
+            self._combo_rows.append((True, ALL_CHARTS))
         for head in self._groups():
             combo.addItem(head.text(0))
             combo.setItemData(combo.count() - 1, head.font(0), Qt.ItemDataRole.FontRole)
@@ -1125,9 +1148,15 @@ class ChartsPage(QWidget):
             group.setHidden(not any_visible)
             if needle and any_visible:
                 group.setExpanded(True)
+        self._after_filter(needle, first)
+
+    def _after_filter(self, needle: str, first: QTreeWidgetItem | None) -> None:
+        """Keep a shown chart in view, and the cards in step with the search."""
         current = self.nav.currentItem()
         if needle and (current is None or current.isHidden()) and first is not None:
             self.nav.setCurrentItem(first)
+        elif self.selected_group() is not None:
+            self._show_current()
 
     def _item(self, entry: _Entry, muted: QColor) -> QTreeWidgetItem:
         """One chart's row: greyed, with the reason, when it cannot be drawn."""
@@ -1155,7 +1184,8 @@ class ChartsPage(QWidget):
 
     def _groups(self) -> list[QTreeWidgetItem]:
         items = (self.nav.topLevelItem(i) for i in range(self.nav.topLevelItemCount()))
-        return [item for item in items if item is not None]
+        return [item for item in items
+                if item is not None and item.data(0, _GROUP) != ALL_CHARTS]
 
     def _chart_items(self) -> list[QTreeWidgetItem]:
         children = (parent.child(j) for parent in self._groups()
@@ -1725,11 +1755,17 @@ class ChartsPage(QWidget):
     def selected_group(self) -> str | None:
         """The English name of the group whose heading is current, if any."""
         item = self.nav.currentItem()
-        if item is None or item.data(0, _KEY) or not item.childCount():
+        if item is None or item.data(0, _KEY):
+            return None
+        if item is self._all_item:
+            return ALL_CHARTS
+        if not item.childCount():
             return None
         return self._group_name(item)
 
     def _heading(self, group: str) -> QTreeWidgetItem | None:
+        if group == ALL_CHARTS:
+            return self._all_item
         return next((h for h in self._groups() if self._group_name(h) == group),
                     None)
 
@@ -1805,23 +1841,41 @@ class ChartsPage(QWidget):
         if self.select(key):
             self.nav.setFocus()
 
-    def _show_overview(self, group: str) -> None:
-        heading = self._heading(group)
+    def _cards(self, heading: QTreeWidgetItem) -> list[CardData]:
+        """The cards for a heading's charts that the search leaves shown."""
         cards: list[CardData] = []
-        if heading is not None:
-            for index in range(heading.childCount()):
-                item = heading.child(index)
-                entry = self._entries.get(str(item.data(0, _KEY) or ""))
-                if item.isHidden() or entry is None:
-                    continue
-                cards.append(CardData(
-                    entry.key, i18n.tr(entry.title),
-                    i18n.tr(chart_descriptions.describe(entry.key)),
-                    i18n.translate_source(entry.missing) if entry.missing else ""))
+        for index in range(heading.childCount()):
+            item = heading.child(index)
+            entry = self._entries.get(str(item.data(0, _KEY) or ""))
+            if item.isHidden() or entry is None:
+                continue
+            cards.append(CardData(
+                entry.key, i18n.tr(entry.title),
+                i18n.tr(chart_descriptions.describe(entry.key)),
+                i18n.translate_source(entry.missing) if entry.missing else ""))
+        return cards
+
+    def _show_overview(self, group: str) -> None:
+        blurb = i18n.tr(chart_descriptions.GROUP_BLURBS.get(group, ""))
         self.chart.set_spec(None)
-        self.overview.show_group(
-            group, i18n.tr(group),
-            i18n.tr(chart_descriptions.GROUP_BLURBS.get(group, "")), cards)
+        if group == ALL_CHARTS:
+            sections = []
+            for head in self._groups():
+                cards = self._cards(head)
+                if head.isHidden() or not cards:
+                    continue
+                name = self._group_name(head)
+                sections.append(Section(
+                    i18n.tr(name),
+                    i18n.tr(chart_descriptions.GROUP_BLURBS.get(name, "")), cards))
+            if not sections:
+                blurb = i18n.tr("No chart matches the search.")
+            self.overview.show_sections(group, i18n.tr(group), blurb, sections)
+        else:
+            heading = self._heading(group)
+            self.overview.show_group(
+                group, i18n.tr(group), blurb,
+                self._cards(heading) if heading is not None else [])
         self.stack.setCurrentWidget(self.overview)
 
     # -- the overview's pictures ------------------------------------------

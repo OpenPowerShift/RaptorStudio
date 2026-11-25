@@ -59,6 +59,7 @@ DESCRIPTIONS: dict[str, str] = {
 
 #: group name -> what its charts have in common
 GROUP_BLURBS: dict[str, str] = {
+    "All charts": "Every chart this run can draw, group by group. Click one to open it.",
     "The answer": "Start here: did the system meet its target, and how sure can you be?",
     "By hierarchy": "Find which part of the model is responsible, by hierarchy.",
     "Over time": "See when the trouble happens. Needs the recorded plots turned on.",

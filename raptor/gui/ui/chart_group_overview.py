@@ -6,6 +6,9 @@ answers.  Click it, or press Enter or Space, to open the chart.  A chart the
 run cannot draw is a greyed card that says why; it opens the same
 explanation the full view gives.
 
+**All charts** shows every group on one page: a heading and a line per
+group, its cards under it.
+
 The cards reflow to the width (one column in a narrow dock).  The pictures
 are drawn lazily, one card per event-loop turn, so the page appears at once
 even when a chart is slow to draw; a picture already drawn for the same
@@ -16,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from PySide6.QtCore import QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QCoreApplication, QEvent, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
@@ -45,6 +48,27 @@ class CardData:
     title: str          # already translated
     description: str    # already translated
     missing: str = ""   # the reason it cannot be drawn, translated ("" = fine)
+
+
+@dataclass
+class Section:
+    """One group on the All charts page: its heading, its line and cards."""
+    title: str          # already translated
+    blurb: str          # already translated
+    cards: list[CardData]
+
+
+class _SectionView:
+    """A section's widgets: a heading and line (absent on a one-group page)
+    and the grid its cards sit in."""
+
+    def __init__(self, heading: QLabel | None, blurb: QLabel | None,
+                 host: QWidget, grid: QGridLayout) -> None:
+        self.heading = heading
+        self.blurb = blurb
+        self.host = host
+        self.grid = grid
+        self.cards: list[ChartCard] = []
 
 
 class _Thumb(QWidget):
@@ -215,13 +239,10 @@ class ChartGroupOverview(QScrollArea):
         self.blurb.setWordWrap(True)
         self._body_lay.addWidget(self.heading)
         self._body_lay.addWidget(self.blurb)
-        self._grid_host = QWidget()
-        self._grid = QGridLayout(self._grid_host)
-        self._grid.setContentsMargins(0, SPACING["sm"], 0, 0)
-        self._grid.setSpacing(SPACING["md"])
-        self._body_lay.addWidget(self._grid_host)
         self._body_lay.addStretch(1)
         self.setWidget(body)
+        self._body = body
+        self._sections: list[_SectionView] = []
         self.cards: list[ChartCard] = []
         self.group = ""
         self._columns = 0
@@ -236,6 +257,8 @@ class ChartGroupOverview(QScrollArea):
         self._timer.setSingleShot(True)
         self._timer.setInterval(0)
         self._timer.timeout.connect(self._pump)
+        # pictures in view are drawn first (All charts is a long page)
+        self.verticalScrollBar().valueChanged.connect(self._visible_first)
         self.restyle()
 
     # -- content ----------------------------------------------------------
@@ -251,6 +274,13 @@ class ChartGroupOverview(QScrollArea):
     def show_group(self, group: str, title: str, blurb: str,
                    cards: list[CardData]) -> None:
         """Replace the page's content; the pictures fill in one per turn."""
+        self.show_sections(group, title, blurb, [Section("", "", cards)])
+
+    def show_sections(self, group: str, title: str, blurb: str,
+                      sections: list[Section]) -> None:
+        """One page of several groups, each under its own heading (a
+        section with no title has none); the pictures fill in one per
+        turn, those in view first."""
         self._generation += 1
         self._generation_shown = False
         self._timer.stop()
@@ -259,23 +289,77 @@ class ChartGroupOverview(QScrollArea):
         self.heading.setText(title)
         self.blurb.setText(blurb)
         self.blurb.setVisible(bool(blurb))
-        for card in self.cards:
-            self._grid.removeWidget(card)
-            card.hide()
-            card.setParent(None)
-            card.deleteLater()
-        self.cards = []
+        self._clear_sections()
         previous: QWidget = self.heading
-        for data in cards:
-            card = ChartCard(data, self._grid_host)
-            card.activated.connect(self.chart_chosen)
-            self.cards.append(card)
-            self.setTabOrder(previous, card)
-            previous = card
+        at = self._body_lay.indexOf(self.blurb) + 1
+        for section in sections:
+            at, previous = self._add_section(section, at, previous)
+        self.restyle()
         self._columns = 0
         self._reflow()
         self._generation_shown = True
         self._refresh_pictures()
+
+    def _clear_sections(self) -> None:
+        for view in self._sections:
+            for card in view.cards:
+                card.hide()
+                card.setParent(None)
+                card.deleteLater()
+            for widget in (view.heading, view.blurb, view.host):
+                if widget is not None:
+                    self._body_lay.removeWidget(widget)
+                    widget.hide()
+                    widget.setParent(None)
+                    widget.deleteLater()
+        self._sections = []
+        self.cards = []
+
+    def _label(self, text: str, name: str, at: int, *,
+               grow: float = 0.0) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName(name)
+        label.setWordWrap(True)
+        if grow:
+            font = QFont(self.font())
+            font.setPointSizeF(font.pointSizeF() + grow)
+            font.setBold(True)
+            label.setFont(font)
+            label.setContentsMargins(0, SPACING["md"], 0, 0)
+        self._body_lay.insertWidget(at, label)
+        return label
+
+    def _add_section(self, section: Section, at: int,
+                     previous: QWidget) -> tuple[int, QWidget]:
+        """Lay out one section at `at` in the page; returns the next slot
+        and the last widget in the tab order."""
+        heading = blurb = None
+        if section.title:
+            heading = self._label(section.title, "ChartSectionTitle", at, grow=1.5)
+            at += 1
+            if section.blurb:
+                blurb = self._label(section.blurb, "ChartSectionBlurb", at)
+                at += 1
+        host = QWidget(self._body)
+        grid = QGridLayout(host)
+        grid.setContentsMargins(0, SPACING["sm"], 0, 0)
+        grid.setSpacing(SPACING["md"])
+        self._body_lay.insertWidget(at, host)
+        view = _SectionView(heading, blurb, host, grid)
+        for data in section.cards:
+            card = ChartCard(data, host)
+            card.activated.connect(self.chart_chosen)
+            view.cards.append(card)
+            self.cards.append(card)
+            self.setTabOrder(previous, card)
+            previous = card
+        self._sections.append(view)
+        return at + 1, previous
+
+    def section_titles(self) -> list[str]:
+        """The section headings shown (empty on a one-group page)."""
+        return [view.heading.text() for view in self._sections
+                if view.heading is not None]
 
     def _refresh_pictures(self) -> None:
         """Show the pictures held for the current width; queue the rest."""
@@ -291,8 +375,21 @@ class ChartGroupOverview(QScrollArea):
                 if not card.thumb.has_picture():
                     card.thumb.set_pixmap(None, "\u2026")
                 self._queue.append(card)
+        self._visible_first()
         if self._queue:
             self._timer.start()
+
+    def _visible_first(self, _value: int = 0) -> None:
+        """Draw the cards in view before those further down."""
+        if len(self._queue) < 2:
+            return
+        top = self.verticalScrollBar().value()
+        bottom = top + self.viewport().height()
+
+        def off_screen(card: ChartCard) -> bool:
+            y = card.mapTo(self._body, card.rect().topLeft()).y()
+            return y + card.height() < top or y > bottom
+        self._queue.sort(key=off_screen)       # stable: page order kept
 
     def pending(self) -> int:
         """Cards still waiting for their picture."""
@@ -323,6 +420,11 @@ class ChartGroupOverview(QScrollArea):
         colour = active_colour()
         self.heading.setStyleSheet(f"color: {colour['text']};")
         self.blurb.setStyleSheet(f"color: {colour['muted']};")
+        for view in self._sections:
+            if view.heading is not None:
+                view.heading.setStyleSheet(f"color: {colour['text']};")
+            if view.blurb is not None:
+                view.blurb.setStyleSheet(f"color: {colour['muted']};")
         for card in self.cards:
             card.style_labels()
             card.update()
@@ -334,34 +436,41 @@ class ChartGroupOverview(QScrollArea):
 
     def _reflow(self) -> None:
         width = max(1, self.viewport().width())
-        gap = self._grid.spacing()
+        gap = SPACING["md"]
         cols = max(1, min(MAX_COLUMNS, (width + gap) // (self._min_card() + gap)))
         card_w = max(1, (width - gap * (cols - 1)) // cols)
-        if (cols, card_w) == (self._columns, self._card_width) and self._grid.count():
+        if (cols, card_w) == (self._columns, self._card_width) and \
+                any(view.grid.count() for view in self._sections):
             return
         self._columns, self._card_width = cols, card_w
         inner_w = card_w - 2 * SPACING["sm"]
         width = max(MIN_RENDER, round(inner_w / RENDER_STEP) * RENDER_STEP)
         redraw = width != self._render_width and bool(self.cards)
         self._render_width = width
-        for card in self.cards:
-            self._grid.removeWidget(card)
         inner = card_w - 2 * SPACING["sm"]
-        heights = []
-        for card in self.cards:
-            card.thumb.setFixedHeight(max(1, int(inner * ASPECT)))
-            heights.append(card.height_for(card_w))
-        for index, card in enumerate(self.cards):
-            row = heights[index - index % cols: index - index % cols + cols]
-            card.setFixedSize(card_w, max(row))
-            self._grid.addWidget(card, index // cols, index % cols,
-                                 Qt.AlignmentFlag.AlignTop
-                                 | Qt.AlignmentFlag.AlignLeft)
-            card.show()
-        # the columns past the last card take the slack
-        for col in range(cols):
-            self._grid.setColumnStretch(col, 0)
-        self._grid.setColumnStretch(cols, 1)
+        for view in self._sections:
+            grid = view.grid
+            for card in view.cards:
+                grid.removeWidget(card)
+            heights = []
+            for card in view.cards:
+                card.thumb.setFixedHeight(max(1, int(inner * ASPECT)))
+                heights.append(card.height_for(card_w))
+            for index, card in enumerate(view.cards):
+                row = heights[index - index % cols: index - index % cols + cols]
+                card.setFixedSize(card_w, max(row))
+                grid.addWidget(card, index // cols, index % cols,
+                               Qt.AlignmentFlag.AlignTop
+                               | Qt.AlignmentFlag.AlignLeft)
+                card.show()
+            # the columns past the last card take the slack
+            for col in range(MAX_COLUMNS + 1):
+                grid.setColumnStretch(col, 0)
+            grid.setColumnStretch(cols, 1)
+        # the cards' new heights raise the page's minimum, but the scroll
+        # area kept the old page height and the rows overlapped (a narrow
+        # dock): have it size the page again now
+        QCoreApplication.postEvent(self, QEvent(QEvent.Type.LayoutRequest))
         if redraw and self._generation_shown:
             self._refresh_pictures()
 

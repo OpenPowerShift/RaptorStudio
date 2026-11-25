@@ -1,6 +1,7 @@
 """A Charts-list group heading shows an overview of its charts."""
 from __future__ import annotations
 
+import itertools
 import os
 
 import pytest
@@ -282,3 +283,64 @@ def test_pictures_are_drawn_at_the_size_they_are_shown(page):
     page.overview._reflow()
     assert page.overview._render_width < wide
     assert page.overview._render_width >= 200
+
+
+# -- All charts: every group on one page ---------------------------------
+
+def test_all_charts_is_the_first_heading_above_the_answer(page):
+    top = [page.nav.topLevelItem(i).text(0) for i in range(2)]
+    assert top == ["ALL CHARTS", "THE ANSWER"]
+    assert page.nav_combo.itemText(0) == "ALL CHARTS"
+    # it is not a group: folding, the search and the group list skip it
+    assert "All charts" not in [page._group_name(h) for h in page._groups()]
+
+
+def test_all_charts_shows_every_group_under_its_own_heading(page):
+    page.nav.setCurrentItem(heading(page, "All charts"))
+    assert page.selected_group() == "All charts"
+    assert page.selected_key() is None
+    assert page.stack.currentWidget() is page.overview
+    assert page.overview.heading.text() == "All charts"
+    groups = [page._group_name(h) for h in page._groups()]
+    assert page.overview.section_titles() == groups
+    members = [str(h.child(i).data(0, Qt.ItemDataRole.UserRole))
+               for h in page._groups() for i in range(h.childCount())]
+    assert [card.data.key for card in page.overview.cards] == members
+    page.overview.cards[1].setFocus()
+    QTest.keyClick(page.overview.cards[1], Qt.Key.Key_Return)
+    assert page.selected_key() == members[1]
+
+
+def test_all_charts_follows_the_search(page):
+    page.nav.setCurrentItem(heading(page, "All charts"))
+    page.search.setText("outage")
+    shown = page.overview.section_titles()
+    assert shown and "The answer" not in shown
+    assert all("outage" in (card.data.title + card.data.key).lower()
+               for card in page.overview.cards)
+    assert page.selected_group() == "All charts"
+    page.search.setText("no chart is called this")
+    assert page.overview.section_titles() == []
+    assert page.overview.blurb.text() == "No chart matches the search."
+    page.search.clear()
+    assert len(page.overview.section_titles()) == len(page._groups())
+
+
+def test_all_charts_survives_new_inputs(page):
+    page.nav.setCurrentItem(heading(page, "All charts"))
+    per_run, attribution, importance = _inputs()
+    page.set_inputs(per_run=per_run, attribution=attribution,
+                    importance=importance, units="hours", run_id="r_2")
+    assert page.selected_group() == "All charts"
+    assert page.overview.section_titles()
+
+
+def test_a_narrow_page_stacks_cards_without_overlap(page):
+    page.nav.setCurrentItem(heading(page, "All charts"))
+    page.resize(420, 600)
+    QApplication.processEvents()
+    QApplication.processEvents()
+    cards = page.overview.cards
+    for above, below in itertools.pairwise(cards):
+        if above.parent() is below.parent():
+            assert below.geometry().top() >= above.geometry().bottom()

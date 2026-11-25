@@ -9,7 +9,7 @@ SOURCES: tuple[str, ...] = (
     # button texts set through `ChartsPage._retext` (not a literal setText)
     "Baseline: none", "Baseline: set", "Compare: top 4", "Scope: System",
     # list headings
-    "The answer", "By hierarchy", "Over time", "Why it goes down",
+    "All charts", "The answer", "By hierarchy", "Over time", "Why it goes down",
     "Lost capacity", "Year by year", "Cost", "What matters most",
     # chart titles
     "Run-to-run outcome", "Chance of reaching a value", "Reliability over time",
