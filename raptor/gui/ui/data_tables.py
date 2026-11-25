@@ -47,6 +47,7 @@ from raptor.core.engine.diststats import compute_stats
 
 from raptor.gui.ui.data_tables_common import (  # noqa: F401  (names tests and callers import from here)
     _fmt_stat,
+    _ShrinkLabel,
     _LAZY_ROWS,
     _LAZY_MARGIN,
     _COMMON_COL_TIPS,
@@ -487,14 +488,17 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         bar.setContentsMargins(SPACING["sm"], SPACING["xs"],
                                SPACING["sm"], SPACING["xs"])
         bar.setSpacing(SPACING["sm"])      # the buttons used to touch
-        hint = QLabel("Edits apply to the model immediately "
-                      "(Save to persist). Invalid values revert.")
+        # The two notes elide rather than widen the dock: with the Edit all
+        # levels switch the bar's full width set a 937 px window minimum.
+        hint = _ShrinkLabel("Edits apply to the model immediately "
+                            "(Save to persist). Invalid values revert.")
+        hint.setToolTip(hint.text())
         hint.setObjectName("ResultsPlaceholder")
         bar.addWidget(hint)
         # Blocks/Costs/Nodes/Events are the CURRENT hierarchy level's rows.
         # Without saying so, a model with hierarchy levels looked as if
         # its children were missing.
-        self._scope_label = QLabel("")
+        self._scope_label = _ShrinkLabel("")
         self._scope_label.setObjectName("SectionNote")
         bar.addSpacing(12)
         bar.addWidget(self._scope_label)

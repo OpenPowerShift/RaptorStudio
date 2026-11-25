@@ -104,3 +104,11 @@ def test_several_rows_on_closed_levels_change_in_one_undo_step(win, monkeypatch)
                for k in keys)
     view._stack.undo()
     assert all(_row(view, "BLOCK_DATA", k) == olds[k] for k in keys)
+
+
+def test_the_bar_does_not_set_the_window_minimum(win):  # noqa: F811
+    """The notes elide: the Edit all levels switch must not widen the dock
+    (it raised the window's minimum from 834 to 937 px)."""
+    dt = win._data_tables
+    assert dt.minimumSizeHint().width() < 800
+    assert dt._scope_label.toolTip() == dt._scope_label.text()
