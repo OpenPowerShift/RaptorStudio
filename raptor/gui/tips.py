@@ -15,11 +15,16 @@ from dataclasses import dataclass
 class Tip:
     text: str
     command: str | None = None
+    #: Show me is offered only with a model open, unless the command shows
+    #: something without one (the command search, the shortcut list): on
+    #: the Start page with nothing open most commands have nothing to show.
+    needs_model: bool = True
 
 
 TIPS: tuple[Tip, ...] = (
     Tip("Press {shortcut} and type what you want to do: every command in the "
-        "ribbon, found by name, with the arrow keys to pick one.", "view.command_search"),
+        "ribbon, found by name, with the arrow keys to pick one.", "view.command_search",
+        needs_model=False),
     Tip("Right-click a block, event or hierarchy ▸ Out of Service to cut it "
         "(down all run) or link it (never fails) for a what-if, without "
         "touching its data. Every result then says so."),
@@ -51,7 +56,7 @@ TIPS: tuple[Tip, ...] = (
     Tip("Compare two result sets side by side, or two models with Diff, to see "
         "exactly what a change did.", "sim.compare"),
     Tip("Press Alt to see a key for every ribbon button, and {shortcut} for "
-        "the full list of shortcuts.", "help.shortcuts"),
+        "the full list of shortcuts.", "help.shortcuts", needs_model=False),
 )
 
 SETTING = "start/next_tip"

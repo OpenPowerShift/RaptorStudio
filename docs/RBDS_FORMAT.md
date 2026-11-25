@@ -560,7 +560,10 @@ only when something is ignored.
 (`straight`, `angled` or `orthogonal`) and `block_labels` (what a block
 shows under its name: `mean`, `spread`, `rate` or `off`). A value is written
 only when it was set; a file without `view` leaves the viewer's current
-settings alone, and an unknown value is ignored. The page flow used by Auto
+settings alone, and an unknown value is ignored. `positions_locked: "1"`
+records Arrange ▸ Lock Positions; it is written only while the lock is on,
+and a file without it opens unlocked (the lock belongs to the model, not
+the viewer). The page flow used by Auto
 Layout is per level and lives in `flow_directions` (key: the hierarchy id,
 `0` for the top level).
 

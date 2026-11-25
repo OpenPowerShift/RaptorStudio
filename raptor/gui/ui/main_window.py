@@ -994,6 +994,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.set_undo_stack(self._undo_stack)
         self._refresh_dev_hooks()
         self._diagram_dock.view.block_selected.connect(self._on_canvas_block_selected)
+        self._diagram_dock.view.positions_lock_changed.connect(self._sync_lock_action)
         self._diagram_dock.view.selection_cleared.connect(
             self._on_canvas_selection_cleared)
         self._diagram_dock.view.node_selected.connect(self._on_canvas_node_selected)
@@ -3988,8 +3989,26 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.set_annotations_visible(bool(on))
         self._sync_annotation_toggles()
         self.statusBar().showMessage(
-            "Notes shown" if on else
-            "Notes hidden (still in the model and saved)", 4000)
+            "Annotations shown" if on else
+            "Annotations hidden (still in the model and saved)", 4000)
+
+    def _set_positions_locked(self, on: bool) -> None:
+        """Arrange ▸ Lock Positions: saved with the model, so a change
+        marks it modified."""
+        view = self._diagram_dock.view
+        if bool(on) == view.positions_locked:
+            return
+        view.set_positions_locked(bool(on))
+        self._mark_dirty()
+
+    def _sync_lock_action(self, on: bool) -> None:
+        """Keep the ribbon toggle on the canvas state (a file opened locked
+        turns it on without a click)."""
+        action = getattr(self, "_lock_positions_action", None)
+        if action is not None and action.isChecked() != bool(on):
+            action.blockSignals(True)
+            action.setChecked(bool(on))
+            action.blockSignals(False)
 
     def _set_comment_notes_shown(self, on: bool) -> None:
         self._diagram_dock.view.set_comment_notes_visible(bool(on))
