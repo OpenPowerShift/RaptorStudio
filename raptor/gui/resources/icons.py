@@ -1087,6 +1087,19 @@ def tag_icon(colour: str) -> QIcon:
     return _icon("tag", colour, draw)
 
 
+def tag_colours_icon(colour: str) -> QIcon:
+    """Colour by Tag: a block with a split stripe above it."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(10, 22, 28, 18, 3, 3)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for x in (10, 20, 30):
+            p.drawRect(x, 11, 8, 6)
+    return _icon("tag_colours", colour, draw)
+
+
 def droplet_icon(colour: str) -> QIcon:
     """Weak-link colouring: droplet quartered G/Y/R."""
     def draw(p: QPainter, c: QColor):

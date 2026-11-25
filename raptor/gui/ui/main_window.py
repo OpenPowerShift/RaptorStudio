@@ -3645,6 +3645,39 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 + [tag_model.element_ref("event", i) for i in events]
                 + [tag_model.element_ref("hier", i) for i in hiers])
 
+    def _set_tag_colours(self, on: bool) -> None:
+        """View ▸ Tag Colours: stripes on the canvas and the legend."""
+        view = self._diagram_dock.view
+        legend = getattr(self, "_tag_legend", None)
+        if legend is None and on:
+            from raptor.gui.ui.tag_legend import TagLegend
+            # the view, not its viewport: a viewport child scrolls with
+            # the scene and slides off the canvas
+            legend = TagLegend(view)
+            legend.move(view.viewport().pos().x() + 8,
+                        view.viewport().pos().y() + 8)
+            legend.tag_clicked.connect(self._explorer.show_tag)
+            view.tag_colours_changed.connect(self._refresh_tag_legend)
+            self._tag_legend = legend
+        drawn = view.set_tag_colours(on)
+        if legend is not None:
+            legend.setVisible(bool(on))
+        if on:
+            self._refresh_tag_legend()
+            self._statusbar.showMessage(
+                f"Tag colours on — {drawn} tagged element(s) on this level", 6000)
+        else:
+            self._statusbar.showMessage("Tag colours off", 4000)
+
+    def _refresh_tag_legend(self) -> None:
+        legend = getattr(self, "_tag_legend", None)
+        if legend is None or not legend.isVisible():
+            return
+        from raptor.gui.ui.diagram_tag_stripes import legend as rows_of
+        view = self._diagram_dock.view
+        legend.set_rows(rows_of(self._rbd, view))
+        legend.raise_()
+
     def _open_tags_dialog(self):
         """Data ▸ Tags: edit navigation metadata as one undo step."""
         if self._rbd is None:

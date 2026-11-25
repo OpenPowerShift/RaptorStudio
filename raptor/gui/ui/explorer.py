@@ -295,6 +295,14 @@ class ExplorerDock(QWidget):
             self._emitted_group = value
             self.tag_view_changed.emit(set(value) if value is not None else None)
 
+    def show_tag(self, tag: str) -> bool:
+        """Select *tag* in the tag box (the canvas legend's click)."""
+        index = self._group_combo.findData(tag)
+        if index < 0:
+            return False
+        self._group_combo.setCurrentIndex(index)
+        return True
+
     def refresh_groups(self) -> None:
         """Fill the tag selector from the model, keeping the choice."""
         combo = getattr(self, "_group_combo", None)

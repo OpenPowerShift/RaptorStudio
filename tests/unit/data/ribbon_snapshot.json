@@ -1705,6 +1705,16 @@
    "text": "Project Settings",
    "tooltip": "Project Settings \u2014 simulation-wide configuration for this model\n\nUnavailable: open or create a model first"
   },
+  "_tag_colours_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Tag Colours",
+   "tooltip": "Colour by tag: a stripe above each tagged element, one colour per tag (up to three). View only; shows beside any result overlay\n\nUnavailable: open or create a model first"
+  },
   "_tags_action": {
    "checkable": false,
    "checked": false,
@@ -2025,6 +2035,7 @@
    "_stop_run_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
+   "_tag_colours_action": false,
    "_tags_action": false,
    "_terminate_action": false,
    "_theme_action": true,
@@ -2202,6 +2213,7 @@
    "_stop_run_action": false,
    "_sweep_action": true,
    "_syscfg_action": true,
+   "_tag_colours_action": true,
    "_tags_action": true,
    "_terminate_action": false,
    "_theme_action": true,
@@ -2379,6 +2391,7 @@
    "_stop_run_action": false,
    "_sweep_action": false,
    "_syscfg_action": false,
+   "_tag_colours_action": false,
    "_tags_action": false,
    "_terminate_action": false,
    "_theme_action": true,
@@ -3269,6 +3282,11 @@
        "kind": "action",
        "large": false,
        "text": "Focus"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Tag Colours"
       },
       {
        "kind": "action",

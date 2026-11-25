@@ -289,6 +289,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         on="toggled",
         checkable=True),
     CommandSpec(
+        id="view.tag_colours",
+        attr="_tag_colours_action",
+        text="Tag Colours",
+        icon="tag_colours_icon:text",
+        tooltip=("Colour by tag: a stripe above each tagged element, one "
+                 "colour per tag (up to three). View only; shows beside any "
+                 "result overlay"),
+        handler="_set_tag_colours",
+        on="toggled",
+        enabled_when="model_open",
+        checkable=True),
+    CommandSpec(
         id="view.show_annotations",
         attr="_show_annotations_action",
         text="Notes",
@@ -1742,6 +1754,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
+                            Btn("view.tag_colours"),
                             Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),

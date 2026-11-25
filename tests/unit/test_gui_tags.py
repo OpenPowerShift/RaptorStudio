@@ -342,3 +342,33 @@ def test_inspector_chips_are_disabled_while_read_only(win):
     assert not chips.add_edit.isEnabled()
     win._inspector.set_read_only(False)
     assert chips.add_edit.isEnabled()
+
+
+def test_tag_colours_stripe_tagged_elements_and_list_them(win, tmp_path):
+    from raptor.gui.ui.diagram_tag_stripes import MAX_STRIPES
+    rbd, view = win._rbd, win._diagram_dock.view
+    shown = [bid for bid in view._block_items]
+    assert len(shown) >= 2
+    T.set_tags(rbd, f"block:{shown[0]}", ["a", "b", "c", "d"])
+    T.set_tags(rbd, f"block:{shown[1]}", ["a"])
+    win._tag_colours_action.setChecked(True)
+    QApplication.processEvents()
+    first = view._block_items[shown[0]]._tag_stripe
+    assert first is not None and len(first.childItems()) == MAX_STRIPES
+    assert "1 more than the stripe shows" in first.toolTip()
+    assert win._tag_legend.isVisible()
+    assert win._tag_legend.visible_tags() == ["a", "b", "c", "d"]
+    # a viewport child would scroll away with the scene
+    assert win._tag_legend.parent() is view
+    # an undoable tag edit restripes without a rebuild
+    win._on_element_tags_changed(f"block:{shown[1]}", [])
+    QApplication.processEvents()
+    assert view._block_items[shown[1]]._tag_stripe is None
+    # the legend's click is the Explorer's tag view
+    win._tag_legend.tag_clicked.emit("b")
+    QApplication.processEvents()
+    assert _visible(win) >= {f"block:{shown[0]}"}
+    view.grab().save(str(tmp_path / "tag_colours.png"))
+    win._tag_colours_action.setChecked(False)
+    assert view._block_items[shown[0]]._tag_stripe is None
+    assert not win._tag_legend.isVisible()

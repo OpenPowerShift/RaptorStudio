@@ -224,6 +224,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     properties_requested = Signal()
     #: Right-click > Tags: edit the selection's tags.
     tags_requested = Signal()
+    #: the tag stripes were redrawn (colour by tag, a level change, a tag edit)
+    tag_colours_changed = Signal()
     #: Emitted after ANY selection change, with no payload -- the one
     #: hook for UI whose enabled state depends only on "what is
     #: selected" rather than on which element it is. The z-order ribbon
@@ -368,6 +370,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._link_file_ids_cache: list[int] | None = None
         self.model_changed.connect(self._invalidate_live_caches)
         self.model_changed.connect(self._refresh_accessible_counts)
+        # a tag edit changes the stripes without rebuilding the scene
+        self.model_changed.connect(self._restripe_if_on)
         #: Canvas tool mode: "select" | "add_block" | "add_node" | "add_event" | "connect".
         self._tool_mode = "select"
         #: Add-tool hover-on-link state. The link is held only while it is
@@ -1341,6 +1345,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         from raptor.gui.ui.diagram_out_of_service import apply_marks
         apply_marks(self)              # U27: cut / linked elements
         self._apply_compare_emphasis()  # rings + fade survive level changes
+        self._apply_tag_stripes()
 
         log.debug("_rebuild_scene: %d blocks, %d nodes, %d events, %d "
                   "hiers, %d links placed -- entering _apply_scene_layout",
@@ -3149,6 +3154,21 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         self._tag_hiers = (tag_model.ancestor_hiers(rbd, refs)
                              if refs is not None and rbd is not None else set())
         self._apply_tag_view()
+
+    def _restripe_if_on(self, *_args: Any) -> None:
+        if getattr(self, "_tag_colours_on", False):
+            self._apply_tag_stripes()
+
+    def set_tag_colours(self, on: bool) -> int:
+        """Colour by tag on or off; the number of elements striped here."""
+        self._tag_colours_on = bool(on)
+        return self._apply_tag_stripes()
+
+    def _apply_tag_stripes(self) -> int:
+        from raptor.gui.ui.diagram_tag_stripes import apply_stripes
+        drawn = apply_stripes(self)
+        self.tag_colours_changed.emit()
+        return drawn
 
     def _tag_keeps(self, kind: str, oid: int) -> bool:
         """Whether a tag view keeps this element at full opacity."""
