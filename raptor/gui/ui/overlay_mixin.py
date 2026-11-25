@@ -555,9 +555,11 @@ class OverlayMixin(_Base):
         spread = getattr(self, "_cost_spread", False)
         v.apply_cost_colors(cost_by_block, spread=spread)
         top = max(cost_by_block.values()) if cost_by_block else 0.0
+        from raptor.api.money import amount, model_currency
         self._statusbar.showMessage(
             f"Cost colouring on{' (spread by quartile)' if spread else ''}"
-            f" — most expensive block ${top:,.2f} total life-cycle cost")
+            f" — most expensive block {amount(top, model_currency(self._rbd))}"
+            " total life-cycle cost")
         self._update_overlay_chip()
 
     def _on_spares_overlay_toggled(self, on: bool):

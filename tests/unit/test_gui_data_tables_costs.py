@@ -125,7 +125,8 @@ def test_costs_page_has_the_block_and_cost_columns_and_every_block(win):
 
     dt, t, view = _cost_table(win)
     assert dt._tabs.tabText(dt._tabs.indexOf(t)) == "Costs"
-    headers = [t.horizontalHeaderItem(c).text()
+    # money columns name the model's currency: "Initial cost ($)"
+    headers = [t.horizontalHeaderItem(c).text().removesuffix(" ($)")
                for c in range(t.columnCount())]
     # Literal, not derived from BLOCK_COST_FIELDS: a reorder of that tuple
     # must not silently move the displayed columns too.

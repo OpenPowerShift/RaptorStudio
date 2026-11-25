@@ -60,6 +60,8 @@ _SPECS: dict[str, dict[str, Any]] = {
             ("Emergency shipping cost", "emerShipCost", "float"),
         ],
         "time_fields": {"ArriveEvery", "EmerTime", "SLOTime"},
+        # money fields show the model's currency in front
+        "money_fields": {"SpCost", "emerShipCost"},
         # rows that only apply while their toggle is on
         "dependents": {"RSO": ["ArriveEvery"], "ESO": ["EmerTime", "emerShipCost"],
                        "SLO": ["Level", "Quan", "SLOTime"]},
@@ -94,6 +96,7 @@ _SPECS: dict[str, dict[str, Any]] = {
             ("Phases", "Phases", "int"),
         ],
         "time_fields": set(),
+        "money_fields": {"SpareCost", "FixedPerUse", "PerTimeUnit"},
     },
     "TRIGGERS": {
         "title": "Triggers",
@@ -144,7 +147,8 @@ def _row_num(row: dict, col: str, default: float = 0.0) -> float:
         return default
 
 
-def plain_english_summary(section: str, row: dict, units: str) -> str | None:
+def plain_english_summary(section: str, row: dict, units: str,
+                          currency: str = "") -> str | None:
     """One-sentence, human-readable summary of a pool row's current
     settings. The raw RSO/ESO/SLO field grid says "SLO: [x]  Level: 2
     Quan: 3" but doesn't read as a policy at a glance, the problem
@@ -178,10 +182,15 @@ def plain_english_summary(section: str, row: dict, units: str) -> str | None:
         # ("hours", "days", ...), never the singular a "per X" phrase
         # needs.
         per_unit = units[:-1] if units.lower().endswith("s") else units
+        from raptor.api.insight.axes import with_currency
+
+        def cost(col: str) -> str:
+            text = f"{_row_num(row, col):g}"
+            return with_currency(text, currency) if currency else text
         return (f"{name} provides {n} resource(s): "
-               f"{_row_num(row, 'SpareCost'):g} to acquire each, "
-               f"{_row_num(row, 'FixedPerUse'):g} per use, plus "
-               f"{_row_num(row, 'PerTimeUnit'):g} per "
+               f"{cost('SpareCost')} to acquire each, "
+               f"{cost('FixedPerUse')} per use, plus "
+               f"{cost('PerTimeUnit')} per "
                f"{per_unit or 'time unit'} while in use.")
     return None
 
@@ -194,6 +203,9 @@ class _EntityDialog(QDialog):
         self.spec = spec
         self.section = section
         self.units = getattr(win, "_current_units", lambda: "")() or ""
+        from raptor.api.money import model_currency, prefix
+        self.currency = model_currency(getattr(win, "_rbd", None))
+        self.money_prefix = prefix(self.currency)
         # Display-unit override: view/enter this dialog's own time
         # fields (ArriveEvery/EmerTime/SLOTime/InitUsed/trigger-frequency
         # params) in e.g. years too. `None` unless the model has an
@@ -334,7 +346,8 @@ class _EntityDialog(QDialog):
         row = getattr(self, "_form_row", None)
         if note is None or row is None:
             return
-        sentence = plain_english_summary(self.section, row, self.units)
+        sentence = plain_english_summary(self.section, row, self.units,
+                                        self.currency)
         if sentence:
             note.setText(sentence)
 
@@ -369,7 +382,8 @@ class _EntityDialog(QDialog):
             self.form.addRow(QLabel("(no entries — press Add)"))
             return
         units = self.units
-        sentence = plain_english_summary(self.section, row, units)
+        sentence = plain_english_summary(self.section, row, units,
+                                          self.currency)
         if sentence:
             note = QLabel(sentence)
             note.setWordWrap(True)
@@ -422,6 +436,8 @@ class _EntityDialog(QDialog):
                     pass
                 if shown_units:
                     e.setSuffix(f" {shown_units}")
+                if col in self.spec.get("money_fields", ()):
+                    e.setPrefix(self.money_prefix)
                 e.valueChanged.connect(self._on_editor_changed)
                 self.form.addRow(label + ":", e)
                 self._editors[col] = e

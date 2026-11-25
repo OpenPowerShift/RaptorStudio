@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLayout, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QWidget,
 )
 
+from raptor.api.insight.axes import with_currency
 from raptor.gui import cores
 from raptor.gui.resources.design_tokens import active_colour
 from raptor.gui.ui.analysis_dialog import study_seed, AnalysisDialog, Work, trials_box
@@ -69,6 +70,14 @@ def _target_box(value: float = 99.5) -> QDoubleSpinBox:
 
 # ---- spares --------------------------------------------------------------------
 
+def _money(win: Any, value: float | None) -> str:
+    """A cost in the model's currency ("—" when there is none)."""
+    if value is None:
+        return "\u2014"
+    from raptor.api.money import model_currency
+    return with_currency(f"{value:,.6g}", model_currency(getattr(win, "_rbd", None)))
+
+
 class TradeOffChart(QWidget):
     """Availability against holding cost: each evaluated point with its
     confidence whisker, the target as a dashed line, the recommended point
@@ -78,6 +87,8 @@ class TradeOffChart(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        #: the model's currency, for the cost axis
+        self.currency = "$"
         self.result: dict[str, Any] | None = None
         self.setMinimumSize(360, 200)
 
@@ -126,7 +137,8 @@ class TradeOffChart(QWidget):
                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, _pct(v))
         for v in (x0, x1):
             p.drawText(QRectF(X(v) - 50, plot.bottom() + 2, 100, 16),
-                       Qt.AlignmentFlag.AlignHCenter, f"{v:,.4g}")
+                       Qt.AlignmentFlag.AlignHCenter,
+                       with_currency(f"{v:,.4g}", self.currency))
         p.drawText(QRectF(plot.left(), plot.bottom() + 16, plot.width(), 16),
                    Qt.AlignmentFlag.AlignHCenter, "spares holding cost")
         if isinstance(target, (int, float)):
@@ -207,6 +219,8 @@ class SparesDialog(AnalysisDialog):
         return work
 
     def show_result(self, result: Any) -> None:
+        from raptor.api.money import model_currency
+        self.chart.currency = model_currency(getattr(self._win, "_rbd", None))
         self.chart.set_result(result)
         points = result["points"]
         chosen = result.get("recommended")
@@ -217,10 +231,10 @@ class SparesDialog(AnalysisDialog):
         # Row 0 is today's stock, so the recommendation reads against it
         # (the chart's ring was the only place it showed).
         rows = [(f"Today: {stock(base)}" if base.get("stocks") else "Today",
-                 f"{base.get('cost') or 0:,.6g}", _pct(base.get("mean")),
+                 _money(self._win, base.get("cost") or 0), _pct(base.get("mean")),
                  _pct(base.get("lower")))]
-        rows += [(stock(pt), f"{pt['cost']:,.6g}", _pct(pt["mean"]), _pct(pt["lower"]))
-                 for pt in points]
+        rows += [(stock(pt), _money(self._win, pt["cost"]), _pct(pt["mean"]),
+                  _pct(pt["lower"])) for pt in points]
         bold = {i + 1 for i, pt in enumerate(points) if pt == chosen}
         _fill(self.table, rows, bold,
               ["The stock the model holds now"]
@@ -244,10 +258,12 @@ class SparesDialog(AnalysisDialog):
             return ""
         base = result.get("base") or {}
         lines = [f"today {', '.join(f'{k} {v}' for k, v in (base.get('stocks') or {}).items())}\t"
-                 f"cost {base.get('cost') or 0:,.6g}\t{_pct(base.get('mean'))}\t"
+                 f"cost {_money(self._win, base.get('cost') or 0)}\t"
+                 f"{_pct(base.get('mean'))}\t"
                  f"lower {_pct(base.get('lower'))}"]
         lines += [f"{', '.join(f'{k} {v}' for k, v in pt['stocks'].items())}\t"
-                  f"cost {pt['cost']:,.6g}\t{_pct(pt['mean'])}\tlower {_pct(pt['lower'])}"
+                  f"cost {_money(self._win, pt['cost'])}\t{_pct(pt['mean'])}\t"
+                  f"lower {_pct(pt['lower'])}"
                   for pt in result["points"]]
         return "\n".join([*lines, "", result["caption"], result["note"]])
 
@@ -321,7 +337,7 @@ class PmDialog(AnalysisDialog):
                        else "keep as is (formula)" if rec and not rec.get("options_simulated")
                        else "keep as is" if rec else "not simulated")
             rows.append((advice["block"], screen, rec.get("option", "—"),
-                         _pct(mean) if fraction else ("—" if mean is None else f"{mean:,.6g}"),
+                         _pct(mean) if fraction else _money(self._win, mean),
                          verdict))
             tips.append(advice.get("reason") or "")
             if rec.get("worthwhile"):
@@ -399,7 +415,7 @@ class CrewsDialog(AnalysisDialog):
     def show_result(self, result: Any) -> None:
         recs = result["recommendations"]
         def cost(value: float | None) -> str:
-            return "—" if value is None else f"{value:,.6g}"
+            return _money(self._win, value)
         rows = [(r["resource"], str(r["units"]), _pct(r["mean"]), _pct(r["lower"]),
                  cost(r.get("cost")), r["why"]) for r in recs]
         tips = ["\n".join(f"{row['units']} units: {_pct(row['mean'])} (lower {_pct(row['lower'])})"
@@ -423,7 +439,7 @@ class CrewsDialog(AnalysisDialog):
             return ""
         lines = [f"{r['resource']}\t{r['units']} units\t{_pct(r['mean'])}\t"
                  f"lower {_pct(r['lower'])}\t"
-                 f"cost {'—' if r.get('cost') is None else format(r['cost'], ',.6g')}\t"
+                 f"cost {_money(self._win, r.get('cost'))}\t"
                  f"{r['why']}" for r in self.result["recommendations"]]
         return "\n".join([*lines, "", self.result["caption"], self.result["note"]])
 

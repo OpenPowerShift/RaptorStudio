@@ -1168,7 +1168,12 @@ class CompareDialog(_BatchDialog):
         self._table.setColumnCount(len(labels))
         self._table.setHorizontalHeaderLabels(labels)
         self._table.setRowCount(len(rows))
-        self._table.setVerticalHeaderLabels([lbl for _, lbl, _ in rows])
+        from raptor.api.money import heading, model_currency
+        currency = model_currency(getattr(getattr(self, "_win", None), "_rbd", None))
+        money_keys = {key for key, _, _ in COST_METRICS}
+        self._table.setVerticalHeaderLabels(
+            [heading(lbl, currency) if key in money_keys else lbl
+             for key, lbl, _ in rows])
         for r, (key, _, higher) in enumerate(rows):
             vals = [None if e.get("error") else _mean(e, key)
                     for e in entries]

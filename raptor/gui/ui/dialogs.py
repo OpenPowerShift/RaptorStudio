@@ -1089,10 +1089,7 @@ def show_preferences(win):
         if new_currency != getattr(win._rbd, "currency", DEFAULT_CURRENCY):
             win._rbd.currency = new_currency
             win._mark_dirty()
-            results = getattr(win, "_results", None)
-            if results is not None:       # captions are written in the currency
-                results._refresh_charts()
-                results._refresh_story()
+            win._apply_currency(changed=True)
         new_du = parse_display_unit(display_unit_combo.currentText())
         if new_du != getattr(win._rbd, "display_unit", None):
             win._inspector.set_display_unit(new_du)

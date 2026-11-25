@@ -1090,10 +1090,13 @@ class InspectorDock(InspectorNodeMixin, InspectorAnnotationMixin,
                   ("operating_cost", "Per success"),
                   ("repairing_cost", "Per failure"))
         spins: list[QDoubleSpinBox] = []
+        from raptor.api.money import model_currency, prefix
+        money_prefix = prefix(model_currency(self._rbd))
         for attr, label in fields:
             sp = QDoubleSpinBox()
             sp.setRange(-1e12, 1e12)
             sp.setDecimals(3)
+            sp.setPrefix(money_prefix)
             sp.setValue(float(getattr(event, attr)))
             spins.append(sp)
             fl.addRow(label + ":", sp)

@@ -739,9 +739,13 @@ drops them with a warning.
 
 ## Currency (.rbds only)
 
-`currency` is the symbol or code printed in front of money in the cost
-charts, the Story and the report: `"$"`, `"€"`, `"AUD"`, at most 8
-characters.
+`currency` is the symbol or code printed with money everywhere the
+application shows it: the cost charts, the Story and the report, the cost
+boxes in the Run panel, the Inspector and the pool dialogs, the Data Tables
+money columns ("Initial cost (€)"), the Results Cost page, the canvas Cost
+and Spares overlays, the optimisers, Recommend and Compare. Values are
+`"$"`, `"€"`, `"AUD"` and so on, at most 8 characters, set in
+**Preferences ▸ This model**.
 
 ```json
 "currency": "€"

@@ -2413,8 +2413,16 @@
       <translation>Uma meta de disponibilidade desenhada como linha tracejada nestes gráficos e avaliada na História da Visão geral (atingida ou não, e por quantas execuções). É salva no arquivo do modelo; não altera a simulação.</translation>
     </message>
     <message>
+      <source>Every group's charts on one page, under a heading per group</source>
+      <translation>Os gráficos de todos os grupos em uma página, com um título por grupo</translation>
+    </message>
+    <message>
       <source>Click to see this group's charts; click the arrow to fold or unfold it</source>
       <translation>Clique para ver os gráficos deste grupo; clique na seta para recolher ou expandir</translation>
+    </message>
+    <message>
+      <source>No chart matches the search.</source>
+      <translation>Nenhum gráfico corresponde à pesquisa.</translation>
     </message>
     <message>
       <source>Y axis</source>
@@ -8989,6 +8997,10 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Referência: definida</translation>
     </message>
     <message>
+      <source>All charts</source>
+      <translation>Todos os gráficos</translation>
+    </message>
+    <message>
       <source>The answer</source>
       <translation>A resposta</translation>
     </message>
@@ -10583,6 +10595,10 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Top right matters both when it fails and when improved. Spend spares and money there.</source>
       <translation>O canto superior direito importa tanto quando falha quanto quando melhora. Invista peças e dinheiro ali.</translation>
+    </message>
+    <message>
+      <source>Every chart this run can draw, group by group. Click one to open it.</source>
+      <translation>Todos os gráficos que esta execução pode desenhar, grupo a grupo. Clique em um para abri-lo.</translation>
     </message>
     <message>
       <source>Start here: did the system meet its target, and how sure can you be?</source>

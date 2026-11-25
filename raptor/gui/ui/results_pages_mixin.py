@@ -894,8 +894,11 @@ class ResultsPagesMixin(_Base):
             self._cost_tables: list[QTableWidget] = []
             return page
 
+        from raptor.api.money import amount, model_currency
+        currency = model_currency(getattr(self, "_rbd", None))
+
         def money(x: float) -> str:
-            return f"{x:,.2f}"
+            return amount(x, currency)
 
         def mean_over(getter):
             vals = [getter(cst) for cst in costs]

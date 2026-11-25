@@ -925,6 +925,30 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             return
         self.refresh(force=False)
 
+    #: Resources columns that hold money (the Costs grid's are all money).
+    _RESOURCE_MONEY_COLS = ("Spare cost", "Fixed cost per use",
+                            "Cost per time unit")
+
+    def set_currency(self, currency: str) -> None:
+        """Label the money columns with the model's currency: "Initial
+        cost ($)". The cells stay plain numbers, so typing, sorting and
+        CSV are unchanged."""
+        from raptor.api.money import heading
+        changed = currency != getattr(self, "_currency", "")
+        self._currency = currency
+        money_cols = set(self._COST_COLS[2:-1]) | set(self._RESOURCE_MONEY_COLS)
+        for table in (self._costs_table, self._resources_table):
+            for col in range(table.columnCount()):
+                item = table.horizontalHeaderItem(col)
+                if item is None:
+                    continue
+                base = item.text().split(" (")[0]
+                if base in money_cols:
+                    item.setText(heading(base, currency))
+            self._ensure_header_widths(table)
+        if changed:
+            self.refresh(force=False)       # the pool tooltips say it too
+
     def set_display_unit(self, unit: str | None):
         """Live-change the display unit for the currently bound model
         (mirrors `InspectorDock.set_display_unit`) -- redraws every

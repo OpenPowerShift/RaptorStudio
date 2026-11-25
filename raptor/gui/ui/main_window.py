@@ -2937,6 +2937,31 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._inspector.clear_selection()
             self._inspector._refresh_empty_text()
 
+    def _apply_currency(self, *, changed: bool = False) -> None:
+        """Show money in the model's currency everywhere: the Run panel's
+        and the Inspector's cost boxes, the Data Tables money columns and,
+        when the currency was just `changed`, the results already on
+        screen (the Cost page, the charts, the Story, a cost overlay)."""
+        from raptor.api.money import model_currency
+        currency = model_currency(self._rbd)
+        panel = getattr(self, "_run_panel", None)
+        if panel is not None and hasattr(panel, "set_currency"):
+            panel.set_currency(currency)
+        tables = getattr(self, "_data_tables", None)
+        if tables is not None:
+            tables.set_currency(currency)
+        if not changed:
+            return
+        self._refresh_inspector()
+        results = getattr(self, "_results", None)
+        if results is not None:
+            results._populate_details(getattr(results, "_final_lines", []) or [])
+            results._refresh_charts()
+            results._refresh_story()
+        dock = getattr(self, "_diagram_dock", None)
+        if dock is not None:
+            dock.view._reapply_result_visuals()
+
     def _refresh_inspector(self):
         """Re-populate whatever element the Inspector is showing from
         the CURRENT model. This is what keeps the Inspector from
@@ -3674,7 +3699,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 + [tag_model.element_ref("hier", i) for i in hiers])
 
     def _set_tag_colours(self, on: bool) -> None:
-        """Data ▸ Tag Colours: stripes on the canvas and the legend."""
+        """View ▸ Tag Colours: stripes on the canvas and the legend."""
         view = self._diagram_dock.view
         legend = getattr(self, "_tag_legend", None)
         if legend is None and on:

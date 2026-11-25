@@ -277,6 +277,9 @@ class RunExperimentMixin:
         panel = getattr(self, "_run_panel", None)
         if panel is None:
             return
+        from raptor.api.money import model_currency
+        if hasattr(panel, "set_currency"):
+            panel.set_currency(model_currency(self._rbd))
         if self._rbd is None:
             # Called during dock setup, before any model is open.
             panel.set_units("", None)

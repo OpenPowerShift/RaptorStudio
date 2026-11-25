@@ -1151,6 +1151,12 @@ class RunPanel(QWidget):
         self.set_enabled(enabled)
         self._refresh()
 
+    def set_currency(self, currency: str) -> None:
+        """Show the model's currency in front of the two cost fields."""
+        from raptor.api.money import prefix
+        for field in (self._system_red_cost_field, self._lost_flow_cost_field):
+            field.setPrefix(prefix(currency))
+
     def set_system_config(self, cfg: SystemConfig | None) -> None:
         """Show the model's system values without emitting edits back.
 

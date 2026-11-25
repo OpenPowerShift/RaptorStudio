@@ -119,7 +119,8 @@ class DataTablesKeyedMixin(_Base):
                                 plain_english_summary
                             sentence = plain_english_summary(
                                 section_name, r,
-                                getattr(self, "_native_units", "") or "")
+                                getattr(self, "_native_units", "") or "",
+                                getattr(self, "_currency", ""))
                             if sentence:
                                 item2.setToolTip(sentence)
                     table.setItem(row_idx, ci, item2)

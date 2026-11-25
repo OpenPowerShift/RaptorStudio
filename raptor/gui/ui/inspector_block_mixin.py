@@ -899,6 +899,8 @@ class InspectorBlockMixin(_Base):
                   "Permanently done (/\u2060time)",
                   "Recurring spare", "Emergency spare additional cost"]
         cost_id = block.id
+        from raptor.api.money import model_currency, prefix
+        money_prefix = prefix(model_currency(getattr(self, "_rbd", None)))
         spins: list[QDoubleSpinBox] = []
         _gb, fl = self._group("Costs (edit all, then Apply)", layout)
 
@@ -909,6 +911,7 @@ class InspectorBlockMixin(_Base):
             sp = QDoubleSpinBox()
             sp.setRange(-BLOCK_COST_LIMIT, BLOCK_COST_LIMIT)
             sp.setDecimals(BLOCK_COST_DECIMALS)
+            sp.setPrefix(money_prefix)
             sp.setValue(float(getattr(block, attr)))
             # Its size hint is sized for the whole range (12+ digits), which
             # beside a wrapped pt-BR label overflowed a 340 px dock on some
