@@ -327,3 +327,46 @@ def test_phase_rows_split_each_phases_downtime_by_cause():
     assert by_name["Launch"]["causes"] == {"repair": 1.0}
     assert by_name["Cruise"]["causes"]["repair"] == pytest.approx(0.1)
     assert by_name["Cruise"]["causes"]["pm"] == pytest.approx(0.9)
+
+
+# ---- roll-up by tag (fixed at run time) -----------------------------------
+
+def test_a_tag_rolls_up_like_a_hierarchy_and_within_a_hierarchy():
+    # Outer (10) holds Pump and Inner (11), which holds Valve; both tagged
+    hierarchies = {"names": {10: "Outer", 11: "Inner"}, "parent": {10: 0, 11: 10},
+                   "of": {("block", 1): 10, ("block", 2): 11}}
+    tags = {"members": {"wet": {("block", 1), ("block", 2)},
+                        "valves": {("block", 2)}},
+            "colours": {"wet": "#2F80ED"}, "descriptions": {},
+            "signature": "abc"}
+    result = attribute_logs([_two_block_log(), _two_block_log()],
+                            hierarchies=hierarchies, tags=tags)
+    rows = {r["name"]: r for r in result["tags"]}
+    assert rows["wet"]["red_time"]["mean"] == pytest.approx(12.0)
+    assert rows["valves"]["dtci"]["mean"] == pytest.approx(2 / 12)
+    assert rows["wet"]["id"] < 0 and rows["wet"]["kind"] == "tag"
+    assert len(rows["wet"]["trials"]) == 2
+    # a tag row reads like the hierarchy row with the same members
+    outer = next(r for r in result["hierarchies"] if r["name"] == "Outer")
+    assert rows["wet"]["dtci"] == outer["dtci"]
+    within = {(r["name"], r["within"]): r for r in result["tag_within"]}
+    assert within[("wet", 11)]["red_time"]["mean"] == pytest.approx(2.0)
+    assert within[("wet", 10)]["red_time"]["mean"] == pytest.approx(12.0)
+    assert within[("wet", 11)]["path"] == ["Outer", "Inner", "Tag: wet"]
+    assert "trials" not in within[("wet", 11)]
+    assert result["tag_signature"] == "abc"
+
+
+def test_model_tags_expands_a_tagged_hierarchy():
+    from raptor.api.insight.attribution import model_tags
+    from raptor.core import tags as T
+    rbd = load_rbd(glob.glob("tests/golden/HierarchyExample/input.rbd")[0])
+    hid = next(int(r["ID"]) for r in rbd.sections["HIERARCHY_DATA"].rows
+               if int(r["ID"]) > 0)
+    T.set_tags(rbd, f"hier:{hid}", ["area"])
+    data = model_tags(rbd)
+    inside = {T.parse_ref(r) for r in T.inside(rbd, hid)
+              if r.startswith(("block:", "event:"))}
+    assert data is not None and data["members"]["area"] == inside
+    assert model_tags(load_rbd(glob.glob(
+        "tests/golden/TwoBlockRedundancy/input.rbd")[0])) is None

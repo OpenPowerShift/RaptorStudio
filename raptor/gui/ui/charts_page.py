@@ -523,6 +523,11 @@ class ChartsPage(QWidget):
         row = self._scope_row()
         if row is None:
             return "Scope: System"
+        if hier.is_tag(row) and not row.get("within"):
+            return "Scope: #" + str(row.get("name") or "")
+        if hier.is_tag(row):
+            return ("Scope: #" + str(row.get("name") or "") + " in "
+                    + " > ".join(str(p) for p in (row.get("path") or [])[:-1]))
         return "Scope: " + " > ".join(str(part) for part in row.get("path") or [row["name"]])
 
     def _update_scope_button(self) -> None:
@@ -560,7 +565,11 @@ class ChartsPage(QWidget):
         if self._picker_source.get(mode) != source or self._picker_attr.get(mode) is not attribution:
             current = (self._scope_picker_current() if mode == "scope"
                        else list(self._selected))
-            picker.set_rows(hier.rows(attribution), current=current)
+            picker.set_rows(
+                hier.rows(attribution), current=current,
+                tags=hier.tag_rows(attribution),
+                within=(hier.tag_within_rows(attribution)
+                        if mode == "scope" else ()))
             self._picker_source[mode] = source
             self._picker_attr[mode] = attribution
         else:
@@ -581,8 +590,11 @@ class ChartsPage(QWidget):
             if widget is not None:
                 widget.setParent(None)
                 widget.deleteLater()
+        attribution = self._inputs.get("attribution")
         names = {int(row.get("id") or 0): str(row.get("name") or "")
-                 for row in hier.rows(self._inputs.get("attribution"))}
+                 for row in hier.rows(attribution)}
+        names.update({int(row.get("id") or 0): "#" + str(row.get("name") or "")
+                      for row in hier.tag_rows(attribution)})
         shown = [ref for ref in self._selected if ref in names]
         for index, ref in enumerate(shown):
             self._chip_lay.addWidget(self._make_chip(
@@ -725,6 +737,8 @@ class ChartsPage(QWidget):
         row = self._scope_row()
         if row is None:
             return None
+        if hier.is_tag(row):
+            return [int(row.get("id") or 0)] if row.get("trials") else None
         prefix = hier.path_text(row) + " > "
         children = [item for item in hier.rows(self._inputs.get("attribution"))
                     if item is not row and hier.path_text(item).startswith(prefix)
@@ -879,7 +893,8 @@ class ChartsPage(QWidget):
                    baseline: list[dict[str, Any]] | None = None,
                    model_hierarchies: bool | None = None,
                    model_phases: bool | None = None,
-                   currency: str | None = None) -> None:
+                   currency: str | None = None,
+                   tags_changed: bool = False) -> None:
         """Rebuild the list from whatever this result set has, money in
         `currency` (the model's; "$" when not given).
 
@@ -894,14 +909,15 @@ class ChartsPage(QWidget):
                         "generated": generated,
                         "model_hierarchies": model_hierarchies,
                         "model_phases": model_phases,
-                        "currency": currency}
+                        "currency": currency, "tags_changed": tags_changed}
         self._sankey_auto = True
         if self._follow_canvas:
             self._scope = int(hierarchy) if hierarchy else None
         if self._scope is not None and self._scope_row() is None:
             self._scope = None
         valid_ids = {int(row.get("id") or 0)
-                     for row in ((attribution or {}).get("hierarchies") or [])}
+                     for row in (((attribution or {}).get("hierarchies") or [])
+                                 + hier.tag_rows(attribution))}
         before_selected = list(self._selected)
         # An empty reset (the dock was cleared ahead of a re-run of the same
         # model) holds the picks; the run's own attribution prunes them.
@@ -1531,6 +1547,7 @@ class ChartsPage(QWidget):
             entries = [entry for entry in entries
                        if not entry.key.startswith("phase-")
                        and entry.key != "hierarchy-phase-heatmap"]
+        entries = self._limit_for_tags(entries, row, chosen_rows)
         if row is not None:
             # Scoped, the hierarchy Pareto already ranks the children and
             # elements inside the scope with a stated denominator, and the
@@ -1538,6 +1555,49 @@ class ChartsPage(QWidget):
             entries = [entry for entry in entries
                        if entry.key not in ("downtime-pareto",
                                             "hierarchy-anatomy")]
+        return entries
+
+    #: The charts a tag scope can draw. A tag is a set of elements that may
+    #: overlap other tags and cut across hierarchies, so a part-of-a-whole
+    #: chart (sunburst, treemap, stacked overlay, unassigned remainder) or a
+    #: tree view would draw something false; contribution charts are fine.
+    TAG_SCOPE_CHARTS = frozenset({
+        "trial-outcome", "ecdf", "convergence", "hierarchy-pareto",
+        "hierarchy-small-multiples", "hierarchy-hops", "hierarchy-heatmap",
+        "component-failures", "cost-pareto", "importance-quadrant"})
+    #: Charts that need the per-run list a tag-within row does not keep.
+    TAG_PER_RUN_CHARTS = frozenset({
+        "trial-outcome", "ecdf", "convergence",
+        "hierarchy-small-multiples", "hierarchy-hops"})
+    #: Comparison charts that accept tags among the compared rows.
+    TAG_COMPARE_CHARTS = frozenset({
+        "hierarchy-small-multiples", "hierarchy-hops"})
+
+    def _limit_for_tags(self, entries: list[_Entry],
+                        row: dict[str, Any] | None,
+                        chosen_rows: list[dict[str, Any]]) -> list[_Entry]:
+        """Mark the charts a tag scope or a tag comparison cannot draw."""
+        tag_scope = hier.is_tag(row)
+        tag_compare = any(hier.is_tag(item) for item in chosen_rows)
+        if not (tag_scope or tag_compare):
+            return entries
+        for entry in entries:
+            if entry.missing:
+                continue
+            if (tag_scope and (row or {}).get("within")
+                    and entry.key in self.TAG_PER_RUN_CHARTS):
+                entry.missing = ("Run-by-run shares are kept for a whole "
+                                 "tag, not for a tag inside a hierarchy: "
+                                 "choose the tag itself.")
+            elif tag_scope and entry.key not in self.TAG_SCOPE_CHARTS:
+                entry.missing = ("Tags overlap and cut across hierarchies, "
+                                 "so this chart cannot show one. Use a "
+                                 "ranking, the run-to-run charts or "
+                                 "Compare.")
+            elif tag_compare and entry.key == "hierarchy-overlay":
+                entry.missing = ("The outage timeline is kept per "
+                                 "hierarchy, not per tag: use small "
+                                 "multiples or run-by-run for tags.")
         return entries
 
     # -- showing a chart ------------------------------------------------
@@ -1643,8 +1703,17 @@ class ChartsPage(QWidget):
         folding = charts.parse_fold(self.fold_box.currentData())
         if folding:
             spec = charts.fold_small(spec, **folding)
+        tag_note = ""
+        if self._inputs.get("tags_changed") and (
+                hier.is_tag(self._scope_row())
+                or any(int(ref) < 0 for ref in self._selected)):
+            tag_note = ("Tag results are fixed when the model runs; the "
+                        "tags changed since this run, so run again to "
+                        "update them.")
         if self._scope_row() is not None:
             spec = hier.annotate(spec, self._scope_meta())
+        if tag_note and tag_note not in (spec.caption or ""):
+            spec.caption = f"{spec.caption} {tag_note}".strip()
         if entry.key in ("capacity-through-run", "capacity-band"):
             spec = self._apply_capacity_axis(spec)
         self.chart.set_spec(chart_i18n.translate_spec(spec))

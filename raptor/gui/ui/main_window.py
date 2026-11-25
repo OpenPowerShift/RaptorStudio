@@ -1528,8 +1528,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _on_chart_compare_changed(self, refs: list) -> None:
         """Ring the compared hierarchy ovals in their chart colours."""
         from raptor.api.insight.hierarchy import SERIES_COLOURS
+        # tags (negative ids) have no oval to ring
         colours = {int(ref): SERIES_COLOURS[i % len(SERIES_COLOURS)]
-                   for i, ref in enumerate(refs or [])}
+                   for i, ref in enumerate(refs or []) if int(ref) > 0}
         try:
             self._diagram_dock.view.set_compare_emphasis(colours)
         except RuntimeError:

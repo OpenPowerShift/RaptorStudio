@@ -44,10 +44,61 @@ def rows(attribution: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((attribution or {}).get("hierarchies") or [])
 
 
+def tag_rows(attribution: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Every tag row (fixed at run time), largest share first."""
+    return list((attribution or {}).get("tags") or [])
+
+
+def tag_within_rows(attribution: dict[str, Any] | None
+                    ) -> list[dict[str, Any]]:
+    """Every "tag within a hierarchy" row (no per-run list)."""
+    return list((attribution or {}).get("tag_within") or [])
+
+
+def is_tag(row: dict[str, Any] | None) -> bool:
+    """A tag row (or a tag within a hierarchy), not a hierarchy."""
+    return bool(row) and (row or {}).get("kind") == "tag"
+
+
+def tags_changed(attribution: dict[str, Any] | None, rbd: Any) -> bool:
+    """True when the model's tags differ from the ones the run used."""
+    if not (attribution or {}).get("tags") or rbd is None:
+        return False
+    from raptor.api.insight.attribution import tag_signature
+    return (attribution or {}).get("tag_signature") != tag_signature(rbd)
+
+
 def top_rows(attribution: dict[str, Any] | None) -> list[dict[str, Any]]:
     """The top-level hierarchies, in model order (the scorecard's order)."""
     found = [row for row in rows(attribution) if int(row.get("parent") or 0) == 0]
     return sorted(found, key=lambda row: (str(row.get("name") or "")))
+
+
+def _resolve_tag(attribution: dict[str, Any] | None,
+                 ref: int | str) -> dict[str, Any] | None:
+    """A tag row when *ref* names one: a negative id, `Tag: pumps` or
+    `#pumps`. None when *ref* is not a tag reference at all."""
+    number = None
+    try:
+        number = int(ref)
+    except (TypeError, ValueError):
+        pass
+    if number is not None and number < 0:
+        for row in tag_rows(attribution) + tag_within_rows(attribution):
+            if int(row.get("id") or 0) == number:
+                return row
+        raise ValueError(f"no tag row {ref!r}; run again after tagging")
+    text = str(ref).strip()
+    if not text.startswith(("Tag:", "#")):
+        return None
+    wanted = text.split(":", 1)[1].strip() if text.startswith("Tag:") \
+        else text[1:].strip()
+    for row in tag_rows(attribution):
+        if str(row.get("tag")) == wanted:
+            return row
+    known = ", ".join(str(r.get("tag")) for r in tag_rows(attribution)[:8])
+    raise ValueError(f"unknown tag {wanted!r}; tags in this run: "
+                     f"{known or 'none'}")
 
 
 def resolve(attribution: dict[str, Any] | None,  # noqa: C901
@@ -61,6 +112,9 @@ def resolve(attribution: dict[str, Any] | None,  # noqa: C901
     """
     if ref is None or ref == "" or ref == 0 or ref == "0":
         raise ValueError("no hierarchy selected")
+    tag = _resolve_tag(attribution, ref)
+    if tag is not None:
+        return tag
     available = rows(attribution)
     if isinstance(ref, int) or (isinstance(ref, str) and ref.isdigit()):
         wanted = int(ref)
@@ -139,7 +193,7 @@ def scope_meta(attribution: dict[str, Any] | None,
                 "path": ["System"], "members": 0, "starters": 0, "share": None}
     dtci = row.get("dtci") or {}
     return {
-        "kind": "hierarchy",
+        "kind": "tag" if is_tag(row) else "hierarchy",
         "id": int(row.get("id") or 0),
         "name": str(row.get("name") or ""),
         "path": list(row.get("path") or [row.get("name") or ""]),
@@ -336,10 +390,19 @@ def scoped(attribution: dict[str, Any] | None,
     total = sum(weighted.values())
     causes = {cause: value / total for cause, value in weighted.items()
               if value > 0} if total else {}
-    allowed = {int(item.get("id") or 0) for item in descendants(source, row)}
-    sequences = [seq for seq in source.get("sequences") or []
-                 if (seq.get("steps") and int(
-                     seq["steps"][0].get("hierarchy_id") or 0) in allowed)]
+    if is_tag(row):
+        # A tag is a set of elements, not a subtree: keep the outage paths
+        # that start at one of them.
+        started_by = {str(item.get("name") or "") for item in elements}
+        sequences = [seq for seq in source.get("sequences") or []
+                     if seq.get("steps") and str(
+                         seq["steps"][0].get("element") or "") in started_by]
+    else:
+        allowed = {int(item.get("id") or 0)
+                   for item in descendants(source, row)}
+        sequences = [seq for seq in source.get("sequences") or []
+                     if (seq.get("steps") and int(
+                         seq["steps"][0].get("hierarchy_id") or 0) in allowed)]
     seq_total = sum(float(seq.get("share") or 0.0) for seq in sequences)
     if seq_total > 0:
         sequences = [{**seq, "share": float(seq.get("share") or 0.0) / seq_total}

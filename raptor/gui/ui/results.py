@@ -2248,7 +2248,10 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 except Exception:  # noqa: BLE001 - only a reference line
                     generated = None
             model_hier = model_phases = None
+            tags_changed = False
             if getattr(self, "_rbd", None) is not None:
+                from raptor.api.insight.hierarchy import tags_changed as _changed
+                tags_changed = _changed(attribution, self._rbd)
                 from raptor.api.insight.attribution import (
                     model_hierarchies, model_phases as phases_of,
                 )
@@ -2265,7 +2268,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 generated=generated, target=self._target,
                 hierarchy=self._chart_hierarchy or None,
                 model_hierarchies=model_hier, model_phases=model_phases,
-                currency=getattr(self._rbd, "currency", None))
+                currency=getattr(self._rbd, "currency", None),
+                tags_changed=tags_changed)
             self._target_measure = "dependability" if dependability else "availability"
         except Exception:  # noqa: BLE001 - a view must never break results
             import logging

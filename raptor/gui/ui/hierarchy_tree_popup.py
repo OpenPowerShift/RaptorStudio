@@ -15,6 +15,12 @@ tree, so it stays a fixed size however big the model is:
 
 Two modes: ``scope`` picks one hierarchy (or the whole system) and closes;
 ``compare`` toggles up to four and applies as they change.
+
+Tags (when the run has them) sit under a **Tags** heading after the
+hierarchies: each tag, and under it the tag inside each hierarchy that holds
+one of its elements ("in Intake > Pumps"). Tag rows carry negative ids, so
+they are chosen and compared like hierarchies; the heading itself is not a
+choice.
 """
 from __future__ import annotations
 
@@ -166,7 +172,9 @@ class HierarchyTreePopup(QFrame):
     # -- content ---------------------------------------------------------
 
     def set_rows(self, rows: Sequence[dict[str, Any]], *,
-                 current: Sequence[int] = ()) -> None:
+                 current: Sequence[int] = (),
+                 tags: Sequence[dict[str, Any]] = (),
+                 within: Sequence[dict[str, Any]] = ()) -> None:
         """Build the tree once for these rows (cheap to call again)."""
         began = time.perf_counter()
         self._building = True
@@ -207,6 +215,7 @@ class HierarchyTreePopup(QFrame):
                 parent = self._items.get(int(row.get("parent") or 0))
                 target = parent if parent is not None and parent is not item else root
                 target.addChild(item)
+            self._add_tags(root, tags, within)
             self.tree.collapseAll()
             self._apply_current()
         finally:
@@ -215,6 +224,60 @@ class HierarchyTreePopup(QFrame):
         self._update_count(len(self._all), len(self._all))
         self.last_build_ms = (time.perf_counter() - began) * 1000.0
         self._fit_height()
+
+    def _add_tags(self, root: QTreeWidgetItem,
+                  tags: Sequence[dict[str, Any]],
+                  within: Sequence[dict[str, Any]]) -> None:
+        """The Tags heading, each tag, and each tag inside a hierarchy."""
+        self._tag_header = None
+        if not tags:
+            return
+        header = QTreeWidgetItem(root, [i18n.tr("Tags"), ""])
+        header.setFlags(Qt.ItemFlag.ItemIsEnabled)
+        header.setData(0, _REF, None)
+        font = header.font(0)
+        font.setBold(True)
+        header.setFont(0, font)
+        header.setToolTip(0, i18n.tr(
+            "Tags overlap, so their shares do not add up to 100 %. Tag "
+            "results are fixed when the model is run."))
+        self._tag_header = header
+        by_tag: dict[str, QTreeWidgetItem] = {}
+        for row in sorted(tags, key=lambda r: -float(
+                (r.get("dtci") or {}).get("mean") or 0.0)):
+            item = self._tag_item(row, str(row.get("name") or ""))
+            header.addChild(item)
+            by_tag[str(row.get("tag") or "")] = item
+        for row in sorted(within, key=lambda r: -float(
+                (r.get("dtci") or {}).get("mean") or 0.0)):
+            parent = by_tag.get(str(row.get("tag") or ""))
+            if parent is None:
+                continue
+            where = " > ".join(str(p) for p in (row.get("path") or [])[:-1])
+            item = self._tag_item(row, i18n.tr("in %1").replace("%1", where))
+            parent.addChild(item)
+
+    def _tag_item(self, row: dict[str, Any], label: str) -> QTreeWidgetItem:
+        ref = int(row.get("id") or 0)
+        item = QTreeWidgetItem([label, _share_text(row)])
+        item.setData(0, _REF, ref)
+        path = " > ".join(str(p) for p in row.get("path") or [])
+        item.setData(0, _PATH, path.lower())
+        item.setData(0, _NAME, f"{row.get('name') or ''} {label}".lower())
+        item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight
+                              | Qt.AlignmentFlag.AlignVCenter)
+        colour = str(row.get("colour") or "")
+        if colour:
+            from raptor.gui.ui.tags_dialog import swatch
+            item.setIcon(0, swatch([colour]))
+        if row.get("description"):
+            item.setToolTip(0, str(row["description"]))
+        if self.mode == COMPARE:
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(0, Qt.CheckState.Unchecked)
+        self._items[ref] = item
+        self._all.append(item)
+        return item
 
     def set_current(self, current: Sequence[int]) -> None:
         """Sync the choice (ids) without rebuilding the tree."""
@@ -309,6 +372,11 @@ class HierarchyTreePopup(QFrame):
                 item.setExpanded(True)
         if self._system_item is not None:
             self._system_item.setHidden(needle not in "system")
+        header = getattr(self, "_tag_header", None)
+        if header is not None:
+            header.setHidden(id(header) not in shown)
+            if id(header) in shown:
+                header.setExpanded(True)
         first = next((i for i in self._all if not i.isHidden()
                       and needle in i.data(0, role)), None)
         if first is not None:
@@ -379,6 +447,9 @@ class HierarchyTreePopup(QFrame):
                                else Qt.CheckState.Checked)
 
     def _choose_scope(self, item: QTreeWidgetItem) -> None:
+        if item.data(0, _REF) is None:          # the Tags heading
+            item.setExpanded(not item.isExpanded())
+            return
         self.hide()
         self.scope_chosen.emit(int(item.data(0, _REF) or 0))
 
