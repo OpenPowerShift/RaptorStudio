@@ -76,6 +76,20 @@ up with an honest interval, was judged not worth the larger results.
 Tags overlap, so no chart shows them as parts of a whole: no sunburst,
 treemap, stacked share or "unassigned" row for tags.
 
+"Tag within a hierarchy" rows are kept for every (tag, hierarchy) pair
+that shares an element, without a per-run list: each tagged element adds to
+at most the eight hierarchies above it, so the pairs are cheap, but a
+per-run list on each would multiply the stored results.
+
+### Colour by tag is a stripe, not a fill
+
+The canvas has one slot for a result fill (weak links, cost, importance
+and the rest). Tags describe the model rather than a run, so **View ▸ Tag
+Colours** draws a split stripe above each element (up to three colours)
+and leaves the fill to the results; both can be on at once. The user
+chose the split stripe over a "first tag wins" fill, which would hide the
+overlap that makes tags useful.
+
 ## 3. When to calculate downtime drivers
 
 **Decision:** calculate once, at the end of the run, in the same worker

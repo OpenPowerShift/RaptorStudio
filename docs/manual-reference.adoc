@@ -49,7 +49,6 @@ current value).
 |Control |What it does |Shortcut / value
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
-|Project Health |Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings |
 |Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
@@ -133,9 +132,10 @@ current value).
 |Control |What it does |Shortcut / value
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
-|Groups / Tags… |Component groups and tags — named, coloured views over the model. They may span hierarchies and never change the simulation |
+|Tags… |Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation |
 |Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
 |Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
+|Project Health |Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings |
 |===
 
 ==== Library
@@ -341,6 +341,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Dark Theme |Toggle light/dark theme |
 |Focus |Dim everything except the selection (topology stays) |
+|Tag Colours |Colour by tag: a stripe above each tagged element, one colour per tag (up to three). View only; shows beside any result overlay |
 |Preferences… |Preferences: defaults for new models, working habits, this model's display unit, advanced and developer options (Ctrl+,) |Ctrl+,
 |Link style |How links are drawn: straight, angled (short stubs, then a straight run) or right-angle. No block is ever moved. |choice, now Straight
 |Block labels |What the small lines under each block name show: the mean, the mean and standard deviation, the failure/repair rate, or nothing |choice, now Mean

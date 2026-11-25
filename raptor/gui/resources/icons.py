@@ -1073,7 +1073,7 @@ def health_icon(colour: str) -> QIcon:
 
 
 def tag_icon(colour: str) -> QIcon:
-    """Component groups/tags: a luggage-tag shape with its eyelet."""
+    """Component tags: a luggage-tag shape with its eyelet."""
     def draw(p: QPainter, c: QColor):
         p.setPen(_outline_pen(c))
         p.setBrush(Qt.BrushStyle.NoBrush)
