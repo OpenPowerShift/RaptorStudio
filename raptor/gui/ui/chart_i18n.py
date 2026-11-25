@@ -172,7 +172,8 @@ def _caption_patterns() -> tuple[tuple[re.Pattern[str], str, str], ...]:
 
 
 _COUNTED = re.compile(r"^(?P<n>[\d,]+) (?P<noun>run|runs|hierarchy|"
-                      r"hierarchies|part|parts)$")
+                      r"hierarchies and tags|hierarchies|tag|tags|part|"
+                      r"parts)$")
 _CAUSED = re.compile(r"^(?P<name>.+) caused (?P<qty>\S+(?: \S+)?)$")
 
 

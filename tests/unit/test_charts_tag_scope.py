@@ -96,7 +96,10 @@ def test_tags_compare_in_small_multiples_and_not_in_the_overlay(qapp):
     assert not page._entries["hierarchy-small-multiples"].missing
     assert page._entries["hierarchy-overlay"].missing
     page.select("Is the hierarchy ranking stable?")
-    assert [f.title for f in page.selected_spec().facets] == ["wet", "valves"]
+    spec = page.selected_spec()
+    assert [f.title for f in spec.facets] == ["wet", "valves"]
+    assert spec.subtitle.startswith("one panel per tag;")
+    assert spec.caption.startswith("2 tags;")
 
 
 def test_the_picker_lists_tags_under_their_own_heading(qapp):

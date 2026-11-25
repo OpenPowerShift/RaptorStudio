@@ -1961,8 +1961,15 @@ def hierarchy_small_multiples(attribution: dict[str, Any],
         facet.subtitle = "share of system downtime"
         facet.scope = hier.scope_meta(attribution, row)
         facets.append(facet)
-    caption = (f"{len(facets)} {'hierarchy' if len(facets) == 1 else 'hierarchies'}; "
-               "each dot is one run's share of system downtime.")
+    tagged = [hier.is_tag(row) for row in selected]
+    if all(tagged):
+        noun, panel = ("tag" if len(facets) == 1 else "tags"), "one panel per tag"
+    elif any(tagged):
+        noun, panel = "hierarchies and tags", "one panel per hierarchy or tag"
+    else:
+        noun = "hierarchy" if len(facets) == 1 else "hierarchies"
+        panel = f"one panel per hierarchy at {hier.depth_text(depth)}"
+    caption = f"{len(facets)} {noun}; each dot is one run's share of system downtime."
     if not hierarchies and len(available) > len(selected):
         caption += (f" Showing the top {len(selected)} of {len(available)} "
                     "hierarchies; use Compare to choose.")
@@ -1978,14 +1985,12 @@ def hierarchy_small_multiples(attribution: dict[str, Any],
             facet.provenance["x_range"] = (low - pad, high + pad)
     return ChartSpec(
         "small_multiples", "Is the hierarchy ranking stable?",
-        f"one panel per hierarchy at {hier.depth_text(depth)}; each dot is "
-        "a run",
+        f"{panel}; each dot is a run",
         "share of system downtime", "runs", facets=facets, caption=caption,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "hierarchies": [row["name"] for row in selected]},
         scope={"kind": "selection", "id": 0,
-               "name": (f"{len(facets)} hierarchy" if len(facets) == 1
-                        else f"{len(facets)} hierarchies"),
+               "name": f"{len(facets)} {noun}",
                "path": [row["name"] for row in selected]})
 
 

@@ -441,6 +441,13 @@ def test_caption_template_translates_with_names_kept(pt, template):
     assert chart_i18n.translate_caption(english) == expected
 
 
+def test_a_tag_comparison_caption_translates(pt):
+    assert chart_i18n.translate_caption(
+        "2 tags; each dot is one run's share of system downtime.") == (
+        "2 etiquetas; cada ponto é a parcela de uma execução no tempo de "
+        "inatividade do sistema.")
+
+
 def test_run_to_run_caption_clauses_translate(pt):
     full = ("Availability: 30 runs, mean 99.4269 %; the middle half of the runs lie "
             "between 99.357 % and 99.538 % (Q1 to Q3); 12 of 30 (40 %) met the target.")

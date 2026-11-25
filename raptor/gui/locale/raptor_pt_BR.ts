@@ -9965,6 +9965,26 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>%1 hierarquias</translation>
     </message>
     <message>
+      <source>%1 tag</source>
+      <translation>%1 etiqueta</translation>
+    </message>
+    <message>
+      <source>%1 tags</source>
+      <translation>%1 etiquetas</translation>
+    </message>
+    <message>
+      <source>%1 hierarchies and tags</source>
+      <translation>%1 hierarquias e etiquetas</translation>
+    </message>
+    <message>
+      <source>one panel per tag</source>
+      <translation>um painel por etiqueta</translation>
+    </message>
+    <message>
+      <source>one panel per hierarchy or tag</source>
+      <translation>um painel por hierarquia ou etiqueta</translation>
+    </message>
+    <message>
       <source>%1 part</source>
       <translation>%1 parte</translation>
     </message>

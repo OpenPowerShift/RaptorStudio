@@ -160,7 +160,10 @@ SOURCES: tuple[str, ...] = (
     "The outage timeline is kept per hierarchy, not per tag: use small "
     "multiples or run-by-run for tags.",
     # counted nouns in a caption
-    "%1 run", "%1 runs", "%1 hierarchy", "%1 hierarchies", "%1 part",
+    "%1 run", "%1 runs", "%1 hierarchy", "%1 hierarchies",
+    "%1 tag", "%1 tags", "%1 hierarchies and tags",
+    # small-multiples subtitle pieces when tags are compared
+    "one panel per tag", "one panel per hierarchy or tag", "%1 part",
     "%1 parts",
 )
 
