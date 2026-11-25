@@ -84,6 +84,9 @@ class StructureMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         _anno_items: dict[int, Any]
+
+        def _push_pasted_tags(self, after: Any) -> None: ...
+
         def _apply_block_labels(self, item: Any, block: Any) -> Any: ...
         _block_items: dict[int, raptor.gui.ui.diagram_item_core._BlockItem]
         def _clear_link_insert_hover(self) -> None: ...
@@ -414,6 +417,10 @@ class StructureMixin(_Base):
                     self._stack.push(AddCmd(self, "event", event_rows))
                 if link_rows:
                     self._stack.push(AddCmd(self, "link", link_rows))
+                # The imported model's tags follow its elements.
+                from raptor.core import tags as tag_model
+                self._push_pasted_tags(tag_model.carried(
+                    imported, self._rbd_ref, plan.id_maps))
             finally:
                 self._stack.endMacro()
         return hid

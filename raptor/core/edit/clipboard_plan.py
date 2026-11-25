@@ -139,9 +139,14 @@ def plan_copy(rbd: Any, hiers: Mapping[int, Any], *, blocks: list[int],
     return buffer
 
 
+#: Buffer kinds that are not elements: links, annotations and the tags
+#: that travel with a copy (`raptor.core.tags.BUFFER_KINDS`).
+_NOT_ELEMENTS = frozenset({"link", "annotation", "tags", "taginfo"})
+
+
 def count_elements(buffer: Buffer) -> int:
     """What copy reports: everything but links (and annotations)."""
-    return sum(1 for k, _ in buffer if k not in ("link", "annotation"))
+    return sum(1 for k, _ in buffer if k not in _NOT_ELEMENTS)
 
 
 @dataclass
@@ -245,7 +250,7 @@ def plan_paste(rbd: Any, buffer: Buffer, live: Mapping[str, Collection[int]],
     (dx, dy). `live` maps block/node/event/hier to the ids of the live
     elements."""
     used, link_ids = _used_ids(rbd, live)
-    elements = [(k, r) for k, r in buffer if k not in ("link", "annotation")]
+    elements = [(k, r) for k, r in buffer if k not in _NOT_ELEMENTS]
     plan = PastePlan()
     # Fresh ids for copied hierarchies first: children's ParentId and the
     # markers' parent must map to the new hierarchy id.

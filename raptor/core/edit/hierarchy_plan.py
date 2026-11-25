@@ -500,6 +500,9 @@ class ImportPlan:
     #: the imported Start / End, which become the wrapper's In / Out markers
     in_id: int
     out_id: int
+    #: old id -> new id per element kind (block/node/event/hier), so the
+    #: imported model's tags can follow their elements
+    id_maps: dict[str, dict[int, int]] = field(default_factory=dict)
 
 
 def _fresh_map(host: Any, imported: Any, section_name: str) -> dict[int, int]:
@@ -624,4 +627,6 @@ def plan_import(host: Any, imported: Any, path: str, *, hid: int,
                     for r in _real_rows(imported.sections.get("EVENT_DATA"))],
         link_rows=[_remap_link(r, maps, hid)
                    for r in _real_rows(imported.sections.get("LINK_DATA"))],
-        in_id=maps["NODE"][start_id], out_id=maps["NODE"][end_id])
+        in_id=maps["NODE"][start_id], out_id=maps["NODE"][end_id],
+        id_maps={"block": dict(maps["BLOCK"]), "node": dict(maps["NODE"]),
+                 "event": dict(maps["EVENT"]), "hier": dict(maps["HIER"])})

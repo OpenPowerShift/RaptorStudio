@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 import zlib
+from types import SimpleNamespace
 from typing import Any
 from collections.abc import Iterable
 
@@ -408,3 +409,102 @@ def refs_for_view(rbd: Any, tag: str, within: int | None = None) -> set[str]:
     if within:
         refs &= inside(rbd, within)
     return refs
+
+
+# ---------------------------------------------------------------------------
+# copy and paste
+# ---------------------------------------------------------------------------
+
+#: Copy-buffer item kinds that carry tags (see `clipboard_plan.Buffer`).
+#: Rows are text-to-text, like file rows: `{"ref", "tags"}` (a JSON list)
+#: and `{"tag", "colour", "description"}`.
+BUFFER_KINDS = ("tags", "taginfo")
+_BUFFER_ELEMENTS = {"block", "node", "event", "hier"}
+
+
+def buffer_items(rbd: Any, buffer: Iterable[tuple[str, dict]]
+                 ) -> list[tuple[str, dict]]:
+    """The tags of the elements in a copy buffer, as buffer items."""
+    import json
+    out: list[tuple[str, dict]] = []
+    used: set[str] = set()
+    for kind, row in buffer:
+        if kind not in _BUFFER_ELEMENTS:
+            continue
+        ref = f"{kind}:{row_int(row.get('ID'), 0)}"
+        values = tags_for(rbd, ref)
+        if values:
+            out.append(("tags", {"ref": ref, "tags": json.dumps(values)}))
+            used.update(values)
+    info = clean_tag_info(getattr(rbd, "tag_info", None))
+    for tag in sorted(used, key=str.casefold):
+        entry = info.get(tag) or {}
+        if entry:
+            out.append(("taginfo", {"tag": tag,
+                                    "colour": entry.get("colour", ""),
+                                    "description":
+                                        entry.get("description", "")}))
+    return out
+
+
+def pasted(rbd: Any, buffer: Iterable[tuple[str, dict]],
+           id_maps: dict[str, dict[int, int]]
+           ) -> tuple[dict[str, list[str]], dict[str, dict[str, str]]] | None:
+    """`(tags, tag_info)` once a buffer's tags are on the pasted copies.
+
+    Each copied element's tags go on its copy (`id_maps`: old id -> new id,
+    per kind). A pasted tag's colour and description are added only when
+    the target model has none for that tag: a paste never recolours the
+    target's own tags. None when the buffer carries no tags.
+    """
+    import json
+    tags = clean_tags(getattr(rbd, "tags", None))
+    info = clean_tag_info(getattr(rbd, "tag_info", None))
+    target = SimpleNamespace(tags=tags, tag_info=info)
+    changed = False
+    for kind, row in buffer:
+        if kind == "tags":
+            parsed = parse_ref(row.get("ref"))
+            if parsed is None:
+                continue
+            new = id_maps.get(parsed[0], {}).get(parsed[1])
+            if new is None:
+                continue
+            try:
+                values = json.loads(str(row.get("tags") or "[]"))
+            except ValueError:
+                continue
+            if not isinstance(values, list):
+                continue
+            ref = element_ref(parsed[0], new)
+            changed |= set_tags(target, ref, [*tags_for(target, ref), *values])
+        elif kind == "taginfo":
+            tag = clean_tag(row.get("tag"))
+            if tag and not info.get(tag):
+                set_tag_info(target, tag,
+                             colour=clean_colour(row.get("colour")),
+                             description=str(row.get("description") or ""))
+                changed = True
+    if not changed:
+        return None
+    return clean_tags(target.tags), clean_tag_info(target.tag_info)
+
+
+def carried(source: Any, target: Any, id_maps: dict[str, dict[int, int]]
+            ) -> tuple[dict[str, list[str]], dict[str, dict[str, str]]] | None:
+    """`(tags, tag_info)` for *target* once *source*'s tags are carried over
+    to its elements' new ids (an imported model). None when there are none.
+    """
+    rows = [(parsed[0], {"ID": str(parsed[1])})
+            for ref in clean_tags(getattr(source, "tags", None))
+            if (parsed := parse_ref(ref)) is not None]
+    return pasted(target, buffer_items(source, rows), id_maps)
+
+
+def keep_only_present(rbd: Any) -> None:
+    """Drop tags on elements *rbd* no longer has, and the colour and
+    description of tags nothing carries any more (an extracted part)."""
+    prune(rbd, valid_refs_from_model(rbd))
+    used = set(tag_index(rbd))
+    info = clean_tag_info(getattr(rbd, "tag_info", None))
+    rbd.tag_info = {t: v for t, v in info.items() if t in used}

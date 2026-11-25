@@ -137,6 +137,18 @@ class ClipboardMixin(_Base):
         mime.setText(clipboard_payload.summary_text(buffer, name))
         set_mime_data(mime)
 
+    def _push_pasted_tags(self, after) -> None:
+        """Put pasted tags in the current undo macro (None: no tags)."""
+        if after is None:
+            return
+        from raptor.core import tags as tag_model
+        from raptor.gui.ui.tags_dialog import TagsCommand
+        rbd = self._rbd_ref
+        before = (tag_model.clean_tags(getattr(rbd, "tags", None)),
+                  tag_model.clean_tag_info(getattr(rbd, "tag_info", None)))
+        if before != after:
+            self._stack.push(TagsCommand(self, before, after, "Paste tags"))
+
     def _selection_lists(self):
         """(blocks, regular nodes, events, hierarchies) selected on canvas."""
         selected = self.selected_elements()
@@ -188,6 +200,10 @@ class ClipboardMixin(_Base):
             existing.add(name)
             target["blockName"] = name
         remap_dependencies(plan, keep_external=True)
+        from raptor.core import tags as tag_model
+        tagged = tag_model.pasted(
+            self._rbd_ref, tag_model.buffer_items(self._rbd_ref, buffer),
+            plan.id_maps)
         self._stack.beginMacro("Duplicate elements")
         try:
             for kind in ("block", "node", "event", "hier"):
@@ -195,6 +211,7 @@ class ClipboardMixin(_Base):
                     self._stack.push(AddCmd(self, kind, plan.new_rows[kind]))
             if plan.link_rows:
                 self._stack.push(AddCmd(self, "link", plan.link_rows))
+            self._push_pasted_tags(tagged)
         finally:
             self._stack.endMacro()
         self._scene.clearSelection()
@@ -261,6 +278,8 @@ class ClipboardMixin(_Base):
         buffer = self.selection_buffer()
         if not buffer:
             return 0
+        from raptor.core import tags as tag_model
+        buffer = buffer + tag_model.buffer_items(self._rbd_ref, buffer)
         self._paste_buffer = buffer
         self._publish_clip(buffer)
         self.paste_state_changed.emit()
@@ -461,6 +480,9 @@ class ClipboardMixin(_Base):
                         a2["y2"] = round(float(a.get("y2", 0)) + sdy, 2)
                     a2["parent"] = parent
                     self._stack.push(AnnoCmd(self, a2, add=True))
+                from raptor.core import tags as tag_model
+                self._push_pasted_tags(
+                    tag_model.pasted(self._rbd_ref, buffer, plan.id_maps))
             finally:
                 self._stack.endMacro()
         if self._stack.count() == steps_before:
