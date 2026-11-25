@@ -608,8 +608,10 @@ def test_cost_totals_are_consistent(qapp):
     blocks_table = next(t for t in page.findChildren(QTableWidget)
                         if t.columnCount() == 6 and t.rowCount() > 0)
     for r in range(blocks_table.rowCount()):
-        vals = [float(blocks_table.item(r, c).text().replace(",", ""))
-                for c in range(1, 6)]
+        # the cells show the model's currency ("$4,000.00"); sum the raw values
+        assert all(blocks_table.item(r, c).text().startswith(("$", "-$"))
+                   for c in range(1, 6))
+        vals = [_number(blocks_table, r, c) for c in range(1, 6)]
         assert vals[0] + vals[1] + vals[2] + vals[3] == \
             pytest.approx(vals[4], rel=1e-6), blocks_table.item(r, 0).text()
 
