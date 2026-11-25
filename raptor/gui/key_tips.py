@@ -46,7 +46,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     },
     "Data": {
         "data.phases": "P", "data.block_defaults": "D", "data.mass_edit": "M",
-        "data.tags": "G", "data.tag_colours": "C", "data.import_table": "T",
+        "data.tags": "G", "data.import_table": "T",
         "data.own_streams": "S", "home.health": "H",
         "data.export_library": "E", "data.import_library": "I",
     },
@@ -83,6 +83,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.run_toggle": "U", "view.data_tables": "D",
         "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
+        "view.tag_colours": "Y",
         "view.focus": "M", "view.show_annotations": "W",
         "view.show_comment_notes": "C",
     },
