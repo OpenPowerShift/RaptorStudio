@@ -165,7 +165,7 @@ the one you want. The search box narrows both. The set includes:
   ribbon, and a change chart against another stored run. **Scope**
   follows the canvas level or pins one hierarchy; **Depth** shows the top
   level, one numbered level or every level, and inside a chosen hierarchy
-  counts down from it ("1 level down" lists its own contents, deeper
+  counts down from it (it starts at every level; "1 level down" lists only its own contents, deeper
   levels open its sub-hierarchies); on the downtime, lost-capacity and cost
   treemaps it gathers anything deeper into one cell per hierarchy;
   **Compare** picks up to four

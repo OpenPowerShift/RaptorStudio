@@ -156,10 +156,7 @@ class ChartsPage(QWidget):
         #: the canvas level, remembered even while Follow canvas is off
         self._canvas_hierarchy = 0
         #: hierarchy level the ranking and ribbon charts show (0 = all)
-        self._depth = 0
-        #: the user picked a depth: until then a chosen hierarchy opens on
-        #: its direct contents ("1 level down") and the model on All levels
-        self._depth_chosen = False
+        self._depth = 0          # All levels: start fully nested
         #: hierarchy ids picked for the overlay; empty means the top four
         self._selected: list[int] = []
         self._pickers: dict[str, HierarchyTreePopup] = {}
@@ -695,7 +692,6 @@ class ChartsPage(QWidget):
 
     def _on_depth_changed(self, _index: int) -> None:
         self._depth = int(self.depth_box.currentData() or 0)
-        self._depth_chosen = True
         self._rebuild()
 
     def _update_depth_menu(self) -> None:
@@ -716,8 +712,6 @@ class ChartsPage(QWidget):
             else:
                 label = "Top level" if level == 1 else f"Level {level}"
             self.depth_box.addItem(label, level)
-        if not self._depth_chosen:
-            self._depth = 1 if inside and depth >= 1 else 0
         index = self.depth_box.findData(self._depth)
         self.depth_box.setCurrentIndex(max(0, index))
         self._depth = int(self.depth_box.currentData() or 0)
