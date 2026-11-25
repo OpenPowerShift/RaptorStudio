@@ -183,12 +183,12 @@ TOOL_CATEGORY: dict[str, str] = {
     "snapshot_version": "project",
     "label_version": "project",
     "restore_version": "project",
-    # Groups and tags
-    "list_groups": "build-edit",
-    "create_group": "build-edit",
-    "update_group": "build-edit",
-    "delete_group": "build-edit",
+    # Tags
+    "list_tags": "build-edit",
     "tag_elements": "build-edit",
+    "describe_tag": "build-edit",
+    "rename_tag": "build-edit",
+    "delete_tag": "build-edit",
     # Spreadsheet import
     "preview_table_import": "build-edit",
     "import_table_data": "build-edit",
@@ -313,12 +313,12 @@ EXAMPLES: dict[str, dict[str, Any]] = {
     "restore_version": {"model_id": "<model_id>",
                         "snapshot_id": "<snapshot_id>",
                         "output": "restored/pump.rbds"},
-    "list_groups": {"model_id": "<model_id>"},
-    "create_group": {"model_id": "<model_id>", "name": "Pumps",
-                     "members": ["Block:3", "Block:4"]},
-    "update_group": {"model_id": "<model_id>", "group": "Pumps",
-                     "add": ["Block:5"], "colour": "#2E7D32"},
-    "delete_group": {"model_id": "<model_id>", "group": "Pumps"},
+    "list_tags": {"model_id": "<model_id>", "within": 900},
+    "describe_tag": {"model_id": "<model_id>", "tag": "rotating",
+                     "colour": "#2E7D32", "description": "Moving parts"},
+    "rename_tag": {"model_id": "<model_id>", "tag": "rotating",
+                   "new_name": "rotating equipment"},
+    "delete_tag": {"model_id": "<model_id>", "tag": "rotating"},
     "tag_elements": {"model_id": "<model_id>",
                      "elements": ["Block:3", "Block:4"],
                      "tags": ["rotating"], "mode": "add"},
@@ -614,11 +614,11 @@ RETURN_NOTES: dict[str, str] = {
     "import_table_data": "The same object with `applied` true and only "
                          "the changes that were written; an error in any "
                          "row refuses the whole import.",
-    "list_groups": "`{groups: [{id, name, colour, description, tag, "
-                   "explicit_members, members}], count, tags}`.",
-    "create_group": "`{group, members}` for the stored group.",
-    "update_group": "`{group, members}` after the patch.",
-    "delete_group": "`{deleted, name}`.",
+    "list_tags": "`{tags: [{tag, colour, description, elements}], count, "
+                 "within}`.",
+    "describe_tag": "`{tag, colour, description, elements}`.",
+    "rename_tag": "`{from, to, elements, merged}`.",
+    "delete_tag": "`{deleted, elements}`.",
     "tag_elements": "`{changed: [{ref, tags}], count, mode}`.",
     "project_health": "`{counts, summary, annotations, text_annotations, "
                       "comments, formulas, rates, errors, warnings, issues}`; "

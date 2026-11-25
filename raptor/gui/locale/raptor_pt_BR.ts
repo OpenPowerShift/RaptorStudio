@@ -746,12 +746,12 @@
       <translation>Aplicar uma distribuição de falha/reparo a todos os elementos selecionados de uma vez (selecione 2+ elementos)</translation>
     </message>
     <message>
-      <source>Groups / Tags…</source>
-      <translation>Grupos / Etiquetas…</translation>
+      <source>Tags…</source>
+      <translation type="unfinished" />
     </message>
     <message>
-      <source>Component groups and tags — named, coloured views over the model. They may span hierarchies and never change the simulation</source>
-      <translation>Grupos e etiquetas de componentes — visões nomeadas e coloridas sobre o modelo. Podem abranger hierarquias e nunca alteram a simulação</translation>
+      <source>Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Import Table…</source>
@@ -2905,20 +2905,20 @@
       <translation>Remover vínculos</translation>
     </message>
     <message>
-      <source>Groups / Tags…</source>
-      <translation>Grupos / Etiquetas…</translation>
+      <source>Tags…</source>
+      <translation type="unfinished" />
     </message>
     <message>
-      <source>Put the selected elements in a component group or tag them</source>
-      <translation>Colocar os elementos selecionados num grupo de componentes ou etiquetá-los</translation>
+      <source>Tag the selected elements</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Move to parent level</source>
       <translation>Mover para o nível pai</translation>
     </message>
     <message>
-      <source>Put this element in a component group or tag it</source>
-      <translation>Colocar este elemento num grupo de componentes ou etiquetá-lo</translation>
+      <source>Tag this element</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Properties</source>
@@ -3913,24 +3913,24 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Lei</translation>
     </message>
     <message>
-      <source>Show only the elements in a component group or tag</source>
-      <translation>Mostrar somente os elementos de um grupo ou etiqueta de componente</translation>
+      <source>Show only the elements carrying a tag. Type to search.</source>
+      <translation type="unfinished" />
     </message>
     <message>
-      <source>Filter by group or tag</source>
-      <translation>Filtrar por grupo ou etiqueta</translation>
+      <source>Filter by tag</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>All elements</source>
       <translation>Todos os elementos</translation>
     </message>
     <message>
-      <source>Manage groups and tags…</source>
-      <translation>Gerenciar grupos e etiquetas…</translation>
+      <source>Manage tags…</source>
+      <translation type="unfinished" />
     </message>
     <message>
-      <source>Create groups, tag elements, and choose their colours</source>
-      <translation>Crie grupos, etiquete elementos e escolha suas cores</translation>
+      <source>Create tags, apply them, and choose their colours</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Save Reduced RAPTOR Model</source>
@@ -4161,8 +4161,12 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Anotações não suportadas no formato .rbd</translation>
     </message>
     <message>
-      <source>Groups and tags not supported in the .rbd format</source>
-      <translation>Grupos e etiquetas não são suportados no formato .rbd</translation>
+      <source>Tags not supported in the .rbd format</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>The component tags cannot be stored in the .rbd format and will be DROPPED. They are navigation metadata only; the model and its results are unaffected. Save as .rbds or .rbdz to keep them.</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>Display unit not supported in the .rbd format</source>
@@ -4281,126 +4285,6 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Selecione primeiro uma elipse de hierarquia e depois use Zoom na hierarquia</translation>
     </message>
     <message>
-      <source>Component Groups and Tags</source>
-      <translation>Grupos e etiquetas de componentes</translation>
-    </message>
-    <message>
-      <source>Groups are saved views over the model: they may span hierarchies and do not change the simulation. A group can hold an explicit list, every element carrying a tag, or both.</source>
-      <translation>Grupos são visões salvas sobre o modelo: podem abranger hierarquias e não alteram a simulação. Um grupo pode conter uma lista explícita, todos os elementos que carregam uma etiqueta, ou ambos.</translation>
-    </message>
-    <message>
-      <source>Groups</source>
-      <translation>Grupos</translation>
-    </message>
-    <message>
-      <source>Saved views. Selecting one edits its name, colour, members and tag query.</source>
-      <translation>Visões salvas. Selecionar uma edita seu nome, cor, membros e consulta de etiqueta.</translation>
-    </message>
-    <message>
-      <source>Create a group from the current canvas selection, or an empty group to fill later</source>
-      <translation>Criar um grupo a partir da seleção atual do diagrama, ou um grupo vazio para preencher depois</translation>
-    </message>
-    <message>
-      <source>Delete</source>
-      <translation>Excluir</translation>
-    </message>
-    <message>
-      <source>Delete the selected group; the elements and their tags are kept</source>
-      <translation>Excluir o grupo selecionado; os elementos e suas etiquetas são mantidos</translation>
-    </message>
-    <message>
-      <source>Group name</source>
-      <translation>Nome do grupo</translation>
-    </message>
-    <message>
-      <source>Group colour</source>
-      <translation>Cor do grupo</translation>
-    </message>
-    <message>
-      <source>Colour</source>
-      <translation>Cor</translation>
-    </message>
-    <message>
-      <source>Group tag query</source>
-      <translation>Consulta de etiqueta do grupo</translation>
-    </message>
-    <message>
-      <source>e.g. rotating — include every element with this tag</source>
-      <translation>ex.: rotativo — incluir todos os elementos com esta etiqueta</translation>
-    </message>
-    <message>
-      <source>Also include every element carrying this tag, including ones tagged later. Leave blank for an explicit member list only.</source>
-      <translation>Incluir também todos os elementos que carregam esta etiqueta, inclusive os etiquetados depois. Deixe em branco para usar apenas uma lista explícita de membros.</translation>
-    </message>
-    <message>
-      <source>Tag query</source>
-      <translation>Consulta de etiqueta</translation>
-    </message>
-    <message>
-      <source>Group description</source>
-      <translation>Descrição do grupo</translation>
-    </message>
-    <message>
-      <source>Optional note, shown in the selector's tooltip</source>
-      <translation>Nota opcional, exibida na dica do seletor</translation>
-    </message>
-    <message>
-      <source>Description</source>
-      <translation>Descrição</translation>
-    </message>
-    <message>
-      <source>Members</source>
-      <translation>Membros</translation>
-    </message>
-    <message>
-      <source>Group members</source>
-      <translation>Membros do grupo</translation>
-    </message>
-    <message>
-      <source>Add selection</source>
-      <translation>Adicionar seleção</translation>
-    </message>
-    <message>
-      <source>Add the elements selected on the canvas to this group's list</source>
-      <translation>Adicionar os elementos selecionados no diagrama à lista deste grupo</translation>
-    </message>
-    <message>
-      <source>Remove selection</source>
-      <translation>Remover seleção</translation>
-    </message>
-    <message>
-      <source>Remove the selected elements from this group's list. Elements included by the tag query stay in the view.</source>
-      <translation>Remover os elementos selecionados da lista deste grupo. Os elementos incluídos pela consulta de etiqueta permanecem na visão.</translation>
-    </message>
-    <message>
-      <source>Tags for the selected elements</source>
-      <translation>Etiquetas dos elementos selecionados</translation>
-    </message>
-    <message>
-      <source>Comma-separated tags</source>
-      <translation>Etiquetas separadas por vírgula</translation>
-    </message>
-    <message>
-      <source>Apply to selection</source>
-      <translation>Aplicar à seleção</translation>
-    </message>
-    <message>
-      <source>Replace the tags on every selected element with this list; leave the box empty to remove their tags</source>
-      <translation>Substituir as etiquetas de todos os elementos selecionados por esta lista; deixe a caixa vazia para remover as etiquetas</translation>
-    </message>
-    <message>
-      <source>Select elements on the canvas to add them to a group or edit their tags.</source>
-      <translation>Selecione elementos no diagrama para adicioná-los a um grupo ou editar suas etiquetas.</translation>
-    </message>
-    <message>
-      <source>Delete Group</source>
-      <translation>Excluir grupo</translation>
-    </message>
-    <message>
-      <source>Duplicate Group Name</source>
-      <translation>Nome de grupo duplicado</translation>
-    </message>
-    <message>
       <source>KEYBOARD_SHORTCUTS.md not found</source>
       <translation>KEYBOARD_SHORTCUTS.md não encontrado</translation>
     </message>
@@ -4467,6 +4351,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>%1 of %2</source>
       <translation>%1 de %2</translation>
+    </message>
+    <message>
+      <source>Description</source>
+      <translation>Descrição</translation>
     </message>
     <message>
       <source>Edit</source>
@@ -5607,6 +5495,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Abra ou crie um modelo para usar a biblioteca.</translation>
     </message>
     <message>
+      <source>Apply to selection</source>
+      <translation>Aplicar à seleção</translation>
+    </message>
+    <message>
       <source>Choose an entry in the library first.</source>
       <translation>Escolha primeiro uma entrada na biblioteca.</translation>
     </message>
@@ -6089,6 +5981,10 @@ Continuar?</translation>
     <message>
       <source>Add</source>
       <translation>Adicionar</translation>
+    </message>
+    <message>
+      <source>Delete</source>
+      <translation>Excluir</translation>
     </message>
     <message>
       <source>(no entries — press Add)</source>
@@ -6649,6 +6545,10 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Emer. Shipping / Per-Use</source>
       <translation>Envio emergencial / por uso</translation>
+    </message>
+    <message>
+      <source>Colour</source>
+      <translation>Cor</translation>
     </message>
     <message>
       <source>Min</source>
@@ -7335,6 +7235,94 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Table export failed</source>
       <translation>A exportação da tabela falhou</translation>
+    </message>
+    <message>
+      <source>Component Tags</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tags are labels on blocks, nodes, events and hierarchies. They may span hierarchies and overlap, and never change the simulation. Filter the Model Explorer or a chart by a tag.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Search tags</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tags</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>The model's tags and how many elements carry each. Selecting one edits its name, colour and description.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Create a tag; it is applied to the elements selected on the canvas, if any</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Remove the selected tag from every element; the elements are kept</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tag name</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Renames the tag on every element. Renaming onto a tag that already exists merges the two.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tag colour</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tag description</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Optional note, shown in the tag's tooltips</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Elements with this tag</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Add to selection</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Put this tag on the elements selected on the canvas</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Remove from selection</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Take this tag off the elements selected on the canvas</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Tags for the selected elements</source>
+      <translation>Etiquetas dos elementos selecionados</translation>
+    </message>
+    <message>
+      <source>Comma-separated tags</source>
+      <translation>Etiquetas separadas por vírgula</translation>
+    </message>
+    <message>
+      <source>Replace the tags on every selected element with this list; leave the box empty to remove their tags</source>
+      <translation>Substituir as etiquetas de todos os elementos selecionados por esta lista; deixe a caixa vazia para remover as etiquetas</translation>
+    </message>
+    <message>
+      <source>Select elements on the canvas to tag them here.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Delete Tag</source>
+      <translation type="unfinished" />
     </message>
     <message>
       <source>How many inputs to vary, the likeliest downtime causes first: by the last run's downtime when there is one, otherwise by each block's own failure and repair data</source>

@@ -701,10 +701,9 @@ class DeleteCmd(_ViewCmd):
             {r.get("eventName") for r in self.event_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
-        # Tags/groups are keyed by id; a deleted element's id can be
+        # Tags are keyed by id; a deleted element's id can be
         # reused by the next new block, so drop its bindings reversibly.
         rbd = getattr(view, "_rbd_ref", None)
-        self._groups_before = copy.deepcopy(getattr(rbd, "groups", None) or [])
         self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     def _drop_comments(self) -> None:
@@ -733,15 +732,14 @@ class DeleteCmd(_ViewCmd):
         self._drop_comments()
         rbd = getattr(v, "_rbd_ref", None)
         if rbd is not None:
-            from raptor.core import groups
-            groups.prune(rbd, groups.valid_refs_from_model(rbd))
+            from raptor.core import tags
+            tags.prune(rbd, tags.valid_refs_from_model(rbd))
         self._done()
 
     def undo(self):
         v = self._v
         rbd = getattr(v, "_rbd_ref", None)
         if rbd is not None:
-            rbd.groups = copy.deepcopy(self._groups_before)
             rbd.tags = copy.deepcopy(self._tags_before)
         self._restore_comments()
         at = getattr(self, "_at", {})
@@ -956,10 +954,9 @@ class DissolveCmd(_ViewCmd):
             {r.get("Name") for r in self.marker_rows})
         self.comment_rows = _capture_comment_rows(
             view, self._dead_comment_ids, self._dead_comment_names)
-        # Tags/groups are keyed by id; a deleted element's id can be
+        # Tags are keyed by id; a deleted element's id can be
         # reused by the next new block, so drop its bindings reversibly.
         rbd = getattr(view, "_rbd_ref", None)
-        self._groups_before = copy.deepcopy(getattr(rbd, "groups", None) or [])
         self._tags_before = copy.deepcopy(getattr(rbd, "tags", None) or {})
 
     @staticmethod
@@ -1001,7 +998,11 @@ class DissolveCmd(_ViewCmd):
                 row = self._row_by_id(link_section, lid)
                 if row is not None:
                     row.update(new)
+            # the oval and its port nodes are gone: so are their tags
+            from raptor.core import tags
+            tags.prune(rbd, tags.valid_refs_from_model(rbd))
         else:
+            rbd.tags = copy.deepcopy(self._tags_before)
             _restore_comment_rows(v, self.comment_rows)
             hier_section.rows.append(dict(self.hier_row))
             node_section = rbd.sections["NODE_DATA"]

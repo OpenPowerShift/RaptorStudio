@@ -30,10 +30,10 @@ class ExplorerDock(QWidget):
     #: (ascend) — MainWindow wires these to the diagram's navigation.
     hier_activated = Signal(int)  # descend into this hierarchy id
     ascend_requested = Signal(int)  # leave this hierarchy (the marker's own)
-    #: The group/tag view changed: a set of element refs, or None for all.
-    group_view_changed = Signal(object)
-    #: The selector's "Manage groups and tags…" entry was chosen.
-    manage_groups_requested = Signal()
+    #: The tag view changed: a set of element refs, or None for all.
+    tag_view_changed = Signal(object)
+    #: The selector's "Manage tags…" entry was chosen.
+    manage_tags_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -46,7 +46,7 @@ class ExplorerDock(QWidget):
         #: The active view's refs, so typing in Find does not rebuild the
         #: tag index on every keystroke. `_refresh` invalidates it.
         self._group_refs: set[str] = set()
-        self._group_refs_for: tuple[str, str] | None = None
+        self._group_refs_for: tuple[str, int] | None = None
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setIndentation(16)
@@ -72,23 +72,46 @@ class ExplorerDock(QWidget):
         bar.addWidget(self._expand_button)
         bar.addWidget(self._collapse_button)
         bar.addStretch(1)
-        # A group/tag view. Groups are navigation metadata, not a second
-        # hierarchy: this filters the same whole-model tree.
+        # A tag view. Tags are navigation metadata, not a second hierarchy:
+        # this filters the same whole-model tree. Editable, so a model
+        # with hundreds of tags is searched rather than scrolled.
         self._group_combo = QComboBox()
         # Model names, not chrome: never run them through the catalogue.
         self._group_combo.setProperty("raptor_i18n_data_items", True)
         self._group_combo.setToolTip(
-            "Show only the elements in a component group or tag")
-        self._group_combo.setAccessibleName("Filter by group or tag")
+            "Show only the elements carrying a tag. Type to search.")
+        self._group_combo.setAccessibleName("Filter by tag")
         self._group_combo.setMinimumWidth(120)
         self._group_combo.setMaximumWidth(200)
+        self._group_combo.setMaxVisibleItems(20)
+        self._group_combo.setEditable(True)
+        self._group_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        completer = self._group_combo.completer()
+        if completer is not None:
+            from PySide6.QtWidgets import QCompleter
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.setCompletionMode(
+                QCompleter.CompletionMode.PopupCompletion)
         # Wide enough for its current entry ("Todos os elementos" was cut
         # off at the minimum width), never wider than the cap above.
         self._group_combo.setSizeAdjustPolicy(
             QComboBox.SizeAdjustPolicy.AdjustToContents)
         self._group_combo.currentIndexChanged.connect(
             self._on_group_filter_changed)
+        line = self._group_combo.lineEdit()
+        if line is not None:
+            line.editingFinished.connect(self._restore_combo_text)
         bar.addWidget(self._group_combo)
+        # "Tag within a hierarchy": only the tagged elements inside the
+        # hierarchy shown on the canvas, at any depth.
+        self._within_button = self._tool_button(
+            "Here only",
+            "Only the tagged elements inside the hierarchy shown on the "
+            "canvas (at any depth)")
+        self._within_button.setCheckable(True)
+        self._within_button.toggled.connect(
+            lambda _on: self._on_group_filter_changed())
+        bar.addWidget(self._within_button)
         self._retheme_buttons()
         from raptor.gui.resources.design_tokens import ThemeManager
         ThemeManager.instance().on_changed(self._retheme_buttons)
@@ -181,45 +204,87 @@ class ExplorerDock(QWidget):
         self._emitted_group = object()      # a different model entirely
         self._refresh()
 
-    def _selected_group(self) -> tuple[str, str] | None:
-        """The active group/tag view, or None for the whole model."""
+    def _selected_group(self) -> tuple[str, int] | None:
+        """The active tag view as `(tag, within)`, or None for the whole
+        model. `within` is the canvas hierarchy id with Here only on, else
+        0."""
         combo = getattr(self, "_group_combo", None)
         if combo is None:
             return None
         data = combo.currentData()
-        if isinstance(data, (tuple, list)) and len(data) == 2:
-            return str(data[0]), str(data[1])
-        return None
+        if not isinstance(data, str) or not data or data == self._MANAGE:
+            return None
+        within = 0
+        button = getattr(self, "_within_button", None)
+        if button is not None and button.isChecked():
+            within = self._level_on_screen()
+        return data, within
+
+    def _level_on_screen(self) -> int:
+        """The hierarchy the canvas shows (0 at Home)."""
+        if self._view is not None:
+            return int(getattr(self._view, "_current_parent", 0) or 0)
+        return int(getattr(self, "_current_parent_id", 0) or 0)
 
     #: Item data of the selector's last entry, which opens the editor.
-    _MANAGE = "manage"
+    _MANAGE = "\x00manage"
+
+    def _restore_combo_text(self) -> None:
+        """Typed text that is not a tag: show the chosen entry again."""
+        combo = self._group_combo
+        if combo.findText(combo.currentText()) < 0:
+            combo.setEditText(combo.itemText(combo.currentIndex()))
 
     def _on_group_filter_changed(self, _index: int = 0) -> None:
-        """A different group/tag view: rebuild, then re-apply Find."""
+        """A different tag view: rebuild, then re-apply Find."""
         combo = self._group_combo
         if combo.currentData() == self._MANAGE:
             # An action, not a view: put the previous choice back first.
             combo.blockSignals(True)
             combo.setCurrentIndex(getattr(self, "_group_index", 0))
             combo.blockSignals(False)
-            self.manage_groups_requested.emit()
+            self.manage_tags_requested.emit()
             return
         self._group_index = combo.currentIndex()
+        self._update_within_button()
         self._refresh()
         # Clearing the selector must also un-dim the canvas; `_refresh`
-        # only emits while a group is active.
+        # only emits while a tag is active.
         self._emit_group_view()
 
+    def _update_within_button(self) -> None:
+        button = getattr(self, "_within_button", None)
+        if button is None:
+            return
+        tag_on = isinstance(self._group_combo.currentData(), str) and \
+            self._group_combo.currentData() not in ("", self._MANAGE)
+        level = self._level_on_screen()
+        button.setEnabled(tag_on and level > 0)
+        name = ""
+        if level > 0 and self._view is not None:
+            rbd = getattr(self._view, "_rbd_ref", None)
+            sec = (getattr(rbd, "sections", None) or {}).get("HIERARCHY_DATA")
+            from raptor.core.fileio.typed import row_int
+            for row in (sec.rows if sec is not None else ()):
+                if row_int(row.get("ID"), 0) == level:
+                    name = str(row.get("hierarchyName") or "")
+                    break
+        button.setToolTip(
+            f"Only the tagged elements inside “{name}”, at any depth"
+            if name else
+            "Only the tagged elements inside the hierarchy shown on the "
+            "canvas (at any depth); open a hierarchy to use it")
+
     def _group_refs_now(self) -> set[str]:
-        """The active group/tag view's refs, cached until the view changes."""
+        """The active tag view's refs, cached until the view changes."""
         group = self._selected_group()
         if group is None:
             return set()
         if group != self._group_refs_for:
-            from raptor.core import groups as group_model
+            from raptor.core import tags as tag_model
             rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
             self._group_refs_for = group
-            self._group_refs = (group_model.refs_for_view(rbd, *group)
+            self._group_refs = (tag_model.refs_for_view(rbd, *group)
                                 if rbd is not None else set())
         return self._group_refs
 
@@ -228,66 +293,49 @@ class ExplorerDock(QWidget):
         value = None if group is None else frozenset(self._group_refs_now())
         if value != self._emitted_group:
             self._emitted_group = value
-            self.group_view_changed.emit(set(value) if value is not None else None)
-
-    @staticmethod
-    def _choice_tooltip(rbd, kind: str, value: str, tag_counts: dict) -> str:
-        """What a group/tag selector entry contains, for its tooltip."""
-        from raptor.core import groups as group_model
-        if kind == "group":
-            group = group_model.group_by_id(rbd, value)
-            if group is None:
-                return ""
-            count = len(group_model.group_members(rbd, group))
-            parts = [f"{count} element(s)"]
-            if group.get("tag"):
-                parts.append(f"tag query “{group['tag']}”")
-            if group.get("description"):
-                parts.append(group["description"])
-            return f"{group['name']} — " + ", ".join(parts)
-        return f"{value} — {len(tag_counts.get(value, ()))} element(s) tagged"
+            self.tag_view_changed.emit(set(value) if value is not None else None)
 
     def refresh_groups(self) -> None:
-        """Fill the group/tag selector from the model, keeping the choice."""
+        """Fill the tag selector from the model, keeping the choice."""
         combo = getattr(self, "_group_combo", None)
         if combo is None:
             return
-        from raptor.core import groups as group_model
+        from raptor.core import tags as tag_model
+        from raptor.gui.ui.tags_dialog import swatch
         rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
         self._group_refs_for = None    # the model may have changed
-        choices = group_model.view_choices(rbd) if rbd is not None else []
-        tag_counts = group_model.tag_index(rbd) if rbd is not None else {}
-        current = self._selected_group()
+        names = tag_model.all_tags(rbd) if rbd is not None else []
+        counts = tag_model.tag_index(rbd) if rbd is not None else {}
+        current = combo.currentData()
         combo.blockSignals(True)
         combo.clear()
         from raptor.gui import i18n
         # The entries are model names, so the widget pass leaves them
-        # alone: translate the two fixed ones here.
+        # alone: translate the fixed ones here.
         combo.addItem(i18n.tr("All elements"), None)
         combo.setItemData(0, "Show the whole model", Qt.ItemDataRole.ToolTipRole)
-        for label, kind, value in choices:
-            combo.addItem(label, (kind, value))
+        wanted = 0
+        for tag in names:
+            combo.addItem(swatch([tag_model.tag_colour(rbd, tag)]), tag, tag)
+            note = tag_model.tag_description(rbd, tag)
+            count = len(counts.get(tag, ()))
             combo.setItemData(
                 combo.count() - 1,
-                self._choice_tooltip(rbd, kind, value, tag_counts),
+                f"{tag} — {count} element(s)" + (f". {note}" if note else ""),
                 Qt.ItemDataRole.ToolTipRole)
-        wanted = 0
-        if current is not None:
-            for i in range(combo.count()):
-                data = combo.itemData(i)
-                if isinstance(data, (tuple, list)) and tuple(data) == current:
-                    wanted = i
-                    break
+            if tag == current:
+                wanted = combo.count() - 1
         combo.insertSeparator(combo.count())
-        combo.addItem(i18n.tr("Manage groups and tags…"), self._MANAGE)
+        combo.addItem(i18n.tr("Manage tags…"), self._MANAGE)
         combo.setItemData(
             combo.count() - 1,
-            i18n.tr("Create groups, tag elements, and choose their colours"),
+            i18n.tr("Create tags, apply them, and choose their colours"),
             Qt.ItemDataRole.ToolTipRole)
         combo.setCurrentIndex(wanted)
         self._group_index = wanted
         combo.setEnabled(rbd is not None)
         combo.blockSignals(False)
+        self._update_within_button()
 
     def filter_items(self, text: str) -> None:
         """Refine the tree in place as the user types, and MARK the hits.
@@ -297,10 +345,10 @@ class ExplorerDock(QWidget):
         whole subtree visible and matching a child keeps its hierarchy
         chain visible.
 
-        A component group/tag view is applied at the same time: the row
-        must be a member (or a folder holding one) *and* match the Find
-        text. Groups are navigation metadata, so this filters the same
-        whole-model tree rather than changing the simulated structure.
+        A tag view is applied at the same time: the row must carry the tag
+        (or be a folder holding one that does) *and* match the Find text.
+        Tags are navigation metadata, so this filters the same whole-model
+        tree rather than changing the simulated structure.
 
         While a search is active the rows are coloured as well as filtered:
         a title that matches the search directly takes the accent colour,
@@ -386,10 +434,11 @@ class ExplorerDock(QWidget):
         """One muted, unselectable row saying why the tree is empty."""
         if group is not None:
             label = self._group_combo.currentText()
-            message = (f"No elements in “{label}” match “{text}”."
+            here = " here" if group[1] else ""
+            message = (f"No elements tagged “{label}”{here} match “{text}”."
                        if text else
-                       f"{label} has no elements yet — add members in "
-                       "Data ▸ Groups / Tags…")
+                       f"No elements tagged “{label}”{here} — tag them in "
+                       "Data ▸ Tags…")
         else:
             message = f"No elements match “{text}”."
         root = self._tree.topLevelItem(0)
@@ -571,7 +620,13 @@ class ExplorerDock(QWidget):
         colour. Only the previous and the new item are touched; the tree is
         not rebuilt, and the item is scrolled into view."""
         from shiboken6 import isValid
+        moved = (parent_id or 0) != getattr(self, "_current_parent_id", 0)
         self._current_parent_id = parent_id or 0
+        if moved and hasattr(self, "_within_button"):
+            self._update_within_button()
+            if self._within_button.isChecked():
+                self._refresh()
+                self._emit_group_view()
         previous = self._current_item
         if previous is not None and isValid(previous):
             self._style_item(previous, False)

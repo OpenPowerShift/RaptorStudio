@@ -1,7 +1,7 @@
 #compdef raptor
 _raptor() {
   local -a cmds
-  cmds=(advise analytic compare completion config convert declassify describe diff doctor edit estimate explain extract fev fit get groups gui health help history import-table info library mcp optimise recommend register-file-types render report run schema sensitivity set simulate spf step sweep tables validate whatif)
+  cmds=(advise analytic compare completion config convert declassify describe diff doctor edit estimate explain extract fev fit get gui health help history import-table info library mcp optimise recommend register-file-types render report run schema sensitivity set simulate spf step sweep tables tags validate whatif)
   if (( CURRENT == 2 )); then
     _describe 'command' cmds
   else

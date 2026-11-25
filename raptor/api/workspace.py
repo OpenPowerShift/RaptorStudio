@@ -123,8 +123,8 @@ def rbds_only_content(rbd: RbdFile) -> list[str]:  # noqa: C901, PLR0912
         lost.append("formulas")
     if getattr(rbd, "tags", None):
         lost.append("component tags")
-    if getattr(rbd, "groups", None):
-        lost.append("component groups")
+    if getattr(rbd, "tag_info", None):
+        lost.append("tag colours and descriptions")
     block = rbd.sections.get("BLOCK_DATA")
     if block is not None:
         for row in block.rows:

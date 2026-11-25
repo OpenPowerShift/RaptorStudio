@@ -760,15 +760,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
         handler="_on_mass_edit",
         enabled_when="can_mass_edit"),
     CommandSpec(
-        id="data.groups",
-        attr="_groups_action",
-        text="Groups / Tags…",
+        id="data.tags",
+        attr="_tags_action",
+        text="Tags…",
         icon="tag_icon:text",
         tooltip=(
-            "Component groups and tags — named, coloured views over the "
-            "model. They may span hierarchies and never change the "
-            "simulation"),
-        handler="_open_groups_dialog",
+            "Component tags — coloured labels on elements that may span "
+            "hierarchies. Filter the Explorer or a chart by one; they "
+            "never change the simulation"),
+        handler="_open_tags_dialog",
         enabled_when="model_open"),
     CommandSpec(
         id="data.import_table",
@@ -1660,7 +1660,7 @@ LAYOUT: tuple[Page, ...] = (
                                   Custom("_build_pool_buttons")), priority=4),
        Group("Bulk Edit", (Btn("data.block_defaults", True),
                            Btn("data.mass_edit", True),
-                           Btn("data.groups", True),
+                           Btn("data.tags", True),
                            Btn("data.import_table", True),
                            Btn("data.own_streams", True),
                            Btn("home.health", True)), priority=2),

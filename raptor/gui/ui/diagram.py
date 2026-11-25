@@ -222,8 +222,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     #: context menu was shown; this just tells MainWindow to raise/show
     #: the dock itself.
     properties_requested = Signal()
-    #: Right-click > Groups / Tags: edit the selection's groups and tags.
-    groups_requested = Signal()
+    #: Right-click > Tags: edit the selection's tags.
+    tags_requested = Signal()
     #: Emitted after ANY selection change, with no payload -- the one
     #: hook for UI whose enabled state depends only on "what is
     #: selected" rather than on which element it is. The z-order ribbon
@@ -871,13 +871,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # re-populates them); traversal within a model keeps them
         self._last_result_visuals = None
         self._last_hier_dsi: dict | None = None
-        # A group view belongs to one model's element ids, but an
+        # A tag view belongs to one model's element ids, but an
         # in-model reload (Quick Add, paste data, library apply) must keep
         # the Explorer filter and the canvas in step.
-        if rbd is not getattr(self, "_group_model", None):
-            self._group_view: set[str] | None = None
-            self._group_hiers: set[str] = set()
-            self._group_model = rbd
+        if rbd is not getattr(self, "_tag_model", None):
+            self._tag_view: set[str] | None = None
+            self._tag_hiers: set[str] = set()
+            self._tag_model = rbd
         self._live_state_cache = None
         self._hier_boundary_cache = None
         self._link_file_ids_cache = None
@@ -3134,31 +3134,31 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             return
         self._apply_focus(items)
 
-    def set_group_view(self, refs: set[str] | None) -> None:
-        """Dim everything outside a component group/tag view.
+    def set_tag_view(self, refs: set[str] | None) -> None:
+        """Dim everything outside a component tag view.
 
-        The group is navigation metadata: this changes only the opacity of
-        the elements on the current level, never the model or the links.
-        Hierarchy ovals on the path to a member stay bright, like folders in
-        the Explorer, so a group that spans levels keeps its context.
-        `None` restores every element.
+        A tag is navigation metadata: this changes only the opacity of the
+        elements on the current level, never the model or the links.
+        Hierarchy ovals on the path to a tagged element stay bright, like
+        folders in the Explorer, so a tag that spans levels keeps its
+        context. `None` restores every element.
         """
-        self._group_view = set(refs) if refs is not None else None
+        self._tag_view = set(refs) if refs is not None else None
         rbd = getattr(self, "_rbd_ref", None)
-        from raptor.core import groups as group_model
-        self._group_hiers = (group_model.ancestor_hiers(rbd, refs)
+        from raptor.core import tags as tag_model
+        self._tag_hiers = (tag_model.ancestor_hiers(rbd, refs)
                              if refs is not None and rbd is not None else set())
-        self._apply_group_view()
+        self._apply_tag_view()
 
-    def _group_keeps(self, kind: str, oid: int) -> bool:
-        """Whether a group view keeps this element at full opacity."""
-        refs = getattr(self, "_group_view", None)
+    def _tag_keeps(self, kind: str, oid: int) -> bool:
+        """Whether a tag view keeps this element at full opacity."""
+        refs = getattr(self, "_tag_view", None)
         if refs is None:
             return True
         if f"{kind}:{oid}" in refs:
             return True
         return (kind == "hier"
-                and f"hier:{oid}" in getattr(self, "_group_hiers", ()))
+                and f"hier:{oid}" in getattr(self, "_tag_hiers", ()))
 
     #: opacity of everything that is not being compared
     _COMPARE_FADE = 0.35
@@ -3179,7 +3179,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         # a comparison fades the level only when it shows a compared oval
         self._compare_here = any(
             hid in colours for hid in getattr(self, "_hier_items", {}))
-        self._apply_group_view()
+        self._apply_tag_view()
 
     def _compare_active_here(self) -> bool:
         return bool(getattr(self, "_compare_here", False))
@@ -3197,8 +3197,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     def _base_opacity(item) -> float:
         return 0.45 if getattr(item, "_oos_state", None) == "cut" else 1.0
 
-    def _apply_group_view(self) -> None:
-        """Repaint opacity for the active group view and focus mode."""
+    def _apply_tag_view(self) -> None:
+        """Repaint opacity for the active tag view and focus mode."""
         if getattr(self, "_focus_mode", False):
             try:
                 selected = self._scene.selectedItems()
@@ -3213,7 +3213,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             for oid, item in items.items():
                 try:
                     item.setOpacity(self._opacity_for(
-                        kind, oid, item, self._group_keeps(kind, oid)))
+                        kind, oid, item, self._tag_keeps(kind, oid)))
                 except RuntimeError:
                     continue
         self._fade_links()
@@ -3241,7 +3241,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                             ("hier", getattr(self, "_hier_items", {}))):
             for oid, item in items.items():
                 try:
-                    keep = self._group_keeps(kind, oid) and (
+                    keep = self._tag_keeps(kind, oid) and (
                         not self._focus_mode or item in chosen)
                     item.setOpacity(self._opacity_for(kind, oid, item, keep))
                 except RuntimeError:

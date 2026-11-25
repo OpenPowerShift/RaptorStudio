@@ -151,18 +151,18 @@ def test_links_fade_with_their_faded_ends_and_restore(qapp):
         end._oos_state = "cut"
         w._on_chart_compare_changed([])
         end.setOpacity(0.45)
-        view._apply_group_view()
+        view._apply_tag_view()
         assert view._links[0].opacity() == pytest.approx(
             min(view._view_fade(view._links[0]._from),
                 view._view_fade(view._links[0]._to)))
         end._oos_state = None
         end.setOpacity(1.0)
-        view._apply_group_view()
+        view._apply_tag_view()
         assert all(link.opacity() == 1.0 for link in view._links)
         # group view fades links too
-        view.set_group_view({f"hier:{ids[0]}"})
+        view.set_tag_view({f"hier:{ids[0]}"})
         assert any(link.opacity() < 1.0 for link in view._links)
-        view.set_group_view(None)
+        view.set_tag_view(None)
         assert all(link.opacity() == 1.0 for link in view._links)
     finally:
         w._dirty = False

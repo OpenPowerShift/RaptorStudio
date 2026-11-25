@@ -1,0 +1,91 @@
+.TH "RAPTOR-TAGS" 1 "2026-10" "RAPTOR Studio" "RAPTOR Studio Manual"
+.SH NAME
+raptor\-tags \- list, apply, describe and rename tags
+.SH SYNOPSIS
+\fBraptor tags\fR [\-h] MODEL ACTION ...
+.SH DESCRIPTION
+Tags are free\-form labels on elements, with an optional colour and description per tag. They may span hierarchies and overlap, and never change what the simulation runs. They are stored in the .rbds file and are lost by the legacy .rbd format. The model file changes only with \-\-in\-place.
+.SH COMMANDS
+.TP
+\fBlist\fR
+list tags with their element counts
+.TP
+\fBapply\fR
+tag, untag or re\-tag elements
+.TP
+\fBdescribe\fR
+set a tag's colour or description (creates it)
+.TP
+\fBrename\fR
+rename a tag (merges into an existing one)
+.TP
+\fBdelete\fR
+remove a tag from every element
+.TP
+\fBshow\fR
+show one element's tags
+.SH RAPTOR TAGS LIST
+\fBraptor tags list\fR L list [\-h] [\-\-within HIER_ID] [\-f {text,json}]
+.SS Options
+.TP
+\fB\-\-within\fR \fIHIER_ID\fR
+count only elements inside this hierarchy
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR TAGS APPLY
+\fBraptor tags apply\fR apply [\-h] \-\-tags NAMES [\-\-mode {replace,add,remove}] [\-\-in\-place] [\-f {text,json}] ELEMENT [ELEMENT ...]
+.SS Options
+.TP
+\fB\-\-tags\fR \fINAMES\fR
+comma list of tags
+.TP
+\fB\-\-mode\fR \fI{replace|add|remove}\fR
+replace (default), add or remove
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR TAGS DESCRIBE
+\fBraptor tags describe\fR scribe [\-h] [\-\-colour HEX] [\-\-description TEXT] [\-\-in\-place] [\-f {text,json}] TAG
+.SS Options
+.TP
+\fB\-\-colour\fR \fIHEX\fR
+#RRGGBB; empty resets
+.TP
+\fB\-\-description\fR \fITEXT\fR
+empty clears
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR TAGS RENAME
+\fBraptor tags rename\fR rename [\-h] [\-\-in\-place] [\-f {text,json}] TAG NEW
+.SS Options
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR TAGS DELETE
+\fBraptor tags delete\fR delete [\-h] [\-\-in\-place] [\-f {text,json}] TAG
+.SS Options
+.TP
+\fB\-\-in\-place\fR
+write the result back to MODEL
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH RAPTOR TAGS SHOW
+\fBraptor tags show\fR L show [\-h] [\-f {text,json}] ELEMENT
+.SS Options
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
+output format (default text)
+.SH SEE ALSO
+\fBraptor\fR(1)

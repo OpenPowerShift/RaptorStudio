@@ -1037,8 +1037,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._on_annotations_may_be_invisible)
         self._diagram_dock.view.properties_requested.connect(
             lambda: self._show_inspector_dock(expand_minimized=True))
-        self._diagram_dock.view.groups_requested.connect(
-            self._open_groups_dialog)
+        self._diagram_dock.view.tags_requested.connect(
+            self._open_tags_dialog)
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -1222,10 +1222,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             lambda hid: self._diagram_dock.view.enter_level(hid))
         self._explorer.ascend_requested.connect(
             self._diagram_dock.view.go_up)
-        self._explorer.manage_groups_requested.connect(
-            self._open_groups_dialog)
-        self._explorer.group_view_changed.connect(
-            self._diagram_dock.view.set_group_view)
+        self._explorer.manage_tags_requested.connect(
+            self._open_tags_dialog)
+        self._explorer.tag_view_changed.connect(
+            self._diagram_dock.view.set_tag_view)
         # Re-parents the ribbon-built Find combo into this dock's own
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
@@ -3632,32 +3632,43 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         from raptor.gui.ui import dialogs
         dialogs.on_mass_edit(self)
 
-    def _open_groups_dialog(self):
-        """Data ▸ Groups / Tags: edit navigation metadata as one undo step."""
+    def _selected_refs(self) -> list[str]:
+        """The canvas selection as tag references (`block:3`, ...)."""
+        from raptor.core import tags as tag_model
+        blocks, nodes, events, hiers = \
+            self._diagram_dock.view.selected_elements()
+        return ([tag_model.element_ref("block", i) for i in blocks]
+                + [tag_model.element_ref("node", i) for i in nodes]
+                + [tag_model.element_ref("event", i) for i in events]
+                + [tag_model.element_ref("hier", i) for i in hiers])
+
+    def _open_tags_dialog(self):
+        """Data ▸ Tags: edit navigation metadata as one undo step."""
         if self._rbd is None:
             return
-        from raptor.gui.ui.groups_dialog import GroupsCommand, GroupsDialog
-        from raptor.core import groups as group_model
-        view = self._diagram_dock.view
-        blocks, nodes, events, hiers = view.selected_elements()
-        selected = ([group_model.element_ref("block", i) for i in blocks]
-                    + [group_model.element_ref("node", i) for i in nodes]
-                    + [group_model.element_ref("event", i) for i in events]
-                    + [group_model.element_ref("hier", i) for i in hiers])
-        dialog = GroupsDialog(self, self._rbd, selected)
+        from raptor.gui.ui.tags_dialog import TagsDialog
+        dialog = TagsDialog(self, self._rbd, self._selected_refs())
         if exec_dialog(dialog) != QDialog.DialogCode.Accepted:
             return
+        self._push_tags(dialog.result_data(), "Component tags")
+
+    def _push_tags(self, after, text: str) -> bool:
+        """Push one undoable tags change; False when nothing changed."""
         import copy
-        before = (copy.deepcopy(getattr(self._rbd, "tags", None) or {}),
-                  copy.deepcopy(getattr(self._rbd, "groups", None) or []))
-        after = dialog.result_data()
+        from raptor.core import tags as tag_model
+        from raptor.gui.ui.tags_dialog import TagsCommand
+        before = (tag_model.clean_tags(getattr(self._rbd, "tags", None)),
+                  tag_model.clean_tag_info(
+                      getattr(self._rbd, "tag_info", None)))
+        after = (copy.deepcopy(after[0]), copy.deepcopy(after[1]))
         if before == after:
-            return
+            return False
         self._undo_stack.push(
-            GroupsCommand(view, before, after, "Component groups and tags"))
+            TagsCommand(self._diagram_dock.view, before, after, text))
         self._statusbar.showMessage(
-            f"Saved {len(after[1])} component group(s) and "
-            f"{len(after[0])} tagged element(s) — Ctrl+Z to undo", 6000)
+            f"{text}: {len(after[0])} tagged element(s) — Ctrl+Z to undo",
+            6000)
+        return True
 
 
     # --- Preferences -------------------

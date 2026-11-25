@@ -32,82 +32,49 @@ with no run on screen says so in the status bar.
 
 ---
 
-## 2. Component groups and tags
+## 2. Component tags (groups dropped)
 
-**Decision:** groups are **orthogonal metadata**, not a second hierarchy.
-A hierarchy is simulation structure: it owns links, ports and the scope of
-a run. A group is a saved view over the same model and may span
-hierarchies. Making groups "instead of" hierarchy would force the engine
-to answer questions it does not need to answer, and would make a group
-membership change a structural edit.
+**Decision:** tags are **orthogonal metadata**, not a second hierarchy. A
+hierarchy is simulation structure: it owns links, ports and the scope of a
+run, and hierarchies never overlap. A tag is a label on an element; tags
+may span hierarchies and overlap freely. Neither changes what the engine
+runs.
 
-Groups and tags are two views of one idea:
+An earlier design also had **groups**: named, coloured sets holding an
+explicit member list, a tag query, or both. They were dropped before
+release (2026-11-25). A group was a tag under another name in almost every
+case, and having both meant two concepts in the dialog, the Explorer, the
+chart pickers, the MCP tools and the results. A tag now carries what a
+group added: an optional colour and description, and it may exist with no
+elements yet.
 
-- **Tag** — a free-form label on an element (`pumps`, `rotating`,
-  `safety-case-A`). Many per element, many elements per tag.
-- **Group** — a named, optionally coloured set with a stable id. A group
-  is either an explicit member list or a tag query. Explicit membership
-  lets a user group two differently tagged elements; a tag query keeps a
-  group current when new elements are tagged.
+"A tag within a hierarchy" is the two combined when viewed ("pumps in
+Intake"), never stored: the Explorer's **Here only** toggle and the chart
+Scope picker's *within* both narrow a tag to one hierarchy's contents at
+any depth.
 
-### Proposed `.rbds` shape (format version 5)
+### `.rbds` shape
 
 ```json
-"tags": {
-  "block:3": ["pumps", "rotating"],
-  "block:4": ["pumps", "standby"]
-},
-"groups": [
-  {
-    "id": "g_pumps",
-    "name": "Pumps",
-    "colour": "#2F80ED",
-    "description": "All duty and standby pumps",
-    "members": [{"kind": "block", "id": 3}, {"kind": "block", "id": 4}]
-  },
-  {
-    "id": "g_rotating",
-    "name": "Rotating equipment",
-    "colour": "#9B51E0",
-    "tag_query": "rotating"
-  }
-]
+"tags": {"block:3": ["pumps", "rotating"], "hier:7": ["intake"]},
+"tag_info": {"pumps": {"colour": "#2F80ED", "description": "Feed pumps"}}
 ```
 
-`kind` is one of `block`, `node`, `event`, `hierarchy`. Membership is
-resolved live from tags for a query group; an explicit group keeps its
-list, and deleting an element removes it from explicit groups on load (a
-warning names the dangling member).
+A tag with no stored colour takes one from its name, so the file stores
+only a colour the user chose. A tag on a hierarchy oval counts everything
+inside it in results.
 
-### Views
+### Results by tag are fixed at run time
 
-1. **Explorer:** a group/tag filter beside Find. Filtering dims rather than
-   hides by default; a "Only these" switch hides the rest. Hierarchy
-   folders stay visible so the structural context is not lost.
-2. **Canvas:** "Show group" applies the existing result-overlay machinery:
-   dim everything outside the group, keep links to the selected members.
-   A second mode, "Group colours", outlines blocks by their first group's
-   colour.
-3. **Results:** Drivers, Weak Links and export tables gain a group filter.
-   Rows aggregate by group as an extra grouping key beside `element`,
-   `failure mode` and `hierarchy`.
-4. **Editing:** *Group from selection* and *Group from hierarchy* commands;
-   the Inspector gets a Tags field with completion. Groups are saved with
-   the model, so they travel in `.rbds` and `.rbdz`.
+Tag rows in the downtime results (and the charts scoped to a tag) are
+worked out when the run is analysed, from the tags at that moment. Editing
+tags afterwards does not change a finished run's results; the chart says
+so and a re-run brings them up to date. The alternative, storing every
+outage-starting element's per-run downtime so any later tag could be added
+up with an honest interval, was judged not worth the larger results.
 
-### Why not element fields in the table
-
-Tags live in one top-level map rather than a new column on every element
-row. The `.rbds` rule is "each value stored once"; a tag map is one place,
-works for blocks, nodes, events and hierarchies, and leaves the legacy
-`.rbd` writer untouched (tags are dropped on `.rbd` save, with the same
-loss warning the other `.rbds`-only fields get).
-
-**Build order:** (1) format + schema + round-trip tests; (2) Explorer
-filter and Inspector tags; (3) canvas dim/colour; (4) results grouping and
-export columns; (5) group commands.
-
----
+Tags overlap, so no chart shows them as parts of a whole: no sunburst,
+treemap, stacked share or "unassigned" row for tags.
 
 ## 3. When to calculate downtime drivers
 

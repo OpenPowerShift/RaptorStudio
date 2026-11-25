@@ -341,20 +341,6 @@
    "targets"
   ]
  },
- "create_group": {
-  "params": [
-   "colour",
-   "description",
-   "members",
-   "model_id",
-   "name",
-   "tag"
-  ],
-  "required": [
-   "model_id",
-   "name"
-  ]
- },
  "create_model": {
   "params": [
    "k",
@@ -406,16 +392,6 @@
    "path"
   ]
  },
- "delete_group": {
-  "params": [
-   "group",
-   "model_id"
-  ],
-  "required": [
-   "group",
-   "model_id"
-  ]
- },
  "delete_link": {
   "params": [
    "link_id",
@@ -424,6 +400,16 @@
   "required": [
    "link_id",
    "model_id"
+  ]
+ },
+ "delete_tag": {
+  "params": [
+   "model_id",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "tag"
   ]
  },
  "describe_metrics": {
@@ -441,6 +427,18 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "describe_tag": {
+  "params": [
+   "colour",
+   "description",
+   "model_id",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "tag"
   ]
  },
  "diff_models": {
@@ -729,14 +727,6 @@
   "params": [],
   "required": []
  },
- "list_groups": {
-  "params": [
-   "model_id"
-  ],
-  "required": [
-   "model_id"
-  ]
- },
  "list_models": {
   "params": [
    "include_examples",
@@ -757,6 +747,15 @@
   "params": [
    "model_id",
    "run_id"
+  ],
+  "required": [
+   "model_id"
+  ]
+ },
+ "list_tags": {
+  "params": [
+   "model_id",
+   "within"
   ],
   "required": [
    "model_id"
@@ -954,6 +953,18 @@
   ],
   "required": [
    "model_id"
+  ]
+ },
+ "rename_tag": {
+  "params": [
+   "model_id",
+   "new_name",
+   "tag"
+  ],
+  "required": [
+   "model_id",
+   "new_name",
+   "tag"
   ]
  },
  "render_diagram": {
@@ -1299,23 +1310,6 @@
   "required": [
    "model_id",
    "updates"
-  ]
- },
- "update_group": {
-  "params": [
-   "add",
-   "colour",
-   "description",
-   "group",
-   "members",
-   "model_id",
-   "name",
-   "remove",
-   "tag"
-  ],
-  "required": [
-   "group",
-   "model_id"
   ]
  },
  "validate_model": {

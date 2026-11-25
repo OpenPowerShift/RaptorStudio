@@ -50,11 +50,10 @@ Options:
   in the element rows).
 - **Clear Advisor notes** (the reasons attached to dismissed findings).
 
-Groups and tags are prose the user typed, so a share-safe copy renames them
-whatever the options: groups become `Group_1`, `Group_2`, ... (ids `g_1`,
-`g_2`, ...) and tags become `tag_1`, `tag_2`, ..., applied consistently so a
-group driven by a tag still finds its members. Group descriptions are
-dropped; group colours and membership are kept.
+Tags are prose the user typed, so a share-safe copy renames them whatever
+the options: tags become `tag_1`, `tag_2`, ..., applied consistently so
+elements that shared a tag still share one. Tag descriptions are dropped;
+tag colours and which elements carry each tag are kept.
 
 IDs, links, failure/repair data, costs, spares, resources, phases and the
 simulation structure are kept, so the copy still runs and can still be

@@ -471,21 +471,22 @@ returns the deleted annotation id and its kind.
   `--in-place` to write, and **Data ▸ Import Table…** in the application,
   where the whole import is one undo step.
 
-### Groups and tags
+### Tags
 
-- `list_groups` lists a model's saved views and its tags. A group may hold
-  an explicit member list, every element carrying a tag, or both; it can
-  span hierarchies and never changes the simulation.
-- `create_group` (same name updates the existing group), `update_group`
-  (rename, recolour, replace/add/remove members, set or clear the tag
-  query) and `delete_group` (elements and tags are kept) edit them. Each
-  saves the model.
+- `list_tags` lists a model's tags with colour, description and element
+  count; `within` (a hierarchy id) counts only the elements inside that
+  hierarchy. Tags may span hierarchies and overlap, and never change the
+  simulation.
 - `tag_elements` sets, adds or removes tags on named elements
   (`Block:3`, `Node:1`, `Event:2`, `Hier:900`); `mode="replace"` with no
   tags clears them. An unknown element is refused, not skipped.
-- From a shell, the same store is `raptor groups MODEL
-  list|add|update|delete|tag|tags`; `--in-place` writes the file and the
-  legacy `.rbd` format cannot hold either (a clear error says so).
+- `describe_tag` sets a tag's colour and description (and creates an empty
+  tag), `rename_tag` renames one everywhere (onto an existing tag merges
+  them) and `delete_tag` removes one from every element. Each saves the
+  model.
+- From a shell, the same store is `raptor tags MODEL
+  list|apply|describe|rename|delete|show`; `--in-place` writes the file
+  and the legacy `.rbd` format cannot hold tags (a clear error says so).
 
 ### Validate and simulate
 

@@ -1005,10 +1005,10 @@ or `results.summary`.
   `path` is given.
 |===
 
-==== Groups, imports, versions and sharing
+==== Tags, imports, versions and sharing
 
-Groups and tags are saved views over a model and never change the
-simulation. A *version* is a checkpoint you save on purpose (the desktop
+Tags are labels on elements, with an optional colour and description;
+they may span hierarchies, overlap and never change the simulation. A *version* is a checkpoint you save on purpose (the desktop
 app's *File ▸ Save Version Now...*); the tools use the word snapshot only
 in `snapshot_version`'s name. See the Version History and Project Health
 guides in `docs/` for the full story.
@@ -1017,26 +1017,24 @@ guides in `docs/` for the full story.
 |===
 | Tool | What it does
 
-| `list_groups`
-| The model's groups and tags. `members` is the resolved count: explicit
-  members plus every element carrying the group's tag.
-
-| `create_group`
-| Create a group (or update the one with that name): `members` as
-  selectors such as `Block:3` or `Hier:900`, an optional `tag` query, a
-  `colour` and a `description`. The model is saved.
-
-| `update_group`
-| Patch one group by name or id: rename, recolour, replace `members` or
-  edit them with `add` / `remove`; an empty `tag` or `description` clears
-  it.
-
-| `delete_group`
-| Delete a group. Its elements and their tags are kept.
+| `list_tags`
+| The model's tags with colour, description and element count. `within`
+  (a hierarchy id) counts only the elements inside that hierarchy.
 
 | `tag_elements`
 | Set, add or remove tags on elements (`mode` is `replace`, `add` or
-  `remove`).
+  `remove`), named by selectors such as `Block:3` or `Hier:900`.
+
+| `describe_tag`
+| Set a tag's `colour` and `description`; a tag no element carries yet is
+  created. The model is saved.
+
+| `rename_tag`
+| Rename a tag on every element; renaming onto an existing tag merges the
+  two.
+
+| `delete_tag`
+| Remove a tag from every element. The elements are kept.
 
 | `preview_table_import`
 | Say exactly what an `.xlsx` or `.ods` sheet would change, row by row,

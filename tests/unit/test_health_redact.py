@@ -327,25 +327,27 @@ def test_cli_health_says_when_there_are_no_issues(capsys):
     assert "no issues" in capsys.readouterr().out
 
 
-def test_share_safe_copy_renames_groups_and_tags():
-    """Group names, ids, descriptions and tags are typed prose; the copy
-    used to keep "Acme Site 7 pumps" verbatim (groups landed after the
-    share-safe copy was written)."""
-    from raptor.core import groups as g
+def test_share_safe_copy_renames_tags_and_drops_descriptions():
+    """Tags and their descriptions are typed prose; "customer-acme" names
+    the client as surely as a block name does."""
+    from raptor.core import tags as t
     rbd = load_rbds(MODEL)
-    g.add_group(rbd, "Acme Site 7 pumps", ["block:1"], description="Owned by J. Smith")
-    g.add_group(rbd, "Tagged", tag="customer-acme")
-    g.set_tags(rbd, "block:1", ["customer-acme", "rotating"])
+    t.set_tags(rbd, "block:1", ["customer-acme", "rotating"])
+    t.set_tags(rbd, "block:2", ["customer-acme"])
+    t.set_tag_info(rbd, "customer-acme", colour="#123456",
+                   description="Owned by J. Smith")
     out, _report = declassify(rbd)
-    text = repr((out.groups, out.tags))
-    for secret in ("Acme", "Smith", "customer-acme", "rotating", "Tagged"):
+    text = repr((out.tags, out.tag_info))
+    for secret in ("acme", "Smith", "rotating"):
         assert secret not in text
-    groups = g.groups_of(out)
-    assert [grp["name"] for grp in groups] == ["Group_1", "Group_2"]
-    # membership is structure: kept, and the tag-driven group still works
-    assert groups[0]["members"] == ["block:1"]
-    assert g.group_members(out, groups[1]) == {"block:1"}
+    renamed = t.tags_for(out, "block:1")
+    assert renamed == ["tag_1", "tag_2"]
+    # membership is structure: the two blocks still share a tag
+    assert t.tag_index(out)["tag_1"] == {"block:1", "block:2"}
+    # colours are kept, including a default one (it came from the old name)
+    assert t.tag_colour(out, "tag_1") == "#123456"
+    assert t.tag_colour(out, "tag_2") == t.default_colour("rotating")
     # the original is untouched and names=False keeps them
-    assert g.groups_of(rbd)[0]["name"] == "Acme Site 7 pumps"
+    assert t.tag_description(rbd, "customer-acme") == "Owned by J. Smith"
     kept, _ = declassify(rbd, RedactOptions(names=False))
-    assert g.groups_of(kept)[0]["name"] == "Acme Site 7 pumps"
+    assert "customer-acme" in t.all_tags(kept)

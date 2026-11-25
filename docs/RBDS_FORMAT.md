@@ -45,7 +45,7 @@ As `.rbds`.
   "comments":       [ {"type": "...", "id": 1, "name": "...",
                        "text": "..."} ],
   "rates": [...], "formulas": {...}, "annotations": [...],
-  "tags": {"block:3": ["pumps"]}, "groups": [ Group, ... ],
+  "tags": {"block:3": ["pumps"]}, "tag_info": {"pumps": {...}},
   "display_unit": "...", "view_transform": {...}, "project_meta": {...},
   "targets": {"availability": 0.995, "capacity": 0.98},
   "currency": "€"
@@ -692,45 +692,35 @@ touching any stored value: an hours-native model can be viewed in years.
 "display_unit": "years"
 ```
 
-## Component tags and groups (.rbds only)
+## Component tags (.rbds only)
 
-Tags are free-form labels for navigation. Groups are named, coloured sets
-of elements. Neither is simulation structure: a group may span
-hierarchies, and a hierarchy never implies a group. Both are saved with
-the model and dropped by the legacy `.rbd` writer, with the same warning
-as annotations.
+Tags are free-form labels for navigation and results. They are not
+simulation structure: a tag may span hierarchies, and tags overlap. They
+are saved with the model and dropped by the legacy `.rbd` writer, with the
+same warning as annotations.
 
 ```json
 "tags": {
   "block:3": ["pumps", "rotating"],
-  "block:4": ["pumps", "standby"]
+  "block:4": ["pumps", "standby"],
+  "hier:7": ["intake"]
 },
-"groups": [
-  {
-    "id": "g_pumps",
-    "name": "Pumps",
-    "colour": "#2F80ED",
-    "description": "Duty and standby pumps",
-    "members": ["block:3", "block:4"]
-  },
-  {
-    "id": "g_rotating",
-    "name": "Rotating equipment",
-    "colour": "#9B51E0",
-    "tag": "rotating"
-  }
-]
+"tag_info": {
+  "pumps": {"colour": "#2F80ED", "description": "Duty and standby pumps"},
+  "spares": {}
+}
 ```
 
 A reference is `block:<id>`, `node:<id>`, `event:<id>` or `hier:<id>`.
-`members` is an explicit list; `tag` also includes every element carrying
-that tag. Both may be present, and a group may be empty. Missing,
-malformed or dangling references are ignored on read, never fatal. Group
-ids are stable, lowercase slugs of at most 48 characters; a hand edit may
-supply any id matching `[a-z0-9][a-z0-9_-]*`. Names are at most 64
-characters, tags at most 48, and `colour` is a six-digit hex value such as
-`#2F80ED` (stored uppercase). A colour that is not a hex value is replaced
-by the palette on read, rather than refusing the file.
+Missing, malformed or dangling references are ignored on read, never
+fatal. Tags are at most 48 characters; case is kept, so `Pumps` and
+`pumps` are two tags.
+
+`tag_info` is optional per tag. `colour` is a six-digit hex value such as
+`#2F80ED` (stored uppercase); a tag without one takes a colour from its
+name, so a colour equal to that default is not stored. `description` is at
+most 400 characters. An entry with no elements carrying the tag (`"spares":
+{}` above) is a tag created on purpose and kept.
 
 ## Result targets (.rbds only)
 

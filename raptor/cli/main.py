@@ -20,7 +20,7 @@ COMMANDS = (
     "spf", "fev", "step", "extract", "analytic", "whatif", "sensitivity", "recommend",
     "optimise", "fit", "library", "edit", "mcp", "config",
     "completion", "doctor", "help", "register-file-types", "history",
-    "health", "declassify", "groups", "import-table",
+    "health", "declassify", "tags", "import-table",
 )
 
 
@@ -95,10 +95,10 @@ def _fill_common_help(parser: argparse.ArgumentParser) -> None:
 def _register(sub: Any) -> None:
     from raptor.cli import (cmd_gui, cmd_info, cmd_misc, cmd_run, cmd_tools,
                             cmd_mcp, cmd_analytic, cmd_advise, cmd_scenarios,
-                            cmd_optimise, cmd_library, cmd_edit, cmd_groups,
+                            cmd_optimise, cmd_library, cmd_edit, cmd_tags,
                             cmd_import_table)
     for mod in (cmd_gui, cmd_run, cmd_info, cmd_advise, cmd_scenarios,
-                cmd_optimise, cmd_library, cmd_edit, cmd_groups,
+                cmd_optimise, cmd_library, cmd_edit, cmd_tags,
                 cmd_import_table, cmd_tools, cmd_mcp, cmd_misc, cmd_analytic):
         mod.add_parser(sub)
 

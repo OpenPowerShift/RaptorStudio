@@ -34,18 +34,18 @@ Every tool section is generated from the server's `tools/list` payload.  It repe
   - [`connect`](#tool-connect)
   - [`connect_many`](#tool-connect_many)
   - [`copy_element_data`](#tool-copy_element_data)
-  - [`create_group`](#tool-create_group)
   - [`delete_element`](#tool-delete_element)
   - [`delete_elements`](#tool-delete_elements)
-  - [`delete_group`](#tool-delete_group)
   - [`delete_link`](#tool-delete_link)
+  - [`delete_tag`](#tool-delete_tag)
   - [`describe_model`](#tool-describe_model)
+  - [`describe_tag`](#tool-describe_tag)
   - [`diff_models`](#tool-diff_models)
   - [`duplicate_elements`](#tool-duplicate_elements)
   - [`extract_hierarchy`](#tool-extract_hierarchy)
   - [`get_element`](#tool-get_element)
   - [`import_table_data`](#tool-import_table_data)
-  - [`list_groups`](#tool-list_groups)
+  - [`list_tags`](#tool-list_tags)
   - [`manage_rates`](#tool-manage_rates)
   - [`manage_resources`](#tool-manage_resources)
   - [`manage_spare_pools`](#tool-manage_spare_pools)
@@ -53,13 +53,13 @@ Every tool section is generated from the server's `tools/list` payload.  It repe
   - [`move_element`](#tool-move_element)
   - [`preview_table_import`](#tool-preview_table_import)
   - [`redo_last_edit`](#tool-redo_last_edit)
+  - [`rename_tag`](#tool-rename_tag)
   - [`replace_in_table`](#tool-replace_in_table)
   - [`set_out_of_service`](#tool-set_out_of_service)
   - [`tag_elements`](#tool-tag_elements)
   - [`undo_last_edit`](#tool-undo_last_edit)
   - [`update_element`](#tool-update_element)
   - [`update_elements`](#tool-update_elements)
-  - [`update_group`](#tool-update_group)
 - [Analysis](#tools-analysis) — 14 tools
   - [`advise`](#tool-advise)
   - [`analytical_analysis`](#tool-analytical_analysis)
@@ -1593,55 +1593,6 @@ Parameter notes:
 }
 ```
 
-<a id="tool-create_group"></a>
-
-#### `create_group`
-
-- **Kind:** writes
-- **Group:** [Build and edit](#tools-build-edit)
-
-Create a group, or update the group that already has this name.
-
-`members` are element selectors: `Block:3`, `Node:1`, `Event:2`,
-`Hier:900`. `tag` includes every element carrying that tag, including
-ones tagged later. `colour` is `#RRGGBB`; one is chosen when omitted.
-The model is saved, so the group survives the call.
-
-**Parameters**
-
-| Parameter | Type | Required | Schema default | Enum / allowed values |
-| --- | --- | --- | --- | --- |
-| `colour` | string \| null | no | `null` | — |
-| `description` | string \| null | no | `null` | — |
-| `members` | array<string> \| null | no | `null` | — |
-| `model_id` | string | yes | — | — |
-| `name` | string | yes | — | — |
-| `tag` | string \| null | no | `null` | — |
-
-Parameter notes:
-
-- `colour` — `colour` is `#RRGGBB`; one is chosen when omitted.
-- `members` — `members` are element selectors: `Block:3`, `Node:1`, `Event:2`, `Hier:900`.
-- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `tag` — `tag` includes every element carrying that tag, including ones tagged later.
-
-**Returns**
-
-`{group, members}` for the stored group.
-
-**Example**
-
-```json
-{
-  "model_id": "<model_id>",
-  "name": "Pumps",
-  "members": [
-    "Block:3",
-    "Block:4"
-  ]
-}
-```
-
 <a id="tool-delete_element"></a>
 
 #### `delete_element`
@@ -1731,39 +1682,6 @@ Parameter notes:
 }
 ```
 
-<a id="tool-delete_group"></a>
-
-#### `delete_group`
-
-- **Kind:** destructive
-- **Group:** [Build and edit](#tools-build-edit)
-
-Delete a group; its elements and their tags are kept.
-
-**Parameters**
-
-| Parameter | Type | Required | Schema default | Enum / allowed values |
-| --- | --- | --- | --- | --- |
-| `group` | string | yes | — | — |
-| `model_id` | string | yes | — | — |
-
-Parameter notes:
-
-- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-
-**Returns**
-
-`{deleted, name}`.
-
-**Example**
-
-```json
-{
-  "model_id": "<model_id>",
-  "group": "Pumps"
-}
-```
-
 <a id="tool-delete_link"></a>
 
 #### `delete_link`
@@ -1802,6 +1720,40 @@ Parameter notes:
 {
   "model_id": "<model_id>",
   "link_id": "5"
+}
+```
+
+<a id="tool-delete_tag"></a>
+
+#### `delete_tag`
+
+- **Kind:** destructive
+- **Group:** [Build and edit](#tools-build-edit)
+
+Remove a tag from every element and forget its colour and
+description; the elements are kept. The model is saved.
+
+**Parameters**
+
+| Parameter | Type | Required | Schema default | Enum / allowed values |
+| --- | --- | --- | --- | --- |
+| `model_id` | string | yes | — | — |
+| `tag` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
+**Returns**
+
+`{deleted, elements}`.
+
+**Example**
+
+```json
+{
+  "model_id": "<model_id>",
+  "tag": "rotating"
 }
 ```
 
@@ -1855,6 +1807,45 @@ Parameter notes:
 {
   "model_id": "<model_id>",
   "detail": "full"
+}
+```
+
+<a id="tool-describe_tag"></a>
+
+#### `describe_tag`
+
+- **Kind:** writes
+- **Group:** [Build and edit](#tools-build-edit)
+
+Set a tag's colour (`#RRGGBB`; "" resets to the default) and/or
+description ("" clears). A tag no element carries yet is created as an
+empty named tag. The model is saved.
+
+**Parameters**
+
+| Parameter | Type | Required | Schema default | Enum / allowed values |
+| --- | --- | --- | --- | --- |
+| `colour` | string \| null | no | `null` | — |
+| `description` | string \| null | no | `null` | — |
+| `model_id` | string | yes | — | — |
+| `tag` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
+**Returns**
+
+`{tag, colour, description, elements}`.
+
+**Example**
+
+```json
+{
+  "model_id": "<model_id>",
+  "tag": "rotating",
+  "colour": "#2E7D32",
+  "description": "Moving parts"
 }
 ```
 
@@ -2158,39 +2149,42 @@ The same object with `applied` true and only the changes that were written; an e
 }
 ```
 
-<a id="tool-list_groups"></a>
+<a id="tool-list_tags"></a>
 
-#### `list_groups`
+#### `list_tags`
 
 - **Kind:** read-only
 - **Group:** [Build and edit](#tools-build-edit)
 
-List the model's groups and tags.
+List the model's tags with colour, description and element count.
 
-A group is a named, coloured saved view over the model. It may hold an
-explicit member list, every element carrying a tag, or both; it can
-span hierarchies and never changes the simulation. `members` is the
-resolved count (explicit members plus the tag query).
+A tag is a label on blocks, nodes, events or hierarchies; tags may span
+hierarchies and overlap. `within` (a hierarchy id) counts only the
+elements inside that hierarchy, at any depth, and leaves out tags with
+none there.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
 | `model_id` | string | yes | — | — |
+| `within` | integer \| null | no | `null` | — |
 
 Parameter notes:
 
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `within` — `within` (a hierarchy id) counts only the elements inside that hierarchy, at any depth, and leaves out tags with none there.
 
 **Returns**
 
-`{groups: [{id, name, colour, description, tag, explicit_members, members}], count, tags}`.
+`{tags: [{tag, colour, description, elements}], count, within}`.
 
 **Example**
 
 ```json
 {
-  "model_id": "<model_id>"
+  "model_id": "<model_id>",
+  "within": 900
 }
 ```
 
@@ -2570,6 +2564,42 @@ Parameter notes:
 }
 ```
 
+<a id="tool-rename_tag"></a>
+
+#### `rename_tag`
+
+- **Kind:** writes
+- **Group:** [Build and edit](#tools-build-edit)
+
+Rename a tag on every element. Renaming onto a tag that already
+exists merges the two. The model is saved.
+
+**Parameters**
+
+| Parameter | Type | Required | Schema default | Enum / allowed values |
+| --- | --- | --- | --- | --- |
+| `model_id` | string | yes | — | — |
+| `new_name` | string | yes | — | — |
+| `tag` | string | yes | — | — |
+
+Parameter notes:
+
+- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+
+**Returns**
+
+`{from, to, elements, merged}`.
+
+**Example**
+
+```json
+{
+  "model_id": "<model_id>",
+  "tag": "rotating",
+  "new_name": "rotating equipment"
+}
+```
+
 <a id="tool-replace_in_table"></a>
 
 #### `replace_in_table`
@@ -2685,10 +2715,11 @@ Parameter notes:
 
 Set, add or remove tags on elements.
 
+Elements are selectors: `Block:3`, `Node:1`, `Event:2`, `Hier:900`.
 Tags are free-form text (trimmed and deduplicated; case is kept). In
 `replace` mode the list becomes the element's whole tag set, so an
 empty `tags` clears it. An element the model does not have is refused
-rather than skipped.
+rather than skipped. The model is saved.
 
 **Parameters**
 
@@ -2894,57 +2925,6 @@ Parameter notes:
       }
     }
   ]
-}
-```
-
-<a id="tool-update_group"></a>
-
-#### `update_group`
-
-- **Kind:** writes
-- **Group:** [Build and edit](#tools-build-edit)
-
-Patch one group (by name or id).
-
-`members` replaces the explicit list; `add`/`remove` edit it without
-rewriting the rest. `tag=""` clears the tag query; `description=""`
-clears the note. The model is saved.
-
-**Parameters**
-
-| Parameter | Type | Required | Schema default | Enum / allowed values |
-| --- | --- | --- | --- | --- |
-| `add` | array<string> \| null | no | `null` | — |
-| `colour` | string \| null | no | `null` | — |
-| `description` | string \| null | no | `null` | — |
-| `group` | string | yes | — | — |
-| `members` | array<string> \| null | no | `null` | — |
-| `model_id` | string | yes | — | — |
-| `name` | string \| null | no | `null` | — |
-| `remove` | array<string> \| null | no | `null` | — |
-| `tag` | string \| null | no | `null` | — |
-
-Parameter notes:
-
-- `add` — `members` replaces the explicit list; `add`/`remove` edit it without rewriting the rest.
-- `members` — `members` replaces the explicit list; `add`/`remove` edit it without rewriting the rest.
-- `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
-- `remove` — `members` replaces the explicit list; `add`/`remove` edit it without rewriting the rest.
-
-**Returns**
-
-`{group, members}` after the patch.
-
-**Example**
-
-```json
-{
-  "model_id": "<model_id>",
-  "group": "Pumps",
-  "add": [
-    "Block:5"
-  ],
-  "colour": "#2E7D32"
 }
 ```
 

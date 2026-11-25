@@ -180,16 +180,16 @@ def _scrub_anchor(anchor: dict[str, Any],
     return out
 
 
-def _scrub_groups_and_tags(out: Any) -> int:
-    """Group names, ids, descriptions and tags are prose a user typed:
-    "Acme Site 7 pumps" names the site as surely as a block name does.
-    Rename them `Group_N` / `tag_N` (consistently, so a tag-driven group
-    still finds its members) and drop descriptions.  Colours and
-    membership are kept: they are structure, not identity."""
-    from raptor.core import groups as grp
-    tags = grp.clean_tags(getattr(out, "tags", None))
-    groups = grp.groups_of(out)
-    if not tags and not groups:
+def _scrub_tags(out: Any) -> int:
+    """Tags and their descriptions are prose a user typed: "Acme Site 7
+    pumps" names the site as surely as a block name does. Rename them
+    `tag_N` (consistently, so every element keeps the same grouping) and
+    drop descriptions. Colours and membership are kept: they are
+    structure, not identity."""
+    from raptor.core import tags as tg
+    tags = tg.clean_tags(getattr(out, "tags", None))
+    info = tg.clean_tag_info(getattr(out, "tag_info", None))
+    if not tags and not info:
         return 0
     tag_map: dict[str, str] = {}
 
@@ -199,17 +199,14 @@ def _scrub_groups_and_tags(out: Any) -> int:
         return tag_map[old]
 
     out.tags = {ref: [tag_of(t) for t in values] for ref, values in tags.items()}
-    renamed = []
-    for index, group in enumerate(groups, 1):
-        clean = {key: value for key, value in group.items()
-                 if key not in ("description",)}
-        clean["id"] = f"g_{index}"
-        clean["name"] = f"Group_{index}"
-        if clean.get("tag"):
-            clean["tag"] = tag_of(str(clean["tag"]))
-        renamed.append(clean)
-    out.groups = renamed
-    return len(groups) + len(tag_map)
+    # The default colour comes from the name, so keep each tag's colour
+    # explicitly: the shared copy looks the same as the original.
+    out.tag_info = {}
+    for old in sorted(set(tag_map) | set(info), key=str.casefold):
+        new = tag_of(old)
+        colour = (info.get(old) or {}).get("colour") or tg.default_colour(old)
+        tg.set_tag_info(out, new, colour=colour)
+    return len(tag_map)
 
 
 def declassify(rbd: Any, options: RedactOptions | None = None  # noqa: C901, PLR0912, PLR0915
@@ -270,7 +267,7 @@ def declassify(rbd: Any, options: RedactOptions | None = None  # noqa: C901, PLR
             renamed = namemap.get(old) or namemap.get(old.casefold())
             if renamed is not None:
                 row["Name"] = renamed
-        report.names += _scrub_groups_and_tags(out)
+        report.names += _scrub_tags(out)
 
     if opts.comments:
         sec = getattr(out, "sections", {}).get("COMMENTS")
