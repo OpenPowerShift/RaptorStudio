@@ -126,10 +126,12 @@ header reads
 “Whole model (14 blocks across 4 levels)”. Nothing is drawn on the canvas
 for the other levels, so it stays quick on large models. Rows on the level
 that is open on the canvas stay editable; rows of other levels are
-read-only (greyed, with a tooltip) because their edits would act on
-elements that are not on screen. Right-click such a row and choose **Go to
-level** to open its level and select it on the canvas. The setting lasts
-for the session and is not saved in the model. Sorting, filtering and CSV
+read-only (greyed, with a tooltip) unless **Edit all levels**, beside it,
+is ticked. With it, a row of any level takes the same edits, checked by
+the same rules, each one undo step (Undo works from any level). Without
+it, right-click such a row and choose **Go to level** to open its level
+and select it on the canvas. Both settings last for the session and are
+not saved in the model. Sorting, filtering and CSV
 export work in both modes, and the Level column is exported only while it
 is shown.
 
@@ -211,8 +213,8 @@ changes that row only. The first time in a session you are asked “Apply to
 N rows?” (with a Don't ask again box, which lasts until you quit).
 
 * Only rows that are shown are changed: rows hidden by a filter are never
-  touched, and in Whole model only rows of the open level are (others are
-  skipped and counted).
+  touched, and in Whole model only rows of the open level are, unless Edit
+  all levels is ticked (others are skipped and counted).
 * Changing a distribution gives each row that distribution, re-seeding the
   parameters where the old ones no longer fit; a Param *k* edit skips rows
   whose distribution has no *k*-th parameter and says so.

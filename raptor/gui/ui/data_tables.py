@@ -331,6 +331,9 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         #: "Whole model": every level's rows, not just the one on screen.
         #: Kept for the session (it is a view of the model, not part of it).
         self._whole = False
+        #: "Edit all levels" (needs Whole model): rows of levels that are
+        #: not open are edited through their file rows (#353)
+        self._edit_all = False
         self._multi_confirmed = False     # "Don't ask again": session only
         self._whole_src: _WholeModel | None = None
         #: Whether `_whole_src` has been checked against the live view
@@ -501,11 +504,19 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         self._whole_box.setToolTip(
             "Show the blocks, nodes and events of every hierarchy level, "
             "with a Level column. Rows on the open level stay editable; "
-            "rows of other levels are read-only (right-click \u25b8 Go to "
-            "level).")
+            "rows of other levels are read-only unless Edit all levels is "
+            "ticked (or right-click \u25b8 Go to level).")
         self._whole_box.toggled.connect(self._on_whole_toggled)
         bar.addSpacing(SPACING["md"])
         bar.addWidget(self._whole_box)
+        self._edit_all_box = QCheckBox("Edit all levels")
+        self._edit_all_box.setToolTip(
+            "With Whole model: edit the rows of every level here, not only "
+            "the open one. Each edit is one undo step and is checked like "
+            "any other.")
+        self._edit_all_box.setEnabled(False)
+        self._edit_all_box.toggled.connect(self._on_edit_all_toggled)
+        bar.addWidget(self._edit_all_box)
         self._banner = QLabel("")
         self._banner.setObjectName("MultiEditBanner")
         self._banner.setStyleSheet(
@@ -1286,13 +1297,28 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         return item
 
     def _is_foreign(self, kind: str, oid: int | None) -> bool:
-        """A row of another level (Whole model): shown, not editable."""
+        """A row of another level (Whole model): read-only unless Edit all
+        levels is on (`_can_edit`)."""
         src = self._active_src()
         return (isinstance(src, _WholeModel) and oid is not None
                 and not src.is_live(kind, oid))
 
-    _FOREIGN_TIP = ("On another level: read-only here. Right-click and "
-                    "choose Go to level to edit it on the canvas.")
+    def _can_edit(self, kind: str, oid: int | None) -> bool:
+        return self._edit_all or not self._is_foreign(kind, oid)
+
+    def _commit(self, kind: str, oid: int, call, what: str = "Edit") -> bool:
+        """Run one row's edit `call()`: directly on the open level, or for
+        another level's row (Edit all levels) as one undoable change of its
+        file row, with the same rules and the same mutator
+        (`DiagramView.edit_off_level`)."""
+        view = self._view
+        if view is not None and self._edit_all and self._is_foreign(kind, oid):
+            return bool(view.edit_off_level(kind, oid, call, what))
+        return bool(call())
+
+    _FOREIGN_TIP = ("On another level: read-only here. Tick Edit all "
+                    "levels to edit it here, or right-click and choose Go "
+                    "to level to edit it on the canvas.")
 
     def _lock_row(self, t: QTableWidget, r: int) -> None:
         """Make one row read-only (it belongs to a level that is not open)."""
@@ -1327,7 +1353,7 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             t.blockSignals(False)
 
     def _lock_foreign_rows(self, t: QTableWidget, kind: str) -> None:
-        if not self._whole:
+        if not self._whole or self._edit_all:
             return
         for r in range(t.rowCount()):
             if self._is_foreign(kind, self._row_key(t, r)):
@@ -1410,12 +1436,13 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         kind = self._kind_of(table)
         keys = self._targets(table, oid)
         if len(keys) == 1:
-            return bool(fn(oid))
+            return self._commit(kind, oid, lambda: fn(oid), f"Set {what}")
         todo, read_only, na = [], 0, 0
         for k in keys:
-            if self._is_foreign(kind, k):
+            if not self._can_edit(kind, k):
                 read_only += 1
-            elif applicable is not None and not applicable(k):
+            elif applicable is not None and not self._commit(
+                    kind, k, lambda k=k: applicable(k)):
                 na += 1
             else:
                 todo.append(k)
@@ -1436,7 +1463,8 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         self._rows_batch += 1
         try:
             for k in todo:
-                results.append(bool(fn(k)))
+                results.append(self._commit(kind, k, lambda k=k: fn(k),
+                                            f"Set {what}"))
         finally:
             self._rows_batch -= 1
             stack.endMacro()
@@ -1466,8 +1494,15 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                 self.refresh()
         QTimer.singleShot(0, go)
 
+    def _on_edit_all_toggled(self, on: bool) -> None:
+        self._edit_all = bool(on)
+        self.refresh(force=True)          # unlock (or lock) the other rows
+
     def _on_whole_toggled(self, on: bool) -> None:
         self._whole = bool(on)
+        self._edit_all_box.setEnabled(self._whole)
+        if not self._whole:
+            self._edit_all_box.setChecked(False)
         self._whole_src = None
         self._whole_src_checked = False
         self._apply_level_column()
@@ -1793,7 +1828,7 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
                 for r, key in todo:
                     pending.discard(key)
                     build(t, r, key)
-                    if self._whole and self._is_foreign("block", key):
+                    if not self._can_edit("block", key):
                         self._lock_row(t, r)
         finally:
             t.setUpdatesEnabled(True)
@@ -2258,16 +2293,43 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         if item.column() != 0 or self._view is None:
             return
         eid = int(req(self._events_table.item(item.row(), 1)).text())
-        if eid not in self._view.events:
+        if not self._can_edit("event", eid):
             return
-        new_name = "_".join(item.text().split()) or \
-            self._view.events[eid].name
+        self._commit("event", eid,
+                     lambda: self._rename_now(item, "event", eid),
+                     "Rename event")
+
+    def _rename_now(self, item: QTableWidgetItem, kind: str, oid: int) -> bool:
+        """The name typed in a Blocks/Nodes/Events cell, spaces made
+        underscores; empty keeps the old name."""
+        view = req(self._view)
+        store = {"block": view.blocks, "node": view.nodes,
+                 "event": view.events}[kind]
+        obj = store.get(oid)
+        if obj is None:
+            return False
+        current = obj.node_name if kind == "node" else obj.name
+        new_name = "_".join(item.text().split()) or current
         if new_name != item.text():
-            item.setText(new_name)
-            return
-        if new_name != self._view.events[eid].name:
-            self._view.rename_event(eid, new_name)
-            self.model_edited.emit()
+            # re-enters the handler with the fixed text, then is put back
+            # by the refresh after the edit
+            self._table_set_text(item, new_name)
+        if new_name == current:
+            return False
+        {"block": view.rename_block, "node": view.rename_node,
+         "event": view.rename_event}[kind](oid, new_name)
+        self.model_edited.emit()
+        return True
+
+    def _table_set_text(self, item: QTableWidgetItem, text: str) -> None:
+        table = item.tableWidget()
+        if table is not None:
+            table.blockSignals(True)
+        try:
+            item.setText(text)
+        finally:
+            if table is not None:
+                table.blockSignals(False)
 
     def _k_cell(self, table, row, node):
         w = QWidget()
@@ -2308,28 +2370,20 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
         if item.column() != 0 or self._view is None:
             return
         bid = int(req(self._blocks_table.item(item.row(), 1)).text())
-        if bid not in self._view.blocks:
+        if not self._can_edit("block", bid):
             return          # another level's row (Whole model), read-only
-        new_name = "_".join(item.text().split()) or self._view.blocks[bid].name
-        if new_name != item.text():
-            item.setText(new_name)  # re-enters this handler with the fixed text
-            return
-        if new_name != self._view.blocks[bid].name:
-            self._view.rename_block(bid, new_name)
-            self.model_edited.emit()
+        self._commit("block", bid,
+                     lambda: self._rename_now(item, "block", bid),
+                     "Rename block")
 
     def _on_node_name_changed(self, item: QTableWidgetItem):
         if item.column() != 0 or self._view is None:
             return
         nid = int(req(self._nodes_table.item(item.row(), 1)).text())
-        if nid not in self._view.nodes:
+        if not self._can_edit("node", nid):
             return
-        new_name = "_".join(item.text().split()) or self._view.nodes[nid].node_name
-        if new_name != item.text():
-            item.setText(new_name)
-            return
-        if new_name != self._view.nodes[nid].node_name:
-            self._view.rename_node(nid, new_name)
-            self.model_edited.emit()
+        self._commit("node", nid,
+                     lambda: self._rename_now(item, "node", nid),
+                     "Rename node")
 
 
