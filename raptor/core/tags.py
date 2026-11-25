@@ -335,6 +335,32 @@ def _parents(rbd: Any) -> dict[str, int]:
     return out
 
 
+#: The row column that holds an element's name, by kind.
+_NAME_COLUMNS = {"block": ("BLOCK_DATA", "blockName"),
+                 "node": ("NODE_DATA", "Name"),
+                 "event": ("EVENT_DATA", "eventName"),
+                 "hier": ("HIERARCHY_DATA", "hierarchyName")}
+
+
+def names_of(rbd: Any, refs: Iterable[str]) -> set[str]:
+    """The element names of *refs* (what the results tables show)."""
+    wanted: dict[str, set[int]] = {}
+    for ref in refs:
+        parsed = parse_ref(ref)
+        if parsed is not None:
+            wanted.setdefault(parsed[0], set()).add(parsed[1])
+    out: set[str] = set()
+    for kind, ids in wanted.items():
+        section, column = _NAME_COLUMNS[kind]
+        sec = (getattr(rbd, "sections", None) or {}).get(section)
+        for row in (sec.rows if sec is not None else ()):
+            if row_int(row.get("ID"), 0) in ids:
+                name = str(row.get(column) or "").strip()
+                if name:
+                    out.add(name)
+    return out
+
+
 def valid_refs_from_model(rbd: Any) -> set[str]:
     """Every element reference that exists in the model rows."""
     return set(_parents(rbd))

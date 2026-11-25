@@ -504,6 +504,29 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._hier_filter_combo.currentIndexChanged.connect(
             self._on_hier_filter_changed)
         bar.addWidget(self._hier_filter_combo)
+        # Tag: the same view the Explorer's tag box gives (MainWindow keeps
+        # the two in step), so the tables, the Explorer and the canvas
+        # never show different tags.
+        self._tag_filter_label = QLabel("Tag:")
+        bar.addWidget(self._tag_filter_label)
+        self._tag_filter_combo = QComboBox()
+        self._tag_filter_combo.setProperty("raptor_i18n_data_items", True)
+        self._tag_filter_combo.setEditable(True)
+        self._tag_filter_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._tag_filter_combo.setMinimumContentsLength(12)
+        completer = self._tag_filter_combo.completer()
+        if completer is not None:
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.setCompletionMode(completer.CompletionMode.PopupCompletion)
+        self._tag_filter_combo.setToolTip(
+            "Show only results for elements with this tag (a tagged "
+            "hierarchy counts everything inside it). The Explorer and the "
+            "canvas show the same tag.")
+        self._tag_filter_combo.addItem("All", "")
+        self._tag_filter_combo.activated.connect(self._on_tag_filter_chosen)
+        bar.addWidget(self._tag_filter_combo)
+        self._tag_filter_label.setVisible(False)
+        self._tag_filter_combo.setVisible(False)
         bar.addStretch(1)
         holder = QWidget()
         hv = QVBoxLayout(holder)
@@ -612,6 +635,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         combo.setEnabled(has)
         combo.setVisible(has)
         self._hier_filter_label.setVisible(has)
+        self._update_tag_filter_visibility()
 
     def _has_per_hier_results(self) -> bool:
         """True when any ELEMENT-level results table has rows. Measure
@@ -638,6 +662,46 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                     return True
                 break
         return False
+
+    #: User picked a tag in the results filter ("" = all)
+    tag_filter_changed = Signal(str)
+
+    def set_tag_options(self, tags: list[tuple[str, str]],
+                        current: str = "") -> None:
+        """MainWindow pushes [(tag, colour)] for the Tag filter."""
+        from raptor.gui.ui.tags_dialog import swatch
+        combo = self._tag_filter_combo
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("All", "")
+        for tag, colour in tags:
+            combo.addItem(swatch([colour]), tag, tag)
+        index = combo.findData(current) if current else 0
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._update_tag_filter_visibility()
+
+    def show_tag_filter(self, tag: str) -> None:
+        """Mirror the Explorer's tag without emitting."""
+        combo = self._tag_filter_combo
+        index = combo.findData(tag) if tag else 0
+        combo.blockSignals(True)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+
+    def _on_tag_filter_chosen(self, index: int) -> None:
+        self.tag_filter_changed.emit(str(self._tag_filter_combo.itemData(index) or ""))
+
+    def _update_tag_filter_visibility(self) -> None:
+        combo = getattr(self, "_tag_filter_combo", None)
+        if combo is None:
+            return
+        idx = self._details_tabs.currentIndex()
+        title = self._details_tabs.tabText(idx) if idx >= 0 else ""
+        has = (title not in ("Summary", "Logistics", "Advanced")
+               and combo.count() > 1 and self._has_per_hier_results())
+        combo.setVisible(has)
+        self._tag_filter_label.setVisible(has)
 
     def _on_hier_filter_changed(self, index: int):
         hid = self._hier_filter_combo.itemData(index)

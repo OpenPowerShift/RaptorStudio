@@ -372,3 +372,26 @@ def test_tag_colours_stripe_tagged_elements_and_list_them(win, tmp_path):
     win._tag_colours_action.setChecked(False)
     assert view._block_items[shown[0]]._tag_stripe is None
     assert not win._tag_legend.isVisible()
+
+
+def test_the_explorer_tag_filters_the_results_tables_too(win):
+    rbd = win._rbd
+    hid = next(row_int(r.get("ID"), 0) for r in rbd.sections["HIERARCHY_DATA"].rows
+               if row_int(r.get("ID"), 0) > 0)
+    T.set_tags(rbd, f"hier:{hid}", ["area"])
+    win._explorer.refresh_groups()
+    win._push_tag_options()
+    combo = win._results._tag_filter_combo
+    assert combo.findData("area") > 0
+    seen = []
+    original = win._results.set_tag_filter
+    win._results.set_tag_filter = lambda names: (seen.append(names), original(names))
+    _select_tag(win, "area")
+    QApplication.processEvents()
+    inside = T.names_of(rbd, T.expand(rbd, {f"hier:{hid}"}))
+    assert seen[-1] == inside and len(inside) > 1     # what the oval holds
+    assert combo.currentData() == "area"
+    # choosing All in the results box clears the Explorer too
+    win._results._tag_filter_combo.activated.emit(0)
+    QApplication.processEvents()
+    assert win._explorer.current_tag() == "" and seen[-1] is None

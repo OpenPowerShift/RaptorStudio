@@ -1224,8 +1224,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._diagram_dock.view.go_up)
         self._explorer.manage_tags_requested.connect(
             self._open_tags_dialog)
-        self._explorer.tag_view_changed.connect(
-            self._diagram_dock.view.set_tag_view)
+        self._explorer.tag_view_changed.connect(self._on_tag_view_changed)
+        # a tag made or renamed anywhere (dialog, chips, paste, undo)
+        self._diagram_dock.view.model_changed.connect(
+            lambda *_a: self._push_tag_options())
         # Re-parents the ribbon-built Find combo into this dock's own
         # layout (see _setup_ribbon's own comment on it).
         self._explorer.set_search_widget(self._find_edit)
@@ -2363,6 +2365,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.contents_changed.connect(self._refresh_advisor)
         self._results.hierarchy_filter_changed.connect(
             self._on_results_hier_filter)
+        self._results.tag_filter_changed.connect(
+            lambda tag: self._explorer.show_tag(tag))
         self._results.weak_analysis_type_changed.connect(
             self._on_weak_type_changed)
         self._results.importance_metric_changed.connect(
@@ -3286,6 +3290,30 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         hiers = {hid: h.name for hid, h in v.hiers.items()}
         self._results.set_hierarchy_options(hiers,
                                             v._current_parent)
+        self._push_tag_options()
+
+    def _push_tag_options(self) -> None:
+        """Feed the results Tag filter with the model's tags."""
+        from raptor.core import tags as tag_model
+        if getattr(self, "_results", None) is None:
+            return
+        rbd = self._rbd
+        tags = tag_model.all_tags(rbd) if rbd is not None else []
+        self._results.set_tag_options(
+            [(t, tag_model.tag_colour(rbd, t)) for t in tags],
+            self._explorer.current_tag())
+
+    def _on_tag_view_changed(self, refs) -> None:
+        """The Explorer's tag view: dim the canvas, filter the results
+        tables (a tagged hierarchy counts what is inside it)."""
+        self._diagram_dock.view.set_tag_view(refs)
+        self._results.show_tag_filter(self._explorer.current_tag())
+        if refs is None or self._rbd is None:
+            self._results.set_tag_filter(None)
+            return
+        from raptor.core import tags as tag_model
+        names = tag_model.names_of(self._rbd, tag_model.expand(self._rbd, refs))
+        self._results.set_tag_filter(names)
 
     def _on_results_hier_filter(self, hid: int):
         """User picked a hierarchy in the results filter: navigate the

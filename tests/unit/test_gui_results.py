@@ -1260,3 +1260,36 @@ def test_a_small_share_is_never_shown_as_zero():
     from raptor.gui.ui.results_common import _pct_short
     assert _pct_short(0.0055) == "<0.1%" and _pct_short(0.0) == "0.0%"
     assert _pct_short(99.99) == ">99.9%" and _pct_short(7.3) == "7.3%"
+
+
+def test_tag_filter_composes_with_the_level_filter(qapp):
+    dock = ResultsDock()
+    dock._populate_details(_SPARING_LINES)
+    spare = dock.section_table("SPARING")
+
+    def visible():
+        return {spare.item(r, 0).text() for r in range(spare.rowCount())
+                if not spare.isRowHidden(r)}
+
+    dock.set_tag_filter({"beta", "gamma"})
+    assert visible() == {"beta", "gamma"}
+    dock.set_level_filter({"alpha", "beta"})       # both apply
+    assert visible() == {"beta"}
+    dock.set_tag_filter(set())                     # a tag with nothing here
+    assert visible() == set()
+    dock.set_tag_filter(None)
+    assert visible() == {"alpha", "beta"}
+
+
+def test_the_tag_box_lists_tags_and_emits_the_choice(qapp):
+    dock = ResultsDock()
+    dock._populate_details(_SPARING_LINES)
+    dock.set_tag_options([("pumps", "#2F80ED"), ("wet", "#27AE60")])
+    combo = dock._tag_filter_combo
+    assert [combo.itemText(i) for i in range(combo.count())] == ["All", "pumps", "wet"]
+    chosen = []
+    dock.tag_filter_changed.connect(chosen.append)
+    combo.activated.emit(2)
+    assert chosen == ["wet"]
+    dock.show_tag_filter("pumps")                  # mirrored, not emitted
+    assert combo.currentText() == "pumps" and chosen == ["wet"]

@@ -135,3 +135,19 @@ def test_a_legacy_save_reports_tags_as_lost(rbd):
     lost = rbds_only_content(rbd)
     assert "component tags" in lost
     assert "tag colours and descriptions" in lost
+
+
+def test_names_of_reads_each_kinds_name_column():
+    rbd = load_rbds(MODEL)
+    refs = set()
+    expected = set()
+    for kind, (section, column) in T._NAME_COLUMNS.items():
+        sec = rbd.sections.get(section)
+        row = next((r for r in (sec.rows if sec else ())
+                    if row_int(r.get("ID"), 0) > 0 and r.get(column)), None)
+        if row is not None:
+            refs.add(f"{kind}:{row_int(row.get('ID'), 0)}")
+            expected.add(str(row.get(column)).strip())
+    assert len(refs) >= 3
+    assert T.names_of(rbd, refs) == expected
+    assert T.names_of(rbd, {"block:999999", "nonsense"}) == set()

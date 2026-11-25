@@ -1143,8 +1143,22 @@ class ResultsPagesMixin(_Base):
         self._allowed_names = allowed_names
         self._apply_level_filter()
 
+    def set_tag_filter(self, names: set[str] | None) -> None:
+        """`None` = no tag filter; a name set hides element rows outside
+        it, on top of the hierarchy scope."""
+        self._tag_names = names
+        self._apply_level_filter()
+
     def _hierarchy_row_visible(self, table: QTableWidget, row: int,
                                allowed: set[str] | None = None) -> bool:
+        """The hierarchy scope and the tag filter, both."""
+        if not self._name_row_visible(table, row, allowed):
+            return False
+        tagged = getattr(self, "_tag_names", None)
+        return tagged is None or self._name_row_visible(table, row, tagged)
+
+    def _name_row_visible(self, table: QTableWidget, row: int,
+                          allowed: set[str] | None = None) -> bool:
         """Whether `row` belongs to the current hierarchy scope.
 
         Shared by `_apply_level_filter` and the table's FilterBar: sorting
