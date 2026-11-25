@@ -450,8 +450,11 @@ def test_a_dark_launch_paints_the_docks_dark(qapp):
             def lightness(image, x, y) -> float:
                 return QColor(image.pixel(x, y)).lightnessF()
 
-            assert lightness(tree, tree.width() // 2,
-                             tree.height() - 5) < 0.5
+            # The median across a line near the bottom: one pixel there can
+            # land on a row's (light) text, depending on the dock heights.
+            line = sorted(lightness(tree, x, tree.height() - 5)
+                          for x in range(tree.width()))
+            assert line[len(line) // 2] < 0.5
             assert lightness(inspector, inspector.width() - 10, 40) < 0.5
         finally:
             w._dirty = False
