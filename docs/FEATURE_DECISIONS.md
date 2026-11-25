@@ -84,7 +84,7 @@ per-run list on each would multiply the stored results.
 ### Colour by tag is a stripe, not a fill
 
 The canvas has one slot for a result fill (weak links, cost, importance
-and the rest). Tags describe the model rather than a run, so **View ▸ Tag
+and the rest). Tags describe the model rather than a run, so **Data ▸ Tag
 Colours** draws a split stripe above each element (up to three colours)
 and leaves the fill to the results; both can be on at once. The user
 chose the split stripe over a "first tag wins" fill, which would hide the

@@ -3674,7 +3674,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 + [tag_model.element_ref("hier", i) for i in hiers])
 
     def _set_tag_colours(self, on: bool) -> None:
-        """View ▸ Tag Colours: stripes on the canvas and the legend."""
+        """Data ▸ Tag Colours: stripes on the canvas and the legend."""
         view = self._diagram_dock.view
         legend = getattr(self, "_tag_legend", None)
         if legend is None and on:

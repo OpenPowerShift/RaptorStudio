@@ -289,7 +289,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         on="toggled",
         checkable=True),
     CommandSpec(
-        id="view.tag_colours",
+        id="data.tag_colours",
         attr="_tag_colours_action",
         text="Tag Colours",
         icon="tag_colours_icon:text",
@@ -1673,6 +1673,9 @@ LAYOUT: tuple[Page, ...] = (
        Group("Bulk Edit", (Btn("data.block_defaults", True),
                            Btn("data.mass_edit", True),
                            Btn("data.tags", True),
+                           # beside Tags…: the View page has no width left
+                           # at 1280 px with wider fonts
+                           Btn("data.tag_colours", True),
                            Btn("data.import_table", True),
                            Btn("data.own_streams", True),
                            Btn("home.health", True)), priority=2),
@@ -1754,7 +1757,6 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        Group("Appearance", (Btn("view.theme", True), Btn("view.focus"),
-                            Btn("view.tag_colours"),
                             Btn("view.prefs", True),
                             Custom("_build_link_routing_settings"),
                             Custom("_build_block_labels_settings")),

@@ -2747,6 +2747,11 @@
       {
        "kind": "action",
        "large": true,
+       "text": "Tag Colours"
+      },
+      {
+       "kind": "action",
+       "large": true,
        "text": "Import Table\u2026"
       },
       {
@@ -3282,11 +3287,6 @@
        "kind": "action",
        "large": false,
        "text": "Focus"
-      },
-      {
-       "kind": "action",
-       "large": false,
-       "text": "Tag Colours"
       },
       {
        "kind": "action",
