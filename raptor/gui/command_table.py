@@ -1510,7 +1510,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
         id="view.tags_toggle",
         attr="_tags_toggle_action",
         text="Tags",
-        icon="tag_icon:text",
+        icon="tags_dock_icon:text",
         tooltip=(
             "Show the Tags panel — name, colour and apply component tags "
             "while you select on the canvas"),
