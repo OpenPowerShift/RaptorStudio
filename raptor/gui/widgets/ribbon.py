@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from raptor.gui.widgets.wrapped_tip import show_wrapped
 from raptor.gui.resources.design_tokens import (
     active_colour, RIBBON, SPACING, TYPE, px)
 
@@ -125,6 +126,11 @@ class RibbonButton(QToolButton):
             return
         text = action.text()
         self.setText(wrap_label(text) if self._mode == LARGE else text)
+
+    def event(self, event) -> bool:                 # noqa: N802 - Qt's name
+        # Many command tooltips are a paragraph: wrap them, not one line
+        # across the screen.
+        return show_wrapped(self, event) or super().event(event)
 
     def actionEvent(self, event) -> None:
         super().actionEvent(event)
@@ -396,6 +402,9 @@ class CollapsedGroup(QToolButton):
         # that outlives the button.
         self.refresh_icon()
         super().paintEvent(event)
+
+    def event(self, event) -> bool:                 # noqa: N802 - Qt's name
+        return show_wrapped(self, event) or super().event(event)
 
     def _refresh_tooltip(self) -> None:
         names = [b.defaultAction().text() for b in
