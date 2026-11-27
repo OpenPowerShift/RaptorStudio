@@ -308,7 +308,9 @@ class Backstage(QWidget):
 
     def _build_tip_card(self) -> QWidget:
         """U21: "Did you know?" -- one tip a launch, with Next tip and,
-        when the tip names a command, Show me."""
+        when the tip's command can show something now, Show me.  Next tip
+        stays on the left and Show me sits at the right, so neither moves
+        when the other comes and goes."""
         from PySide6.QtWidgets import QFrame
         from raptor.gui.tips import tip_for_launch
         # User testing: the tip was in the small default font in a thin
@@ -337,12 +339,12 @@ class Backstage(QWidget):
         nxt = QPushButton("Next tip")
         nxt.setObjectName("BackstageTipButton")
         nxt.clicked.connect(lambda: self._show_tip(self._tip_index + 1))
-        row.addWidget(self._tip_show)
         row.addWidget(nxt)
         self._tip_count = QLabel()
         self._tip_count.setObjectName("BackstageNote")
         row.addWidget(self._tip_count)
         row.addStretch(1)
+        row.addWidget(self._tip_show)
         col.addLayout(row)
         self._show_tip(tip_for_launch())
         return card
@@ -359,12 +361,12 @@ class Backstage(QWidget):
         text = tip.text.replace("{shortcut}", shortcut or "its shortcut")
         self._tip_text.setText(text)
         self._tip_count.setText(f"  {self._tip_index + 1} of {len(TIPS)}")
-        self._tip_show.setVisible(action is not None)
-        self._tip_show.setEnabled(action is not None and action.isEnabled())
-        self._tip_show.setToolTip(
-            "" if action is None else
-            action.toolTip() if action.isEnabled() else
-            f"{action.text().rstrip('…')} needs a model open first")
+        # Only when it would do something: a greyed button that "needs a
+        # model open first" taught nothing on a Start page with none open.
+        useful = (action is not None and action.isEnabled()
+                  and (not tip.needs_model or self._win._rbd is not None))
+        self._tip_show.setVisible(useful)
+        self._tip_show.setToolTip(action.toolTip() if useful and action else "")
 
     def _run_tip(self) -> None:
         from raptor.gui.tips import TIPS

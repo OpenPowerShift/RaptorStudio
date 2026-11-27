@@ -32,6 +32,9 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QEventLoop, QTimer, QUrl
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication
+from PySide6.QtWebEngineCore import QWebEngineLoadingInfo
+
+LoadStatus = QWebEngineLoadingInfo.LoadStatus
 
 from raptor.gui.ui import help_viewer
 
@@ -150,18 +153,33 @@ def record_load(url):
 win._view.load = record_load
 serial_before = win._load_serial
 spy = QSignalSpy(win._view.loadFinished)
-win._view.load(QUrl.fromLocalFile(str(doc2)))
-wait_until(
-    lambda: win._load_serial > serial_before
-    and win._view.page().isLoading(),
-    "the reload to be in flight")
-assert win._view.page().isLoading()
-recorded_loads.clear()
+# Act from the load's own start event: polling for isLoading() every 20 ms
+# could miss a local file's whole load on a busy runner (it did on CI). The
+# window's own loadingChanged slot was connected first, so the serial has
+# already moved when this runs.
+in_flight: dict = {}
 
-win.show_doc("viewer2.html", "section-two")
-assert win._pending_anchor == "section-two", win._pending_anchor
-assert recorded_loads == [], recorded_loads
-assert spy.wait(10000), "the same-doc reload did not finish"
+
+def second_help_action(info):
+    if in_flight or info.status() != LoadStatus.LoadStartedStatus:
+        return
+    in_flight["serial"] = win._load_serial
+    in_flight["loading"] = win._view.page().isLoading()
+    recorded_loads.clear()
+    win.show_doc("viewer2.html", "section-two")
+    in_flight["pending"] = win._pending_anchor
+    in_flight["loads"] = list(recorded_loads)
+
+
+win._view.page().loadingChanged.connect(second_help_action)
+win._view.load(QUrl.fromLocalFile(str(doc2)))
+wait_until(lambda: bool(in_flight), "the reload to start")
+win._view.page().loadingChanged.disconnect(second_help_action)
+assert in_flight["serial"] > serial_before, in_flight
+assert in_flight["loading"], in_flight
+assert in_flight["pending"] == "section-two", in_flight
+assert in_flight["loads"] == [], in_flight
+assert spy.count() or spy.wait(10000), "the same-doc reload did not finish"
 app.processEvents()
 wait_until(
     lambda: abs(js(win, "document.getElementById('section-two')"

@@ -13,6 +13,7 @@ from PySide6.QtCore import (
 
 from raptor.gui.model_edit import (_pos)
 from contextlib import contextmanager
+from raptor.gui.ui.diagram_item_core import refuse_if_locked
 from raptor.gui.ui.diagram_common import (
     FINE_MOVE_SUBDIVISIONS,
     _safe_int,
@@ -202,6 +203,8 @@ class NudgeMixin(_Base):
         """mode: left | right | top | bottom | hcenter | vcenter.
         Aligns all selected movable items to the first-selected item
         (the anchor), which matches every drawing package."""
+        if refuse_if_locked(self):
+            return
         sel = self._selected_items()
         if len(sel) < 2:
             return
@@ -261,6 +264,8 @@ class NudgeMixin(_Base):
         the union changes after a flip and a second flip would mirror about
         a different line and drift. Reflecting the centres is an exact
         involution -- flipping twice restores the layout."""
+        if refuse_if_locked(self):
+            return False
         sel = self._selected_items()
         if len(sel) < 2:
             return False
@@ -297,6 +302,8 @@ class NudgeMixin(_Base):
         of mixed sizes). The first and last items (by position) anchor
         the span and don't move; every item between is placed so the gap
         after it equals every other gap."""
+        if refuse_if_locked(self):
+            return
         sel = self._selected_items()
         if len(sel) < 3:
             return
@@ -488,6 +495,8 @@ class NudgeMixin(_Base):
         own geometry). Returns whether there was anything to move, so the
         Alt+Up command can fall back to hierarchy navigation.
         """
+        if self._scene.selectedItems() and refuse_if_locked(self):
+            return True     # the arrow key is used up, not a scroll
         selected = [it for it in self._scene.selectedItems()
                     if isinstance(it, _NUDGEABLE_TYPES)]
         if not selected:

@@ -373,6 +373,11 @@ class DataTablesDock(DataTablesEditMixin, DataTablesSparingMixin,
             self._SPARES_COLS, self._KEYED_COL_TIPS)
         self._resources_table = self._make_table(
             self._RESOURCE_COLS, self._KEYED_COL_TIPS)
+        # Phases is a dead flag in Raptor 7 (its resource dialog always saved
+        # FALSE; nothing simulates it): kept in the row so the file round-
+        # trips, never shown (#352).
+        self._resources_table.setColumnHidden(
+            self._RESOURCE_COLS.index("Phases"), True)
         self._triggers_table = self._make_table(
             self._TRIGGER_COLS, self._KEYED_COL_TIPS)
         # Phase definitions -- same

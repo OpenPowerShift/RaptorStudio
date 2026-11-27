@@ -205,6 +205,13 @@ def scope_meta(attribution: dict[str, Any] | None,
     }
 
 
+def levels_text(depth: int | None) -> str:
+    """Depth inside a chosen hierarchy: `1 level down`, `every level`."""
+    if not depth:
+        return "every level"
+    return "1 level down" if int(depth) == 1 else f"{int(depth)} levels down"
+
+
 def depth_text(depth: int | None, *, nested: bool = False) -> str:
     """`top level`, `level 2`, or `every level`, for a chart subtitle."""
     if not depth or int(depth) <= 1:
@@ -286,6 +293,99 @@ def child_rows(attribution: dict[str, Any] | None,
         float((item.get("dtci") or {}).get("mean") or 0.0)))
 
 
+def base_depth(row: dict[str, Any] | None) -> int:
+    """The depth a chosen scope sits at (0 for the system or a tag): the
+    Depth menu counts levels below it."""
+    if row is None or is_tag(row):
+        return 0
+    return int(row.get("depth") or 0)
+
+
+def depth_below(attribution: dict[str, Any] | None,
+                row: dict[str, Any] | None) -> int:
+    """How many hierarchy levels lie below a scope (below the top for the
+    system or a tag): the longest the Depth menu needs to be."""
+    base = base_depth(row)
+    if row is None or is_tag(row):
+        return max_depth(attribution)
+    below = [int(item.get("depth") or 0) for item in descendants(attribution, row)
+             if item is not row]
+    return max(below, default=base) - base
+
+
+def _holder_at(attribution: dict[str, Any] | None, limit: int) -> Any:
+    """`holder(element)`: the element's ancestor hierarchy at depth `limit`,
+    or None when the element does not sit that deep."""
+    hiers = {int(item.get("id") or 0): item for item in rows(attribution)}
+    parent_of: dict[tuple[str, int], int] = {}
+    for hid, item in hiers.items():
+        for member in direct_keys(item):
+            parent_of[member] = hid
+
+    def holder(element: tuple[str, int]) -> dict[str, Any] | None:
+        hid = parent_of.get(element)
+        found = None
+        while hid:
+            item = hiers.get(hid)
+            if item is None:
+                break
+            if int(item.get("depth") or 0) == limit:
+                found = item
+            hid = int(item.get("parent") or 0)
+        return found
+    return holder
+
+
+def roll_up(attribution: dict[str, Any] | None, items: Sequence[dict[str, Any]],
+            row: dict[str, Any] | None, depth: int,
+            key: Any = None) -> list[dict[str, Any]]:
+    """Gather what lies deeper than `depth` levels below the scope into one
+    item per hierarchy at that level (#351).
+
+    `items` are chart rows ({name, value, cause, ...}); `key(item)` gives an
+    item's (kind, id), by default from its own ``kind``/``id``.  An element
+    nested deeper than the limit is replaced by its ancestor hierarchy at the
+    limit, whose value is the sum of its members' values and whose cause is
+    the one carrying most of that value; ``items`` lists the members so the
+    chart can name them.  Depth 0 (All levels) returns `items` unchanged."""
+    if not depth:
+        return list(items)
+    holder = _holder_at(attribution, base_depth(row) + int(depth))
+
+    def own_key(item: dict[str, Any]) -> tuple[str, int] | None:
+        if item.get("kind") is None or item.get("id") is None:
+            return None
+        return (str(item["kind"]), int(item["id"]))
+    key = key or own_key
+    out: list[dict[str, Any]] = []
+    groups: dict[int, dict[str, Any]] = {}
+    for item in items:
+        element = key(item)
+        group = holder(element) if element is not None else None
+        if group is None:
+            out.append(dict(item))
+            continue
+        hid = int(group.get("id") or 0)
+        cell = groups.get(hid)
+        if cell is None:
+            cell = {"name": str(group.get("name") or f"Hierarchy {hid}"),
+                    "kind": "hierarchy", "id": hid, "value": 0.0,
+                    "items": [], "_causes": {}}
+            groups[hid] = cell
+            out.append(cell)
+        value = float(item.get("value") or 0.0)
+        cell["value"] += value
+        cause = item.get("cause")
+        if cause:
+            cell["_causes"][cause] = cell["_causes"].get(cause, 0.0) + value
+        cell["items"].append({"name": item.get("name"), "value": value,
+                              "cause": cause})
+    for cell in groups.values():
+        causes = cell.pop("_causes")
+        cell["cause"] = max(causes, key=causes.get) if causes else None
+    return out
+
+
 def max_depth(attribution: dict[str, Any] | None) -> int:
     return max((int(row.get("depth") or 1) for row in rows(attribution)), default=1)
 
@@ -315,7 +415,7 @@ def rows_at_depth(attribution: dict[str, Any] | None,
 
 
 def child_parts(attribution: dict[str, Any] | None,
-                row: dict[str, Any]) -> list[dict[str, Any]]:
+                row: dict[str, Any], levels: int = 1) -> list[dict[str, Any]]:
     """The direct contents of one hierarchy: child hierarchies and elements.
 
     Values are fractions of the parent's downtime, so a parent row is never
@@ -323,7 +423,33 @@ def child_parts(attribution: dict[str, Any] | None,
     (its own children are a deeper view); its elements are not repeated at
     this level.  An ``other`` part keeps the children from pretending to sum
     to the parent when the roll-up includes something not listed.
+
+    `levels` opens child hierarchies that many levels down (0 = every
+    level): with 2, each child is replaced by its own contents, and shares
+    stay fractions of `row`'s downtime (#351).
     """
+    parts = _direct_parts(attribution, row)
+    if levels == 1:
+        return parts
+    parent = float((row.get("dtci") or {}).get("mean") or 0.0)
+    opened: list[dict[str, Any]] = []
+    for part in parts:
+        child = part.get("row")
+        inner = (child_parts(attribution, child, max(0, levels - 1) if levels else 0)
+                 if part["kind"] == "hierarchy" and child is not None else [])
+        if not inner:
+            opened.append(part)
+            continue
+        weight = float(part["share"])
+        for item in inner:
+            opened.append({**item, "share": float(item["share"]) * weight,
+                           "value": float(item["share"]) * weight * parent})
+    opened.sort(key=lambda part: -float(part["share"]))
+    return opened
+
+
+def _direct_parts(attribution: dict[str, Any] | None,
+                  row: dict[str, Any]) -> list[dict[str, Any]]:
     parent = float((row.get("dtci") or {}).get("mean") or 0.0)
     if parent <= 0:
         return []

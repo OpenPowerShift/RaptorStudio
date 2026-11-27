@@ -938,6 +938,20 @@ def _view_status(view, msg: str):
         sink(msg)
 
 
+#: The status-bar hint when a locked canvas refuses a move.
+LOCKED_HINT = ("Positions are locked: Arrange ▸ Lock Positions to move "
+               "things again")
+
+
+def refuse_if_locked(view) -> bool:
+    """True (after a status hint) when Lock Positions is on, so a nudge,
+    align, flip, distribute or auto-layout leaves the drawing alone."""
+    if getattr(view, "positions_locked", False):
+        _view_status(view, LOCKED_HINT)
+        return True
+    return False
+
+
 #: What each kind of node is, for its hover text. Only a regular node (type
 #: 2) is a k-out-of-n vote; the others are markers. In/Out used to fall
 #: through to "k-of-n node".

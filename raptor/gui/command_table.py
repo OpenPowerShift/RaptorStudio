@@ -303,7 +303,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="view.show_annotations",
         attr="_show_annotations_action",
-        text="Notes",
+        text="Annotations",
         icon="show_annotations_icon:text",
         tooltip="Show or hide every annotation (text, shapes, arrows) on "
                 "the canvas. Hidden annotations stay in the model and are "
@@ -1386,6 +1386,21 @@ COMMANDS: tuple[CommandSpec, ...] = (
         checked=True,
         enabled_when="model_open"),
     CommandSpec(
+        id="arrange.lock_positions",
+        attr="_lock_positions_action",
+        text="Lock Positions",
+        icon="lock_icon:accent",
+        tooltip=(
+            "Fix where everything sits: no dragging of elements, annotations"
+            " or link bends, and no nudge, align, flip or auto-layout, until"
+            " you unlock. Selecting and editing still work. Saved with the"
+            " model."),
+        handler="_set_positions_locked",
+        on="toggled",
+        checkable=True,
+        checked=False,
+        enabled_when="model_open"),
+    CommandSpec(
         id="view.focus_event",
         attr="_focus_event_action",
         text="Focus Event",
@@ -1659,7 +1674,7 @@ LAYOUT: tuple[Page, ...] = (
     _p("Arrange", "_arrange_page_index",
        Group("Layout", (Btn("model.auto_layout", True),
                         Custom("_build_layout_settings"),
-                        Btn("view.snap"))),
+                        Btn("view.snap"), Btn("arrange.lock_positions"))),
        Group("Order", (Btn("arrange.order_front"),
                        Btn("arrange.order_forward"),
                        Btn("arrange.order_backward"),
