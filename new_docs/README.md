@@ -108,7 +108,7 @@ as "about", never as exact:
 | model | metric | long-run value |
 |---|---|---|
 | Lantern1 | reliability @48 h | ≈ 0.38 |
-| Espresso1 | reliability @500 h | ≈ 0.37 |
+| Espresso1 | reliability @500 h | ≈ 0.36 |
 | EspressoDep1 | reliability @500 h | ≈ 0.21 (collapses to the single-pump figure — see ch-dependency) |
 | Drone1 | reliability @48 h | ≈ 0.59 |
 | FinaleShow1 | reliability (need 3 of 5, p=0.8 each) | ≈ 0.94 (analytic 0.94208; Availability always 1.000, MTBDE/MDT N/A — see ch-events) |
