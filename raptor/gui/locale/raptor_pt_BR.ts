@@ -6447,6 +6447,14 @@ Continuar?</translation>
       <translation>Configurações de execução deste conjunto de resultados</translation>
     </message>
     <message>
+      <source>Clear comparison</source>
+      <translation>Limpar comparação</translation>
+    </message>
+    <message>
+      <source>Stop comparing with the earlier run: the cards show only this run's numbers, and the next run is compared with this one. Preferences ▸ Working turns the comparison off altogether.</source>
+      <translation>Parar de comparar com a execução anterior: os cartões mostram apenas os números desta execução, e a próxima execução é comparada com esta. Preferências ▸ Funcionamento desativa a comparação por completo.</translation>
+    </message>
+    <message>
       <source>System health</source>
       <translation>Saúde do sistema</translation>
     </message>

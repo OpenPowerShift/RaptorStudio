@@ -137,6 +137,25 @@ def test_the_preference_turns_it_off_and_on(qapp):
     assert dock._cards["Availability"].change_text().startswith("was")
 
 
+def test_clear_comparison_forgets_the_run_before(qapp):
+    from raptor.gui.ui.results import ResultsDock
+    dock = ResultsDock()
+    button = dock._clear_change_button
+    _show(dock, "a", [0.90, 0.91, 0.89, 0.90])
+    assert button.isHidden()                        # nothing to compare
+    _show(dock, "b", [0.95, 0.96, 0.95, 0.94])
+    assert not button.isHidden()
+    button.click()
+    assert button.isHidden()
+    assert all(card.change_text() == "" for card in dock._cards.values())
+    dock.refresh_changes()                          # stays cleared
+    assert dock._cards["Availability"].change_text() == ""
+    # the run on screen is now what the next one is compared with
+    _show(dock, "c", [0.80, 0.81, 0.79, 0.80])
+    assert dock._cards["Availability"].change_text().startswith("was 0.95")
+    assert not button.isHidden()
+
+
 def test_a_probability_difference_is_short():
     """The card's nine places made "up 0.051233505"."""
     change = rc.compare("Availability", rc.figure([0.90, 0.91, 0.92]),
