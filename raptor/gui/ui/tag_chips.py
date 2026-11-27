@@ -75,7 +75,7 @@ class TagChips(QWidget):
             "#TagChip { border: 1px solid palette(mid); border-radius: 10px; }"
             "#TagChipRemove { padding: 0px; margin: 0px; border: none;"
             " background: transparent; min-width: 0px; min-height: 0px;"
-            " font-weight: bold; font-size: 14px; }"
+            " }"
             "#TagChipRemove:hover { background: palette(midlight);"
             " border-radius: 7px; }")
         self._flow = FlowLayout(self, spacing=4)
@@ -169,7 +169,12 @@ class TagChips(QWidget):
         if self._describe.get(tag):
             chip.setToolTip(self._describe[tag])
         lay.addWidget(name)
-        remove = QPushButton("×")
+        # an icon, not a "×" glyph: the glyph sat above the text's middle
+        from raptor.gui.resources.design_tokens import active_colour
+        from raptor.gui.resources.icons import close_x_icon
+        remove = QPushButton()
+        remove.setIcon(close_x_icon(active_colour()["text"]))
+        remove.setIconSize(QSize(10, 10))
         remove.setObjectName("TagChipRemove")
         remove.setFlat(True)
         remove.setFixedSize(14, 14)
