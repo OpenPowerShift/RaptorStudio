@@ -16,8 +16,9 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.core.edit import clipboard_payload
+from raptor.core.edit import paste_special
 from raptor.core.edit.clipboard_plan import (
-    count_elements, next_free_name, plan_copy, plan_paste, plan_paste_data,
+    _NOT_ELEMENTS, count_elements, next_free_name, plan_copy, plan_paste,
     remap_dependencies)
 from raptor.gui.clipboard_data import set_mime_data
 from raptor.gui.ui.diagram_items import routing_batch
@@ -78,6 +79,7 @@ class ClipboardMixin(_Base):
         _paste_buffer: list
         _rbd_ref: Any  # really raptor.core.fileio.rbd.RbdFile | None
         def _recount_link_ends(self) -> None: ...
+        def set_element_comment(self, etype: str, oid: int, text: str) -> None: ...
         def _resolve_link_endpoint(self, ref: str, oid: int) -> Any: ...
         _scale: float
         _scene: PySide6.QtWidgets.QGraphicsScene
@@ -142,12 +144,27 @@ class ClipboardMixin(_Base):
         if after is None:
             return
         from raptor.core import tags as tag_model
-        from raptor.gui.ui.tags_dialog import TagsCommand
+        from raptor.gui.ui.tags_panel import TagsCommand
         rbd = self._rbd_ref
         before = (tag_model.clean_tags(getattr(rbd, "tags", None)),
                   tag_model.clean_tag_info(getattr(rbd, "tag_info", None)))
         if before != after:
             self._stack.push(TagsCommand(self, before, after, "Paste tags"))
+
+    def _push_pasted_comments(self, buffer, id_maps) -> None:
+        """Give each pasted copy the comment of the element it copies (one
+        undoable write each, in the current macro)."""
+        from raptor.core.tags import parse_ref
+        for kind, item in buffer:
+            if kind != "comment":
+                continue
+            parsed = parse_ref(item.get("ref"))
+            new = (id_maps.get(parsed[0], {}).get(parsed[1])
+                   if parsed is not None else None)
+            if parsed is not None and new is not None:
+                self.set_element_comment(
+                    parsed[0], new,
+                    str(item.get("text") or "").replace("~", "\n"))
 
     def _selection_lists(self):
         """(blocks, regular nodes, events, hierarchies) selected on canvas."""
@@ -204,6 +221,7 @@ class ClipboardMixin(_Base):
         tagged = tag_model.pasted(
             self._rbd_ref, tag_model.buffer_items(self._rbd_ref, buffer),
             plan.id_maps)
+        comments = paste_special.comment_items(self._rbd_ref, buffer)
         self._stack.beginMacro("Duplicate elements")
         try:
             for kind in ("block", "node", "event", "hier"):
@@ -212,6 +230,7 @@ class ClipboardMixin(_Base):
             if plan.link_rows:
                 self._stack.push(AddCmd(self, "link", plan.link_rows))
             self._push_pasted_tags(tagged)
+            self._push_pasted_comments(comments, plan.id_maps)
         finally:
             self._stack.endMacro()
         self._scene.clearSelection()
@@ -241,34 +260,79 @@ class ClipboardMixin(_Base):
             self._stack.endMacro()
         return made
 
-    def paste_data(self, groups: tuple[str, ...] = ("Failure", "Repair")
-                   ) -> int:
-        """Copy the clipboard's first block's data onto selected blocks."""
-        if self._rbd_ref is None:
-            return 0
-        buffer = None
+    def _special_source_buffer(self) -> tuple[list, bool] | None:
+        """`(buffer, same_model)` Paste Special copies from: the system
+        clipboard's clip (fitted to this model, as a paste would), else this
+        view's own last copy. None when there is nothing of ours to use."""
         payload = self._clipboard_payload()
         mime = QApplication.clipboard().mimeData()
         if payload is not None:
-            buffer = payload.buffer
-        elif mime is None or not mime.formats():
-            buffer = self._paste_buffer
-        if not buffer:
-            return 0
-        source = next((row for kind, row in buffer if kind == "block"), None)
+            same = clipboard_payload.same_model(payload, self._model_token)
+            adapted = clipboard_payload.adapt_for_target(
+                self._rbd_ref, payload, same_model=same)
+            return adapted.buffer, same
+        if mime is None or not mime.formats():
+            return list(self._paste_buffer), True
+        return None
+
+    def special_context(self):
+        """`(source, targets)` for Paste Special: the copied element and the
+        selected elements it would be pasted onto. None when the clipboard
+        holds no element or nothing is selected."""
+        if self._rbd_ref is None:
+            return None
+        found = self._special_source_buffer()
+        if not found or not found[0]:
+            return None
+        source = paste_special.source_from_buffer(found[0],
+                                                  same_model=found[1])
         if source is None:
+            return None
+        blocks, nodes, events, hiers = self._selection_lists()
+        nodes = [n for n in nodes if n in self.nodes
+                 and self.nodes[n].type_node == 2]
+        wanted = ([("block", i) for i in blocks]
+                  + [("node", i) for i in nodes]
+                  + [("event", i) for i in events]
+                  + [("hier", i) for i in hiers])
+        targets = paste_special.targets_in(self._rbd_ref, wanted)
+        return (source, targets) if targets else None
+
+    def paste_data(self, groups: tuple[str, ...] = ("Failure", "Repair"),
+                   tag_mode: str = "add", comment_mode: str = "replace"
+                   ) -> int:
+        """Paste Special: copy the clipboard element's chosen groups onto
+        the selected elements, as one undo step. Returns how many elements
+        changed."""
+        context = self.special_context()
+        if context is None:
             return 0
-        selected = self._selection_lists()[0]
-        rows = [row for row in self._rbd_ref.section("BLOCK_DATA").rows
-                if _safe_int(row.get("ID")) in selected]
-        if not rows:
+        source, targets = context
+        plan = paste_special.plan_special(
+            self._rbd_ref, source, targets, groups, tag_mode=tag_mode,
+            comment_mode=comment_mode)
+        if not plan.fields:
             return 0
-        changes = plan_paste_data(source, rows, groups)
-        if not changes:
-            return 0
-        self._stack.push(BlockCellsCmd(self, changes,
-                                       "Paste data onto blocks"))
-        return len(rows)
+        rbd = self._rbd_ref
+        from raptor.core import tags as tag_model
+        before = (tag_model.clean_tags(getattr(rbd, "tags", None)),
+                  tag_model.clean_tag_info(getattr(rbd, "tag_info", None)))
+        self._stack.beginMacro("Paste special")
+        try:
+            if plan.cells:
+                self._stack.push(BlockCellsCmd(self, plan.cells,
+                                               "Paste data onto blocks"))
+            if plan.tags_after is not None:
+                from raptor.gui.ui.tags_panel import TagsCommand
+                self._stack.push(TagsCommand(self, before, plan.tags_after,
+                                             "Paste tags"))
+            for change in plan.comments:
+                self.set_element_comment(
+                    change["kind"], change["id"],
+                    change["new"].replace("~", "\n"))
+        finally:
+            self._stack.endMacro()
+        return plan.elements
 
     def copy_selection(self) -> int:
         """Snapshot the selected elements (+ their fully-internal links)
@@ -279,7 +343,8 @@ class ClipboardMixin(_Base):
         if not buffer:
             return 0
         from raptor.core import tags as tag_model
-        buffer = buffer + tag_model.buffer_items(self._rbd_ref, buffer)
+        buffer = (buffer + tag_model.buffer_items(self._rbd_ref, buffer)
+                  + paste_special.comment_items(self._rbd_ref, buffer))
         self._paste_buffer = buffer
         self._publish_clip(buffer)
         self.paste_state_changed.emit()
@@ -361,8 +426,7 @@ class ClipboardMixin(_Base):
         parent = self._current_parent
 
         anno_entries = [r for k, r in buffer if k == "annotation"]
-        elements = [(k, r) for k, r in buffer
-                    if k not in ("link", "annotation")]
+        elements = [(k, r) for k, r in buffer if k not in _NOT_ELEMENTS]
 
         # Anchor and target, both in SCENE coordinates, then converted
         # per-kind. This used to compute the anchor from the elements'
@@ -483,6 +547,7 @@ class ClipboardMixin(_Base):
                 from raptor.core import tags as tag_model
                 self._push_pasted_tags(
                     tag_model.pasted(self._rbd_ref, buffer, plan.id_maps))
+                self._push_pasted_comments(buffer, plan.id_maps)
             finally:
                 self._stack.endMacro()
         if self._stack.count() == steps_before:

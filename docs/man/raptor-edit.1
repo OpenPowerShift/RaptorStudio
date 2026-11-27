@@ -11,7 +11,7 @@ Structural edits shared with the canvas: duplicate a selection with fresh ids an
 copy elements with fresh ids
 .TP
 \fBpaste\-data\fR
-copy block data groups onto blocks
+Paste Special: copy data groups, tags or the comment onto elements
 .TP
 \fBout\-of\-service\fR
 take blocks, events or hierarchies out of service
@@ -34,17 +34,23 @@ write the result back to MODEL
 \fB\-f\fR, \fB\-\-format\fR \fI{text|json}\fR
 output format (default text)
 .SH RAPTOR EDIT PASTE\-DATA
-\fBraptor edit paste\-data\fR e\-data [\-h] \-\-source BLOCK \-\-targets NAMES [\-\-groups NAMES] [\-\-in\-place] [\-f {text,json}]
+\fBraptor edit paste\-data\fR e\-data [\-h] \-\-source ELEMENT \-\-targets NAMES [\-\-groups NAMES] [\-\-tag\-mode {add,replace}] [\-\-comment\-mode {replace,append,empty}] [\-\-in\-place] [\-f {text,json}]
 .SS Options
 .TP
-\fB\-\-source\fR \fIBLOCK\fR
-the block to copy from
+\fB\-\-source\fR \fIELEMENT\fR
+the element to copy from
 .TP
 \fB\-\-targets\fR \fINAMES\fR
-comma list of blocks
+comma list of elements (blocks, unless only Tags or Comment are pasted)
 .TP
 \fB\-\-groups\fR \fINAMES\fR
-comma list (default Failure,Repair); see raptor help set\-paths for group names
+comma list (default Failure,Repair): Failure, Repair, Logistics delays, Repair crews, Spares, PM, Costs, Dependency, Phasing, Tags, Comment
+.TP
+\fB\-\-tag\-mode\fR \fI{add|replace}\fR
+Tags: add to the targets' tags (default) or replace them
+.TP
+\fB\-\-comment\-mode\fR \fI{replace|append|empty}\fR
+Comment: replace (default), append, or fill only where the target has none (empty)
 .TP
 \fB\-\-in\-place\fR
 write the result back to MODEL

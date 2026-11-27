@@ -80,11 +80,22 @@ def test_duplicate_refusals(capsys, model, argv, words):
 def test_paste_data_copies_failure_data(capsys, model):
     code, out, _ = run_cli(capsys, "edit", model, "paste-data", "--source", "B",
                            "--targets", "A", "--groups", "Failure", "--in-place")
-    assert code == X.OK and "copied failure data onto 1 block(s)" in out.lower()
+    assert code == X.OK and "pasted failure onto 1 element(s)" in out.lower()
     assert _fail_mean(model, "A") == _fail_mean(model, "B") == 300
     code, out, _ = run_cli(capsys, "edit", model, "paste-data", "--source", "B",
                            "--targets", "A", "-f", "json")
     assert code == X.OK and json.loads(out)["blocks"] == 1
+
+
+def test_paste_data_copies_tags_and_comment(capsys, model):
+    code, out, _ = run_cli(capsys, "edit", model, "paste-data", "--source", "B",
+                           "--targets", "A", "--groups", "Tags,Comment",
+                           "--tag-mode", "replace", "--comment-mode", "append",
+                           "-f", "json")
+    assert code == X.OK and json.loads(out)["blocks"] == 1
+    with pytest.raises(SystemExit):        # argparse refuses an unknown mode
+        run_cli(capsys, "edit", model, "paste-data", "--source", "B",
+                "--targets", "A", "--groups", "Tags", "--tag-mode", "merge")
 
 
 def test_paste_data_refuses_an_unknown_group(capsys, model):

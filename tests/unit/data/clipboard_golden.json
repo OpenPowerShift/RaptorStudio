@@ -5792,6 +5792,34 @@
      "xPos": "22.500000",
      "yPos": "92.500000"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part # 178365-THM~Failure data from Mir~Repair data from space walk M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:5",
+     "text": "Part # 178321-ALT~Failure data from Shuttle~Repair data from ground testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:6",
+     "text": "Part # 178489-CCX~Failure data from Teltronics~Repair data from Teltronics"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:7",
+     "text": "Part # 178799-CDX~Failure data from Solaris Inc.~Repair data from field testing"
+    }
    ]
   ],
   "copied": 4,
@@ -6840,6 +6868,27 @@
      "ToType": "Block",
      "nomFlow": "-1",
      "pID": "23"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part # 178173-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part # 178227-BUR~Failure data from Soyuz~Repair data from Soyuz~"
     }
    ]
   ],
@@ -8873,6 +8922,111 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "29"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part # 178173-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part # 178227-BUR~Failure data from Soyuz~Repair data from Soyuz~"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part # 178831-SP6~Failure data from Mir~Repair data from Mir"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:9",
+     "text": "Part # 178832-SP9~Failure data from Space Station Freedom~Repair data from ground testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part # 178227-BQR~Failure data from Shuttle~Repair data from ground testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part # 178175-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:12",
+     "text": "Part # 178227-BFR~Failure data from Space Station Freedom~Repair data from Space Station Freedom"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:13",
+     "text": "Part # 178177-BAT~Failure data from Cellusion Inc.~Repair data from bench testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:22",
+     "text": "900 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500 Watt power string"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650 Watt power string"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:29",
+     "text": "900 Watt power string"
     }
    ]
   ],
@@ -11901,6 +12055,27 @@
      "nomFlow": "-2",
      "pID": "0"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part # 178365-THM~Failure data from Mir~Repair data from space walk M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:5",
+     "text": "Part # 178321-ALT~Failure data from Shuttle~Repair data from ground testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:6",
+     "text": "Part # 178489-CCX~Failure data from Teltronics~Repair data from Teltronics"
+    }
    ]
   ],
   "copied": 5,
@@ -13013,6 +13188,34 @@
      "nomFlow": "500",
      "pID": "23"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part # 178173-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part # 178227-BUR~Failure data from Soyuz~Repair data from Soyuz~"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500 Watt power subsystem"
+    }
    ]
   ],
   "copied": 4,
@@ -13818,6 +14021,13 @@
      "xPos": "18.750000",
      "yPos": "91.250000"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part # 178365-THM~Failure data from Mir~Repair data from space walk M-demo"
+    }
    ]
   ],
   "copied": 1,
@@ -14112,6 +14322,13 @@
      "usesPM": "0",
      "xPos": "3.750000",
      "yPos": "93.750000"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
     }
    ]
   ],
@@ -14783,6 +15000,41 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "23"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part # 178173-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part # 178227-BUR~Failure data from Soyuz~Repair data from Soyuz~"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500 Watt power string"
     }
    ]
   ],
@@ -16170,6 +16422,41 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "26"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part # 178831-SP6~Failure data from Mir~Repair data from Mir"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part # 178227-BQR~Failure data from Shuttle~Repair data from ground testing"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part # 178175-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650 Watt power string"
     }
    ]
   ],
@@ -17650,6 +17937,48 @@
      "nomFlow": "-2",
      "pID": "23"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part # 178830-SP5~Failure data from Skylab~Repair data from Skylab"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part # 178173-BAT~Failure data from ground testing~Repair data from M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part # 178227-BUR~Failure data from Soyuz~Repair data from Soyuz~"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part # 178365-THM~Failure data from Mir~Repair data from space walk M-demo"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500 Watt power subsystem"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500 Watt power string"
+    }
    ]
   ],
   "copied": 8,
@@ -19115,6 +19444,34 @@
      "xPos": "22.500000",
      "yPos": "92.500000"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:5",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:6",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:7",
+     "text": "Part"
+    }
    ]
   ],
   "copied": 4,
@@ -20163,6 +20520,27 @@
      "ToType": "Block",
      "nomFlow": "-1",
      "pID": "23"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part"
     }
    ]
   ],
@@ -22196,6 +22574,111 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "29"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:9",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:12",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:13",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:22",
+     "text": "900"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:29",
+     "text": "900"
     }
    ]
   ],
@@ -25224,6 +25707,27 @@
      "nomFlow": "-2",
      "pID": "0"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:5",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:6",
+     "text": "Part"
+    }
    ]
   ],
   "copied": 5,
@@ -26336,6 +26840,34 @@
      "nomFlow": "500",
      "pID": "23"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500"
+    }
    ]
   ],
   "copied": 4,
@@ -27141,6 +27673,13 @@
      "xPos": "18.750000",
      "yPos": "91.250000"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part"
+    }
    ]
   ],
   "copied": 1,
@@ -27435,6 +27974,13 @@
      "usesPM": "0",
      "xPos": "3.750000",
      "yPos": "93.750000"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
     }
    ]
   ],
@@ -28574,6 +29120,76 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "26"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650"
     }
    ]
   ],
@@ -30826,6 +31442,41 @@
      "nomFlow": "-2",
      "pID": "26"
     }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650"
+    }
    ]
   ],
   "copied": 7,
@@ -32212,6 +32863,41 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "29"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:9",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:12",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:13",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:22",
+     "text": "900"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:29",
+     "text": "900"
     }
    ]
   ],
@@ -34159,6 +34845,83 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "26"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:2",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:3",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:4",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:20",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:23",
+     "text": "500"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650"
     }
    ]
   ],
@@ -36680,6 +37443,48 @@
      "ToType": "Node",
      "nomFlow": "-2",
      "pID": "26"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:1",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:8",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:10",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "block:11",
+     "text": "Part"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "node:21",
+     "text": "650"
+    }
+   ],
+   [
+    "comment",
+    {
+     "ref": "hier:26",
+     "text": "650"
     }
    ]
   ],

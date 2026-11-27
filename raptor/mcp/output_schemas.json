@@ -738,14 +738,34 @@
    "changes": {
     "type": "array"
    },
+   "comment_changes": {
+    "type": "array"
+   },
    "count": {
+    "type": "integer"
+   },
+   "elements": {
+    "type": "integer"
+   },
+   "notes": {
+    "type": "array"
+   },
+   "tag_changes": {
+    "type": "array"
+   },
+   "unchanged": {
     "type": "integer"
    }
   },
   "required": [
    "blocks",
    "changes",
-   "count"
+   "comment_changes",
+   "count",
+   "elements",
+   "notes",
+   "tag_changes",
+   "unchanged"
   ],
   "type": "object"
  },

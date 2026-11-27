@@ -49,6 +49,8 @@ class DockLayoutPersistenceMixin(_Base):
         def _set_dock_min_width(dock: Any, width: int) -> None: ...
         _statusbar: PySide6.QtWidgets.QStatusBar
         def _sync_dock_tab_bars(self) -> Any: ...
+        def _sync_dock_toggles(self) -> None: ...
+        _tags_placed: bool
         def _update_dock_max_heights(self) -> None: ...
 
     def _initial_window_size(self):
@@ -172,6 +174,9 @@ class DockLayoutPersistenceMixin(_Base):
         # load must not replace them with the designed defaults.
         self._canvas_room_defaults_done = True
         self._dock_user_sized = True
+        # a dock the saved state opens (the Tags panel) did not necessarily
+        # tell its View > Panels toggle
+        self._sync_dock_toggles()
         return True
 
     def _reset_dock_chrome(self) -> None:
@@ -185,6 +190,8 @@ class DockLayoutPersistenceMixin(_Base):
         """View > Reset Layout: every dock back in its first-run place, open and full size; the saved layout is
         forgotten so the next start is the default too."""
         self._reset_dock_chrome()
+        # the Tags panel joins the Inspector's tabs again on its next show
+        self._tags_placed = False
         # Reset Layout takes over from the narrow-window compact policy:
         # widening must not re-minimize/re-expand or restore old widths.
         self._compact_minimized.clear()
