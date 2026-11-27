@@ -33,6 +33,7 @@ class DataTablesSparingMixin(_Base):
     """Data Tables: the sparing and preventive-maintenance tables."""
 
     if TYPE_CHECKING:      # pragma: no cover - typing only
+        def _commit(self, kind: str, oid: int, call: Any, what: str = ...) -> bool: ...
         # What this mixin needs from the host (checked by mypy, so a typo or a removed
         # member is an error here rather than an AttributeError at run time).
         # `x: Any  # really T | None` marks an attribute the host sets to None first and
@@ -150,7 +151,10 @@ class DataTablesSparingMixin(_Base):
             if display_u:
                 interval = display_to_native(
                     interval, native_u, display_u)
-            req(self._view).set_block_new_spares(bid, count, interval)
+            self._commit("block", bid,
+                         lambda: req(self._view).set_block_new_spares(
+                             bid, count, interval) or True,
+                         "Set new spares")
             self.model_edited.emit()
 
         self._text_cell(t, r, 5, str(int(b.new_spares)),
