@@ -588,8 +588,9 @@ It is the same object the application's Story tab paints and
 options; a set that would break a name is refused whole.
 
 `duplicate_elements` copies a selection with fresh ids and names, and
-`copy_element_data` copies one block's chosen data groups onto others without
-touching names, positions, links or dependencies.
+`copy_element_data` is Paste Special: it copies one element's chosen groups
+(block data, dependency, phasing, tags, comment) onto others without touching
+names, positions or links.
 
 `set_out_of_service` takes blocks, events or hierarchies out of service for
 a what-if without changing their data: `cut` (down for the whole run, its
