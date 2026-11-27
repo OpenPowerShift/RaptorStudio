@@ -163,3 +163,21 @@ def test_every_show_rule_offers_its_default_and_stays_within_its_cap():
     for key in ("hierarchy-overlay", "hierarchy-small-multiples", "hierarchy-hops"):
         most = max(c for c in ranking.SHOW_RULES[key].options())
         assert most == ranking.COMPARE_LIMITS[key]
+
+
+def test_series_colours_are_distinct_hues():
+    """Up to eight hierarchies are compared at once: no two may share a hue
+    (a second blue read as the same hierarchy in a six-line overlay)."""
+    import colorsys
+
+    from raptor.api.insight.hierarchy import SERIES_COLOURS
+
+    def hue(colour: str) -> float:
+        r, g, b = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        return colorsys.rgb_to_hls(r, g, b)[0] * 360
+
+    hues = [hue(c) for c in SERIES_COLOURS]
+    for i, a in enumerate(hues):
+        for b in hues[i + 1:]:
+            gap = abs(a - b)
+            assert min(gap, 360 - gap) >= 10, (SERIES_COLOURS, a, b)
