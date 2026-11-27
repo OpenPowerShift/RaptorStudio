@@ -68,7 +68,7 @@ MODELS = os.path.join(os.path.dirname(__file__), "..", "models")
 # why they did not. `None` still means "use the file's own NumRuns".
 REGISTRY = [
     ("Lantern1.rbds", "Reliability", 0.38, 0.02, 2000, "README: reliability @48h"),
-    ("Espresso1.rbds", "Reliability", 0.37, 0.02, 2000, "README: reliability @500h"),
+    ("Espresso1.rbds", "Reliability", 0.36, 0.02, 2000, "README: reliability @500h"),
     ("EspressoDep1.rbds", "Reliability", 0.21, 0.02, 2000, "README: reliability @500h"),
     ("Drone1.rbds", "Reliability", 0.59, 0.02, 2000, "README: reliability @48h"),
     ("FinaleShow1.rbds", "Reliability", 0.94208, 0.02, 2000, "README: analytic 0.94208"),

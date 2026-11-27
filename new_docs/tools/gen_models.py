@@ -721,7 +721,7 @@ data_centre("DC2.rbds", ats=0.05, pm_switchgear=True)
 # forced Idle too, no matter its own health. Since Pump_A alone already
 # satisfies the node's "need 1 of 2" rule whenever IT is up, Pump_B's
 # state never matters -- the "redundant" pair behaves exactly like
-# Pump_A alone. Reliability collapses from Espresso1's own ~0.37
+# Pump_A alone. Reliability collapses from Espresso1's own ~0.36
 # (independent pumps) to ~0.21 (Espresso1's own single-pump figure),
 # even though the diagram still shows two parallel pumps.
 def espresso_dep():
