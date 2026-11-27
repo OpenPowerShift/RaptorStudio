@@ -3889,6 +3889,10 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Somente nível superior</translation>
     </message>
     <message>
+      <source>Clear the text</source>
+      <translation>Limpar o texto</translation>
+    </message>
+    <message>
       <source>Empirical Data</source>
       <translation>Dados empíricos</translation>
     </message>

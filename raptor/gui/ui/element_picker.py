@@ -41,6 +41,12 @@ def searchable(combo: QComboBox, placeholder: str = "Type to search") -> QComboB
     if edit is not None:
         edit.setPlaceholderText(placeholder)
         edit.setClearButtonEnabled(True)
+        from PySide6.QtWidgets import QToolButton
+
+        from raptor.gui import i18n
+        for button in edit.findChildren(QToolButton):
+            # the line edit's own clear button: a screen reader said "button"
+            button.setAccessibleName(i18n.tr("Clear the text"))
 
         def settle() -> None:
             index = combo.findText(combo.currentText(), Qt.MatchFlag.MatchFixedString)
