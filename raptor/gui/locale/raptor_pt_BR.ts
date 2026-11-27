@@ -3933,16 +3933,16 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Edição desfeita — resultados mantidos</translation>
     </message>
     <message>
-      <source>Type to search</source>
-      <translation>Digite para pesquisar</translation>
-    </message>
-    <message>
       <source>Show only what is inside one hierarchy (and the hierarchies inside it)</source>
       <translation>Mostrar somente o que está dentro de uma hierarquia (e as hierarquias dentro dela)</translation>
     </message>
     <message>
       <source>Top level only</source>
       <translation>Somente nível superior</translation>
+    </message>
+    <message>
+      <source>Clear the text</source>
+      <translation>Limpar o texto</translation>
     </message>
     <message>
       <source>Empirical Data</source>
@@ -5365,6 +5365,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>No incoming links</source>
       <translation>Nenhum vínculo de entrada</translation>
+    </message>
+    <message>
+      <source>Find a block…</source>
+      <translation>Procurar um bloco…</translation>
     </message>
     <message>
       <source>Link From</source>
@@ -6795,12 +6799,8 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>O relatório completo destes resultados não está mais disponível (uma nova execução começou). A prévia na tela é mantida.</translation>
     </message>
     <message>
-      <source>Go to a hierarchy</source>
-      <translation>Ir para uma hierarquia</translation>
-    </message>
-    <message>
-      <source>Go to hierarchy…</source>
-      <translation>Ir para hierarquia…</translation>
+      <source>Go to a hierarchy: pick one, or type part of its name to narrow the list</source>
+      <translation>Ir para uma hierarquia: escolha uma ou digite parte do nome para filtrar a lista</translation>
     </message>
     <message>
       <source>Go to hierarchy</source>
@@ -6989,6 +6989,10 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Find item — type a name or an element id; the Model Explorer below filters to the matches and marks them. Enter jumps to the first one.</source>
       <translation>Localizar item — digite um nome ou um id de elemento; o Explorador de modelo abaixo filtra pelas correspondências e as marca. Enter salta para a primeira.</translation>
+    </message>
+    <message>
+      <source>Go to hierarchy…</source>
+      <translation>Ir para hierarquia…</translation>
     </message>
     <message>
       <source>Cores</source>

@@ -174,7 +174,8 @@ class InspectorAnnotationMixin(_Base):
         _gb, fl = self._group("Anchor", layout)
 
         def combo_for(current_ref, current_name, none_label):
-            box = QComboBox()
+            from raptor.gui.ui.element_picker import searchable
+            box = searchable(QComboBox())
             box.addItem(none_label, None)
             for label, ref in targets:
                 box.addItem(label, ref)

@@ -72,7 +72,8 @@ current value).
 |Extract Hierarchy… |Save the selected hierarchy as a standalone model (its input always available) and open it to run on its own. Shows what crosses the hierarchy's boundary and how each crossing is treated. |
 |Up |Ascend one hierarchy level (or double-click an Out marker) |
 |Home |Return to the home level |
-|Go to hierarchy |Go to a hierarchy |choice
+|QToolButton | |
+|Go to hierarchy |Go to a hierarchy: pick one, or type part of its name to narrow the list |choice
 |===
 
 === Arrange tab
@@ -240,6 +241,7 @@ current value).
 [cols="2,4,1",options="header"]
 |===
 |Control |What it does |Shortcut / value
+|QToolButton | |
 |Events per multi-step |How many events More Steps ▸ Multi advances |number, now 10
 |Run-to target time |The sim time More Steps ▸ Run to time advances to, in the model's display unit |number, now 100
 |Pause when block fails |Stop stepping when the chosen block fails (enters Repairing) |choice, now No breakpoint
