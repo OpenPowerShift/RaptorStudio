@@ -141,7 +141,8 @@ def plan_copy(rbd: Any, hiers: Mapping[int, Any], *, blocks: list[int],
 
 #: Buffer kinds that are not elements: links, annotations and the tags
 #: that travel with a copy (`raptor.core.tags.BUFFER_KINDS`).
-_NOT_ELEMENTS = frozenset({"link", "annotation", "tags", "taginfo"})
+_NOT_ELEMENTS = frozenset({"link", "annotation", "tags", "taginfo",
+                           "comment"})
 
 
 def count_elements(buffer: Buffer) -> int:
@@ -331,7 +332,9 @@ def remap_dependencies(plan: PastePlan, *, keep_external: bool) -> int:
 
 # -- duplicate and data-only paste (WP-1.5) --------------------------------
 
-#: BLOCK_DATA columns each data group owns.  Failure and repair are the two
+#: BLOCK_DATA columns each data group owns (the column names are the file's:
+#: a name that is not a column of the model silently copies nothing, so
+#: `tests/unit/test_paste_special.py` checks every one against a real model).  Failure and repair are the two
 #: applied by default; the others let a user copy a whole sparing or PM
 #: policy without touching the block's identity or placement.
 DATA_GROUPS: dict[str, tuple[str, ...]] = {
@@ -339,15 +342,16 @@ DATA_GROUPS: dict[str, tuple[str, ...]] = {
                 "FParam1", "FParam2", "FParam3"),
     "Repair": ("RDist", "#RParam", "RStream",
                "RParam1", "RParam2", "RParam3"),
-    "Logistics delays": ("Pre-LDTDist", "Param1", "Param2", "Param3",
+    "Logistics delays": ("Pre-LDTDist", "Param1#1", "Param2#1", "Param3#1",
                          "Post-LDTDist", "Param1#2", "Param2#2", "Param3#2"),
     "Spares": ("SparePoolName", "SpType", "RSO", "Stock", "NewSp",
                "ArriveEvery", "ESO", "EmerTime", "SLO", "Level", "Quan",
                "SLOTime"),
+    "Repair crews": ("NumRes", "#Res1Rep", "#Res1pmRep", "Resource1Name"),
     "PM": ("usesPM", "PMFreq", "PMSpare", "PMRefresh", "PMMisDefer",
            "PMFailReset", "PMReqDefer", "PMStaggerTime", "pmTriggered",
            "pmTrig", "Dist", "Param1#3", "Param2#3", "Param3#3"),
-    "Costs": ("initial", "running", "standby", "idle", "repHold",
+    "Costs": ("initial", "Running", "standby", "idle", "repHold",
               "repPerTime", "repFixed", "donePerTime", "doneFixed",
               "pmHoldCost", "pmCost", "pmFixedCost", "perSpare",
               "emerShipping", "addDone"),

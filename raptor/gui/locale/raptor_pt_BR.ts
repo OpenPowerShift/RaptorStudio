@@ -458,12 +458,12 @@
       <translation>Duplicar a seleção em uma linha ou coluna</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
     </message>
     <message>
-      <source>Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)</source>
-      <translation>Copiar os dados do bloco na área de transferência para os blocos selecionados (Ctrl+Shift+V)</translation>
+      <source>Copy chosen parts of the copied element (failure, repair, spares, PM, costs, tags, comment...) onto the selected elements (Ctrl+Shift+V)</source>
+      <translation>Copia partes escolhidas do elemento copiado (falha, reparo, sobressalentes, MP, custos, etiquetas, comentário...) para os elementos selecionados (Ctrl+Shift+V)</translation>
     </message>
     <message>
       <source>Project Settings</source>
@@ -2925,8 +2925,20 @@
       <translation>Matriz…</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
+    </message>
+    <message>
+      <source>Paste Tags (add)</source>
+      <translation>Colar etiquetas (adicionar)</translation>
+    </message>
+    <message>
+      <source>Paste Comment</source>
+      <translation>Colar comentário</translation>
+    </message>
+    <message>
+      <source>Paste Failure and Repair</source>
+      <translation>Colar falha e reparo</translation>
     </message>
     <message>
       <source>Delete routing point</source>
@@ -3633,10 +3645,6 @@
       <translation>Somente os campos MARCADOS mudam, em cada elemento selecionado (editar um campo o marca). Pode ser desfeito nesta sessão.</translation>
     </message>
     <message>
-      <source>Paste</source>
-      <translation>Colar</translation>
-    </message>
-    <message>
       <source>Export Library</source>
       <translation>Exportar biblioteca</translation>
     </message>
@@ -3735,10 +3743,6 @@
     <message>
       <source>Phasing</source>
       <translation>Faseamento</translation>
-    </message>
-    <message>
-      <source>Copy the clipboard block's data onto the selected blocks. Name, position, links and dependency are never changed.</source>
-      <translation>Copie os dados do bloco da área de transferência para os blocos selecionados. Nome, posição, vínculos e dependência nunca são alterados.</translation>
     </message>
     <message>
       <source>Nothing was added.</source>
@@ -5743,8 +5747,12 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Tema escuro</translation>
     </message>
     <message>
-      <source>Select blocks and copy a block first</source>
-      <translation>Selecione blocos e copie um bloco primeiro</translation>
+      <source>Copy an element, then select the elements to paste onto</source>
+      <translation>Copie um elemento e selecione os elementos onde colar</translation>
+    </message>
+    <message>
+      <source>Nothing to change</source>
+      <translation>Nada a alterar</translation>
     </message>
     <message>
       <source>Open a model to find items in it.</source>
@@ -5977,6 +5985,22 @@ Continuar?</translation>
     <message>
       <source>Separate Random Streams</source>
       <translation>Fluxos aleatórios separados</translation>
+    </message>
+    <message>
+      <source>Paste Special</source>
+      <translation>Colar especial</translation>
+    </message>
+    <message>
+      <source>Paste</source>
+      <translation>Colar</translation>
+    </message>
+    <message>
+      <source>Add to existing tags</source>
+      <translation>Adicionar às etiquetas existentes</translation>
+    </message>
+    <message>
+      <source>Replace tags</source>
+      <translation>Substituir etiquetas</translation>
     </message>
     <message>
       <source>Phase</source>

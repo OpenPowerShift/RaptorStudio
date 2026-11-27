@@ -1166,20 +1166,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._statusbar.showMessage(f"Added {n} element(s)", 4000)
 
     def _edit_paste_data(self) -> None:
-        from raptor.gui.ui import dialogs
+        """Paste Special: the dialog, then the paste as one undo step."""
         if text_editing.active_editor() is not None:
             return
-        groups = dialogs.choose_data_groups(self)
-        if groups is None:
+        view = self._diagram_dock.view
+        context = view.special_context()
+        if context is None:
+            self._statusbar.showMessage(
+                "Copy an element, then select the elements to paste onto",
+                5000)
             return
-        n = self._diagram_dock.view.paste_data(tuple(groups))
+        source, targets = context
+        from raptor.core.edit import paste_special as ps
+        from raptor.gui.ui.paste_special_dialog import ask_paste_special
+
+        def preview(groups, tag_mode, comment_mode):
+            plan = ps.plan_special(view._rbd_ref, source, targets, groups,
+                                   tag_mode=tag_mode,
+                                   comment_mode=comment_mode)
+            line = plan.summary()
+            if plan.notes:
+                line += " " + " ".join(plan.notes)
+            return line, plan.fields > 0
+
+        name = str(source.row.get(ps._NAME_COLUMN[source.kind]) or "")
+        heading = (f"Copy parts of {source.kind} {name!r} onto the "
+                   f"{len(targets)} selected element"
+                   f"{'' if len(targets) == 1 else 's'}. Names, positions "
+                   "and links are never changed.")
+        answer = ask_paste_special(self, heading,
+                                   ps.applicability(source, targets), preview)
+        if answer is None:
+            return
+        groups, tag_mode, comment_mode = answer
+        n = view.paste_data(tuple(groups), tag_mode, comment_mode)
         if n:
             self._statusbar.showMessage(
-                f"Pasted {', '.join(groups).lower()} data onto "
-                f"{n} block(s)", 5000)
+                f"Pasted {', '.join(groups).lower()} onto {n} element(s)",
+                5000)
         else:
-            self._statusbar.showMessage(
-                "Select blocks and copy a block first", 5000)
+            self._statusbar.showMessage("Nothing to change", 5000)
 
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
