@@ -13,6 +13,13 @@ pytestmark = pytest.mark.gui
 KNOWN = ["Critical", "Pumps", "Spares held", "Wet area"]
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _qapp():
+    # the widgets need an application; without this the file crashed when
+    # run on its own (it only passed after another GUI test made one)
+    return QApplication.instance() or QApplication([])
+
+
 def _chips(tags=("Critical",), known=KNOWN):
     chips = TagChips(list(tags), list(known), {"Pumps": "#1f77b4"},
                      describe={"Pumps": "Pump skids"})
