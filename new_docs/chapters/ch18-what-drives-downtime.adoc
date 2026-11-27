@@ -168,8 +168,18 @@ the one you want. The search box narrows both. The set includes:
   counts down from it (it starts at every level; "1 level down" lists only its own contents, deeper
   levels open its sub-hierarchies); on the downtime, lost-capacity and cost
   treemaps it gathers anything deeper into one cell per hierarchy;
-  **Compare** picks up to four
-  sibling branches; **Baseline** stores the comparison run;
+  **Compare** picks up to six branches for the overlay and twelve for
+  the small multiples and run-by-run charts; **Baseline** stores the
+  comparison run. The Depth menu offers as many levels as the model's
+  hierarchy is deep (a model nested four deep gives *Top level* and *Level 2*
+  to *Level 4*);
+* every ranking has a **Show** control (*Top 5* to *Top 50*, or *All*) and
+  an **All items…** button. A Pareto draws its largest ten and gathers the
+  rest into one *N others* bar, but the 11th item matters too: **All items…**
+  opens a sortable table of every item behind the chart, the ones in *N
+  others* included, with its value, share and cumulative share, and *Export
+  CSV…* saves it. Time series and histograms are not rankings and have
+  neither;
 * convergence: the running mean with its ± 2 standard-error band;
 * year-by-year availability when the run covers whole years (hours models);
 With capacity analysis on, three more charts answer "who loses the

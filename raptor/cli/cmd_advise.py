@@ -158,7 +158,7 @@ def add_parser(sub: Any) -> None:  # noqa: PLR0915 - one flag per statement
                    help="scope an element chart to one hierarchy (name, id or "
                         "path like 'Intake > Pump house')")
     e.add_argument("--hierarchies", metavar="LIST", default=None,
-                   help="two to four hierarchies for the overlay, comma "
+                   help="two to six hierarchies for the overlay, comma "
                         "separated (name, id or path)")
     e.add_argument("--compare-to", metavar="RUN-ID", default=None,
                    help="a stored run whose hierarchy table is the baseline "
