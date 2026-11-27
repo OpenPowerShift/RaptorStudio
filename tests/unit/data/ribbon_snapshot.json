@@ -2533,11 +2533,6 @@
        "kind": "action",
        "large": true,
        "text": "Issues"
-      },
-      {
-       "kind": "action",
-       "large": true,
-       "text": "Analytical\u2026"
       }
      ],
      "title": "Model"
@@ -2893,6 +2888,16 @@
   },
   {
    "groups": [
+    {
+     "items": [
+      {
+       "kind": "action",
+       "large": true,
+       "text": "Analytical\u2026"
+      }
+     ],
+     "title": "Exact"
+    },
     {
      "items": [
       {

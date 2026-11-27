@@ -103,6 +103,10 @@
       <translation>Animação</translation>
     </message>
     <message>
+      <source>Exact</source>
+      <translation>Exato</translation>
+    </message>
+    <message>
       <source>What If</source>
       <translation>E se</translation>
     </message>
