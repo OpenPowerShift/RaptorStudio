@@ -31,7 +31,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFormLayout, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSplitter,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -118,9 +118,19 @@ class TagsPanel(QWidget):
 
     # -- construction ---------------------------------------------------
     def _build(self) -> None:  # noqa: PLR0915
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 8, 8, 8)
+        # Two panes the user can resize: the tags and their settings above,
+        # the chosen tag's elements below. In a short dock the list used to
+        # get a third of the members table's share and showed ~3 rows.
+        page = QVBoxLayout(self)
+        page.setContentsMargins(8, 8, 8, 8)
+        self._split = QSplitter(Qt.Orientation.Vertical)
+        self._split.setChildrenCollapsible(False)
+        page.addWidget(self._split)
+        top = QWidget()
+        outer = QVBoxLayout(top)
+        outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(6)
+        self._split.addWidget(top)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search tags")
         self._search.setAccessibleName("Search tags")
@@ -130,7 +140,8 @@ class TagsPanel(QWidget):
         self._list = QListWidget()
         self._list.setObjectName("TagsList")
         self._list.setAccessibleName("Tags")
-        self._list.setMinimumHeight(60)
+        rows = self._list.fontMetrics().height() + 6
+        self._list.setMinimumHeight(5 * rows + 4)   # five tags at least
         self._list.setToolTip(
             "The model's tags and how many elements carry each. Selecting "
             "one edits its name, colour and description.")
@@ -190,6 +201,13 @@ class TagsPanel(QWidget):
         buttons.addWidget(self._remove_sel)
         outer.addLayout(buttons)
 
+        bottom = QWidget()
+        outer = QVBoxLayout(bottom)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(6)
+        self._split.addWidget(bottom)
+        self._split.setStretchFactor(0, 1)
+        self._split.setStretchFactor(1, 1)
         self._members_label = QLabel("Elements")
         outer.addWidget(self._members_label)
         self._filter = QLineEdit()
