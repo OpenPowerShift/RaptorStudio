@@ -15,7 +15,7 @@ session, so it is a long/manual gate. The default check covers the tour;
 `mcp-demo.gif` embeds the measured simulation wall time and therefore is
 not byte-compared.
 
-Writes docs/readme/app-tour.gif and docs/readme/mcp-demo.gif.
+Writes docs/readme/app-tour.gif (and its still, all-charts.png) and docs/readme/mcp-demo.gif.
 """
 from __future__ import annotations
 
@@ -150,6 +150,7 @@ def make_tour() -> None:
     grab("The Advisor flags likely mistakes as you build, with a fix for each", 3400)
 
     w._run_panel._analysis_checks["weak"].setChecked(True)
+    w._run_panel._analysis_checks["capacity"].setChecked(True)    # for the lost-capacity Sankey
     w._run_panel._recording_checks["ao_plot"].setChecked(True)
     w._run_panel._ao_interval.setValue(100.0)
     w._run_panel._ao_interval.editingFinished.emit()
@@ -194,7 +195,59 @@ def make_tour() -> None:
     if tab("Final Results"):
         grab("Read the numbers an engineer needs", 2800)
     if tab("Charts"):
-        grab("Charts of availability, downtime, cost and capacity through the run", 3000)
+        page = w._results._charts_page
+        # the charts get most of the window; the canvas keeps a strip
+        # the canvas (the central widget) is capped to a strip meanwhile
+        docked = w._results_dock.height()
+        w._diagram_dock.setMaximumHeight(150)
+        w.resizeDocks([w._results_dock], [w.height()], Qt.Orientation.Vertical)
+        app.processEvents()
+        print("charts:", page.titles())
+        import time
+        from raptor.gui.ui.charts_page import _GROUP, ALL_CHARTS
+        every = next((page.nav.topLevelItem(i) for i in range(page.nav.topLevelItemCount())
+                      if page.nav.topLevelItem(i).data(0, _GROUP) == ALL_CHARTS), None)
+        if every is not None:
+            page.nav.setCurrentItem(every)
+            app.processEvents()
+            settle = time.monotonic() + 2.0          # the thumbnails draw a few at a time
+            while time.monotonic() < settle:
+                app.processEvents()
+                time.sleep(0.02)
+            # The README's still: the Results panel alone, tall enough for
+            # several rows of thumbnails, at full size.
+            w._diagram_dock.setMaximumHeight(0)
+            w.resize(1440, 1500)
+            w.resizeDocks([w._results_dock], [1500], Qt.Orientation.Vertical)
+            settle = time.monotonic() + 3.0
+            while time.monotonic() < settle:
+                app.processEvents()
+                time.sleep(0.02)
+            w._results_dock.grab().save(str(OUT / "all-charts.png"))
+            w.resize(1440, 880)
+            w._diagram_dock.setMaximumHeight(150)
+            w.resizeDocks([w._results_dock], [w.height()], Qt.Orientation.Vertical)
+            app.processEvents()
+            grab("All charts: every chart this run can draw, on one page; click one to open it", 3600)
+        if page.select("hierarchy-map"):
+            grab("Where the downtime sits, hierarchy by hierarchy", 3000)
+        if page.select("downtime-pareto"):
+            grab("Rank the parts that cost the most uptime; show the top 10, or more", 3000)
+            from raptor.api.insight import ranking
+            from raptor.gui.ui.ranked_items_dialog import RankedItemsDialog
+            rows = ranking.ranked_table(page.chart._spec)
+            if rows is not None:
+                table = RankedItemsDialog(rows, w)     # shown with exec() in the app
+                table.show()
+                app.processEvents()
+                grab("…and a table of every item behind the chart, to sort or save as CSV", 3200,
+                     dialog=table)
+                table.close()
+        if page.select("capacity-sankey"):
+            grab("Follow the lost capacity from the system down to the parts", 3000)
+        w._diagram_dock.setMaximumHeight(16777215)    # QWIDGETSIZE_MAX
+        w.resizeDocks([w._results_dock], [docked], Qt.Orientation.Vertical)
+        app.processEvents()
 
     def study(dlg) -> None:
         import time
