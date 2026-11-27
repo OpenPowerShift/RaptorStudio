@@ -1643,9 +1643,12 @@ the random draws alone move the numbers that much, so it may not be
 your edit at all. More trials narrow the spread.
 
 The comparison is with the run before on the same model; opening
-another model or changing the run scope starts afresh. To see only the
-latest run, untick Preferences ▸ Working ▸ Results ▸ *Compare with the
-previous run*; the cards change as soon as you press OK.
+another model or changing the run scope starts afresh. *Clear
+comparison*, under the cards, forgets the run before for now: the cards
+show only the latest run, and the next run is compared with it. To turn
+the comparison off altogether, untick Preferences ▸ Working ▸ Results ▸
+*Compare with the previous run*; the cards change as soon as you press
+OK.
 
 [[stepping]]
 == Debug tab: stepping debugger

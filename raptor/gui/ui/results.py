@@ -43,7 +43,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QApplication,
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
+    QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QLabel,
     QPlainTextEdit, QComboBox, QLineEdit, QTreeView, QTreeWidget,
     QTreeWidgetItem,
     QFrame, QSizePolicy, QScrollArea, QTableWidget, QHeaderView,
@@ -332,6 +332,20 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
             self._cards[acronym] = card
             cards.addWidget(card, i // 3, i % 3)
         lay.addLayout(cards)
+        # Not every re-run is an experiment: this forgets the run before, so
+        # the cards show this run alone and the next run is compared with it.
+        change_row = QHBoxLayout()
+        change_row.addStretch(1)
+        self._clear_change_button = QPushButton("Clear comparison")
+        self._clear_change_button.setFlat(True)
+        self._clear_change_button.setToolTip(
+            "Stop comparing with the earlier run: the cards show only this "
+            "run's numbers, and the next run is compared with this one. "
+            "Preferences ▸ Working turns the comparison off altogether.")
+        self._clear_change_button.clicked.connect(self.clear_comparison)
+        self._clear_change_button.setVisible(False)
+        change_row.addWidget(self._clear_change_button)
+        lay.addLayout(change_row)
 
         # Green/Yellow/Red health bar -- DISCRETE segments sized to the
         # simulated percentages (not a decorative gradient), with a legend
@@ -1333,6 +1347,15 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._previous_figures: tuple[str, dict] | None = None
         for card in self._cards.values():
             card.set_change("")
+        self._clear_change_button.setVisible(False)
+
+    def clear_comparison(self) -> None:
+        """Forget the run before; the run on screen stays and becomes what
+        the next run is compared with."""
+        self._previous_figures = None
+        for card in self._cards.values():
+            card.set_change("")
+        self._clear_change_button.setVisible(False)
 
     def _show_changes(self, figures: dict, formats: dict) -> None:
         """Say on each card what it was in the run before."""
@@ -1353,6 +1376,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
                 card.set_change("")
             else:
                 card.set_change(change.text, change.verdict, change.tooltip)
+        self._clear_change_button.setVisible(
+            any(card.change_text() for card in self._cards.values()))
 
     def refresh_changes(self) -> None:
         """Re-apply the Preferences switch to the cards on screen."""

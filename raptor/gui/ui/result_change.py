@@ -7,8 +7,9 @@ too: with 100 runs the availability moves in the fourth decimal place
 from the random draws alone, and a new user otherwise reads that noise as
 the effect of the edit.
 
-Shown only on the Overview cards (not every table) and switched off in
-Preferences (`SETTING`).
+Shown only on the Overview cards (not every table). *Clear comparison*
+under the cards forgets the run before; Preferences (`SETTING`) switches
+the comparison off.
 """
 from __future__ import annotations
 
