@@ -652,7 +652,11 @@ class InspectorNodeMixin(_Base):
             group.addButton(r)
             fl.addRow(r)
 
-        combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        combo = searchable(QComboBox())
+        edit = combo.lineEdit()
+        if edit is not None:
+            edit.setPlaceholderText("Find a block…")
         blocks: list[tuple[int, str]] = []
         sec = self._rbd.sections.get("BLOCK_DATA") if self._rbd else None
         if sec is not None:

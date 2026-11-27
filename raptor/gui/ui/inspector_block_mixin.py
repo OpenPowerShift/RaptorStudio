@@ -461,7 +461,8 @@ class InspectorBlockMixin(_Base):
             self.sparing_type_changed.emit(b, cmb.currentData()))
         fl.addRow("Type:", type_combo)
 
-        pool_combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        pool_combo = searchable(QComboBox())
         # Model names, not chrome: never run them through the catalogue.
         pool_combo.setProperty("raptor_i18n_data_items", True)
         pool_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
@@ -614,7 +615,7 @@ class InspectorBlockMixin(_Base):
             "repair/PM and returns afterward -- a fixed shared pool, "
             "unlike a spare (consumed permanently). A block uses at "
             "most one resource pool.")
-        res_combo = QComboBox()
+        res_combo = searchable(QComboBox())
         # Model names, not chrome: never run them through the catalogue.
         res_combo.setProperty("raptor_i18n_data_items", True)
         res_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"
@@ -709,7 +710,8 @@ class InspectorBlockMixin(_Base):
         # the model's TRIGGERS rows; writes pmTriggered/pmTrig
         trig_cb = _WordWrapCheckBox("Triggered by a PM trigger")
         trig_cb.setChecked(bool(block.pm_triggered))
-        trig_combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        trig_combo = searchable(QComboBox())
         # Model names, not chrome: never run them through the catalogue.
         trig_combo.setProperty("raptor_i18n_data_items", True)
         trig_combo.setProperty("raptor_i18n_ui_items", [0])      # "(none)"

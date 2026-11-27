@@ -1126,8 +1126,8 @@
    "shortcuts": [
     "Ctrl+Shift+V"
    ],
-   "text": "Paste Data Only",
-   "tooltip": "Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)\n\nUnavailable: open or create a model first"
+   "text": "Paste Special\u2026",
+   "tooltip": "Copy chosen parts of the copied element (failure, repair, spares, PM, costs, tags, comment...) onto the selected elements (Ctrl+Shift+V)\n\nUnavailable: open or create a model first"
   },
   "_pause_action": {
    "checkable": false,
@@ -2592,11 +2592,11 @@
       {
        "children": [
         "QFrame",
+        "QLineEdit",
         "QListView",
         "QScrollBar",
         "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QToolButton"
        ],
        "class": "QComboBox",
        "kind": "widget",
@@ -2624,9 +2624,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -2657,9 +2655,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3027,11 +3023,11 @@
         "QComboBox",
         "QFrame",
         "QLabel",
+        "QLineEdit",
         "QListView",
         "QScrollBar",
         "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QToolButton"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3142,9 +3138,7 @@
         "QFrame",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QComboBox",
        "kind": "widget",
@@ -3168,9 +3162,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3331,9 +3323,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3346,9 +3336,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3361,9 +3349,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",

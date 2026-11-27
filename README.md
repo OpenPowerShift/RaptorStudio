@@ -92,6 +92,17 @@ should we change* and *is it worth it*. RAPTOR Studio answers them in order:
 
 Everything above runs on a copy of the model and changes nothing until you apply it.
 
+### Every chart in one place
+
+**Results ▸ Charts ▸ All charts** lays out every chart a run can draw, over 40 of them in eight groups (the answer,
+by hierarchy, over time, why it goes down, lost capacity, year by year, cost, what matters most), each with a line on
+how to read it. Click one to open it. Hierarchy treemaps, sunbursts and small multiples show where the downtime sits;
+a Sankey follows the lost capacity from the system down to the cause. A ranked chart shows its top 5, 10, 20 or 50, or
+every item, and **All items…** opens the whole ranking as a sortable table, the ones folded into "N others" included, to
+save as CSV. Every chart exports as SVG, PNG, PDF or CSV.
+
+![The All charts page: every chart the run can draw, grouped, each a live thumbnail with a line on how to read it](https://raw.githubusercontent.com/openpowershift/RaptorStudio/main/docs/readme/all-charts.png)
+
 ## What is new compared with Raptor 7
 
 |                                      |                                                                                                                                                                                                                                  |
@@ -118,7 +129,7 @@ Everything above runs on a copy of the model and changes nothing until you apply
 | **AI assistant (MCP)**               | 109 tools (108 with `--no-render`) to build, edit, run, explain and improve models, over stdio or authenticated HTTP.                                                                                                               |
 | **Stepping debugger**                | Step a run event by event, pause on a condition, jump to the next run, and see what each step changed. Failure Effects View and the Single Point Failure file are also available headless.                                       |
 | **Faster editing**                   | Command search finds any command by name; Quick Add repeats the selected block in series or parallel (1 of 2, 2 of 3, 1 of 3); Duplicate in Parallel adds a redundant copy with the nodes it needs; several models open at once, each with its own undo history.    |
-| **Charts and reports**               | One Charts view (availability through the run, run-to-run system state you can zoom into, downtime, cost, capacity); presentation-ready export; reports as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema). |
+| **Charts and reports**               | One Charts view with over 40 charts and an **All charts** page that shows them all (availability through the run, run-to-run system state you can zoom into, downtime by hierarchy, cost, lost capacity); top-N rankings with a table of every item; presentation-ready export; reports as PDF, HTML, AsciiDoc, spreadsheet, CSV or JSON (a versioned schema). |
 | **Diagram**                          | Light and dark themes, dockable panels, annotations, mini-map, key tips, a "Did you know?" tip on the Start page, and a diagram renderer for documents (`raptor render`, with the result layers).                                 |
 | **Safer files**                      | Validation catches the model shapes that crash Raptor 7 on open (a node's declared path count, a stale phase header) before you save them.                                                                                       |
 

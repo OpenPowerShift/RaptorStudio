@@ -777,10 +777,12 @@ you need the exact argument shape.
   changes nothing.
 
 | `duplicate_elements`, `copy_element_data`
-| Duplicate a selection with fresh ids and names, or copy one block's
-  data groups (Failure, Repair, logistics, spares, PM, costs) onto other
-  blocks. One save; name, position, links and dependency are never changed
-  by a data-only copy.
+| Duplicate a selection with fresh ids and names, or Paste Special: copy
+  one element's chosen groups (Failure, Repair, logistics delays, repair
+  crews, spares, PM, costs, dependency, phasing, tags, comment) onto other
+  elements. Tags can be added or replaced, the comment replaced, appended
+  or filled only where empty. One save; name, position, links and id are
+  never changed.
 
 | `set_out_of_service`
 | Take blocks, events or hierarchies out of service for a what-if: `cut`

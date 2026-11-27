@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from raptor.core.edit.clipboard_plan import (
-    next_free_name, plan_copy, plan_paste, plan_paste_data,
+    next_free_name, plan_copy, plan_paste,
     remap_dependencies,
 )
 
@@ -153,36 +153,55 @@ _NAME_COLUMN = {"block": "blockName", "node": "Name", "event": "eventName",
 
 def copy_element_data(workspace: Any, model_id: str, source: str,
                       targets: Sequence[str],
-                      groups: Sequence[str] = ("Failure", "Repair")
-                      ) -> dict[str, Any]:
-    """Copy one block's data groups onto other blocks, one save. An unknown
-    group is refused (it used to copy nothing and report success)."""
+                      groups: Sequence[str] = ("Failure", "Repair"),
+                      tag_mode: str = "add",
+                      comment_mode: str = "replace") -> dict[str, Any]:
+    """Paste Special: copy one element's chosen groups onto others, one save.
+
+    The block groups (see `paste_special.ALL_GROUPS`) need a block source and
+    block targets; `Tags` and `Comment` work between elements of any kind.
+    An unknown group or mode is refused (it used to copy nothing and report
+    success). Returns `changes` (cell edits), `tag_changes`, `comment_changes`,
+    `count` (fields changed), `blocks` and `elements` (targets looked at) and
+    `unchanged` (targets that already matched)."""
     from raptor.api.build import resolve_element
-    from raptor.core.edit.clipboard_plan import DATA_GROUPS
-    unknown = [group for group in groups if group not in DATA_GROUPS]
-    if unknown:
-        raise ValueError(f"unknown data group(s) {', '.join(map(repr, unknown))}; "
-                         f"the groups are {', '.join(DATA_GROUPS)}")
+    from raptor.core.edit import paste_special as ps
+    chosen = ps.check_groups(groups, tag_mode, comment_mode)
     rbd = workspace.get(model_id).rbd
-    section, src = resolve_element(rbd, source)
-    if section != "BLOCK_DATA":
-        raise ValueError(f"{source!r} is not a block")
-    rows = []
-    for selector in targets:
+    kind_of = {section: kind for kind, section in ps._SECTION.items()}
+
+    def resolve(selector: str) -> tuple[str, dict]:
         section, row = resolve_element(rbd, selector)
-        if section != "BLOCK_DATA":
-            raise ValueError(f"{selector!r} is not a block")
-        rows.append(row)
-    changes = plan_paste_data(src, rows, groups)
-    for change in changes:
-        change["row"][change["column"]] = change["new"]
-    if changes:
+        if section not in kind_of:
+            raise ValueError(f"{selector!r} is not a block, node, event or "
+                             "hierarchy")
+        return kind_of[section], row
+
+    src_kind, src = resolve(source)
+    resolved = [resolve(selector) for selector in targets]
+    if any(g in ps.BLOCK_ONLY for g in chosen):
+        if src_kind != "block":
+            raise ValueError(f"{source!r} is not a block")
+        for selector, (kind, _row) in zip(targets, resolved):
+            if kind != "block":
+                raise ValueError(f"{selector!r} is not a block")
+    target_list = [ps.Target(kind, int(row.get("ID", 0)), row)
+                   for kind, row in resolved]
+    plan = ps.plan_special(rbd, ps.source_from_model(rbd, src_kind, src),
+                           target_list, chosen, tag_mode=tag_mode,
+                           comment_mode=comment_mode)
+    if plan.fields:
+        ps.apply_plan(rbd, plan)
         from raptor.api import build
         build.sync_counts(rbd)
         workspace.save(model_id)
     return {"changes": [{key: value for key, value in change.items()
-                         if key != "row"} for change in changes],
-            "count": len(changes), "blocks": len(rows)}
+                         if key != "row"} for change in plan.cells],
+            "tag_changes": plan.tag_changes,
+            "comment_changes": plan.comments,
+            "count": plan.fields, "blocks": len(target_list),
+            "elements": plan.elements, "unchanged": plan.unchanged,
+            "notes": plan.notes}
 
 
 _OOS_KIND = {"BLOCK_DATA": "block", "EVENT_DATA": "event", "HIERARCHY_DATA": "hier"}

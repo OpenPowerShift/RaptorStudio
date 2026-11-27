@@ -507,7 +507,8 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
         self._hier_filter_label = QLabel("Hierarchy:")
         bar.addWidget(self._hier_filter_label)
         from PySide6.QtWidgets import QComboBox
-        self._hier_filter_combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        self._hier_filter_combo = searchable(QComboBox())
         # Model names, not chrome: never run them through the catalogue.
         self._hier_filter_combo.setProperty("raptor_i18n_data_items", True)
         self._hier_filter_combo.addItem("All", 0)
@@ -619,12 +620,13 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
 
     def set_hierarchy_options(self, hiers: dict[int, str],
                               current: int = 0):
-        """MainWindow pushes {hier_id: name} for the filter combo."""
+        """MainWindow pushes {hier_id: path} for the filter combo (typed text
+        narrows the list)."""
         combo = self._hier_filter_combo
         combo.blockSignals(True)
         combo.clear()
         combo.addItem("All", 0)
-        for hid in sorted(hiers):
+        for hid in sorted(hiers, key=lambda h: hiers[h].lower()):
             combo.addItem(hiers[hid], hid)
         ci = combo.findData(current)
         combo.setCurrentIndex(max(ci, 0))

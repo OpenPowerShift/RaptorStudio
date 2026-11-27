@@ -896,7 +896,7 @@ def test_goto_combo_has_a_placeholder_and_no_false_current_hierarchy(qapp):
         "tests/golden/HierarchyExample/input.rbd"), "x")
     qapp.processEvents()
     combo = w._goto_combo
-    assert combo.placeholderText()
+    assert combo.lineEdit().placeholderText()
     assert combo.count() > 0, "the fixture must have hierarchies"
     assert combo.currentIndex() == -1
     w._dirty = False

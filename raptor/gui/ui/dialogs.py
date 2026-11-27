@@ -2129,32 +2129,3 @@ def on_mass_edit(win):
         "Mass edit: nothing was ticked, so nothing changed")
 
 
-def choose_data_groups(win: Any) -> list[str] | None:
-    """The Paste Data Only checklist; None when the user cancels."""
-    from raptor.core.edit.clipboard_plan import DATA_GROUPS
-    dlg = QDialog(win)
-    dlg.setWindowTitle("Paste Data Only")
-    lay = QVBoxLayout(dlg)
-    lay.addWidget(QLabel("Copy the clipboard block's data onto the "
-                         "selected blocks. Name, position, links and "
-                         "dependency are never changed."))
-    boxes: dict[str, QCheckBox] = {}
-    for group in DATA_GROUPS:
-        box = QCheckBox(group)
-        box.setChecked(group in ("Failure", "Repair"))
-        boxes[group] = box
-        lay.addWidget(box)
-    buttons = QHBoxLayout()
-    ok = QPushButton("Paste")
-    cancel = QPushButton("Cancel")
-    ok.setDefault(True)
-    ok.clicked.connect(dlg.accept)
-    cancel.clicked.connect(dlg.reject)
-    buttons.addStretch(1)
-    buttons.addWidget(cancel)
-    buttons.addWidget(ok)
-    lay.addLayout(buttons)
-    if exec_dialog(dlg) != QDialog.DialogCode.Accepted:
-        return None
-    chosen = [group for group, box in boxes.items() if box.isChecked()]
-    return chosen or None

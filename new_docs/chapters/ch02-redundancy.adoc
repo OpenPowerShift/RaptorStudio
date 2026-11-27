@@ -78,7 +78,7 @@ Mission settings: stop at **500 hours**, 10 trials.
 Set the run count to 10 on the *Simulate* tab and press F5.
 
 Look at **Reliability (Mean)** in *Final Results*. With many trials the
-long-run answer settles near **0.37**.
+long-run answer settles near **0.36**.
 
 Now do the comparison that makes the lesson stick. Delete Pump_B
 (select it, press Del), connect Pump_A straight to Either_pump's
@@ -89,7 +89,7 @@ One-pump reliability lands near **0.21**.
 |===
 |Machine |Chance to survive 500 h
 |One pump (series) |about 0.21
-|Two pumps (parallel) |about 0.37
+|Two pumps (parallel) |about 0.36
 |===
 
 Almost double — from one €40 part.
@@ -140,7 +140,7 @@ log of every trial to `DIR/rpt_events_Espresso1.txt`.
 .Limits of this model
 [NOTE]
 ====
-The 0.37-vs-0.21 result only holds because Pump_A and Pump_B fail
+The 0.36-vs-0.21 result only holds because Pump_A and Pump_B fail
 *independently* — the engine draws each one's death time from its own
 private stream. Real twin pumps often share a power supply, a water
 line, or a mounting bracket. If a surge fries both pumps at once, that
@@ -184,7 +184,7 @@ up or down, and by roughly how much? Then run 100 trials and check.
 ====
 down. A 150-hour pump is near-dead by hour 500
 (survival ≈ 3.6%), so the second pump almost never rescues a season.
-Expect roughly 0.23 to 0.24 (against 0.37 with two good pumps): barely
+Expect roughly 0.23 to 0.24 (against 0.36 with two good pumps): barely
 more than Pump_A would manage on its own.
 ====
 

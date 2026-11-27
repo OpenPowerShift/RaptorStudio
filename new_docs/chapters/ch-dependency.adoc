@@ -22,7 +22,7 @@ opsmodel:EspressoDep1[]
 
 Remember the espresso cart from <<ch-redundancy>>? Two pumps, either one
 keeps the pressure up, reliability climbed from about 0.21 to about
-0.37. The cart has been running for a season now, and the mechanic who
+0.36. The cart has been running for a season now, and the mechanic who
 serviced it made one small change to save a part: instead of wiring
 Pump_B's activation relay to its own switch, she spliced it into
 Pump_A's control board. Cheaper. Fewer wires. The diagram in the shop
@@ -114,7 +114,7 @@ vote on.
 [cols="4,2",options="header"]
 |===
 |Model |Reliability at 500 h
-|Espresso1 (independent pumps, <<ch-redundancy>>) |about 0.37
+|Espresso1 (independent pumps, <<ch-redundancy>>) |about 0.36
 |EspressoDep1 (Pump_B depends on Pump_A) |about 0.21
 |===
 
@@ -145,7 +145,7 @@ and why?
 up in the diagram working fine most of the time." Is that consistent
 with reliability collapsing to the single-pump figure? Why?
 |3 |Name the one change to `EspressoDep1.rbds` that would restore
-Espresso1's original ~0.37.
+Espresso1's original ~0.36.
 |===
 
 .Answers
