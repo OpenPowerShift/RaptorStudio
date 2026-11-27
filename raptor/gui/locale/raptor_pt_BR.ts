@@ -7333,6 +7333,10 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Digite uma etiqueta e pressione Enter. Uma etiqueta existente é completada enquanto você digita; um nome novo cria uma nova etiqueta.</translation>
     </message>
     <message>
+      <source>Show the model's tags</source>
+      <translation>Mostrar as etiquetas do modelo</translation>
+    </message>
+    <message>
       <source>Remove the tag %1 from this element</source>
       <translation>Remover a etiqueta %1 deste elemento</translation>
     </message>

@@ -438,6 +438,19 @@ def collapse_icon(colour: str) -> QIcon:
     return _icon("collapse", colour, draw)
 
 
+def chevron_down_icon(colour: str) -> QIcon:
+    """A single chevron pointing down (a drop-down arrow)."""
+    def draw(p: QPainter, c: QColor):
+        pen = QPen(c, 5)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolyline(QPolygonF([QPointF(10, 18), QPointF(24, 32),
+                                  QPointF(38, 18)]))
+    return _icon("chevron_down", colour, draw)
+
+
 def expand_all_icon(colour: str) -> QIcon:
     """Expand all: two chevrons pointing apart (open everything)."""
     def draw(p: QPainter, c: QColor):
