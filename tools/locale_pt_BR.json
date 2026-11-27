@@ -2169,6 +2169,7 @@
   "Show the charts for the whole system or for one hierarchy. It follows the canvas unless you pick a scope here.": "Mostrar os gráficos do sistema inteiro ou de uma hierarquia. Segue o diagrama, a menos que você escolha um escopo aqui.",
   "Show the delivered branch. Turn it off when the loss is a small share of the generated flow, so the lost flow fills the figure": "Mostrar o ramo entregue. Desative quando a perda for uma parcela pequena do fluxo gerado, para que o fluxo perdido preencha a figura",
   "Show the elements tagged %1": "Mostrar os elementos com a etiqueta %1",
+  "Show the model's tags": "Mostrar as etiquetas do modelo",
   "Show the next run": "Mostrar a próxima execução",
   "Show the next run (pauses the animation)": "Mostrar a próxima execução (pausa a animação)",
   "Show the next run's event log": "Mostrar o registro de eventos da próxima execução",
