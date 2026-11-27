@@ -27,6 +27,11 @@ runs:
     - name: Install Qt runtime libraries
       shell: bash
       run: |
+        # The runner image lists Microsoft's package repository, which we never
+        # use; when it answers 403 (it did on 2026-11-26/27) `apt-get update`
+        # exits 100 and fails the job before a test runs. Drop it first.
+        sudo grep -rl packages.microsoft.com /etc/apt/sources.list.d/ 2>/dev/null \
+          | xargs -r sudo rm -f || true
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           libegl1 libgl1 libxkbcommon0 libdbus-1-3 \
