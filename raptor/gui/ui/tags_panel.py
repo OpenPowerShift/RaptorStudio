@@ -25,9 +25,9 @@ from types import SimpleNamespace
 from typing import Any
 from collections.abc import Iterable
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QEvent, QTimer, Qt, Signal
 from PySide6.QtGui import (
-    QColor, QIcon, QKeySequence, QPainter, QPixmap, QShortcut, QUndoCommand,
+    QColor, QIcon, QKeyEvent, QPainter, QPixmap, QUndoCommand,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFormLayout, QHBoxLayout, QHeaderView,
@@ -243,14 +243,22 @@ class TagsPanel(QWidget):
         self._table.setColumnWidth(1, 70)
         self._table.setColumnWidth(2, 40)
         self._table.cellDoubleClicked.connect(self._locate_row)
-        enter = QShortcut(QKeySequence(Qt.Key.Key_Return), self._table)
-        enter.setContext(Qt.ShortcutContext.WidgetShortcut)
-        enter.activated.connect(
-            lambda: self._locate_row(self._table.currentRow(), 0))
+        # Enter finds the current row: a key handled in the table, not an
+        # application shortcut (those are all listed in the shortcuts help)
+        self._table.installEventFilter(self)
         outer.addWidget(self._table, 3)
         self._more_label = QLabel()
         self._more_label.setWordWrap(True)
         outer.addWidget(self._more_label)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if (obj is self._table and event.type() == QEvent.Type.KeyPress
+                and isinstance(event, QKeyEvent)
+                and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and self._table.currentRow() >= 0):
+            self._locate_row(self._table.currentRow(), 0)
+            return True
+        return super().eventFilter(obj, event)
 
     # -- state in ---------------------------------------------------------
     def set_model(self, rbd: Any) -> None:

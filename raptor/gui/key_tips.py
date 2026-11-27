@@ -82,7 +82,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.explorer_toggle": "E", "view.inspector_toggle": "N",
         "view.fev_inspector_toggle": "V", "view.results_toggle": "R",
         "view.run_toggle": "U", "view.data_tables": "D",
-        "view.live_log_toggle": "G", "view.advisor_toggle": "A", "view.tags_toggle": "X",
+        "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
         "view.tag_colours": "Y",
         "view.focus": "M", "view.show_annotations": "W",

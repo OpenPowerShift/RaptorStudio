@@ -3292,11 +3292,6 @@
       {
        "kind": "action",
        "large": false,
-       "text": "Tags"
-      },
-      {
-       "kind": "action",
-       "large": false,
        "text": "Data Tables"
       },
       {

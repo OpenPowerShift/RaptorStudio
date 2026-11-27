@@ -1776,7 +1776,10 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
                         Btn("view.advisor_toggle"),
-                        Btn("view.tags_toggle"),
+                        # Tags has no button here: a tenth panel toggle
+                        # adds a column and shrank View ▸ Appearance at
+                        # 1280 px. Data ▸ Tags opens it; the command stays
+                        # for command search.
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        # Focus, Tag Colours and Preferences share one column: with

@@ -3,6 +3,7 @@ undo step, members in a sortable table."""
 from __future__ import annotations
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from raptor.core import tags as T
@@ -227,6 +228,18 @@ def test_double_clicking_a_row_locates_the_element(win):
     assert win._selected_refs() == [f"block:{a}"]
     assert panel._add_sel.isEnabled() is False   # it already has the tag
     assert panel._remove_sel.isEnabled()
+
+
+def test_enter_in_the_table_locates_the_row(win):
+    from PySide6.QtTest import QTest
+    a = _shown(win, 1)[0]
+    T.set_tags(win._rbd, f"block:{a}", ["pumps"])
+    panel = _open(win)
+    asked: list = []
+    panel.locate_requested.connect(lambda k, i: asked.append((k, i)))
+    panel._table.setCurrentCell(0, 0)
+    QTest.keyClick(panel._table, Qt.Key.Key_Return)
+    assert asked == [("block", a)]
 
 
 def test_ribbon_and_command_stay_consistent(win):
