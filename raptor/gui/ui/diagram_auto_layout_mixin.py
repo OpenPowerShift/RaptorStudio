@@ -11,6 +11,7 @@ from raptor.gui.ui.diagram_items import routing_batch
 from raptor.gui.layout_options import (
     element_extents, grid_gap, layout_seeds, normalise_layout_options)
 from raptor.gui.ui import settings as app_settings
+from raptor.gui.ui.diagram_item_core import refuse_if_locked
 from raptor.gui.ui.diagram_common import (
     BLOCK_H,
     BLOCK_W,
@@ -95,6 +96,8 @@ class AutoLayoutMixin(_Base):
         isolation -- and translated so the group keeps its old centre;
         neighbours are untouched. With no selection, the whole level is
         laid out. The selection is kept either way."""
+        if refuse_if_locked(self):
+            return
         direction, max_columns, spacing, label_side = normalise_layout_options(
             direction, max_columns, spacing, label_side, app_settings.get)
         set_flow_direction(direction)

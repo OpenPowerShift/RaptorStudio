@@ -97,6 +97,7 @@ from raptor.gui.ui.diagram_commands import (  # noqa: F401
     TableRowCmd,
     _ViewCmd,
 )
+from raptor.gui.ui.diagram_item_core import LOCKED_HINT
 from raptor.gui.ui.diagram_items import (  # noqa: F401
     LOD_LABELS_HYSTERESIS,
     LOD_LABELS_MIN_SCALE,
@@ -170,6 +171,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                   ElementEditMixin, AnnotationMixin, ContextMenuMixin,
                   LiveOverlayMixin, QGraphicsView):
     block_selected = Signal(int, str)
+    #: Lock Positions turned on or off (the ribbon toggle follows it)
+    positions_lock_changed = Signal(bool)
     node_selected = Signal(int, str)
     selection_cleared = Signal()
     #: Emitted on every level change with the new current ParentId
@@ -1635,8 +1638,12 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     def view_options(self) -> dict:
         """The view-wide options a saved file carries (see `RbdFile.view`)."""
         from raptor.gui.ui.diagram_items import link_routing
-        return {"link_routing": link_routing(),
+        opts = {"link_routing": link_routing(),
                 "block_labels": self._block_label_mode()}
+        if self.positions_locked:
+            # written only when on: an unlocked model stores nothing
+            opts["positions_locked"] = "1"
+        return opts
 
     def apply_view_options(self, opts: dict) -> None:
         """Take a file's saved view options. Unknown or missing values leave
@@ -1650,6 +1657,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
         if labels in dict(block_labels.MODES):
             app_settings.set_value("appearance/block_labels", labels)
             self._label_mode_cache = None
+        # the lock belongs to the model: one without it opens unlocked
+        self.set_positions_locked(opts.get("positions_locked") == "1")
 
     def write_back_to_rbd(self, rbd: RbdFile):
         rbd.view = self.view_options()
@@ -2505,6 +2514,10 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 None if (owner is not None
                          and owner.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
                 else event.position())
+            # Lock Positions: the press selected what it landed on; the
+            # moves that would drag it (or a grip, a handle) are dropped.
+            self._locked_press = (self.positions_locked
+                                  and self._band_anchor is None)
             # Where every element was at the press: whatever the gesture
             # moves, the release records it for undo.
             self._press_positions = {
@@ -2750,6 +2763,13 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
     def mouseMoveEvent(self, event):
         if self.hover_inspector is not None:
             self._inspect_under_cursor(event)
+        if (getattr(self, "_locked_press", False)
+                and event.buttons() & Qt.MouseButton.LeftButton):
+            if not getattr(self, "_locked_hinted", False):
+                self._locked_hinted = True
+                _view_status(self, LOCKED_HINT)
+            event.accept()
+            return
         if event.buttons() & Qt.MouseButton.MiddleButton and hasattr(self, "_pan_anchor"):
             delta = event.position() - self._pan_anchor
             self._pan_anchor = event.position()
@@ -2904,6 +2924,8 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
 
     def mouseReleaseEvent(self, event):
         self._band_anchor = None
+        self._locked_press = False
+        self._locked_hinted = False
         fine_gesture = self._fine_drag or bool(
             event.modifiers() & Qt.KeyboardModifier.AltModifier)
         self._fine_drag = False
@@ -3408,6 +3430,24 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             return 0
         self._stack.push(LibUpdateCmd(self, sec, entries))
         return len(entries)
+
+    @property
+    def positions_locked(self) -> bool:
+        """Lock Positions: nothing on the canvas can be dragged, nudged,
+        aligned, flipped or laid out until it is turned off; selecting and
+        editing still work.  Saved with the model (`view_options`)."""
+        return bool(getattr(self, "_positions_locked", False))
+
+    def set_positions_locked(self, on: bool) -> None:
+        on = bool(on)
+        if on == self.positions_locked:
+            return
+        self._positions_locked = on
+        self._locked_press = False
+        _view_status(self, "Positions locked: select and edit as usual; "
+                     "nothing moves until you unlock" if on
+                     else "Positions unlocked")
+        self.positions_lock_changed.emit(on)
 
     def set_snap_enabled(self, enabled: bool):
         """Ribbon toggle: align dragged/placed items to the visible
