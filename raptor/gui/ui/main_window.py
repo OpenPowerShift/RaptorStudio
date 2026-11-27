@@ -3358,7 +3358,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._diagram_dock.view.go_home()
 
     def _open_analytic_dialog(self):
-        """Model ▸ Analytical: exact static reliability/availability."""
+        """Analyse ▸ Analytical: exact static reliability/availability."""
         if self._rbd is None:
             return
         from raptor.gui.ui.analytic_dialog import open_analytic_dialog

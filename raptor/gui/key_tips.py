@@ -30,7 +30,6 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "model.add_event": "E", "model.add_hier": "H",
         "model.collapse": "L", "model.delete": "D", "home.syscfg": "P",
         "home.validate": "I",
-        "results.analytical": "A",
         "arrange.anno_text": "T",
         "arrange.anno_rect": "R", "arrange.anno_ellipse": "Y",
         "arrange.anno_arrow": "W", "model.import_rbd": "M",
@@ -56,7 +55,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "sim.pause": "P", "sim.stop_run": "T", "sim.jump": "J",
     },
     "Analyse": {
-        "analyse.whatif": "W", "sim.recommend": "M", "analyse.sensitivity": "T",
+        "results.analytical": "E", "analyse.whatif": "W", "sim.recommend": "M", "analyse.sensitivity": "T",
         "sim.sweep": "S", "analyse.optimise_spares": "P",
         "analyse.optimise_pm": "A", "analyse.optimise_crews": "C",
         "sim.compare": "O",

@@ -49,7 +49,6 @@ current value).
 |Control |What it does |Shortcut / value
 |Project Settings |Project Settings — simulation-wide configuration for this model |
 |Issues |No problems stop a run. Click for the list (F7) |F7
-|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
 |===
 
 ==== Annotate
@@ -182,6 +181,14 @@ current value).
 |===
 
 === Analyse tab
+
+==== Exact
+
+[cols="2,4,1",options="header"]
+|===
+|Control |What it does |Shortcut / value
+|Analytical… |Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes. |
+|===
 
 ==== What If
 

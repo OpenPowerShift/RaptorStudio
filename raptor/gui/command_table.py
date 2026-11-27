@@ -1669,8 +1669,8 @@ LAYOUT: tuple[Page, ...] = (
                        Btn("model.collapse"), Btn("model.delete"))),
        # Project Health is on Data (Bulk Edit): a fourth large button here
        # made the busiest tab shrink its Model group at 1280 px.
-       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True),
-                       Btn("results.analytical", True)), priority=4),
+       Group("Model", (Btn("home.syscfg", True), Btn("home.validate", True)),
+             priority=4),
        # Annotations are put on the canvas like elements, so they sit
        # beside Build; what is done to them afterwards is on Arrange.
        Group("Annotate", (Btn("arrange.anno_text", True),
@@ -1718,6 +1718,9 @@ LAYOUT: tuple[Page, ...] = (
     # change would do, which inputs matter, what to hold and how often to
     # maintain, and how it compares with other models. All run on copies.
     _p("Analyse", "_analyse_page_index",
+       # The exact answer first: one solve, no trials, so it is the
+       # quickest check before the many-run analyses beside it.
+       Group("Exact", (Btn("results.analytical", True),), priority=1),
        Group("What If", (Btn("analyse.whatif", True), Btn("sim.recommend", True)),
              priority=4),
        Group("Sensitivity", (Btn("analyse.sensitivity", True), Btn("sim.sweep", True)),

@@ -1,4 +1,4 @@
-"""Model ▸ Analytical: exact static reliability/availability.
+"""Analyse ▸ Analytical: exact static reliability/availability.
 
 A thin front end over `raptor.api.analytical.analyse_rbd`, which also backs
 the CLI and the MCP tool. It does not sample and it never changes the model.
