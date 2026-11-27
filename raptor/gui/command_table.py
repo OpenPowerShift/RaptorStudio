@@ -377,10 +377,11 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="home.paste_data",
         attr="_paste_data_action",
-        text="Paste Data Only",
+        text="Paste Special…",
         icon="paste_data_icon:text",
-        tooltip="Copy the clipboard block's data onto the selected "
-                "blocks (Ctrl+Shift+V)",
+        tooltip="Copy chosen parts of the copied element (failure, repair, "
+                "spares, PM, costs, tags, comment...) onto the selected "
+                "elements (Ctrl+Shift+V)",
         handler="_edit_paste_data",
         shortcut="Ctrl+Shift+V",
         enabled_when="can_copy"),
@@ -778,9 +779,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="tag_icon:text",
         tooltip=(
             "Component tags — coloured labels on elements that may span "
-            "hierarchies. Filter the Explorer or a chart by one; they "
-            "never change the simulation"),
-        handler="_open_tags_dialog",
+            "hierarchies. Opens the Tags panel beside the canvas; filter "
+            "the Explorer or a chart by one. They never change the "
+            "simulation"),
+        handler="_show_tags_dock",
         enabled_when="model_open"),
     CommandSpec(
         id="data.import_table",
@@ -1506,6 +1508,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "and what to do about it"),
         checkable=True),
     CommandSpec(
+        id="view.tags_toggle",
+        attr="_tags_toggle_action",
+        text="Tags",
+        icon="tags_dock_icon:text",
+        tooltip=(
+            "Show the Tags panel — name, colour and apply component tags "
+            "while you select on the canvas"),
+        checkable=True),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1644,7 +1655,7 @@ LAYOUT: tuple[Page, ...] = (
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
                            Btn("home.copy"), Btn("home.duplicate"),
                            Btn("home.select_all")),
-             # Duplicate in Parallel, Array and Paste Data Only live in the
+             # Duplicate in Parallel, Array and Paste Special live in the
              # canvas menu's Duplicate submenu, their shortcuts and command
              # search: four more buttons pushed Build off a 1280 px ribbon.
              priority=2),
@@ -1766,6 +1777,10 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
                         Btn("view.advisor_toggle"),
+                        # Tags has no button here: a tenth panel toggle
+                        # adds a column and shrank View ▸ Appearance at
+                        # 1280 px. Data ▸ Tags opens it; the command stays
+                        # for command search.
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        # Focus, Tag Colours and Preferences share one column: with

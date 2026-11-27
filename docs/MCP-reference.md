@@ -1551,24 +1551,35 @@ Parameter notes:
 - **Kind:** writes
 - **Group:** [Build and edit](#tools-build-edit)
 
-Copy one block's data groups onto other blocks.
+Paste Special: copy one element's chosen groups onto other elements.
 
-Groups: Failure, Repair, Logistics delays, Spares, PM, Costs (default
-Failure and Repair). Name, position, links, id and dependency are never
-changed.
+Block groups (source and targets must be blocks): Failure, Repair,
+Logistics delays, Repair crews, Spares, PM, Costs, Dependency, Phasing
+(default Failure and Repair). Dependency and Phasing belong to one
+model's elements, and a dependency is never copied onto the element it
+names. Organisation groups work between elements of any kind: Tags
+(`tag_mode` add, the default, or replace the targets' own tags) and
+Comment (`comment_mode` replace, append, or empty = only where the
+target has none). Name, position, links and id are
+never changed. `count` is the fields changed, `unchanged` the targets
+that already matched. Unknown groups are refused.
 
 **Parameters**
 
 | Parameter | Type | Required | Schema default | Enum / allowed values |
 | --- | --- | --- | --- | --- |
+| `comment_mode` | string | no | `replace` | `replace`, `append`, `empty` |
 | `groups` | array<string> \| null | no | `null` | — |
 | `model_id` | string | yes | — | — |
 | `source` | string | yes | — | — |
+| `tag_mode` | string | no | `add` | `add`, `replace` |
 | `targets` | array<string> | yes | — | — |
 
 Parameter notes:
 
+- `comment_mode` — Organisation groups work between elements of any kind: Tags (`tag_mode` add, the default, or replace the targets' own tags) and Comment (`comment_mode` replace, append, or empty = only where the target has none).
 - `model_id` — Id of a loaded model, from open_model, build_model, create_model or list_models.
+- `tag_mode` — Organisation groups work between elements of any kind: Tags (`tag_mode` add, the default, or replace the targets' own tags) and Comment (`comment_mode` replace, append, or empty = only where the target has none).
 
 **Returns**
 
@@ -1576,7 +1587,12 @@ Parameter notes:
 | --- | --- | --- |
 | `blocks` | integer | yes |
 | `changes` | array<any> | yes |
+| `comment_changes` | array<any> | yes |
 | `count` | integer | yes |
+| `elements` | integer | yes |
+| `notes` | array<any> | yes |
+| `tag_changes` | array<any> | yes |
+| `unchanged` | integer | yes |
 
 **Example**
 

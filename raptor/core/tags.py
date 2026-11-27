@@ -224,6 +224,56 @@ def tag_colour(rbd: Any, tag: str) -> str:
     return entry.get("colour") or default_colour(tag)
 
 
+def next_free_colour(rbd: Any, exclude: Iterable[str] = ()) -> str:
+    """The colour a new tag should take: the first palette colour no other
+    tag in the model shows, in palette order.
+
+    "Shows" is the effective colour (`tag_colour`), so a tag that takes its
+    name's default counts as using it. Only when all of `TAG_COLOURS` are
+    taken does it reuse one: the least-used, the earliest in the palette on
+    a tie. Tags in *exclude* are not counted (a batch of new tags that have
+    not been given a colour yet).
+    """
+    skip = set(exclude)
+    counts = dict.fromkeys(TAG_COLOURS, 0)
+    for tag in all_tags(rbd):
+        if tag in skip:
+            continue
+        colour = tag_colour(rbd, tag)
+        if colour in counts:
+            counts[colour] += 1
+    for colour in TAG_COLOURS:
+        if counts[colour] == 0:
+            return colour
+    return min(TAG_COLOURS, key=lambda c: counts[c])
+
+
+def colour_new_tags(rbd: Any, known_before: Iterable[str]) -> list[str]:
+    """Give each tag that is in *rbd* but not in *known_before* its own
+    colour (`next_free_colour`), unless it already has a stored one.
+
+    Call it after an edit that may have made tags, with `all_tags(rbd)`
+    taken before the edit. A tag whose chosen colour is its name's default
+    stores nothing (the file never holds an inferable value) and still
+    shows the right colour. Tags that already existed keep what they have,
+    so opening an old model never recolours it. Returns the tags coloured.
+    """
+    before = set(known_before)
+    fresh = [t for t in all_tags(rbd) if t not in before]
+    done: list[str] = []
+    pending = set(fresh)
+    for tag in fresh:
+        entry = clean_tag_info(getattr(rbd, "tag_info", None)).get(tag) or {}
+        pending.discard(tag)
+        if entry.get("colour"):
+            continue
+        colour = next_free_colour(rbd, exclude=pending | {tag})
+        if colour != default_colour(tag):
+            set_tag_info(rbd, tag, colour=colour)
+        done.append(tag)
+    return done
+
+
 def tag_description(rbd: Any, tag: str) -> str:
     entry = clean_tag_info(getattr(rbd, "tag_info", None)).get(tag) or {}
     return entry.get("description", "")
@@ -361,6 +411,46 @@ def names_of(rbd: Any, refs: Iterable[str]) -> set[str]:
     return out
 
 
+def member_rows(rbd: Any, refs: Iterable[str]
+                ) -> list[tuple[str, str, int, str, str]]:
+    """Table rows for *refs*: `(ref, kind, id, name, level)`.
+
+    `level` is the hierarchy path the element sits in, outermost first and
+    joined with " / " (the empty string at the top level). Refs the model
+    does not have are left out. One pass over the rows, so a tag on
+    thousands of elements costs the same as a few.
+    """
+    parents = _parents(rbd)
+    names: dict[str, str] = {}
+    sections = getattr(rbd, "sections", None) or {}
+    for kind, (section, column) in _NAME_COLUMNS.items():
+        sec = sections.get(section)
+        for row in (sec.rows if sec is not None else ()):
+            oid = row_int(row.get("ID"), 0)
+            if oid > 0:
+                names[f"{kind}:{oid}"] = str(row.get(column) or "").strip()
+    paths: dict[int, str] = {0: ""}
+
+    def path_of(hid: int, seen: frozenset[int] = frozenset()) -> str:
+        if hid in paths:
+            return paths[hid]
+        if hid in seen:
+            return ""
+        up = path_of(parents.get(f"hier:{hid}", 0), seen | {hid})
+        name = names.get(f"hier:{hid}") or f"Hierarchy {hid}"
+        paths[hid] = f"{up} / {name}" if up else name
+        return paths[hid]
+
+    out: list[tuple[str, str, int, str, str]] = []
+    for ref in refs:
+        parsed = parse_ref(ref)
+        if parsed is None or ref not in parents:
+            continue
+        out.append((ref, parsed[0], parsed[1], names.get(ref, ""),
+                    path_of(parents[ref])))
+    return out
+
+
 def valid_refs_from_model(rbd: Any) -> set[str]:
     """Every element reference that exists in the model rows."""
     return set(_parents(rbd))
@@ -487,6 +577,7 @@ def pasted(rbd: Any, buffer: Iterable[tuple[str, dict]],
     tags = clean_tags(getattr(rbd, "tags", None))
     info = clean_tag_info(getattr(rbd, "tag_info", None))
     target = SimpleNamespace(tags=tags, tag_info=info)
+    known_before = all_tags(target)
     changed = False
     for kind, row in buffer:
         if kind == "tags":
@@ -513,6 +604,9 @@ def pasted(rbd: Any, buffer: Iterable[tuple[str, dict]],
                 changed = True
     if not changed:
         return None
+    # a pasted tag the target did not have, and the copy gave no colour:
+    # give it a colour of its own
+    colour_new_tags(target, known_before)
     return clean_tags(target.tags), clean_tag_info(target.tag_info)
 
 

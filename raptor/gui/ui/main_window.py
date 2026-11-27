@@ -1039,7 +1039,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._diagram_dock.view.properties_requested.connect(
             lambda: self._show_inspector_dock(expand_minimized=True))
         self._diagram_dock.view.tags_requested.connect(
-            self._open_tags_dialog)
+            self._show_tags_dock)
         # Any selection change can enable/disable the z-order buttons and
         # Align & Distribute, neither of which depends on WHICH element
         # is selected.
@@ -1166,20 +1166,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._statusbar.showMessage(f"Added {n} element(s)", 4000)
 
     def _edit_paste_data(self) -> None:
-        from raptor.gui.ui import dialogs
+        """Paste Special: the dialog, then the paste as one undo step."""
         if text_editing.active_editor() is not None:
             return
-        groups = dialogs.choose_data_groups(self)
-        if groups is None:
+        view = self._diagram_dock.view
+        context = view.special_context()
+        if context is None:
+            self._statusbar.showMessage(
+                "Copy an element, then select the elements to paste onto",
+                5000)
             return
-        n = self._diagram_dock.view.paste_data(tuple(groups))
+        source, targets = context
+        from raptor.core.edit import paste_special as ps
+        from raptor.gui.ui.paste_special_dialog import ask_paste_special
+
+        def preview(groups, tag_mode, comment_mode):
+            plan = ps.plan_special(view._rbd_ref, source, targets, groups,
+                                   tag_mode=tag_mode,
+                                   comment_mode=comment_mode)
+            line = plan.summary()
+            if plan.notes:
+                line += " " + " ".join(plan.notes)
+            return line, plan.fields > 0
+
+        name = str(source.row.get(ps._NAME_COLUMN[source.kind]) or "")
+        heading = (f"Copy parts of {source.kind} {name!r} onto the "
+                   f"{len(targets)} selected element"
+                   f"{'' if len(targets) == 1 else 's'}. Names, positions "
+                   "and links are never changed.")
+        answer = ask_paste_special(self, heading,
+                                   ps.applicability(source, targets), preview)
+        if answer is None:
+            return
+        groups, tag_mode, comment_mode = answer
+        n = view.paste_data(tuple(groups), tag_mode, comment_mode)
         if n:
             self._statusbar.showMessage(
-                f"Pasted {', '.join(groups).lower()} data onto "
-                f"{n} block(s)", 5000)
+                f"Pasted {', '.join(groups).lower()} onto {n} element(s)",
+                5000)
         else:
-            self._statusbar.showMessage(
-                "Select blocks and copy a block first", 5000)
+            self._statusbar.showMessage("Nothing to change", 5000)
 
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
@@ -1213,6 +1239,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._build_fev_inspector_dock()
         self._build_live_log_dock()
         self._build_advisor_dock()
+        self._build_tags_dock()
         self._build_results_dock()
         self._build_data_tables_dock()
         self._build_run_dock_and_arrange()
@@ -1224,7 +1251,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._explorer.ascend_requested.connect(
             self._diagram_dock.view.go_up)
         self._explorer.manage_tags_requested.connect(
-            self._open_tags_dialog)
+            self._show_tags_dock)
         self._explorer.tag_view_changed.connect(self._on_tag_view_changed)
         # a tag made or renamed anywhere (dialog, chips, paste, undo)
         self._diagram_dock.view.model_changed.connect(
@@ -1449,12 +1476,14 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             on_hide=self._show_inspector_dock)
         self._setup_dock_toggle(self._advisor_toggle_action, self._advisor_dock,
                                 on_show=self._show_advisor)
+        self._setup_dock_toggle(self._tags_toggle_action, self._tags_dock,
+                                on_show=self._on_tags_dock_shown)
         self._sync_dock_tab_bars()
         # Floating/re-docking can create a fresh QTabBar whose default
         # elide mode is ElideRight, so tabs show "Data Tab...". Re-apply
         # the no-elide rule whenever the dock placement changes.
         for d in (self._explorer_dock, self._inspector_dock, self._fev_inspector_dock, self._live_log_dock,
-                  self._advisor_dock,
+                  self._advisor_dock, self._tags_dock,
                   self._results_dock, self._data_tables_dock, self._run_dock):
             d.dockLocationChanged.connect(
                 lambda area, dock=d:
@@ -1479,6 +1508,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                            (self._fev_inspector_dock, "FevInspectorDock"),
                            (self._live_log_dock, "LiveLogDock"), (self._results_dock, "ResultsDock"),
                            (self._advisor_dock, "AdvisorDock"),
+                           (self._tags_dock, "TagsDock"),
                            (self._data_tables_dock, "DataTablesDock"), (self._run_dock, "RunPanelDock")):
             dock.setObjectName(name)
 
@@ -1497,6 +1527,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                                     "left")
         self._make_dock_minimizable([self._inspector_dock], "right")
         self._make_dock_minimizable([self._advisor_dock], "right")
+        self._make_dock_minimizable([self._tags_dock], "right")
         self._make_dock_minimizable(
             [self._results_dock, self._data_tables_dock, self._run_dock], "bottom",
             restore_max=lambda: self._max_bottom_dock_height())
@@ -1516,6 +1547,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         ("_fev_inspector_dock", "fev_panel_icon", "accent"),
         ("_live_log_dock", "log_icon", "text"),
         ("_advisor_dock", "check_badge_icon", "text"),
+        ("_tags_dock", "tag_icon", "text"),
         ("_library_dock", "library_dock_icon", "text"),
         ("_results_dock", "results_dock_icon", "text"),
         ("_data_tables_dock", "table_grid_icon", "text"),
@@ -3330,6 +3362,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.set_tag_options(
             [(t, tag_model.tag_colour(rbd, t)) for t in tags],
             self._explorer.current_tag())
+        self._sync_tags_panel()
 
     def _on_tag_view_changed(self, refs) -> None:
         """The Explorer's tag view: dim the canvas, filter the results
@@ -3734,15 +3767,78 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         legend.set_rows(rows_of(self._rbd, view))
         legend.raise_()
 
-    def _open_tags_dialog(self):
-        """Data ▸ Tags: edit navigation metadata as one undo step."""
+    def _build_tags_dock(self) -> None:
+        """The tag manager: a non-modal dock that follows the canvas
+        selection. Hidden until asked for; it joins the Inspector's tab
+        group on first show (as the Advisor does)."""
+        from raptor.gui.ui.tags_panel import TagsPanel
+        self._tags_panel = TagsPanel()
+        self._tags_panel.edit_requested.connect(self._on_tags_panel_edit)
+        self._tags_panel.locate_requested.connect(self._on_tags_panel_locate)
+        dock = QDockWidget("Tags", self)
+        dock.setWidget(self._tags_panel)
+        dock.setMinimumSize(300, 1)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._tags_placed = False
+        dock.hide()
+        self._tags_dock = dock
+        dock.visibilityChanged.connect(self._on_tags_dock_visible)
+        self._diagram_dock.view.selection_changed.connect(
+            self._sync_tags_panel_selection)
+
+    def _on_tags_dock_shown(self) -> None:
+        """Before the dock shows: tab it beside the Inspector (once), and
+        give it the model and the selection."""
+        dock = self._tags_dock
+        inspector = self._inspector_dock
+        if (not self._tags_placed and inspector.isVisible()
+                and not dock.isFloating()
+                and dock not in self.tabifiedDockWidgets(inspector)):
+            self.tabifyDockWidget(inspector, dock)
+        self._tags_placed = True
+        self._sync_tags_panel()
+
+    def _on_tags_dock_visible(self, visible: bool) -> None:
+        if visible:
+            self._sync_tags_panel()
+
+    def _sync_tags_panel(self) -> None:
+        """Hand the panel the live model and selection (when it is open)."""
+        panel = getattr(self, "_tags_panel", None)
+        dock = getattr(self, "_tags_dock", None)
+        if panel is None or dock is None or not dock.isVisible():
+            return
+        panel.set_model(self._rbd)
+        panel.set_selection(self._selected_refs() if self._rbd else [])
+        panel.schedule_refresh()
+
+    def _sync_tags_panel_selection(self) -> None:
+        panel = getattr(self, "_tags_panel", None)
+        dock = getattr(self, "_tags_dock", None)
+        if panel is None or dock is None or not dock.isVisible():
+            return
+        panel.set_selection(self._selected_refs() if self._rbd else [])
+
+    def _on_tags_panel_edit(self, after, text: str) -> None:
+        """One tag-manager action: one undoable command."""
+        if self._rbd is not None:
+            self._push_tags(after, text)
+
+    def _on_tags_panel_locate(self, kind: str, oid: int) -> None:
+        if not self._diagram_dock.view.locate_id(kind, oid):
+            self._statusbar.showMessage(
+                "That element could not be found on the canvas", 4000)
+
+    def _show_tags_dock(self):
+        """Data > Tags: open the tag manager (or bring it to the front)."""
         if self._rbd is None:
             return
-        from raptor.gui.ui.tags_dialog import TagsDialog
-        dialog = TagsDialog(self, self._rbd, self._selected_refs())
-        if exec_dialog(dialog) != QDialog.DialogCode.Accepted:
-            return
-        self._push_tags(dialog.result_data(), "Component tags")
+        if not self._tags_toggle_action.isChecked():
+            self._tags_toggle_action.setChecked(True)
+        self._on_tags_dock_shown()
+        self._tags_dock.show()
+        self._tags_dock.raise_()
+        self._tags_panel.focus_search()
 
     def _on_element_tags_changed(self, ref: str, tags: list) -> None:
         """An Inspector chip edit: one element's whole new tag list."""
@@ -3755,14 +3851,25 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             tag_info=tag_model.clean_tag_info(
                 getattr(self._rbd, "tag_info", None)),
             sections=getattr(self._rbd, "sections", None))
+        known = tag_model.all_tags(draft)
         tag_model.set_tags(draft, ref, list(tags))
-        self._push_tags((draft.tags, draft.tag_info), "Edit tags")
+        # a tag made here gets a colour no other tag shows
+        tag_model.colour_new_tags(draft, known)
+        if self._push_tags((draft.tags, draft.tag_info), "Edit tags"):
+            # the chips are updated where they stand: rebuilding the
+            # Inspector would jump its scroll position and drop the focus
+            # from the add box
+            if self._inspector.refresh_tag_chips(self._rbd):
+                target = self._inspector.current_target()
+                if target is not None:
+                    self._suppress_inspector_refresh_target = (
+                        target[0], cast(int, target[1]))
 
     def _push_tags(self, after, text: str) -> bool:
         """Push one undoable tags change; False when nothing changed."""
         import copy
         from raptor.core import tags as tag_model
-        from raptor.gui.ui.tags_dialog import TagsCommand
+        from raptor.gui.ui.tags_panel import TagsCommand
         before = (tag_model.clean_tags(getattr(self._rbd, "tags", None)),
                   tag_model.clean_tag_info(
                       getattr(self._rbd, "tag_info", None)))

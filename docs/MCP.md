@@ -479,7 +479,9 @@ returns the deleted annotation id and its kind.
   simulation.
 - `tag_elements` sets, adds or removes tags on named elements
   (`Block:3`, `Node:1`, `Event:2`, `Hier:900`); `mode="replace"` with no
-  tags clears them. An unknown element is refused, not skipped.
+  tags clears them. An unknown element is refused, not skipped. A tag the
+  call creates takes the first palette colour no other tag in the model
+  shows (`list_tags` reports it).
 - `describe_tag` sets a tag's colour and description (and creates an empty
   tag), `rename_tag` renames one everywhere (onto an existing tag merges
   them) and `delete_tag` removes one from every element. Each saves the
@@ -588,8 +590,9 @@ It is the same object the application's Story tab paints and
 options; a set that would break a name is refused whole.
 
 `duplicate_elements` copies a selection with fresh ids and names, and
-`copy_element_data` copies one block's chosen data groups onto others without
-touching names, positions, links or dependencies.
+`copy_element_data` is Paste Special: it copies one element's chosen groups
+(block data, dependency, phasing, tags, comment) onto others without touching
+names, positions or links.
 
 `set_out_of_service` takes blocks, events or hierarchies out of service for
 a what-if without changing their data: `cut` (down for the whole run, its

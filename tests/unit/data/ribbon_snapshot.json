@@ -1126,8 +1126,8 @@
    "shortcuts": [
     "Ctrl+Shift+V"
    ],
-   "text": "Paste Data Only",
-   "tooltip": "Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)\n\nUnavailable: open or create a model first"
+   "text": "Paste Special\u2026",
+   "tooltip": "Copy chosen parts of the copied element (failure, repair, spares, PM, costs, tags, comment...) onto the selected elements (Ctrl+Shift+V)\n\nUnavailable: open or create a model first"
   },
   "_pause_action": {
    "checkable": false,
@@ -1733,7 +1733,17 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Tags\u2026",
-   "tooltip": "Component tags \u2014 coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation\n\nUnavailable: open or create a model first"
+   "tooltip": "Component tags \u2014 coloured labels on elements that may span hierarchies. Opens the Tags panel beside the canvas; filter the Explorer or a chart by one. They never change the simulation\n\nUnavailable: open or create a model first"
+  },
+  "_tags_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Tags",
+   "tooltip": "Show the Tags panel \u2014 name, colour and apply component tags while you select on the canvas"
   },
   "_terminate_action": {
    "checkable": false,
@@ -2048,6 +2058,7 @@
    "_syscfg_action": false,
    "_tag_colours_action": false,
    "_tags_action": false,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -2227,6 +2238,7 @@
    "_syscfg_action": true,
    "_tag_colours_action": true,
    "_tags_action": true,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -2406,6 +2418,7 @@
    "_syscfg_action": false,
    "_tag_colours_action": false,
    "_tags_action": false,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -2579,11 +2592,11 @@
       {
        "children": [
         "QFrame",
+        "QLineEdit",
         "QListView",
         "QScrollBar",
         "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QToolButton"
        ],
        "class": "QComboBox",
        "kind": "widget",
@@ -2611,9 +2624,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -2644,9 +2655,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3014,11 +3023,11 @@
         "QComboBox",
         "QFrame",
         "QLabel",
+        "QLineEdit",
         "QListView",
         "QScrollBar",
         "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QToolButton"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3129,9 +3138,7 @@
         "QFrame",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QComboBox",
        "kind": "widget",
@@ -3155,9 +3162,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3318,9 +3323,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3333,9 +3336,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",
@@ -3348,9 +3349,7 @@
         "QLabel",
         "QListView",
         "QScrollBar",
-        "QScrollBar",
-        "QWidget",
-        "QWidget"
+        "QScrollBar"
        ],
        "class": "QWidget",
        "kind": "widget",

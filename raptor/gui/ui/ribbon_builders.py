@@ -307,14 +307,15 @@ class RibbonBuilders(_Base):
             chip.setToolTip(cores.describe(animate)
                             + ". Change it in the Run panel.")
         started_with = int(state.get("workers", 1)) if state else 1
-        why = ("Animate is on: an animated run uses one core." if animate
+        why = (i18n.tr("Animate is on: an animated run uses one core.")
+               if animate
                else f"Takes effect while the run is going (up to {started_with})."
                if adjustable
                else "A run is using these cores." if running else "")
         tip = (
-            "Animate is on: an animated run uses one core, so you can watch "
-            "each event. Turn Animate off to run at full speed on these "
-            "cores." if animate else
+            i18n.tr("Animate is on: an animated run uses one core, so you "
+                    "can watch each event. Turn Animate off to run at full "
+                    "speed on these cores.") if animate else
             f"Lower this to give cores back to the machine while the run "
             f"goes on: it takes effect within a run or two and the results "
             f"do not change. Raise it again up to the {started_with} the run "

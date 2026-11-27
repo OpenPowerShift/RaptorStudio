@@ -134,7 +134,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Block Defaults… |Set the default failure/repair distribution for NEW blocks |
 |Mass Edit… |Apply a failure/repair distribution to all selected elements at once (select 2+ elements) |
-|Tags… |Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation |
+|Tags… |Component tags — coloured labels on elements that may span hierarchies. Opens the Tags panel beside the canvas; filter the Explorer or a chart by one. They never change the simulation |
 |Import Table… |Import failure/repair parameters, PM settings or stock from an Excel (.xlsx) or OpenDocument (.ods) sheet. Values are validated first and applied as one undo step; formula cells use the workbook's calculated value |
 |Separate Streams |Give every block that shares a random stream a failure and repair stream of its own, saved in the model, so a change to one block does not shift the others' draws. After 49 blocks the streams are reused. Results then no longer match Raptor 7's. To try it without editing the model, use the Run panel's Streams option. Undoable |
 |Project Health |Project statistics and housekeeping issues: unnamed elements, duplicate names, unused pools and validation findings |

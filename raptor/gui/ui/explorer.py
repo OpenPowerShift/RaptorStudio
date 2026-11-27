@@ -315,7 +315,7 @@ class ExplorerDock(QWidget):
         if combo is None:
             return
         from raptor.core import tags as tag_model
-        from raptor.gui.ui.tags_dialog import swatch
+        from raptor.gui.ui.tags_panel import swatch
         rbd = getattr(self._view, "_rbd_ref", None) if self._view else None
         self._group_refs_for = None    # the model may have changed
         names = tag_model.all_tags(rbd) if rbd is not None else []

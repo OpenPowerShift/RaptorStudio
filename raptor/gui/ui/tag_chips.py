@@ -86,19 +86,8 @@ class TagChips(QWidget):
         self.add_edit.setMinimumWidth(110)
         self.add_edit.setMaximumWidth(180)
         self._height = self.add_edit.sizeHint().height()
-        for tag in self._tags:
-            self._flow.addWidget(self._chip(tag))
-        others = [t for t in dict.fromkeys(known) if t not in self._tags]
-        self._others = others
-        self.add_edit.setToolTip(i18n.tr(
-            "Type a tag and press Enter. An existing tag completes as you "
-            "type; a new name makes a new tag."))
+        self._chips: list[QFrame] = []
         self._model = QStandardItemModel(self.add_edit)
-        for tag in others:
-            item = QStandardItem(_dot_icon(self._colours.get(tag, "")), tag)
-            if self._describe.get(tag):
-                item.setToolTip(self._describe[tag])
-            self._model.appendRow(item)
         self._completer = QCompleter(self._model, self.add_edit)
         self._completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self._completer.setFilterMode(Qt.MatchFlag.MatchContains)
@@ -106,10 +95,38 @@ class TagChips(QWidget):
         popup = self._completer.popup()
         if popup is not None:
             popup.setIconSize(QSize(_DOT, _DOT))
+        self.add_edit.setToolTip(i18n.tr(
+            "Type a tag and press Enter. An existing tag completes as you "
+            "type; a new name makes a new tag."))
         self.add_edit.returnPressed.connect(self._add_typed)
         self._completer.activated.connect(self._add)
         self.arrow_action: QAction | None = None
-        if others:
+        self._others: list[str] = []
+        self.add_edit.installEventFilter(self)
+        self._flow.addWidget(self.add_edit)
+        self._fill(known)
+
+    def _fill(self, known: Sequence[str]) -> None:
+        """(Re)build the chips and the picker list; the add box stays."""
+        for chip in self._chips:
+            self._flow.removeWidget(chip)
+            chip.setParent(None)
+            chip.deleteLater()
+        self._chips = []
+        # chips go before the add box, which is the flow's last item
+        for tag in self._tags:
+            chip = self._chip(tag)
+            self._chips.append(chip)
+            self._flow.insertWidget(len(self._chips) - 1, chip)
+            chip.show()
+        self._others = [t for t in dict.fromkeys(known) if t not in self._tags]
+        self._model.clear()
+        for tag in self._others:
+            item = QStandardItem(_dot_icon(self._colours.get(tag, "")), tag)
+            if self._describe.get(tag):
+                item.setToolTip(self._describe[tag])
+            self._model.appendRow(item)
+        if self._others and self.arrow_action is None:
             from raptor.gui.resources.design_tokens import active_colour
             self.arrow_action = QAction(
                 _arrow_icon(active_colour()["text"]),
@@ -119,8 +136,22 @@ class TagChips(QWidget):
             self.add_edit.addAction(
                 self.arrow_action, QLineEdit.ActionPosition.TrailingPosition)
             self.arrow_action.triggered.connect(self.show_tags)
-            self.add_edit.installEventFilter(self)
-        self._flow.addWidget(self.add_edit)
+        elif not self._others and self.arrow_action is not None:
+            self.add_edit.removeAction(self.arrow_action)
+            self.arrow_action.deleteLater()
+            self.arrow_action = None
+        self._flow.invalidate()
+
+    def set_state(self, tags: Sequence[str], known: Sequence[str],
+                  colours: dict[str, str],
+                  describe: dict[str, str] | None = None) -> None:
+        """Show new chips without rebuilding the widget, so the add box
+        keeps its focus and text and the pane around it keeps its scroll."""
+        self._tags = list(tags)
+        self._colours = dict(colours)
+        self._describe = dict(describe or {})
+        self._fill(known)
+        self.updateGeometry()
 
     def show_tags(self) -> None:
         """Open the popup: every tag not on this element, narrowed by what

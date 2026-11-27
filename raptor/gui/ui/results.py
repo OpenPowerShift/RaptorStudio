@@ -671,7 +671,7 @@ class ResultsDock(ResultsRawMixin, ResultsGraphsMixin, ResultsPagesMixin,
     def set_tag_options(self, tags: list[tuple[str, str]],
                         current: str = "") -> None:
         """MainWindow pushes [(tag, colour)] for the Tag filter."""
-        from raptor.gui.ui.tags_dialog import swatch
+        from raptor.gui.ui.tags_panel import swatch
         combo = self._tag_filter_combo
         combo.blockSignals(True)
         combo.clear()

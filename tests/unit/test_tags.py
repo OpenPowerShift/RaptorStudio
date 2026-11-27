@@ -151,3 +151,93 @@ def test_names_of_reads_each_kinds_name_column():
     assert len(refs) >= 3
     assert T.names_of(rbd, refs) == expected
     assert T.names_of(rbd, {"block:999999", "nonsense"}) == set()
+
+
+# -- new tags take distinct colours -----------------------------------------
+
+def _make(rbd, names):
+    ids = _blocks(rbd)
+    for i, name in enumerate(names):
+        before = T.all_tags(rbd)
+        T.add_tag(rbd, f"block:{ids[i % len(ids)]}", name)
+        T.colour_new_tags(rbd, before)
+
+
+def test_three_new_tags_get_three_colours_in_palette_order(rbd):
+    # "pumps" and "alpha" hash to the same colour; the old rule gave both it
+    _make(rbd, ["a", "b", "c"])
+    colours = [T.tag_colour(rbd, t) for t in ("a", "b", "c")]
+    assert colours == list(T.TAG_COLOURS[:3])
+
+
+def test_a_chosen_colour_that_is_the_hash_colour_is_still_right(rbd):
+    tag = "pumps"
+    wanted = T.default_colour(tag)
+    # fill the palette up to the colour the name hashes to
+    idx = T.TAG_COLOURS.index(wanted)
+    filler = [f"f{i}" for i in range(idx)]
+    _make(rbd, filler)
+    _make(rbd, [tag])
+    assert T.tag_colour(rbd, tag) == wanted
+    # nothing inferable is stored
+    assert "colour" not in T.clean_tag_info(rbd.tag_info).get(tag, {})
+
+
+def test_the_ninth_tag_reuses_the_least_used_colour(rbd):
+    _make(rbd, [f"t{i}" for i in range(8)])
+    assert {T.tag_colour(rbd, f"t{i}") for i in range(8)} == set(T.TAG_COLOURS)
+    # make the first colour the busiest
+    T.set_tag_info(rbd, "t1", colour=T.TAG_COLOURS[0])
+    _make(rbd, ["ninth"])
+    counts = {c: 0 for c in T.TAG_COLOURS}
+    for i in range(8):
+        counts[T.tag_colour(rbd, f"t{i}")] += 1
+    least = min(counts.values())
+    assert counts[T.tag_colour(rbd, "ninth")] == least
+    assert T.tag_colour(rbd, "ninth") != T.TAG_COLOURS[0]
+
+
+def test_existing_hash_coloured_tags_keep_their_colour(rbd):
+    a = _blocks(rbd)[0]
+    T.set_tags(rbd, f"block:{a}", ["old1", "old2"])
+    before = {t: T.tag_colour(rbd, t) for t in ("old1", "old2")}
+    back = parse_rbds(render_rbds(rbd))
+    assert {t: T.tag_colour(back, t) for t in before} == before
+    # colouring nothing new changes nothing
+    assert T.colour_new_tags(back, T.all_tags(back)) == []
+    assert {t: T.tag_colour(back, t) for t in before} == before
+
+
+def test_a_new_tag_avoids_an_old_hash_coloured_tag(rbd):
+    a = _blocks(rbd)[0]
+    T.set_tags(rbd, f"block:{a}", ["old"])
+    taken = T.tag_colour(rbd, "old")
+    _make(rbd, [f"n{i}" for i in range(7)])
+    shown = [T.tag_colour(rbd, t) for t in T.all_tags(rbd)]
+    assert len(set(shown)) == len(shown) == 8
+    assert shown.count(taken) == 1
+
+
+def test_new_colours_are_stored_and_survive_a_save(rbd):
+    _make(rbd, ["a", "b", "c"])
+    back = parse_rbds(render_rbds(rbd))
+    assert [T.tag_colour(back, t) for t in "abc"] == list(T.TAG_COLOURS[:3])
+
+
+def test_member_rows_name_kind_id_and_hierarchy_path(hier_rbd):
+    refs = sorted(T.valid_refs_from_model(hier_rbd))
+    rows = {r[0]: r for r in T.member_rows(hier_rbd, refs + ["block:99999"])}
+    assert set(rows) == set(refs)           # an unknown ref is left out
+    for ref, kind, oid, name, _level in rows.values():
+        assert ref == f"{kind}:{oid}"
+        assert " / " not in name
+    nested = [r for r in rows.values() if r[4]]
+    assert nested, "the fixture has elements inside a hierarchy"
+    hier_names = {r[3] for r in rows.values() if r[1] == "hier"}
+    for r in nested:
+        assert r[4].split(" / ")[-1] in hier_names
+    # a path lists the outermost first, ending at the element's own parent
+    deep = [r for r in rows.values() if r[4].count(" / ")]
+    for r in deep:
+        parent = T._parents(hier_rbd)[r[0]]
+        assert r[4].endswith(rows[f"hier:{parent}"][3])

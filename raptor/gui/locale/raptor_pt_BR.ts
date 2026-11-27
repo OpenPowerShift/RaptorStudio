@@ -458,12 +458,12 @@
       <translation>Duplicar a seleção em uma linha ou coluna</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
     </message>
     <message>
-      <source>Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)</source>
-      <translation>Copiar os dados do bloco na área de transferência para os blocos selecionados (Ctrl+Shift+V)</translation>
+      <source>Copy chosen parts of the copied element (failure, repair, spares, PM, costs, tags, comment...) onto the selected elements (Ctrl+Shift+V)</source>
+      <translation>Copia partes escolhidas do elemento copiado (falha, reparo, sobressalentes, MP, custos, etiquetas, comentário...) para os elementos selecionados (Ctrl+Shift+V)</translation>
     </message>
     <message>
       <source>Project Settings</source>
@@ -758,8 +758,8 @@
       <translation>Etiquetas…</translation>
     </message>
     <message>
-      <source>Component tags — coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation</source>
-      <translation>Etiquetas de componentes — rótulos coloridos em elementos, que podem abranger hierarquias. Filtre o Explorador ou um gráfico por uma delas; nunca alteram a simulação</translation>
+      <source>Component tags — coloured labels on elements that may span hierarchies. Opens the Tags panel beside the canvas; filter the Explorer or a chart by one. They never change the simulation</source>
+      <translation>Etiquetas de componentes — rótulos coloridos em elementos que podem abranger hierarquias. Abre o painel Etiquetas ao lado do diagrama; filtre o Explorador ou um gráfico por uma delas. Nunca alteram a simulação</translation>
     </message>
     <message>
       <source>Import Table…</source>
@@ -1284,6 +1284,14 @@
     <message>
       <source>Show the Advisor — what looks wrong or unwise in the model, why, and what to do about it</source>
       <translation>Mostrar o Advisor — o que parece errado ou imprudente no modelo, por quê, e o que fazer a respeito</translation>
+    </message>
+    <message>
+      <source>Tags</source>
+      <translation>Etiquetas</translation>
+    </message>
+    <message>
+      <source>Show the Tags panel — name, colour and apply component tags while you select on the canvas</source>
+      <translation>Mostrar o painel Etiquetas — nomeie, colora e aplique etiquetas de componentes enquanto seleciona no diagrama</translation>
     </message>
     <message>
       <source>Reset Layout</source>
@@ -2917,8 +2925,20 @@
       <translation>Matriz…</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
+    </message>
+    <message>
+      <source>Paste Tags (add)</source>
+      <translation>Colar etiquetas (adicionar)</translation>
+    </message>
+    <message>
+      <source>Paste Comment</source>
+      <translation>Colar comentário</translation>
+    </message>
+    <message>
+      <source>Paste Failure and Repair</source>
+      <translation>Colar falha e reparo</translation>
     </message>
     <message>
       <source>Delete routing point</source>
@@ -3625,10 +3645,6 @@
       <translation>Somente os campos MARCADOS mudam, em cada elemento selecionado (editar um campo o marca). Pode ser desfeito nesta sessão.</translation>
     </message>
     <message>
-      <source>Paste</source>
-      <translation>Colar</translation>
-    </message>
-    <message>
       <source>Export Library</source>
       <translation>Exportar biblioteca</translation>
     </message>
@@ -3727,10 +3743,6 @@
     <message>
       <source>Phasing</source>
       <translation>Faseamento</translation>
-    </message>
-    <message>
-      <source>Copy the clipboard block's data onto the selected blocks. Name, position, links and dependency are never changed.</source>
-      <translation>Copie os dados do bloco da área de transferência para os blocos selecionados. Nome, posição, vínculos e dependência nunca são alterados.</translation>
     </message>
     <message>
       <source>Nothing was added.</source>
@@ -5739,8 +5751,12 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Tema escuro</translation>
     </message>
     <message>
-      <source>Select blocks and copy a block first</source>
-      <translation>Selecione blocos e copie um bloco primeiro</translation>
+      <source>Copy an element, then select the elements to paste onto</source>
+      <translation>Copie um elemento e selecione os elementos onde colar</translation>
+    </message>
+    <message>
+      <source>Nothing to change</source>
+      <translation>Nada a alterar</translation>
     </message>
     <message>
       <source>Open a model to find items in it.</source>
@@ -5781,6 +5797,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
     <message>
       <source>Tag colours off</source>
       <translation>Cores das etiquetas desativadas</translation>
+    </message>
+    <message>
+      <source>That element could not be found on the canvas</source>
+      <translation>Esse elemento não foi encontrado no diagrama</translation>
     </message>
     <message>
       <source>Select an annotation first — the z-order commands only apply to canvas annotations</source>
@@ -5969,6 +5989,22 @@ Continuar?</translation>
     <message>
       <source>Separate Random Streams</source>
       <translation>Fluxos aleatórios separados</translation>
+    </message>
+    <message>
+      <source>Paste Special</source>
+      <translation>Colar especial</translation>
+    </message>
+    <message>
+      <source>Paste</source>
+      <translation>Colar</translation>
+    </message>
+    <message>
+      <source>Add to existing tags</source>
+      <translation>Adicionar às etiquetas existentes</translation>
+    </message>
+    <message>
+      <source>Replace tags</source>
+      <translation>Substituir etiquetas</translation>
     </message>
     <message>
       <source>Phase</source>
@@ -6895,6 +6931,14 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>Núcleos</translation>
     </message>
     <message>
+      <source>Animate is on: an animated run uses one core.</source>
+      <translation>Animar está ativado: uma execução animada usa um núcleo.</translation>
+    </message>
+    <message>
+      <source>Animate is on: an animated run uses one core, so you can watch each event. Turn Animate off to run at full speed on these cores.</source>
+      <translation>Animar está ativado: uma execução animada usa um núcleo, para que você possa acompanhar cada evento. Desative Animar para executar em velocidade máxima nestes núcleos.</translation>
+    </message>
+    <message>
       <source>Multi-step events</source>
       <translation>Eventos de passo múltiplo</translation>
     </message>
@@ -7341,12 +7385,16 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Mostrar os elementos com a etiqueta %1</translation>
     </message>
     <message>
-      <source>Component Tags</source>
-      <translation>Etiquetas de componentes</translation>
+      <source>Hierarchy</source>
+      <translation>Hierarquia</translation>
     </message>
     <message>
-      <source>Tags are labels on blocks, nodes, events and hierarchies. They may span hierarchies and overlap, and never change the simulation. Filter the Model Explorer or a chart by a tag.</source>
-      <translation>Etiquetas são rótulos em blocos, nós, eventos e hierarquias. Podem abranger hierarquias e se sobrepor, e nunca alteram a simulação. Filtre o Explorador do modelo ou um gráfico por uma etiqueta.</translation>
+      <source>Node</source>
+      <translation>Nó</translation>
+    </message>
+    <message>
+      <source>Event</source>
+      <translation>Evento</translation>
     </message>
     <message>
       <source>Search tags</source>
@@ -7357,8 +7405,8 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>As etiquetas do modelo e quantos elementos têm cada uma. Selecionar uma permite editar seu nome, cor e descrição.</translation>
     </message>
     <message>
-      <source>Create a tag; it is applied to the elements selected on the canvas, if any</source>
-      <translation>Criar uma etiqueta; ela é aplicada aos elementos selecionados na tela, se houver</translation>
+      <source>Create a tag; it is put on the elements selected on the canvas, if any</source>
+      <translation>Cria uma etiqueta; ela é aplicada aos elementos selecionados no diagrama, se houver</translation>
     </message>
     <message>
       <source>Remove the selected tag from every element; the elements are kept</source>
@@ -7385,10 +7433,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Nota opcional, mostrada nas dicas da etiqueta</translation>
     </message>
     <message>
-      <source>Elements with this tag</source>
-      <translation>Elementos com esta etiqueta</translation>
-    </message>
-    <message>
       <source>Add to selection</source>
       <translation>Adicionar à seleção</translation>
     </message>
@@ -7405,24 +7449,100 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
       <translation>Tirar esta etiqueta dos elementos selecionados na tela</translation>
     </message>
     <message>
-      <source>Tags for the selected elements</source>
-      <translation>Etiquetas dos elementos selecionados</translation>
+      <source>Filter elements</source>
+      <translation>Filtrar elementos</translation>
     </message>
     <message>
-      <source>Comma-separated tags</source>
-      <translation>Etiquetas separadas por vírgula</translation>
+      <source>Filter the tag's elements</source>
+      <translation>Filtrar os elementos da etiqueta</translation>
     </message>
     <message>
-      <source>Replace the tags on every selected element with this list; leave the box empty to remove their tags</source>
-      <translation>Substituir as etiquetas de todos os elementos selecionados por esta lista; deixe a caixa vazia para remover as etiquetas</translation>
+      <source>Kind</source>
+      <translation>Tipo</translation>
+    </message>
+    <message>
+      <source>Elements with this tag</source>
+      <translation>Elementos com esta etiqueta</translation>
+    </message>
+    <message>
+      <source>Click a heading to sort. Double-click an element to find it on the canvas.</source>
+      <translation>Clique em um cabeçalho para ordenar. Clique duas vezes em um elemento para localizá-lo no diagrama.</translation>
+    </message>
+    <message>
+      <source>Rename tag</source>
+      <translation>Renomear etiqueta</translation>
+    </message>
+    <message>
+      <source>New tag</source>
+      <translation>Nova etiqueta</translation>
+    </message>
+    <message>
+      <source>Delete Tag</source>
+      <translation>Excluir etiqueta</translation>
+    </message>
+    <message>
+      <source>Delete tag</source>
+      <translation>Excluir etiqueta</translation>
+    </message>
+    <message>
+      <source>Add tag to selection</source>
+      <translation>Adicionar etiqueta à seleção</translation>
+    </message>
+    <message>
+      <source>Remove tag from selection</source>
+      <translation>Remover etiqueta da seleção</translation>
     </message>
     <message>
       <source>Select elements on the canvas to tag them here.</source>
       <translation>Selecione elementos na tela para etiquetá-los aqui.</translation>
     </message>
     <message>
-      <source>Delete Tag</source>
-      <translation>Excluir etiqueta</translation>
+      <source>No elements carry this tag yet. Select elements on the canvas and press Add to selection.</source>
+      <translation>Nenhum elemento tem esta etiqueta ainda. Selecione elementos no diagrama e pressione Adicionar à seleção.</translation>
+    </message>
+    <message>
+      <source>Automatic (%1)</source>
+      <translation>Automática (%1)</translation>
+    </message>
+    <message>
+      <source>%1 element selected on the canvas</source>
+      <translation>%1 elemento selecionado no diagrama</translation>
+    </message>
+    <message>
+      <source>%1 elements selected on the canvas</source>
+      <translation>%1 elementos selecionados no diagrama</translation>
+    </message>
+    <message>
+      <source>No element matches the filter.</source>
+      <translation>Nenhum elemento corresponde ao filtro.</translation>
+    </message>
+    <message>
+      <source>The elements themselves are not changed.</source>
+      <translation>Os próprios elementos não são alterados.</translation>
+    </message>
+    <message>
+      <source>Custom (%1)</source>
+      <translation>Personalizada (%1)</translation>
+    </message>
+    <message>
+      <source>Elements (%1)</source>
+      <translation>Elementos (%1)</translation>
+    </message>
+    <message>
+      <source>%1 element</source>
+      <translation>%1 elemento</translation>
+    </message>
+    <message>
+      <source>%1 elements</source>
+      <translation>%1 elementos</translation>
+    </message>
+    <message>
+      <source>Showing the first %1 of %2. Filter to narrow the list.</source>
+      <translation>Mostrando os primeiros %1 de %2. Use o filtro para restringir a lista.</translation>
+    </message>
+    <message>
+      <source>Remove the tag “%1” from %2?</source>
+      <translation>Remover a etiqueta “%1” de %2?</translation>
     </message>
     <message>
       <source>How many inputs to vary, the likeliest downtime causes first: by the last run's downtime when there is one, otherwise by each block's own failure and repair data</source>
@@ -7735,10 +7855,6 @@ Verde = funcionando plenamente · Amarelo = degradado · Vermelho = totalmente i
     <message>
       <source>Dependencies</source>
       <translation>Dependências</translation>
-    </message>
-    <message>
-      <source>Hierarchy</source>
-      <translation>Hierarquia</translation>
     </message>
     <message>
       <source>Parent level</source>
@@ -8351,10 +8467,6 @@ Atraso pós-reparo = LDT depois de o reparo terminar (antes de o bloco voltar a 
     <message>
       <source>Not applicable to this node type</source>
       <translation>Não se aplica a este tipo de nó</translation>
-    </message>
-    <message>
-      <source>Node</source>
-      <translation>Nó</translation>
     </message>
     <message>
       <source>Hier</source>
@@ -11339,10 +11451,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Custom sparing</source>
       <translation>Provisão personalizada</translation>
-    </message>
-    <message>
-      <source>Event</source>
-      <translation>Evento</translation>
     </message>
     <message>
       <source>Event availability</source>
