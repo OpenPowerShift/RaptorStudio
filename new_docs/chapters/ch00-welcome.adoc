@@ -111,7 +111,7 @@ for the list; Annotate (Text, Rectangle, Ellipse, Arrow); Import RBD, Extract
 Hierarchy and hierarchy navigation
 
 |Arrange
-|Auto Layout and Snap to Grid; stacking order (Bring to Front ... Send to
+|Auto Layout, Snap to Grid and Lock Positions; stacking order (Bring to Front ... Send to
 Back); Align & Distribute, Flip
 
 |Data

@@ -224,24 +224,34 @@ def test_save_version_now_shows_progress_in_the_dialog_for_both_phases(
 
     real = dialog._store.record
     gate = threading.Event()
+    recording = threading.Event()
 
     def slow_record(file, **kw):
         kw["progress"](50, 100)
+        recording.set()
         gate.wait(10)
         return real(file, **kw)
 
     monkeypatch.setattr(dialog._store, "record", slow_record)
 
     def during_record():
+        # Probe once the record phase has really started (and its progress
+        # has reached the dialog), then let it finish. Fixed 1400/1500 ms
+        # timers raced on a busy CI runner: the release could run first,
+        # so the probe fired after the dialog had closed.
+        if not recording.is_set() or not any(
+                "Saving version" in b.label.text() for b in bars()):
+            QTimer.singleShot(20, during_record)
+            return
         probes["rec_working"] = dialog._working
         probes["rec_bar"] = [b.label.text() for b in bars()]
         probes["rec_hist_enabled"] = dialog._list.isEnabled()
         dialog.done(0)
         probes["still_open_2"] = dialog._working
+        gate.set()
 
-    # the record phase starts after the 800 ms save; probe 500 ms into it
-    QTimer.singleShot(1400, during_record)
-    QTimer.singleShot(1500, gate.set)
+    QTimer.singleShot(0, during_record)
+    QTimer.singleShot(15000, gate.set)      # never hang the suite
     dialog._snapshot_now()
 
     assert probes["save_working"] and not probes["save_btn_enabled"]

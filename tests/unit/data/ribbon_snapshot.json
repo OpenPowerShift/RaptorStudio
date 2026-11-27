@@ -993,6 +993,16 @@
    "text": "Animate",
    "tooltip": "Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model."
   },
+  "_lock_positions_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Lock Positions",
+   "tooltip": "Fix where everything sits: no dragging of elements, annotations or link bends, and no nudge, align, flip or auto-layout, until you unlock. Selecting and editing still work. Saved with the model.\n\nUnavailable: open or create a model first"
+  },
   "_lost_capacity_overlay_action": {
    "checkable": true,
    "checked": false,
@@ -1514,7 +1524,7 @@
    "has_icon": true,
    "has_menu": false,
    "shortcuts": [],
-   "text": "Notes",
+   "text": "Annotations",
    "tooltip": "Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved."
   },
   "_show_comment_notes_action": {
@@ -1968,6 +1978,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lock_positions_action": false,
    "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -2146,6 +2157,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lock_positions_action": true,
    "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -2324,6 +2336,7 @@
    "_jump_action": false,
    "_live_log_toggle_action": false,
    "_live_sim_action": true,
+   "_lock_positions_action": false,
    "_lost_capacity_overlay_action": false,
    "_manual_action": true,
    "_mass_edit_action": false,
@@ -2643,6 +2656,11 @@
        "kind": "action",
        "large": false,
        "text": "Snap to Grid"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Lock Positions"
       }
      ],
      "title": "Layout"
@@ -3211,7 +3229,7 @@
       {
        "kind": "action",
        "large": false,
-       "text": "Notes"
+       "text": "Annotations"
       },
       {
        "kind": "action",

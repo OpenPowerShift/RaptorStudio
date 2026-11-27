@@ -91,6 +91,19 @@ def _dot(p: QPainter, c: QColor, w: int, h: int) -> None:
     p.drawEllipse(QPointF(w / 2, h / 2), w * 0.22, h * 0.22)
 
 
+def _grip(vertical: bool):
+    """Three dots along a dock divider: where to grab, and which way it
+    moves."""
+    def draw(p: QPainter, c: QColor, w: int, h: int) -> None:
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for k in (-1, 0, 1):
+            centre = (QPointF(w / 2, h / 2 + k * 5) if vertical
+                      else QPointF(w / 2 + k * 5, h / 2))
+            p.drawEllipse(centre, 1.5, 1.5)
+    return draw
+
+
 def indicator_urls(c: dict) -> dict[str, str]:
     """Paths of every glyph the stylesheet uses, painted for palette `c`.
 
@@ -107,6 +120,8 @@ def indicator_urls(c: dict) -> dict[str, str]:
             "tick": _write("tick", "#FFFFFF", _tick),
             "dot": _write("dot", "#FFFFFF", _dot),
             "tick_off": _write("tick", c["muted"], _tick),
+            "grip_v": _write("grip_v", c["muted"], _grip(True), 7, 17),
+            "grip_h": _write("grip_h", c["muted"], _grip(False), 17, 7),
         }
     except OSError:
         return {}

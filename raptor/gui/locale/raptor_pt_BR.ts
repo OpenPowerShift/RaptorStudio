@@ -394,8 +394,8 @@
       <translation>Colorir por etiqueta: uma faixa acima de cada elemento etiquetado, uma cor por etiqueta (até três). Apenas visualização; aparece junto com qualquer sobreposição de resultados</translation>
     </message>
     <message>
-      <source>Notes</source>
-      <translation>Notas</translation>
+      <source>Annotations</source>
+      <translation>Anotações</translation>
     </message>
     <message>
       <source>Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved.</source>
@@ -1196,6 +1196,14 @@
     <message>
       <source>Align dragged/placed items to the grid (new work only — opened files are never reshuffled)</source>
       <translation>Alinhar itens arrastados/posicionados à grade (somente trabalho novo — arquivos abertos nunca são reorganizados)</translation>
+    </message>
+    <message>
+      <source>Lock Positions</source>
+      <translation>Travar posições</translation>
+    </message>
+    <message>
+      <source>Fix where everything sits: no dragging of elements, annotations or link bends, and no nudge, align, flip or auto-layout, until you unlock. Selecting and editing still work. Saved with the model.</source>
+      <translation>Fixa onde tudo está: nada de arrastar elementos, anotações ou dobras de ligações, nem deslocar, alinhar, espelhar ou organizar automaticamente, até destravar. Selecionar e editar continuam funcionando. Salvo com o modelo.</translation>
     </message>
     <message>
       <source>Focus Event</source>

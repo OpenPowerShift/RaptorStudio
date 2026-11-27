@@ -84,6 +84,7 @@ current value).
 |Control |What it does |Shortcut / value
 |Auto Layout |Rearrange the current hierarchy by graph flow. Direction and column wrap are in the Layout group. (Ctrl+L) |Ctrl+L
 |Snap to Grid |Align dragged/placed items to the grid (new work only — opened files are never reshuffled) |
+|Lock Positions |Fix where everything sits: no dragging of elements, annotations or link bends, and no nudge, align, flip or auto-layout, until you unlock. Selecting and editing still work. Saved with the model. |
 |Layout max series elements per band |Maximum number of series elements per band (elements one after another; parallel branches share a position). 0 = fit Raptor's canvas width. |number, now 0
 |Auto Layout spacing |Gap scale for Auto Layout: 1 = nominal, lower = more compact, higher = more open. |number, now 1
 |Layout direction |Auto Layout flow: left-to-right (default), right-to-left, top-to-bottom or bottom-to-top. |choice, now Left → right
@@ -314,7 +315,7 @@ current value).
 |Zoom Out |Zoom out of the diagram (Ctrl+- or Ctrl+wheel) |Ctrl+-
 |Zoom % |Zoom percent: set an exact zoom percentage |
 |Hierarchy |Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it) |
-|Notes |Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved. |
+|Annotations |Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved. |
 |Comments |Show or hide only the canvas notes that show an element's comment; other annotations stay. |
 |===
 

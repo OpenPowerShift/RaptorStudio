@@ -602,7 +602,7 @@ Hierarchy and hierarchy navigation</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Arrange</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout and Snap to Grid; stacking order (Bring to Front &#8230;&#8203; Send to
+<td class="tableblock halign-left valign-top"><p class="tableblock">Auto Layout, Snap to Grid and Lock Positions; stacking order (Bring to Front &#8230;&#8203; Send to
 Back); Align &amp; Distribute, Flip</p></td>
 </tr>
 <tr>
@@ -12833,7 +12833,11 @@ treemap or concentric sunburst (one switchable nested view), cumulative
 overlays and small multiples, cause and phase heatmaps, an outage state
 ribbon, and a change chart against another stored run. <strong>Scope</strong>
 follows the canvas level or pins one hierarchy; <strong>Depth</strong> shows the top
-level, one numbered level or every level; <strong>Compare</strong> picks up to four
+level, one numbered level or every level, and inside a chosen hierarchy
+counts down from it (it starts at every level; "1 level down" lists only its own contents, deeper
+levels open its sub-hierarchies); on the downtime, lost-capacity and cost
+treemaps it gathers anything deeper into one cell per hierarchy;
+<strong>Compare</strong> picks up to four
 sibling branches; <strong>Baseline</strong> stores the comparison run;</p>
 </li>
 <li>

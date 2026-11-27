@@ -156,7 +156,7 @@ class ChartsPage(QWidget):
         #: the canvas level, remembered even while Follow canvas is off
         self._canvas_hierarchy = 0
         #: hierarchy level the ranking and ribbon charts show (0 = all)
-        self._depth = 0
+        self._depth = 0          # All levels: start fully nested
         #: hierarchy ids picked for the overlay; empty means the top four
         self._selected: list[int] = []
         self._pickers: dict[str, HierarchyTreePopup] = {}
@@ -697,12 +697,20 @@ class ChartsPage(QWidget):
     def _update_depth_menu(self) -> None:
         if not hasattr(self, "depth_box"):
             return
-        depth = hier.max_depth(self._inputs.get("attribution"))
+        # Levels count from the chosen hierarchy (from the top of the model
+        # for the system or a tag): "1 level down" inside FDR_EB11 means its
+        # own children, not the model's second level (#351).
+        row = self._scope_row()
+        inside = row is not None and not hier.is_tag(row)
+        depth = hier.depth_below(self._inputs.get("attribution"), row)
         self.depth_box.blockSignals(True)
         self.depth_box.clear()
         self.depth_box.addItem("All levels", 0)
         for level in range(1, max(1, depth) + 1):
-            label = "Top level" if level == 1 else f"Level {level}"
+            if inside:
+                label = "1 level down" if level == 1 else f"{level} levels down"
+            else:
+                label = "Top level" if level == 1 else f"Level {level}"
             self.depth_box.addItem(label, level)
         index = self.depth_box.findData(self._depth)
         self.depth_box.setCurrentIndex(max(0, index))
@@ -732,6 +740,15 @@ class ChartsPage(QWidget):
         """0 is All levels for nested charts; rankings use the top level."""
         return int(self._depth or 1)
 
+    def _inside_depth(self) -> int:
+        """Inside a chosen hierarchy the rankings count levels from it, and
+        All levels (0) opens every level down to the elements (#351); for
+        the whole model they keep one level, the top by default."""
+        row = self._scope_row()
+        if row is not None and not hier.is_tag(row):
+            return int(self._depth or 0)
+        return self._ranking_depth()
+
     def _compare_refs(self) -> list[int] | None:
         """The comparison set: explicit picks, or the scope's children.
 
@@ -750,6 +767,11 @@ class ChartsPage(QWidget):
         children = [item for item in hier.rows(self._inputs.get("attribution"))
                     if item is not row and hier.path_text(item).startswith(prefix)
                     and float((item.get("dtci") or {}).get("mean") or 0.0) > 0]
+        if self._depth:
+            # the sub-hierarchies that many levels below the scope (#351)
+            level = hier.base_depth(row) + int(self._depth)
+            children = ([item for item in children
+                         if int(item.get("depth") or 0) == level] or children)
         children.sort(key=lambda item: -(float((item.get("dtci") or {})
                                                .get("mean") or 0.0)))
         return [int(item.get("id") or 0) for item in children[:4]] or [
@@ -759,6 +781,11 @@ class ChartsPage(QWidget):
         """The one nested view, drawn as a treemap or a sunburst."""
         attribution = self._inputs.get("attribution") or {}
         nested_depth = None if not self._depth else self._depth
+        row = self._scope_row()
+        if nested_depth and row is not None and not hier.is_tag(row):
+            # the nested map draws the chosen hierarchy as its first level;
+            # "1 level down" means one level below it (#351)
+            nested_depth += 1
         if self.layout_box.currentData() == "sunburst":
             return charts.hierarchy_sunburst(
                 attribution, self._scope, depth=nested_depth)
@@ -812,6 +839,7 @@ class ChartsPage(QWidget):
         if on:
             self._scope = self._canvas_hierarchy or None
             self._update_scope_button()
+            self._update_depth_menu()
             self._time_cache.clear()
             self._rebuild()
 
@@ -825,6 +853,7 @@ class ChartsPage(QWidget):
             return
         self._scope = ref
         self._update_scope_button()
+        self._update_depth_menu()
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -838,6 +867,7 @@ class ChartsPage(QWidget):
             self.follow_button.blockSignals(False)
         self._scope = scope if scope not in (0, "0", "") else None
         self._update_scope_button()
+        self._update_depth_menu()         # its levels count from the scope
         self._time_cache.clear()
         self._rebuild()
         self._fallback_after_scope()
@@ -1316,7 +1346,7 @@ class ChartsPage(QWidget):
             scope_reason or no_hier)
         add("hierarchy-pareto", "Hierarchy Pareto", "By hierarchy",
             lambda: charts.hierarchy_pareto(attribution or {}, self._scope,
-                                                    depth=self._ranking_depth()), no_hier)
+                                            depth=self._inside_depth()), no_hier)
         add("hierarchy-map", "Where the downtime sits", "By hierarchy",
             self._hierarchy_map_spec, no_hier)
         add("hierarchy-overlay", "When did each hierarchy's downtime build up?", "By hierarchy",
@@ -1340,7 +1370,7 @@ class ChartsPage(QWidget):
                                         "Set a baseline run first, then run again."))
         add("hierarchy-heatmap", "Hierarchy by cause", "By hierarchy",
             lambda: charts.hierarchy_heatmap(attribution or {}, self._scope,
-                                                    depth=self._ranking_depth()), no_hier)
+                                             depth=self._inside_depth()), no_hier)
         if not (attribution or {}).get("phases"):
             no_phase = "The model has no mission phases."
         elif (any(float((item.get("dtci") or {}).get("mean") or 0.0) > 0
@@ -1425,7 +1455,8 @@ class ChartsPage(QWidget):
                      scoped_target,
                      ladder=None if row is not None else _ladder(per_run)), ""),
                 ("downtime-treemap", "Downtime treemap",
-                 lambda: charts.downtime_treemap(a), ""),
+                 lambda row=row: charts.downtime_treemap(
+                     a, depth=self._depth_value(), scope_row=row), ""),
                 ("phase-downtime", "Downtime by phase",
                  lambda: charts.phase_downtime(a),
                  scope_reason or phase_missing),
@@ -1470,9 +1501,13 @@ class ChartsPage(QWidget):
                  lambda: charts.capacity_waterfall(
                      a, self._capacity_target if row is None else None)),
                 ("lost-capacity-treemap", "Lost capacity treemap",
-                 lambda: charts.lost_capacity_treemap(a))):
+                 lambda row=row: charts.lost_capacity_treemap(
+                     a, depth=self._depth_value(), scope_row=row))):
+            # the treemap's rows filter to a scope (hier.scoped); the
+            # others are whole-system curves and totals
             add(key, title, "Lost capacity", build,
-                scope_reason or no_capacity,
+                (scope_reason if key != "lost-capacity-treemap" else "")
+                or no_capacity,
                 action if not attribution else "", needs=capacity_needs)
         if has_hier:
             add("capacity-sankey", "Lost capacity by hierarchy and cause",
@@ -1521,6 +1556,7 @@ class ChartsPage(QWidget):
                                        + run_needs.gui_hint("cost"))
         cost_needs = () if has_cost else ("cost",)
         cost_rows = charts.element_costs(report_data)
+        scope_row = row
         if row is not None:
             cost_rows = hier.cost_rows(cost_rows, row, source.get("elements") or [])
         scoped_importance = (hier.importance_rows(importance, row,
@@ -1530,7 +1566,9 @@ class ChartsPage(QWidget):
             lambda: charts.cost_pareto(cost_rows), no_cost,
             needs=cost_needs)
         add("cost-treemap", "Cost treemap", "Cost",
-            lambda: charts.cost_treemap(cost_rows), no_cost,
+            lambda: charts.cost_treemap(
+                cost_rows, depth=self._depth_value(), attribution=source,
+                scope_row=scope_row), no_cost,
             needs=cost_needs)
         no_cost_runs = ("" if self._cost_runs else
                         "Needs the interim cost report. "
@@ -1568,9 +1606,10 @@ class ChartsPage(QWidget):
             # No hierarchy roll-up: the question does not exist, so do not
             # leave a greyed group of controls and rows behind.
             entries = [entry for entry in entries if entry.group != "By hierarchy"]
-        if has_hier or model_hier:
+        if (has_hier or model_hier) and not hier.is_tag(row):
             # The nested hierarchy treemap already contains the elements;
-            # a flat treemap beside it is the same question twice.
+            # a flat treemap beside it is the same question twice.  A tag
+            # has no nested map, so its own treemap stays (#351).
             entries = [entry for entry in entries
                        if entry.key != "downtime-treemap"]
         if not (attribution or {}).get("phases") and not model_phases:
@@ -1594,7 +1633,10 @@ class ChartsPage(QWidget):
     TAG_SCOPE_CHARTS = frozenset({
         "trial-outcome", "ecdf", "convergence", "hierarchy-pareto",
         "hierarchy-small-multiples", "hierarchy-hops", "hierarchy-heatmap",
-        "component-failures", "cost-pareto", "importance-quadrant"})
+        "component-failures", "cost-pareto", "importance-quadrant",
+        # one tag's own elements make a true whole, so their treemaps hold
+        # (it is the tags' overlap that rules out a treemap OF tags) #351
+        "downtime-treemap", "lost-capacity-treemap", "cost-treemap"})
     #: Charts that need the per-run list a tag-within row does not keep.
     TAG_PER_RUN_CHARTS = frozenset({
         "trial-outcome", "ecdf", "convergence",
@@ -2073,9 +2115,25 @@ class ChartsPage(QWidget):
             "hierarchy-phase-heatmap", "hierarchy-small-multiples",
             "hierarchy-hops", "hierarchy-ribbon", "hierarchy-overlay", "hierarchy-map",
             "hierarchy-delta"}
+        # The element treemaps gather deeper hierarchies into one cell.
+        # Inside a chosen hierarchy the levels count from it: the Pareto and
+        # cause heatmap open its contents that far, the comparisons take the
+        # sub-hierarchies at that level.  The scorecard, delta, phase
+        # heatmap and ribbon show the scope itself, so the menu hides there.
+        roll_up_charts = {"downtime-treemap", "lost-capacity-treemap",
+                          "cost-treemap"}
+        inside_charts = {"hierarchy-pareto", "hierarchy-heatmap",
+                         "hierarchy-small-multiples", "hierarchy-hops",
+                         "hierarchy-overlay", "hierarchy-map"}
+        scope_row = self._scope_row()
+        inside = scope_row is not None and not hier.is_tag(scope_row)
+        levels = hier.depth_below(self._inputs.get("attribution"), scope_row)
+        depth_here = (key in roll_up_charts
+                      or (key in depth_charts and not inside)
+                      or (inside and key in inside_charts))
         self.depth_box.setVisible(
-            has_hier and key in depth_charts
-            and hier.max_depth(self._inputs.get("attribution")) > 1)
+            has_hier and depth_here
+            and (levels > 1 or (key in roll_up_charts and levels >= 1)))
         self.layout_box.setVisible(has_hier and key == "hierarchy-map")
         self.sankey_box.setVisible(has_hier and key == "capacity-sankey")
         self.sankey_delivered.setVisible(has_hier and key == "capacity-sankey")

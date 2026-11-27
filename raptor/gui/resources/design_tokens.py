@@ -520,10 +520,11 @@ def _build_stylesheet(c: dict) -> str:
         background-color: {c['canvas']};
     }}
     QMainWindow::separator {{
-        width: 5px;
-        height: 5px;
-        /* Grab affordance: a 5px strip that highlights on hover. An
-           invisible or too-thin separator is hard to find and drag. */
+        width: 7px;
+        height: 7px;
+        /* Grab affordance: a 7px strip with three dots in its middle
+           (`_indicator_rules`) that highlights on hover. An invisible or
+           too-thin separator is hard to find and drag. */
         background: {c['canvas']};
     }}
     QMainWindow::separator:hover {{
@@ -1101,6 +1102,12 @@ def _indicator_rules(c: dict) -> str:
     if not u:
         return ""
     return f"""
+    QMainWindow::separator:vertical {{
+        image: url({u['grip_v']});
+    }}
+    QMainWindow::separator:horizontal {{
+        image: url({u['grip_h']});
+    }}
     QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
         subcontrol-origin: border;
         background: {c['group_header']};

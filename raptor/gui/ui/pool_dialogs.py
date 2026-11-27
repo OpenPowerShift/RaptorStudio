@@ -93,7 +93,8 @@ _SPECS: dict[str, dict[str, Any]] = {
             ("Spare cost", "SpareCost", "float"),
             ("Fixed cost per use", "FixedPerUse", "float"),
             ("Cost per time unit", "PerTimeUnit", "float"),
-            ("Phases", "Phases", "int"),
+            # No "Phases": Raptor 7's resource dialog always saved FALSE
+            # for it and nothing simulates it; the value stays in the file.
         ],
         "time_fields": set(),
         "money_fields": {"SpareCost", "FixedPerUse", "PerTimeUnit"},

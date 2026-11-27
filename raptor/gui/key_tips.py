@@ -40,6 +40,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
     },
     "Arrange": {
         "model.auto_layout": "L", "view.snap": "G", "arrange.order_front": "F",
+        "arrange.lock_positions": "P",
         "arrange.order_forward": "O", "arrange.order_backward": "K",
         "arrange.order_back": "B", "arrange.flip_h": "H",
         "arrange.flip_v": "V",
