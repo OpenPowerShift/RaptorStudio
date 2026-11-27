@@ -4762,6 +4762,7 @@ Parameter notes:
 | `stopped_by` | string | yes |
 | `target` | number | yes |
 | `target_met` | boolean | yes |
+| `warnings` | array<any> | yes |
 
 **Example**
 

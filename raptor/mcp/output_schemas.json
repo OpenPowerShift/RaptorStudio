@@ -2155,6 +2155,9 @@
    },
    "target_met": {
     "type": "boolean"
+   },
+   "warnings": {
+    "type": "array"
    }
   },
   "required": [
@@ -2176,7 +2179,8 @@
    "search_ceiling",
    "stopped_by",
    "target",
-   "target_met"
+   "target_met",
+   "warnings"
   ],
   "type": "object"
  },

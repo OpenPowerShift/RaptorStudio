@@ -99,6 +99,8 @@ async def optimise_spares(
         lines.append(f"| {stock}{mark} | {point['cost']:.6g} | {_fmt(point['mean'])} | "
                      f"{_fmt(point['lower'])} |")
     md = f"{result['caption']}\n\n" + "\n".join(lines) + f"\n\n{result['note']}"
+    if result.get("warnings"):
+        md = "".join(f"- {line}\n" for line in result["warnings"]) + "\n" + md
     return ok(result, md + _changes_md(result["changes"]))
 
 

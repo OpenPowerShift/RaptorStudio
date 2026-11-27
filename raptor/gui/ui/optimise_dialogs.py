@@ -239,7 +239,9 @@ class SparesDialog(AnalysisDialog):
         _fill(self.table, rows, bold,
               ["The stock the model holds now"]
               + ["; ".join(pt.get("changes") or []) for pt in points])
-        self.caption.setText(f"{result['caption']} {result['note']}")
+        # A warning is a line of its own, ahead of the recommendation.
+        self.caption.setText("\n".join([*(result.get("warnings") or []),
+                                        f"{result['caption']} {result['note']}"]))
         if bold:
             self.table.selectRow(min(bold))
 
@@ -265,7 +267,8 @@ class SparesDialog(AnalysisDialog):
                   f"cost {_money(self._win, pt['cost'])}\t{_pct(pt['mean'])}\t"
                   f"lower {_pct(pt['lower'])}"
                   for pt in result["points"]]
-        return "\n".join([*lines, "", result["caption"], result["note"]])
+        return "\n".join([*lines, "", *(result.get("warnings") or []),
+                          result["caption"], result["note"]])
 
 
 # ---- preventive maintenance ------------------------------------------------------

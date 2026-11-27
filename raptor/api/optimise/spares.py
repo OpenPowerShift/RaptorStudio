@@ -103,6 +103,8 @@ def pools_from_model(rbd: Any, names: Sequence[str] | None = None
         name = str(pool.get("name") or "")
         if not name or (wanted and name not in wanted):
             continue
+        if members.get(name) and not any(map(_repairable, members[name])):
+            continue                # stock cannot change the result
         demand = sum(ctx.failure_rate(b) or 0.0
                      for b in members.get(name, []))
         if demand <= 0:
@@ -115,6 +117,46 @@ def pools_from_model(rbd: Any, names: Sequence[str] | None = None
         lead, _rule = lead_time(pool, ctx.run_length)
         out.append(PoolSpec(name, stock, cost if cost > 0 else 1.0,
                             demand, lead, _stock_ceiling(demand * lead, stock)))
+    return out
+
+
+def _repairable(block: dict[str, Any]) -> bool:
+    from raptor.api.advisor.context import NONE_DIST
+    return int(block.get("repair_dist") or 0) != NONE_DIST
+
+
+def unrepairable_warnings(rbd: Any, names: Sequence[str] | None = None
+                          ) -> list[str]:
+    """One line per pool that serves blocks which are never repaired.
+
+    The engine takes a spare from stock when such a block fails (Raptor's
+    CheckForSpare runs first) and then leaves the block down, so stock
+    spent on it is used up without bringing anything back. A pool that
+    serves only such blocks is left out of the search."""
+    from raptor.api.advisor.context import ModelContext
+
+    ctx = ModelContext(rbd)
+    wanted = set(names or ())
+    out: list[str] = []
+    for name, blocks in sorted(ctx.pool_members.items()):
+        if wanted and name not in wanted:
+            continue
+        never = [b for b in blocks if not _repairable(b)]
+        if not never:
+            continue
+        if len(never) == len(blocks):
+            out.append(
+                f"{name}: every block that draws on it ({len(blocks)}) is "
+                f"never repaired. A failure takes a spare from stock but the "
+                f"block stays down, so stock cannot improve the result; the "
+                f"pool was left out.")
+        else:
+            shown = ", ".join(str(b.get("name") or b.get("id")) for b in never[:3])
+            more = f" and {len(never) - 3} more" if len(never) > 3 else ""
+            out.append(
+                f"{name}: {len(never)} of the {len(blocks)} blocks that draw "
+                f"on it are never repaired ({shown}{more}). Their failures "
+                f"use up stock without bringing them back.")
     return out
 
 
@@ -214,9 +256,13 @@ def optimise_spares(  # noqa: C901, PLR0912
         raise ValueError("mode must be 'meet' or 'curve'")
     if mode == "meet" and target is None:
         raise ValueError("mode='meet' needs a target")
-    selected = pools_from_model(workspace.get(model_id).rbd, pools)
+    rbd = workspace.get(model_id).rbd
+    warnings = unrepairable_warnings(rbd, pools)
+    selected = pools_from_model(rbd, pools)
     if not selected:
-        raise ValueError("no finite spare pool with demand in this model")
+        raise ValueError(" ".join(["no finite spare pool with demand in this "
+                                   "model whose stock can change the result.",
+                                   *warnings]))
     path = analytic_path(selected)
     from raptor.api.batch import Deadline
     abort = Deadline(abort, timeout_s)
@@ -296,6 +342,7 @@ def optimise_spares(  # noqa: C901, PLR0912
         "stopped_by": stopped_by,
         "search_ceiling": {pool.name: pool.max_stock for pool in selected},
         "caption": caption,
+        "warnings": warnings,
         "note": ("A point meets the target only when its lower confidence "
                  "bound does; the analytic path is a seed, not a result."),
         "batches": evaluations,

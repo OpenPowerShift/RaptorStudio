@@ -834,6 +834,7 @@
   "Every recorded row, in Raptor's rpt_*_plot file layout": "Cada linha gravada, no formato de arquivo rpt_*_plot do Raptor",
   "Every run reached %1.": "Todas as execuções atingiram %1.",
   "Every shortcut key, one page": "Todas as teclas de atalho, em uma página",
+  "Exact": "Exato",
   "Exact Birnbaum, RAW, RRW, Fussell–Vesely and criticality for every element.": "Birnbaum exato, RAW, RRW, Fussell–Vesely e criticidade para cada elemento.",
   "Exact reliability or steady-state availability for the static subset of this model — series, parallel, k-of-n and hierarchies. No sampling, no model changes.": "Confiabilidade exata ou disponibilidade em regime permanente para o subconjunto estático deste modelo — série, paralelo, k-de-n e hierarquias. Sem amostragem, sem alterações no modelo.",
   "Example Not Found": "Exemplo não encontrado",
