@@ -267,7 +267,7 @@ land near the same count?
 ====
 Expect a few hundred trials — typically 300–600. Different
 people stop at slightly different counts; both answers sit inside
-±0.02 of the same truth (about 0.37).
+±0.02 of the same truth (about 0.36).
 ====
 
 === What you learned

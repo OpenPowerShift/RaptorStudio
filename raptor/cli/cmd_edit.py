@@ -33,13 +33,23 @@ def add_parser(sub: Any) -> None:
     p.add_argument("-f", "--format", choices=("text", "json"), default="text")
     p.set_defaults(func=duplicate_command)
 
-    p = s.add_parser("paste-data", help="copy block data groups onto blocks")
-    p.add_argument("--source", required=True, metavar="BLOCK", help="the block to copy from")
+    p = s.add_parser("paste-data", help="Paste Special: copy data groups, "
+                                        "tags or the comment onto elements")
+    p.add_argument("--source", required=True, metavar="ELEMENT",
+                   help="the element to copy from")
     p.add_argument("--targets", required=True, metavar="NAMES",
-                   help="comma list of blocks")
+                   help="comma list of elements (blocks, unless only Tags "
+                        "or Comment are pasted)")
     p.add_argument("--groups", metavar="NAMES",
-                   help="comma list (default Failure,Repair); see "
-                        "raptor help set-paths for group names")
+                   help="comma list (default Failure,Repair): Failure, "
+                        "Repair, Logistics delays, Repair crews, Spares, PM, "
+                        "Costs, Dependency, Phasing, Tags, Comment")
+    p.add_argument("--tag-mode", choices=("add", "replace"), default="add",
+                   help="Tags: add to the targets' tags (default) or replace them")
+    p.add_argument("--comment-mode", choices=("replace", "append", "empty"),
+                   default="replace",
+                   help="Comment: replace (default), append, or fill only "
+                        "where the target has none (empty)")
     p.add_argument("--in-place", action="store_true",
                    help="write the result back to MODEL")
     p.add_argument("-f", "--format", choices=("text", "json"), default="text")
@@ -96,16 +106,17 @@ def paste_data_command(args: Any) -> int:
     with workspace_for() as ws:
         mid = open_model(ws, args.model)
         try:
-            result = edit.copy_element_data(ws, mid, args.source, targets,
-                                            groups)
+            result = edit.copy_element_data(
+                ws, mid, args.source, targets, groups,
+                args.tag_mode, args.comment_mode)
         except ValueError as exc:
             raise CliError(str(exc), X.USAGE) from exc
         save_model_back(ws, mid, args.model, in_place=args.in_place)
     if args.format == "json":
         emit_json(result, None)
         return X.OK
-    print(f"Copied {', '.join(groups).lower()} data onto "
-          f"{result['blocks']} block(s); {result['count']} cell(s) changed"
+    print(f"Pasted {', '.join(groups)} onto "
+          f"{result['blocks']} element(s); {result['count']} field(s) changed"
           + ("" if args.in_place else " in the workspace; pass --in-place"))
     return X.OK
 

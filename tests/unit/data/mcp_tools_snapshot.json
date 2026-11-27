@@ -330,9 +330,11 @@
  },
  "copy_element_data": {
   "params": [
+   "comment_mode",
    "groups",
    "model_id",
    "source",
+   "tag_mode",
    "targets"
   ],
   "required": [

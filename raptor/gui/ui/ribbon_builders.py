@@ -126,17 +126,30 @@ class RibbonBuilders(_Base):
         """Model > Hierarchy: jump straight to a hierarchy by name."""
         # The manual's "Goto Hierarchy drop down list box" (App. B
         # Navigate menu): jump straight to any hierarchy by name.
-        self._goto_combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        self._goto_combo = searchable(QComboBox())
         # Model names, not chrome: never run them through the catalogue.
         self._goto_combo.setProperty("raptor_i18n_data_items", True)
-        self._goto_combo.setToolTip("Go to a hierarchy")
+        goto_edit = self._goto_combo.lineEdit()
+        if goto_edit is not None:
+            goto_edit.setPlaceholderText("Go to hierarchy…")
+        self._goto_combo.setToolTip(
+            "Go to a hierarchy: pick one, or type part of its name to "
+            "narrow the list")
         # Without a placeholder this reads as a blank, broken widget; and
         # after a refresh it used to sit on the first hierarchy in the
         # list, implying that is where you are.
-        self._goto_combo.setPlaceholderText("Go to hierarchy…")
         self._goto_combo.setAccessibleName("Go to hierarchy")
         self._goto_combo.setFixedWidth(_scaled(110))
         self._goto_combo.setFixedHeight(RIBBON["small_height"] - 2)
+        # The ribbon slot is narrow, the paths in the list are not.
+        goto_view = self._goto_combo.view()
+        if goto_view is not None:
+            goto_view.setMinimumWidth(_scaled(400))
+        completer = self._goto_combo.completer()
+        popup = completer.popup() if completer is not None else None
+        if popup is not None:
+            popup.setMinimumWidth(_scaled(400))
         self._goto_combo.setEnabled(False)
         self._goto_combo.currentIndexChanged.connect(self._on_goto_hier)
         group.add_widget(self._goto_combo)
@@ -413,7 +426,11 @@ class RibbonBuilders(_Base):
         self._run_to_label = label
         group.add_widget(box)
 
-        self._breakpoint_combo = QComboBox()
+        from raptor.gui.ui.element_picker import searchable
+        self._breakpoint_combo = searchable(QComboBox())
+        bp_edit = self._breakpoint_combo.lineEdit()
+        if bp_edit is not None:
+            bp_edit.setPlaceholderText("Find a block…")
         # Model names, not chrome: never run them through the catalogue.
         self._breakpoint_combo.setProperty("raptor_i18n_data_items", True)
         self._breakpoint_combo.addItem("No breakpoint", None)

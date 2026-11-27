@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 
 from raptor.gui import i18n
 from raptor.api import run_needs
-from raptor.api.insight import charts, hierarchy as hier, timecharts
+from raptor.api.insight import charts, hierarchy as hier, ranking, timecharts
 from raptor.api.insight.axes import pct
 from raptor.gui.resources.design_tokens import SPACING, active_colour
 from raptor.gui.ui import chart_descriptions, chart_export, chart_i18n
@@ -74,6 +74,11 @@ GROUPS = ("The answer", "By hierarchy", "Over time", "Why it goes down",
 
 #: The smallest height the chart is drawn at; a shorter page scrolls.
 CHART_MIN_HEIGHT = 340
+#: A ranking with many rows grows past the panel and scrolls (a bar row needs
+#: about this many pixels; a capacity bar pair twice that) rather than
+#: dropping the rows the panel is too short to label.
+RANK_ROW_PX = 22
+RANK_PAIR_PX = 38
 #: Milliseconds a run stays up in the run-by-run hierarchy animation.
 HOPS_INTERVAL_MS = 500
 
@@ -159,6 +164,9 @@ class ChartsPage(QWidget):
         self._depth = 0          # All levels: start fully nested
         #: hierarchy ids picked for the overlay; empty means the top four
         self._selected: list[int] = []
+        #: how many items each ranked chart shows (chart key -> count; None
+        #: is all); a chart that is not here shows its rule's default
+        self._show: dict[str, int | None] = {}
         self._pickers: dict[str, HierarchyTreePopup] = {}
         self._picker_source: dict[str, tuple[int, str]] = {}
         self._picker_attr: dict[str, Any] = {}
@@ -325,6 +333,22 @@ class ChartsPage(QWidget):
             "grow this many levels.  All levels shows the whole tree.")
         self.depth_box.currentIndexChanged.connect(self._on_depth_changed)
         bar.addWidget(self.depth_box)
+        self.show_box = QComboBox()
+        self.show_box.setAccessibleName("Items shown")
+        self.show_box.setToolTip(
+            "How many items the ranking draws, largest first. The rest are "
+            "folded into \"N others\" or left off the chart; All items lists "
+            "every one.")
+        self.show_box.currentIndexChanged.connect(self._on_show_changed)
+        bar.addWidget(self.show_box)
+        self.items_button = QPushButton("All items…")
+        self.items_button.setAccessibleName("All items behind this chart")
+        self.items_button.setToolTip(
+            "A table of every item behind this ranking, including the ones "
+            "in \"N others\" or past the Show count. Sort it or export it "
+            "as a CSV file.")
+        self.items_button.clicked.connect(lambda _c=False: self.show_all_items())
+        bar.addWidget(self.items_button)
         self.layout_box = QComboBox()
         self.layout_box.setAccessibleName("Nested hierarchy layout")
         self.layout_box.setToolTip(
@@ -362,8 +386,10 @@ class ChartsPage(QWidget):
         self.compare_button.setText("Compare: top 4")
         self.compare_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.compare_button.setToolTip(
-            "Pick two to four hierarchies for the overlay. With none picked, "
-            "the four with the most downtime are compared.")
+            "Pick hierarchies to compare: two or more, up to six for the "
+            "overlay, twelve for the small multiples and run-by-run charts, "
+            "four for the Sankey. With none picked, the ones with the most "
+            "downtime are compared (set how many with Show).")
         self.compare_button.clicked.connect(lambda _c=False: self._open_picker("compare"))
         bar.addWidget(self.compare_button)
         self.baseline_button = QToolButton()
@@ -456,6 +482,10 @@ class ChartsPage(QWidget):
         self.export_menu.addAction("Save SVG…", self._ask_svg)
         self.export_menu.addAction("Save PDF…", self._ask_pdf)
         self.export_menu.addAction("Save chart data (CSV)…", self._ask_csv)
+        self.all_items_action = self.export_menu.addAction(
+            "Save all items (CSV)…", self._ask_all_items_csv)
+        self.all_items_action.setToolTip(
+            "Every item behind the ranking, not only the ones drawn")
         self.export_menu.addSeparator()
         self.page_menu = self.export_menu.addMenu("Page size")
         self.page_menu.setToolTipsVisible(True)
@@ -549,8 +579,11 @@ class ChartsPage(QWidget):
 
     def _update_compare_button(self) -> None:
         count = len(self._selected)
+        key = self.selected_key() or ""
+        rule = ranking.SHOW_RULES.get(key)
+        top = self._top(key) if rule is not None and key in ranking.COMPARE_LIMITS else 4
         self._retext(self.compare_button,
-                     "Compare: top 4" if not count else
+                     f"Compare: top {top}" if not count else
                      f"Compare: {count} selected")
         picker = self._pickers.get("compare")
         if picker is not None and picker.isVisible():
@@ -567,6 +600,9 @@ class ChartsPage(QWidget):
                 lambda ref: self.set_scope(ref or None, follow=False))
             picker.compare_chosen.connect(self.set_compare)
             self._pickers[mode] = picker
+            if mode == "compare":
+                picker.set_limit(ranking.COMPARE_LIMITS.get(
+                    self.selected_key() or "", 4))
         attribution = self._inputs.get("attribution")
         source = (id(attribution), i18n.current_locale())
         if self._picker_source.get(mode) != source or self._picker_attr.get(mode) is not attribution:
@@ -749,15 +785,18 @@ class ChartsPage(QWidget):
             return int(self._depth or 0)
         return self._ranking_depth()
 
-    def _compare_refs(self) -> list[int] | None:
+    def _compare_refs(self, key: str | None = None) -> list[int] | None:
         """The comparison set: explicit picks, or the scope's children.
 
-        Without a scope this is None (the charts choose the top four); with a
-        scope and no explicit picks the comparison stays inside it, so a
-        scoped overlay cannot silently show a sibling.
+        Without a scope this is None (the charts choose the top few, as many
+        as Show says); with a scope and no explicit picks the comparison
+        stays inside it, so a scoped overlay cannot silently show a sibling.
+        `key` is the chart asking: explicit picks are cut to what that chart
+        draws (see `_note_picks`), and the scope's children to its Show count.
         """
+        limit = ranking.COMPARE_LIMITS.get(key or "", ranking.COMPARE_MAX)
         if self._selected:
-            return list(self._selected)
+            return list(self._selected)[:limit]
         row = self._scope_row()
         if row is None:
             return None
@@ -774,8 +813,58 @@ class ChartsPage(QWidget):
                          if int(item.get("depth") or 0) == level] or children)
         children.sort(key=lambda item: -(float((item.get("dtci") or {})
                                                .get("mean") or 0.0)))
-        return [int(item.get("id") or 0) for item in children[:4]] or [
+        count = self._top(key) if key in ranking.COMPARE_LIMITS else 4
+        return [int(item.get("id") or 0) for item in children[:count]] or [
             int(row.get("id") or 0)]
+
+    _SHOW_TIP = (
+        "How many items the ranking draws, largest first. The rest are "
+        "folded into \"N others\" or left off the chart; All items lists "
+        "every one.")
+
+    def _top(self, key: str) -> int | None:
+        """How many items the ranked chart `key` draws (None: all)."""
+        rule = ranking.SHOW_RULES.get(key)
+        if rule is None:
+            return None
+        choice = self._show.get(key, rule.default)
+        return choice if choice in rule.options() else rule.default
+
+    def _on_show_changed(self, _index: int) -> None:
+        key = self.selected_key() or ""
+        if key not in ranking.SHOW_RULES:
+            return
+        data = self.show_box.currentData()
+        self._show[key] = int(data) if data else None
+        self._update_compare_button()
+        self._rebuild()
+
+    def _sync_show(self, key: str) -> None:
+        """Fill the Show list for chart `key`: its rule's counts, and the
+        reader's choice for it (remembered for the session)."""
+        rule = ranking.SHOW_RULES.get(key)
+        self.show_box.blockSignals(True)
+        self.show_box.clear()
+        if rule is not None:
+            for count in rule.options():
+                self.show_box.addItem(
+                    i18n.tr("All") if count is None else
+                    i18n.tr("Top %1").replace("%1", str(count)), count or 0)
+            index = self.show_box.findData(self._top(key) or 0)
+            self.show_box.setCurrentIndex(max(0, index))
+            self.show_box.setToolTip(
+                i18n.tr(self._SHOW_TIP)
+                + (f"\n{i18n.tr(rule.note)}" if rule.note else ""))
+        self.show_box.blockSignals(False)
+
+    def _note_picks(self, spec: charts.ChartSpec, key: str) -> charts.ChartSpec:
+        """Say so when the picks are more than this chart draws."""
+        limit = ranking.COMPARE_LIMITS.get(key, ranking.COMPARE_MAX)
+        if len(self._selected) > limit:
+            spec.caption = (f"{spec.caption} Showing the first {limit} of "
+                            f"{len(self._selected)} picked: this chart draws "
+                            f"at most {limit}.").strip()
+        return spec
 
     def _hierarchy_map_spec(self) -> charts.ChartSpec:
         """The one nested view, drawn as a treemap or a sunburst."""
@@ -824,7 +913,8 @@ class ChartsPage(QWidget):
         shown = self.sankey_delivered.isChecked()
         spec = charts.capacity_sankey(
             attribution, self._scope,
-            None if self._scope is not None else (self._selected or None),
+            None if self._scope is not None else (
+                self._compare_refs("capacity-sankey") if self._selected else None),
             by_hierarchy=by_hierarchy, show_delivered=shown,
             capacity_target=self._capacity_target)
         if self._sankey_auto and not shown:
@@ -881,7 +971,7 @@ class ChartsPage(QWidget):
             except ValueError:
                 continue
         before = list(self._selected)
-        self._selected = list(dict.fromkeys(chosen))[:4]
+        self._selected = list(dict.fromkeys(chosen))[:ranking.COMPARE_MAX]
         self._update_compare_button()
         self._rebuild()
         if before != self._selected:
@@ -1341,30 +1431,37 @@ class ChartsPage(QWidget):
                       "No hierarchy has downtime to compare in this run.")
         add("hierarchy-scorecard", "Hierarchy scorecard", "By hierarchy",
             lambda: charts.hierarchy_scorecard(
-                attribution or {}, depth=self._ranking_depth(),
-                baseline=self._baseline_rows),
+                attribution or {}, top=self._top("hierarchy-scorecard"),
+                depth=self._ranking_depth(), baseline=self._baseline_rows),
             scope_reason or no_hier)
         add("hierarchy-pareto", "Hierarchy Pareto", "By hierarchy",
             lambda: charts.hierarchy_pareto(attribution or {}, self._scope,
+                                            top=self._top("hierarchy-pareto"),
                                             depth=self._inside_depth()), no_hier)
         add("hierarchy-map", "Where the downtime sits", "By hierarchy",
             self._hierarchy_map_spec, no_hier)
         add("hierarchy-overlay", "When did each hierarchy's downtime build up?", "By hierarchy",
-            lambda: charts.hierarchy_overlay(attribution or {}, chosen,
-                                                    depth=self._ranking_depth()),
+            lambda: self._note_picks(charts.hierarchy_overlay(
+                attribution or {}, self._compare_refs("hierarchy-overlay"),
+                top=self._top("hierarchy-overlay"),
+                depth=self._ranking_depth()), "hierarchy-overlay"),
             no_hier or no_timeline or no_overlap or no_compare)
         add("hierarchy-small-multiples", "Is the hierarchy ranking stable?", "By hierarchy",
-            lambda: charts.hierarchy_small_multiples(attribution or {}, chosen,
-                                                            depth=self._ranking_depth()),
+            lambda: self._note_picks(charts.hierarchy_small_multiples(
+                attribution or {}, self._compare_refs("hierarchy-small-multiples"),
+                top=self._top("hierarchy-small-multiples"),
+                depth=self._ranking_depth()), "hierarchy-small-multiples"),
             no_hier or no_overlap or no_compare)
         add("hierarchy-hops", "Which hierarchy is worse, run by run?", "By hierarchy",
-            lambda: charts.hierarchy_hops(attribution or {}, chosen,
-                                          depth=self._ranking_depth()),
+            lambda: self._note_picks(charts.hierarchy_hops(
+                attribution or {}, self._compare_refs("hierarchy-hops"),
+                top=self._top("hierarchy-hops"),
+                depth=self._ranking_depth()), "hierarchy-hops"),
             no_hier or no_overlap or no_compare)
         add("hierarchy-delta", "Hierarchy change against baseline", "By hierarchy",
             lambda: charts.hierarchy_delta(
                 attribution or {}, self._baseline_rows,
-                depth=self._ranking_depth(),
+                top=self._top("hierarchy-delta"), depth=self._ranking_depth(),
                 baseline_label=self._baseline_label),
             scope_reason or no_hier or ("" if self._baseline_rows else
                                         "Set a baseline run first, then run again."))
@@ -1440,7 +1537,8 @@ class ChartsPage(QWidget):
             for row in per_run)
         add("component-failures", "Which components fail most often?",
             "Why it goes down",
-            lambda: charts.component_failure_pareto(per_run),
+            lambda: charts.component_failure_pareto(
+                per_run, top=self._top("component-failures")),
             no_runs or scope_reason or (
                 "" if has_failure_counts else
                 "This result has no per-component failure counts."))
@@ -1448,7 +1546,8 @@ class ChartsPage(QWidget):
         operational = None if row is not None else _operational(per_run)
         for key, title, build, extra in (
                 ("downtime-pareto", "Who causes the downtime",
-                 lambda: charts.downtime_pareto(a), ""),
+                 lambda: charts.downtime_pareto(
+                     a, top=self._top("downtime-pareto")), ""),
                 ("downtime-waterfall", "Where availability is lost",
                  lambda row=row: charts.downtime_waterfall(
                      a, None if row is not None else operational,
@@ -1476,7 +1575,8 @@ class ChartsPage(QWidget):
                 ("outage-histogram", "How long is an outage?",
                  lambda: charts.outage_histogram(a), scope_reason),
                 ("frequency-duration", "Frequent or long outages?",
-                 lambda: charts.frequency_duration(a), "")):
+                 lambda: charts.frequency_duration(
+                     a, top=self._top("frequency-duration")), "")):
             add(key, title, "Why it goes down", build, drivers_missing() or extra,
                 action if not attribution else "",
                 needs=() if attribution or action else ("attribution",))
@@ -1494,9 +1594,11 @@ class ChartsPage(QWidget):
             ("capacity",) if attribution else ("attribution", "capacity"))
         for key, title, build in (
                 ("lost-capacity-pareto", "Who loses the capacity",
-                 lambda: charts.lost_capacity_pareto(a)),
+                 lambda: charts.lost_capacity_pareto(
+                     a, top=self._top("lost-capacity-pareto"))),
                 ("capacity-vs-downtime", "Downtime against lost capacity",
-                 lambda: charts.capacity_vs_downtime(a)),
+                 lambda: charts.capacity_vs_downtime(
+                     a, top=self._top("capacity-vs-downtime"))),
                 ("capacity-waterfall", "Lost capacity by cause",
                  lambda: charts.capacity_waterfall(
                      a, self._capacity_target if row is None else None)),
@@ -1563,7 +1665,8 @@ class ChartsPage(QWidget):
                                                   source.get("elements") or [])
                              if row is not None else importance)
         add("cost-pareto", "Where the money goes", "Cost",
-            lambda: charts.cost_pareto(cost_rows), no_cost,
+            lambda: charts.cost_pareto(cost_rows, top=self._top("cost-pareto")),
+            no_cost,
             needs=cost_needs)
         add("cost-treemap", "Cost treemap", "Cost",
             lambda: charts.cost_treemap(
@@ -1772,6 +1875,9 @@ class ChartsPage(QWidget):
                                        "result."), "")
             return
         self.fold_box.setVisible(charts.foldable(spec))
+        ranked = ranking.is_ranked(spec)
+        self.items_button.setVisible(ranked)
+        self.all_items_action.setEnabled(ranked)
         folding = charts.parse_fold(self.fold_box.currentData())
         if folding:
             spec = charts.fold_small(spec, **folding)
@@ -1788,9 +1894,19 @@ class ChartsPage(QWidget):
             spec.caption = f"{spec.caption} {tag_note}".strip()
         if entry.key in ("capacity-through-run", "capacity-band"):
             spec = self._apply_capacity_axis(spec)
+        self.chart.setMinimumHeight(self._chart_height(spec))
         self.chart.set_spec(chart_i18n.translate_spec(spec))
         self.chart.setToolTip(spec.caption)
         self.stack.setCurrentWidget(self.chart_scroll)
+
+    @staticmethod
+    def _chart_height(spec: charts.ChartSpec) -> int:
+        """The panel's least height: a bar ranking of 50 or 200 items is
+        taller than the window and scrolls (Show: Top 50, All)."""
+        if spec.kind in ("pareto", "capacity_pareto", "delta"):
+            per_row = RANK_PAIR_PX if spec.kind == "capacity_pareto" else RANK_ROW_PX
+            return max(CHART_MIN_HEIGHT, 150 + per_row * len(spec.series))
+        return CHART_MIN_HEIGHT
 
     # -- group headings and the group overview ----------------------------
 
@@ -2110,6 +2226,18 @@ class ChartsPage(QWidget):
         self.capacity_target_button.setVisible(
             key in CAPACITY_TARGET_CHARTS and self._scope_row() is None)
         self.fold_box.setVisible(False)      # _show_current shows it when it applies
+        self.items_button.setVisible(False)  # ... and this, once it has the chart
+        self.all_items_action.setEnabled(False)
+        # Show: rankings; a comparison picked by hand has its own count
+        picked = key in ranking.COMPARE_LIMITS and bool(self._selected)
+        shows = key in ranking.SHOW_RULES and not picked
+        self._sync_show(key if shows else "")
+        self.show_box.setVisible(shows)
+        if self._compare_applies and key in ranking.COMPARE_LIMITS:
+            picker = self._pickers.get("compare")
+            if picker is not None:
+                picker.set_limit(ranking.COMPARE_LIMITS[key])
+            self._update_compare_button()
         depth_charts = {
             "hierarchy-scorecard", "hierarchy-pareto", "hierarchy-heatmap",
             "hierarchy-phase-heatmap", "hierarchy-small-multiples",
@@ -2532,6 +2660,16 @@ class ChartsPage(QWidget):
     def _ask_pdf(self) -> None:
         if path := self._ask("Save chart", "PDF document", ".pdf"):
             self.save_pdf(path)
+
+    def show_all_items(self) -> bool:
+        """The table of every item behind the ranking in view."""
+        return self.chart.show_all_items()
+
+    def save_all_items_csv(self, path: str) -> None:
+        self.chart.save_all_items_csv(path)
+
+    def _ask_all_items_csv(self) -> None:
+        self.chart._ask_all_items_csv()
 
     def _ask_csv(self) -> None:
         if path := self._ask("Save chart data", "CSV", ".csv"):
