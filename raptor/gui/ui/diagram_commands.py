@@ -112,6 +112,43 @@ class _ViewCmd(QUndoCommand):
             return
         getattr(self._v, self.changed_signal).emit()
 
+class RowEditCmd(_ViewCmd):
+    """An edit of an element on a level that is not open (Data Tables ▸
+    Edit all levels): the element's whole file row before and after.
+
+    The row is the element's only copy while its level is closed, so this
+    neither navigates (`_go_to_own_level`) nor touches the canvas.  If the
+    level has been opened since, the open level is rebuilt from the rows
+    so its live object shows the restored values (#353)."""
+
+    def __init__(self, view, kind, oid, section, old, new, text):
+        super().__init__(view, text)
+        self.kind, self.oid, self.section = kind, oid, section
+        self.old, self.new = dict(old), dict(new)
+
+    def _go_to_own_level(self) -> None:
+        return                       # the row is edited wherever we are
+
+    def _put(self, values: dict) -> None:
+        v = self._v
+        row = v._row_for(self.section, self.oid)
+        if row is None:
+            return
+        row.clear()
+        row.update(values)
+        live = {"block": v.blocks, "node": v.nodes,
+                "event": v.events}[self.kind]
+        if self.oid in live and not getattr(v, "_loading", False):
+            v._set_level(v._current_parent)   # re-read the open level
+        self._done()
+
+    def redo(self):
+        self._put(self.new)
+
+    def undo(self):
+        self._put(self.old)
+
+
 class RenameCmd(_ViewCmd):
     def __init__(self, view, kind, oid, old, new):
         super().__init__(view, f"Rename {kind}")
