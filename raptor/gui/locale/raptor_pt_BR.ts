@@ -2561,8 +2561,16 @@
       <translation>Modelo inteiro</translation>
     </message>
     <message>
-      <source>Show the blocks, nodes and events of every hierarchy level, with a Level column. Rows on the open level stay editable; rows of other levels are read-only (right-click ▸ Go to level).</source>
-      <translation>Mostrar os blocos, nós e eventos de todos os níveis de hierarquia, com uma coluna Nível. As linhas do nível aberto permanecem editáveis; as linhas de outros níveis são somente leitura (clique com o botão direito ▸ Ir para nível).</translation>
+      <source>Show the blocks, nodes and events of every hierarchy level, with a Level column. Rows on the open level stay editable; rows of other levels are read-only unless Edit all levels is ticked (or right-click ▸ Go to level).</source>
+      <translation>Mostrar os blocos, nós e eventos de todos os níveis de hierarquia, com uma coluna Nível. As linhas do nível aberto permanecem editáveis; as linhas de outros níveis são somente leitura, a menos que Editar todos os níveis esteja marcado (ou clique com o botão direito ▸ Ir para nível).</translation>
+    </message>
+    <message>
+      <source>Edit all levels</source>
+      <translation>Editar todos os níveis</translation>
+    </message>
+    <message>
+      <source>With Whole model: edit the rows of every level here, not only the open one. Each edit is one undo step and is checked like any other.</source>
+      <translation>Com Modelo inteiro: editar aqui as linhas de todos os níveis, não só do nível aberto. Cada edição é um passo de desfazer e é verificada como qualquer outra.</translation>
     </message>
     <message>
       <source>Add Row</source>
