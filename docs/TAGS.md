@@ -66,7 +66,9 @@ over the runs, so its interval is honest.
   stored results by the number of hierarchies), so its run-by-run charts are
   unavailable; the tag itself has them.
 - **Compare** takes tags beside hierarchies in small multiples and run by
-  run. The outage-timeline overlay is kept per hierarchy only.
+  run (up to twelve). The outage-timeline overlay is kept per hierarchy only.
+  **Show** and **All items…** list a tag's own ranking in full, as for a
+  hierarchy.
 
 A tag's id in the results is negative and comes from its name, so a chart's
 choice survives a re-run that adds other tags.
