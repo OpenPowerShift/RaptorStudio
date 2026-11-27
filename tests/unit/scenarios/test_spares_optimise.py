@@ -176,3 +176,50 @@ def test_a_search_leaves_no_variant_models_or_runs_behind(tmp_path):
     assert {m["model_id"] for m in ws.list_models()} == before
     runs = tmp_path / "runs"
     assert not runs.is_dir() or not any(d.is_dir() for d in runs.iterdir())
+
+
+def _with_never_repaired(*, keep_repairable: bool) -> dict:
+    import copy
+    spec = copy.deepcopy(SPEC)
+    never = {"name": "Fuse", "fail_dist": "Fixed", "fail_params": [100, 0, 0],
+             "repair_dist": "None", "repair_params": [0, 0, 0],
+             "spare_pool": "Seals", "sp_type": "Pooled"}
+    if keep_repairable:
+        spec["blocks"].append(never)
+        spec["links"] = [{"from": "Start", "to": "Pump"},
+                         {"from": "Pump", "to": "Fuse"},
+                         {"from": "Fuse", "to": "End"}]
+    else:
+        spec["blocks"] = [never]
+        spec["links"] = [{"from": "Start", "to": "Fuse"},
+                         {"from": "Fuse", "to": "End"}]
+    return spec
+
+
+def test_a_pool_serving_only_never_repaired_blocks_is_left_out(tmp_path):
+    from raptor.api.optimise.spares import pools_from_model, unrepairable_warnings
+    rbd = build.build_from_spec(_with_never_repaired(keep_repairable=False))
+    assert pools_from_model(rbd) == []
+    (line,) = unrepairable_warnings(rbd)
+    assert line.startswith("Seals: every block") and "left out" in line
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(rbd, name="m")["model_id"]
+    with pytest.raises(ValueError, match="never repaired"):
+        optimise_spares(ws, mid, mode="curve", max_evaluations=2, trials=2)
+
+
+def test_a_shared_pool_is_searched_but_its_never_repaired_blocks_are_named(tmp_path):
+    from raptor.api.optimise.spares import pools_from_model
+    rbd = build.build_from_spec(_with_never_repaired(keep_repairable=True))
+    assert [pool.name for pool in pools_from_model(rbd)] == ["Seals"]
+    ws = Workspace(tmp_path)
+    mid = ws.register_model(rbd, name="m")["model_id"]
+    result = optimise_spares(ws, mid, mode="curve", max_evaluations=2,
+                             trials=2, seed=1)
+    (line,) = result["warnings"]
+    assert line.startswith("Seals: 1 of the 2 blocks") and "(Fuse)" in line
+
+
+def test_a_model_without_never_repaired_blocks_has_no_warnings(tmp_path):
+    from raptor.api.optimise.spares import unrepairable_warnings
+    assert unrepairable_warnings(build.build_from_spec(SPEC)) == []
