@@ -109,7 +109,8 @@ CAPABILITIES: tuple[Capability, ...] = (
         api="raptor.api.edit.duplicate_elements", cli="edit",
         mcp="duplicate_elements", gui="command:home.duplicate"),
     Capability(
-        "edit.paste_data", "Copy one block's data groups onto others",
+        "edit.paste_data",
+        "Paste Special: copy data groups, tags or the comment onto others",
         api="raptor.api.edit.copy_element_data", cli="edit",
         mcp="copy_element_data", gui="command:home.paste_data"),
     Capability(

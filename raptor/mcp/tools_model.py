@@ -2447,24 +2447,36 @@ def duplicate_elements(model_id: str, elements: list[str],
                       f"in {copies} copy/copies.")
 
 
-@mcp.tool(annotations=ADDITIVE("Paste block data"))
+@mcp.tool(annotations=ADDITIVE("Paste Special"))
 @guarded
-def copy_element_data(model_id: str, source: str, targets: list[str],
-                      groups: list[str] | None = None) -> CallToolResult:
-    """Copy one block's data groups onto other blocks.
+def copy_element_data(
+    model_id: str, source: str, targets: list[str],
+    groups: list[str] | None = None,
+    tag_mode: Literal["add", "replace"] = "add",
+    comment_mode: Literal["replace", "append", "empty"] = "replace",
+) -> CallToolResult:
+    """Paste Special: copy one element's chosen groups onto other elements.
 
-    Groups: Failure, Repair, Logistics delays, Spares, PM, Costs (default
-    Failure and Repair). Name, position, links, id and dependency are never
-    changed.
+    Block groups (source and targets must be blocks): Failure, Repair,
+    Logistics delays, Repair crews, Spares, PM, Costs, Dependency, Phasing
+    (default Failure and Repair). Dependency and Phasing belong to one
+    model's elements, and a dependency is never copied onto the element it
+    names. Organisation groups work between elements of any kind: Tags
+    (`tag_mode` add, the default, or replace the targets' own tags) and
+    Comment (`comment_mode` replace, append, or empty = only where the
+    target has none). Name, position, links and id are
+    never changed. `count` is the fields changed, `unchanged` the targets
+    that already matched. Unknown groups are refused.
     """
     context.require_write()
     from raptor.api import edit
 
     result = edit.copy_element_data(
         context.workspace(), model_id, source, targets,
-        tuple(groups or ("Failure", "Repair")))
-    return ok(result, f"Copied data onto {result['blocks']} block(s); "
-                      f"{result['count']} cell(s) changed.")
+        tuple(groups or ("Failure", "Repair")), tag_mode, comment_mode)
+    return ok(result, f"Pasted onto {result['blocks']} element(s); "
+                      f"{result['count']} field(s) changed, "
+                      f"{result['unchanged']} already matched.")
 
 
 @mcp.tool(annotations=ADDITIVE("Take elements out of service"))

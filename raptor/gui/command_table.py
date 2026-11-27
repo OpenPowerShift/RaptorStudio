@@ -377,10 +377,11 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(
         id="home.paste_data",
         attr="_paste_data_action",
-        text="Paste Data Only",
+        text="Paste Special…",
         icon="paste_data_icon:text",
-        tooltip="Copy the clipboard block's data onto the selected "
-                "blocks (Ctrl+Shift+V)",
+        tooltip="Copy chosen parts of the copied element (failure, repair, "
+                "spares, PM, costs, tags, comment...) onto the selected "
+                "elements (Ctrl+Shift+V)",
         handler="_edit_paste_data",
         shortcut="Ctrl+Shift+V",
         enabled_when="can_copy"),
@@ -1654,7 +1655,7 @@ LAYOUT: tuple[Page, ...] = (
        Group("Clipboard", (Btn("home.paste", True), Btn("home.cut"),
                            Btn("home.copy"), Btn("home.duplicate"),
                            Btn("home.select_all")),
-             # Duplicate in Parallel, Array and Paste Data Only live in the
+             # Duplicate in Parallel, Array and Paste Special live in the
              # canvas menu's Duplicate submenu, their shortcuts and command
              # search: four more buttons pushed Build off a 1280 px ribbon.
              priority=2),

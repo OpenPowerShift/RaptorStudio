@@ -18,7 +18,7 @@ DESCRIPTIONS: dict[str, str] = {
     "hierarchy-scorecard": "One panel per hierarchy with its share of downtime. Start here to see who to look into.",
     "hierarchy-pareto": "The longest bar is the biggest source of downtime. Work on that hierarchy first.",
     "hierarchy-map": "Bigger area means more downtime, and parents hold their children. Find the hot spot at a glance.",
-    "hierarchy-overlay": "Steep lines are where downtime piles up fastest, and when. Compare up to four hierarchies.",
+    "hierarchy-overlay": "Steep lines are where downtime piles up fastest, and when. Compare up to six hierarchies.",
     "hierarchy-small-multiples": "Rankings that change between runs are luck, not a real weakness. Stable ones are real.",
     "hierarchy-hops": "Play through the runs to see how often the worst hierarchy changes. Few changes mean a clear culprit.",
     "hierarchy-delta": "Bars up are worse than your saved baseline, bars down are better. Use it to check a change.",

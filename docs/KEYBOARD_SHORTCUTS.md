@@ -18,12 +18,12 @@
 | Ctrl+Z | Undo (works anywhere in the app) |
 | Ctrl+Y / Ctrl+Shift+Z | Redo (works anywhere in the app) |
 | Ctrl+A | Select all elements, hierarchy ovals and annotations |
-| Ctrl+C | Copy selection (elements, links, annotations, hierarchy subtrees) |
+| Ctrl+C | Copy selection (elements with their tags and comments, links, annotations, hierarchy subtrees) |
 | Ctrl+X | Cut selection |
 | Ctrl+V | Paste at mouse cursor |
 | Ctrl+D | Duplicate the selection in place (in the Data Tables, Ctrl+D is fill down) |
 | Ctrl+Alt+D | Duplicate in Parallel: a copy of the selected block between the same neighbours |
-| Ctrl+Shift+V | Paste Data Only: copy the copied block's data onto the selected blocks |
+| Ctrl+Shift+V | Paste Special: copy chosen parts (failure, repair, spares, PM, costs, tags, comment...) of the copied element onto the selected elements |
 | Del / Backspace | Delete selection (nothing selected: arms click-to-delete) |
 | Arrow keys | Nudge the selection one grid step |
 | Shift+Arrow keys | Nudge the selection 1 px, off the grid |

@@ -398,7 +398,7 @@ in SEMs. Do the two agree?
 ====
 The exact reliability is 0.3606. A run of 2000 trials gave 0.374 with an
 SEM of 0.0108: a difference of 0.0134, which is 1.2 SEM. They agree.
-<<ch-trials>> quoted "about 0.37". The exact value is a little lower.
+<<ch-trials>> quoted "about 0.36": the exact value, rounded.
 ====
 
 === What you learned

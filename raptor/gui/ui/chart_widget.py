@@ -28,6 +28,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
+from raptor.api.insight import ranking
 from raptor.api.insight.attribution import CAUSE_LABELS
 from raptor.api.insight.axes import (
     FAN_LINE_MIN, compact, currency, fit_dots, fit_dots_shared, format_value, log_ticks, nice_range, nice_ticks, pct,
@@ -2510,8 +2511,14 @@ class ChartWidget(QWidget):
         super().mouseDoubleClickEvent(event)
 
     def _menu(self, position) -> None:
+        menu = self.context_menu(position)
+        if menu is not None:
+            menu.exec(self.mapToGlobal(position))
+
+    def context_menu(self, position) -> QMenu | None:
+        """The right-click menu at `position`, built (not run)."""
         if self._spec is None:
-            return
+            return None
         menu = QMenu(self)
         point = QPointF(position)
         details = next((row for rect, row in self._detail_hits
@@ -2530,7 +2537,29 @@ class ChartWidget(QWidget):
         menu.addAction("Save SVG…", self._ask_svg)
         menu.addAction("Save PDF…", self._ask_pdf)
         menu.addAction("Save CSV…", self._ask_csv)
-        menu.exec(self.mapToGlobal(position))
+        if ranking.is_ranked(self._spec):
+            menu.addSeparator()
+            menu.addAction("All items…", self.show_all_items)
+            menu.addAction("Export all items (CSV)…", self._ask_all_items_csv)
+        return menu
+
+    def show_all_items(self) -> bool:
+        """The table of every item behind a ranked chart, the ones in an
+        "N others" cell and past the chart's Show count included."""
+        from raptor.gui.ui.ranked_items_dialog import show_ranked_items
+        return show_ranked_items(self._spec, self)
+
+    def save_all_items_csv(self, path: str) -> None:
+        """Every item behind a ranked chart as a CSV (see `ranking`)."""
+        from raptor.gui.ui.ranked_items_dialog import write_ranked_csv
+        table = ranking.ranked_table(self._spec)
+        if table is not None:
+            write_ranked_csv(table, path)
+
+    def _ask_all_items_csv(self) -> None:
+        if path := ask_chart_path(self, "Export all items", "all-items",
+                                  "CSV", ".csv"):
+            self.save_all_items_csv(path)
 
     def show_details(self, row: dict) -> None:
         """A scrollable, sortable table of the items a gathered cell holds."""

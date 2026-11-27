@@ -462,12 +462,12 @@
       <translation>Duplicar a seleção em uma linha ou coluna</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
     </message>
     <message>
-      <source>Copy the clipboard block's data onto the selected blocks (Ctrl+Shift+V)</source>
-      <translation>Copiar os dados do bloco na área de transferência para os blocos selecionados (Ctrl+Shift+V)</translation>
+      <source>Copy chosen parts of the copied element (failure, repair, spares, PM, costs, tags, comment...) onto the selected elements (Ctrl+Shift+V)</source>
+      <translation>Copia partes escolhidas do elemento copiado (falha, reparo, sobressalentes, MP, custos, etiquetas, comentário...) para os elementos selecionados (Ctrl+Shift+V)</translation>
     </message>
     <message>
       <source>Project Settings</source>
@@ -2225,6 +2225,14 @@
       <translation>Mostrar a execução inteira</translation>
     </message>
     <message>
+      <source>All items…</source>
+      <translation>Todos os itens…</translation>
+    </message>
+    <message>
+      <source>Export all items (CSV)…</source>
+      <translation>Exportar todos os itens (CSV)…</translation>
+    </message>
+    <message>
       <source>Search charts…</source>
       <translation>Pesquisar gráficos…</translation>
     </message>
@@ -2271,6 +2279,22 @@
     <message>
       <source>Depth: ranking charts show one level; the treemap and sunburst grow this many levels.  All levels shows the whole tree.</source>
       <translation>Profundidade: os gráficos de ranking mostram um nível; o mapa de árvore e o sunburst se expandem por esta quantidade de níveis.  A opção Todos os níveis mostra a árvore inteira.</translation>
+    </message>
+    <message>
+      <source>Items shown</source>
+      <translation>Itens exibidos</translation>
+    </message>
+    <message>
+      <source>How many items the ranking draws, largest first. The rest are folded into "N others" or left off the chart; All items lists every one.</source>
+      <translation>Quantos itens o ranking desenha, do maior para o menor. Os demais ficam agrupados em "N outros" ou fora do gráfico; Todos os itens lista cada um deles.</translation>
+    </message>
+    <message>
+      <source>All items behind this chart</source>
+      <translation>Todos os itens deste gráfico</translation>
+    </message>
+    <message>
+      <source>A table of every item behind this ranking, including the ones in "N others" or past the Show count. Sort it or export it as a CSV file.</source>
+      <translation>Uma tabela com todos os itens deste ranking, inclusive os que estão em "N outros" ou além da contagem exibida. Ordene-a ou exporte-a como arquivo CSV.</translation>
     </message>
     <message>
       <source>Nested hierarchy layout</source>
@@ -2321,8 +2345,8 @@
       <translation>Comparar: 4 principais</translation>
     </message>
     <message>
-      <source>Pick two to four hierarchies for the overlay. With none picked, the four with the most downtime are compared.</source>
-      <translation>Escolha de duas a quatro hierarquias para a sobreposição. Sem nenhuma escolhida, as quatro com mais tempo de inatividade são comparadas.</translation>
+      <source>Pick hierarchies to compare: two or more, up to six for the overlay, twelve for the small multiples and run-by-run charts, four for the Sankey. With none picked, the ones with the most downtime are compared (set how many with Show).</source>
+      <translation>Escolha hierarquias para comparar: duas ou mais, até seis na sobreposição, doze nos múltiplos pequenos e nos gráficos rodada a rodada, quatro no Sankey. Sem nenhuma escolhida, comparam-se as de maior inatividade (defina quantas em Exibir).</translation>
     </message>
     <message>
       <source>Hierarchy baseline</source>
@@ -2405,6 +2429,14 @@
       <translation>Salvar dados do gráfico (CSV)…</translation>
     </message>
     <message>
+      <source>Save all items (CSV)…</source>
+      <translation>Salvar todos os itens (CSV)…</translation>
+    </message>
+    <message>
+      <source>Every item behind the ranking, not only the ones drawn</source>
+      <translation>Todos os itens do ranking, não só os desenhados</translation>
+    </message>
+    <message>
       <source>Save the recorded plot rows…</source>
       <translation>Salvar as linhas gravadas do gráfico…</translation>
     </message>
@@ -2445,12 +2477,20 @@
       <translation>Nenhum gráfico corresponde à pesquisa.</translation>
     </message>
     <message>
+      <source>All</source>
+      <translation>Todos</translation>
+    </message>
+    <message>
       <source>Y axis</source>
       <translation>Eixo Y</translation>
     </message>
     <message>
       <source>The highest value must be above the lowest.</source>
       <translation>O valor mais alto deve ser maior que o mais baixo.</translation>
+    </message>
+    <message>
+      <source>Top %1</source>
+      <translation>Top %1</translation>
     </message>
     <message>
       <source>ID</source>
@@ -2929,8 +2969,20 @@
       <translation>Matriz…</translation>
     </message>
     <message>
-      <source>Paste Data Only</source>
-      <translation>Colar somente dados</translation>
+      <source>Paste Special…</source>
+      <translation>Colar especial…</translation>
+    </message>
+    <message>
+      <source>Paste Tags (add)</source>
+      <translation>Colar etiquetas (adicionar)</translation>
+    </message>
+    <message>
+      <source>Paste Comment</source>
+      <translation>Colar comentário</translation>
+    </message>
+    <message>
+      <source>Paste Failure and Repair</source>
+      <translation>Colar falha e reparo</translation>
     </message>
     <message>
       <source>Delete routing point</source>
@@ -3637,10 +3689,6 @@
       <translation>Somente os campos MARCADOS mudam, em cada elemento selecionado (editar um campo o marca). Pode ser desfeito nesta sessão.</translation>
     </message>
     <message>
-      <source>Paste</source>
-      <translation>Colar</translation>
-    </message>
-    <message>
       <source>Export Library</source>
       <translation>Exportar biblioteca</translation>
     </message>
@@ -3739,10 +3787,6 @@
     <message>
       <source>Phasing</source>
       <translation>Faseamento</translation>
-    </message>
-    <message>
-      <source>Copy the clipboard block's data onto the selected blocks. Name, position, links and dependency are never changed.</source>
-      <translation>Copie os dados do bloco da área de transferência para os blocos selecionados. Nome, posição, vínculos e dependência nunca são alterados.</translation>
     </message>
     <message>
       <source>Nothing was added.</source>
@@ -3893,16 +3937,16 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
       <translation>Edição desfeita — resultados mantidos</translation>
     </message>
     <message>
-      <source>Type to search</source>
-      <translation>Digite para pesquisar</translation>
-    </message>
-    <message>
       <source>Show only what is inside one hierarchy (and the hierarchies inside it)</source>
       <translation>Mostrar somente o que está dentro de uma hierarquia (e as hierarquias dentro dela)</translation>
     </message>
     <message>
       <source>Top level only</source>
       <translation>Somente nível superior</translation>
+    </message>
+    <message>
+      <source>Clear the text</source>
+      <translation>Limpar o texto</translation>
     </message>
     <message>
       <source>Empirical Data</source>
@@ -4403,6 +4447,18 @@ Manter a edição significa descartá-los; eles não corresponderiam mais ao mod
     <message>
       <source>%1 ticked</source>
       <translation>%1 marcadas</translation>
+    </message>
+    <message>
+      <source>Compare up to %1 hierarchies</source>
+      <translation>Comparar até %1 hierarquias</translation>
+    </message>
+    <message>
+      <source>%1 are ticked, the most this chart draws. Untick one to pick another.</source>
+      <translation>%1 marcadas, o máximo que este gráfico desenha. Desmarque uma para escolher outra.</translation>
+    </message>
+    <message>
+      <source>Top %1 by downtime</source>
+      <translation>%1 principais por tempo de inatividade</translation>
     </message>
     <message>
       <source>%1 of %2</source>
@@ -5315,6 +5371,10 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Nenhum vínculo de entrada</translation>
     </message>
     <message>
+      <source>Find a block…</source>
+      <translation>Procurar um bloco…</translation>
+    </message>
+    <message>
       <source>Link From</source>
       <translation>Vínculo de origem</translation>
     </message>
@@ -5747,8 +5807,12 @@ Assintótica: a vida média se move do valor inicial em direção ao Limite, mai
       <translation>Tema escuro</translation>
     </message>
     <message>
-      <source>Select blocks and copy a block first</source>
-      <translation>Selecione blocos e copie um bloco primeiro</translation>
+      <source>Copy an element, then select the elements to paste onto</source>
+      <translation>Copie um elemento e selecione os elementos onde colar</translation>
+    </message>
+    <message>
+      <source>Nothing to change</source>
+      <translation>Nada a alterar</translation>
     </message>
     <message>
       <source>Open a model to find items in it.</source>
@@ -5981,6 +6045,22 @@ Continuar?</translation>
     <message>
       <source>Separate Random Streams</source>
       <translation>Fluxos aleatórios separados</translation>
+    </message>
+    <message>
+      <source>Paste Special</source>
+      <translation>Colar especial</translation>
+    </message>
+    <message>
+      <source>Paste</source>
+      <translation>Colar</translation>
+    </message>
+    <message>
+      <source>Add to existing tags</source>
+      <translation>Adicionar às etiquetas existentes</translation>
+    </message>
+    <message>
+      <source>Replace tags</source>
+      <translation>Substituir etiquetas</translation>
     </message>
     <message>
       <source>Phase</source>
@@ -6223,6 +6303,26 @@ Continuar?</translation>
       <translation>Repetir o bloco selecionado, ou adicionar uma cópia ou um tipo de peça…</translation>
     </message>
     <message>
+      <source>All items</source>
+      <translation>Todos os itens</translation>
+    </message>
+    <message>
+      <source>Save every item, with its value, share and cumulative share, as a CSV file. Shares are fractions (1 = 100 %).</source>
+      <translation>Salva todos os itens, com valor, parcela e parcela acumulada, em um arquivo CSV. As parcelas são frações (1 = 100 %).</translation>
+    </message>
+    <message>
+      <source>%1 items in “%2”. Click a heading to sort.</source>
+      <translation>%1 itens em “%2”. Clique em um título para ordenar.</translation>
+    </message>
+    <message>
+      <source>All items: %1</source>
+      <translation>Todos os itens: %1</translation>
+    </message>
+    <message>
+      <source>%1 items in “%2”; the chart draws %3. Click a heading to sort.</source>
+      <translation>%1 itens em “%2”; o gráfico desenha %3. Clique em um título para ordenar.</translation>
+    </message>
+    <message>
       <source>Rate — Details</source>
       <translation>Taxa — detalhes</translation>
     </message>
@@ -6365,10 +6465,6 @@ Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcial
 Green = fully working · Yellow = degraded, still partially working · Red = fully down.</source>
       <translation>Como a parcela de tempo de MISSÃO da execução foi dividida entre os estados do sistema (logística faseada -- média de todas as execuções):
 Verde = funcionando plenamente · Amarelo = degradado, ainda funcionando parcialmente · Vermelho = totalmente inativo.</translation>
-    </message>
-    <message>
-      <source>All</source>
-      <translation>Todos</translation>
     </message>
     <message>
       <source>Show only results for elements inside the chosen hierarchy</source>
@@ -6707,12 +6803,8 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>O relatório completo destes resultados não está mais disponível (uma nova execução começou). A prévia na tela é mantida.</translation>
     </message>
     <message>
-      <source>Go to a hierarchy</source>
-      <translation>Ir para uma hierarquia</translation>
-    </message>
-    <message>
-      <source>Go to hierarchy…</source>
-      <translation>Ir para hierarquia…</translation>
+      <source>Go to a hierarchy: pick one, or type part of its name to narrow the list</source>
+      <translation>Ir para uma hierarquia: escolha uma ou digite parte do nome para filtrar a lista</translation>
     </message>
     <message>
       <source>Go to hierarchy</source>
@@ -6901,6 +6993,10 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
     <message>
       <source>Find item — type a name or an element id; the Model Explorer below filters to the matches and marks them. Enter jumps to the first one.</source>
       <translation>Localizar item — digite um nome ou um id de elemento; o Explorador de modelo abaixo filtra pelas correspondências e as marca. Enter salta para a primeira.</translation>
+    </message>
+    <message>
+      <source>Go to hierarchy…</source>
+      <translation>Ir para hierarquia…</translation>
     </message>
     <message>
       <source>Cores</source>
@@ -9109,6 +9205,114 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Referência: definida</translation>
     </message>
     <message>
+      <source>Compare: top 5</source>
+      <translation>Comparar: 5 principais</translation>
+    </message>
+    <message>
+      <source>Compare: top 6</source>
+      <translation>Comparar: 6 principais</translation>
+    </message>
+    <message>
+      <source>Compare: top 8</source>
+      <translation>Comparar: 8 principais</translation>
+    </message>
+    <message>
+      <source>Compare: top 10</source>
+      <translation>Comparar: 10 principais</translation>
+    </message>
+    <message>
+      <source>Compare: top 12</source>
+      <translation>Comparar: 12 principais</translation>
+    </message>
+    <message>
+      <source>Drawn as bubbles, which overlap past about 50: the All items table lists every element.</source>
+      <translation>Desenhado como bolhas, que se sobrepõem acima de cerca de 50: a tabela Todos os itens lista cada elemento.</translation>
+    </message>
+    <message>
+      <source>A line chart stays readable up to about six lines: the All items table lists every hierarchy.</source>
+      <translation>Um gráfico de linhas fica legível até cerca de seis linhas: a tabela Todos os itens lista cada hierarquia.</translation>
+    </message>
+    <message>
+      <source>One panel each: more than 12 do not fit a page.</source>
+      <translation>Um painel para cada: mais de 12 não cabem em uma página.</translation>
+    </message>
+    <message>
+      <source>One strip each: more than 12 do not fit a page.</source>
+      <translation>Uma faixa para cada: mais de 12 não cabem em uma página.</translation>
+    </message>
+    <message>
+      <source>rank</source>
+      <translation>posição</translation>
+    </message>
+    <message>
+      <source>name</source>
+      <translation>nome</translation>
+    </message>
+    <message>
+      <source>level / path</source>
+      <translation>nível / caminho</translation>
+    </message>
+    <message>
+      <source>share</source>
+      <translation>parcela</translation>
+    </message>
+    <message>
+      <source>cumulative share</source>
+      <translation>parcela acumulada</translation>
+    </message>
+    <message>
+      <source>main cause</source>
+      <translation>causa principal</translation>
+    </message>
+    <message>
+      <source>standard error</source>
+      <translation>erro padrão</translation>
+    </message>
+    <message>
+      <source>share of downtime</source>
+      <translation>parcela da inatividade</translation>
+    </message>
+    <message>
+      <source>lost energy</source>
+      <translation>energia perdida</translation>
+    </message>
+    <message>
+      <source>outages a run</source>
+      <translation>interrupções por rodada</translation>
+    </message>
+    <message>
+      <source>members</source>
+      <translation>membros</translation>
+    </message>
+    <message>
+      <source>starters</source>
+      <translation>iniciadores</translation>
+    </message>
+    <message>
+      <source>on the chart</source>
+      <translation>no gráfico</translation>
+    </message>
+    <message>
+      <source>before</source>
+      <translation>antes</translation>
+    </message>
+    <message>
+      <source>change</source>
+      <translation>variação</translation>
+    </message>
+    <message>
+      <source>status</source>
+      <translation>situação</translation>
+    </message>
+    <message>
+      <source>Share is of the items listed here.</source>
+      <translation>A parcela é em relação aos itens listados aqui.</translation>
+    </message>
+    <message>
+      <source>Ranked by the size of the change.</source>
+      <translation>Ordenado pelo tamanho da variação.</translation>
+    </message>
+    <message>
       <source>All charts</source>
       <translation>Todos os gráficos</translation>
     </message>
@@ -9783,10 +9987,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>share of runs</source>
       <translation>parcela das execuções</translation>
-    </message>
-    <message>
-      <source>share of downtime</source>
-      <translation>parcela da inatividade</translation>
     </message>
     <message>
       <source>share of loss</source>
@@ -10561,8 +10761,8 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Área maior significa mais inatividade, e os pais contêm os filhos. Ache o ponto crítico num relance.</translation>
     </message>
     <message>
-      <source>Steep lines are where downtime piles up fastest, and when. Compare up to four hierarchies.</source>
-      <translation>Linhas íngremes mostram onde e quando a inatividade se acumula mais rápido. Compare até quatro hierarquias.</translation>
+      <source>Steep lines are where downtime piles up fastest, and when. Compare up to six hierarchies.</source>
+      <translation>Linhas íngremes mostram onde e quando a inatividade se acumula mais rápido. Compare até seis hierarquias.</translation>
     </message>
     <message>
       <source>Rankings that change between runs are luck, not a real weakness. Stable ones are real.</source>

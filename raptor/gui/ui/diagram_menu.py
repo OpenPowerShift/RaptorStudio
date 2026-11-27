@@ -335,8 +335,16 @@ class ContextMenuMixin:
         par_act.setEnabled(kind == "Block" and n_sel == 1)
         arr_act = dup_menu.addAction("Array…")
         arr_act.setEnabled(n_sel > 0 or n_annos > 0)
-        data_act = dup_menu.addAction("Paste Data Only")
-        data_act.setEnabled(self.can_paste() and n_sel > 0)
+        # Paste Special: the dialog, and the three quick ones that need
+        # no questions (tags, comment, failure and repair data).
+        special_menu = menu.addMenu("Paste Special")
+        has_special = n_sel > 0 and self.special_context() is not None
+        special_act = special_menu.addAction("Paste Special…")
+        tags_paste_act = special_menu.addAction("Paste Tags (add)")
+        comment_paste_act = special_menu.addAction("Paste Comment")
+        data_act = special_menu.addAction("Paste Failure and Repair")
+        for act in (special_act, tags_paste_act, comment_paste_act, data_act):
+            act.setEnabled(has_special)
         # Comment -> annotation: offered for the element actually
         # right-clicked (even in a multi-selection), enabled only when it
         # has a comment to convert. Links have no Inspector comment box.
@@ -451,6 +459,14 @@ class ContextMenuMixin:
                 self.array_selection(copies, direction, spacing)
         elif chosen is data_act:
             self.paste_data(("Failure", "Repair"))
+        elif chosen is tags_paste_act:
+            self.paste_data(("Tags",))
+        elif chosen is comment_paste_act:
+            self.paste_data(("Comment",))
+        elif chosen is special_act:
+            handler = getattr(self.window(), "_edit_paste_data", None)
+            if handler is not None:
+                handler()
         elif comment_act is not None and comment_oid is not None \
                 and chosen is comment_act:
             self.comment_to_annotation(kind.lower(), int(comment_oid))

@@ -1577,7 +1577,7 @@ node type is <strong>Regular</strong>, with k = 1 (need) out of n = 2 (inputs).<
 </div>
 <div class="paragraph">
 <p>Look at <strong>Reliability (Mean)</strong> in <strong>Final Results</strong>. With many trials the
-long-run answer settles near <strong>0.37</strong>.</p>
+long-run answer settles near <strong>0.36</strong>.</p>
 </div>
 <div class="paragraph">
 <p>Now do the comparison that makes the lesson stick. Delete Pump_B
@@ -1603,7 +1603,7 @@ One-pump reliability lands near <strong>0.21</strong>.</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Two pumps (parallel)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">about 0.37</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">about 0.36</p></td>
 </tr>
 </tbody>
 </table>
@@ -1678,7 +1678,7 @@ log of every trial to <code>DIR/rpt_events_Espresso1.txt</code>.</p>
 <td class="content">
 <div class="title">Limits of this model</div>
 <div class="paragraph">
-<p>The 0.37-vs-0.21 result only holds because Pump_A and Pump_B fail
+<p>The 0.36-vs-0.21 result only holds because Pump_A and Pump_B fail
 <strong>independently</strong> — the engine draws each one&#8217;s death time from its own
 private stream. Real twin pumps often share a power supply, a water
 line, or a mounting bracket. If a surge fries both pumps at once, that
@@ -1753,7 +1753,7 @@ up or down, and by roughly how much? Then run 100 trials and check.</p>
 <div class="paragraph">
 <p>down. A 150-hour pump is near-dead by hour 500
 (survival ≈ 3.6%), so the second pump almost never rescues a season.
-Expect roughly 0.23 to 0.24 (against 0.37 with two good pumps): barely
+Expect roughly 0.23 to 0.24 (against 0.36 with two good pumps): barely
 more than Pump_A would manage on its own.</p>
 </div>
 </div>
@@ -1826,7 +1826,7 @@ redundancy.</strong></p>
 <div class="paragraph">
 <p>Remember the espresso cart from <a href="#ch-redundancy">Chapter 3, <em>Redundancy: Two Pumps Are Better Than One</em></a>? Two pumps, either one
 keeps the pressure up, reliability climbed from about 0.21 to about
-0.37. The cart has been running for a season now, and the mechanic who
+0.36. The cart has been running for a season now, and the mechanic who
 serviced it made one small change to save a part: instead of wiring
 Pump_B&#8217;s activation relay to its own switch, she spliced it into
 Pump_A&#8217;s control board. Cheaper. Fewer wires. The diagram in the shop
@@ -1974,7 +1974,7 @@ vote on.</p>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Espresso1 (independent pumps, <a href="#ch-redundancy">Chapter 3, <em>Redundancy: Two Pumps Are Better Than One</em></a>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">about 0.37</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">about 0.36</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">EspressoDep1 (Pump_B depends on Pump_A)</p></td>
@@ -2032,7 +2032,7 @@ with reliability collapsing to the single-pump figure? Why?</p></td>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">3</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name the one change to <code>EspressoDep1.rbds</code> that would restore
-Espresso1&#8217;s original ~0.37.</p></td>
+Espresso1&#8217;s original ~0.36.</p></td>
 </tr>
 </tbody>
 </table>
@@ -3741,7 +3741,7 @@ land near the same count?</p>
 <div class="paragraph">
 <p>Expect a few hundred trials — typically 300–600. Different
 people stop at slightly different counts; both answers sit inside
-±0.02 of the same truth (about 0.37).</p>
+±0.02 of the same truth (about 0.36).</p>
 </div>
 </div>
 </details>
@@ -4587,7 +4587,7 @@ in SEMs. Do the two agree?</p>
 <div class="paragraph">
 <p>The exact reliability is 0.3606. A run of 2000 trials gave 0.374 with an
 SEM of 0.0108: a difference of 0.0134, which is 1.2 SEM. They agree.
-<a href="#ch-trials">Chapter 8, <em>How Many Trials? Trusting Your Numbers</em></a> quoted "about 0.37". The exact value is a little lower.</p>
+<a href="#ch-trials">Chapter 8, <em>How Many Trials? Trusting Your Numbers</em></a> quoted "about 0.36": the exact value, rounded.</p>
 </div>
 </div>
 </details>
@@ -10859,10 +10859,12 @@ you need the exact argument shape.</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>duplicate_elements</code>, <code>copy_element_data</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate a selection with fresh ids and names, or copy one block&#8217;s
-  data groups (Failure, Repair, logistics, spares, PM, costs) onto other
-  blocks. One save; name, position, links and dependency are never changed
-  by a data-only copy.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Duplicate a selection with fresh ids and names, or Paste Special: copy
+  one element&#8217;s chosen groups (Failure, Repair, logistics delays, repair
+  crews, spares, PM, costs, dependency, phasing, tags, comment) onto other
+  elements. Tags can be added or replaced, the comment replaced, appended
+  or filled only where empty. One save; name, position, links and id are
+  never changed.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>set_out_of_service</code></p></td>
@@ -12837,8 +12839,20 @@ level, one numbered level or every level, and inside a chosen hierarchy
 counts down from it (it starts at every level; "1 level down" lists only its own contents, deeper
 levels open its sub-hierarchies); on the downtime, lost-capacity and cost
 treemaps it gathers anything deeper into one cell per hierarchy;
-<strong>Compare</strong> picks up to four
-sibling branches; <strong>Baseline</strong> stores the comparison run;</p>
+<strong>Compare</strong> picks up to six branches for the overlay and twelve for
+the small multiples and run-by-run charts; <strong>Baseline</strong> stores the
+comparison run. The Depth menu offers as many levels as the model&#8217;s
+hierarchy is deep (a model nested four deep gives <strong>Top level</strong> and <strong>Level 2</strong>
+to <strong>Level 4</strong>);</p>
+</li>
+<li>
+<p>every ranking has a <strong>Show</strong> control (<strong>Top 5</strong> to <strong>Top 50</strong>, or <strong>All</strong>) and
+an <strong>All items…</strong> button. A Pareto draws its largest ten and gathers the
+rest into one <strong>N others</strong> bar, but the 11th item matters too: <strong>All items…</strong>
+opens a sortable table of every item behind the chart, the ones in <strong>N
+others</strong> included, with its value, share and cumulative share, and <strong>Export
+CSV…</strong> saves it. Time series and histograms are not rankings and have
+neither;</p>
 </li>
 <li>
 <p>convergence: the running mean with its ± 2 standard-error band;</p>

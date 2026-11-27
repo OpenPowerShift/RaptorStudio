@@ -1151,9 +1151,11 @@ ranking charts read (System, or any hierarchy by its indented path). Scope
 and <strong>Compare</strong> are framed buttons with a caret that open a searchable
 picker: type to find a hierarchy by name, or start with <code>&gt;</code> to search by
 path (<code>&gt;Intake &gt; Pump</code>); a header line says how many hierarchies match
-(<strong>N of M</strong>). Compare allows at most four and its button shows how many are
-ticked; with none ticked the four with the most downtime are compared (<strong>Top
-four by downtime</strong>). On a narrow panel (under about 600 px) a chart dropdown
+(<strong>N of M</strong>). Compare takes up to six hierarchies for the overlay, twelve for
+the small multiples and run-by-run charts and four for the Sankey, and its
+button shows how many are ticked; with none ticked the ones with the most
+downtime are compared, as many as <strong>Show</strong> says (four to start with, and
+<strong>Top four by downtime</strong> in the picker clears the choice). On a narrow panel (under about 600 px) a chart dropdown
 replaces the chart list. A comparison is also drawn on the canvas: each
 compared hierarchy&#8217;s oval gets a ring in its chart colour, other elements and
 links fade, and a row of chips with a remove button sits on the Charts page;
@@ -1172,7 +1174,21 @@ the lost flow is a small share of the flow generated.
 diagram. <strong>Depth</strong> is <strong>All levels</strong> by default: ranking charts then use the
 top level, while the treemap and sunburst draw every level. Choose <strong>Top
 level</strong> or <strong>Level N</strong> to show one level in a ranking and to stop the nested
-charts at that level. <strong>Compare</strong> selects the hierarchies for the overlay,
+charts at that level; the menu lists as many levels as the model&#8217;s
+hierarchy is deep, so a model nested four deep offers <strong>Top level</strong> and
+<strong>Level 2</strong> to <strong>Level 4</strong>. <strong>Show</strong> (<strong>Top 5</strong>, <strong>Top 10</strong>, <strong>Top 20</strong>, <strong>Top 50</strong>,
+<strong>All</strong>) sets how many items a ranking draws, largest first, for the
+Pareto charts, the scorecard, frequency against duration, downtime against
+lost capacity and the change chart; each chart starts at its own count and
+keeps your choice for the session. A chart that cannot stay readable with
+many items offers fewer (the overlay up to six lines, the small multiples
+and the run-by-run chart up to twelve); the tooltip says so. The rest are
+gathered into <strong>N others</strong> or left off the chart, and <strong>All items…</strong> (or
+right-click ▸ <strong>All items…</strong>) opens a sortable table of every item behind the
+ranking, the ones in <strong>N others</strong> included, with its value, share and
+cumulative share. <strong>Export CSV…</strong> in that table, or <strong>Export ▸ Save all items
+(CSV)…</strong>, writes every item to a file. Charts that are not rankings (over
+time, histograms) have neither control. <strong>Compare</strong> selects the hierarchies for the overlay,
 small multiples and Sankey; <strong>Baseline</strong> stores a finished run for the
 change chart. A chart&#8217;s data carries each hierarchy&#8217;s full path (<code>Intake &gt;
 Pump house</code>); labels use the short name, and the Scope menu shows the
@@ -3351,8 +3367,13 @@ current value).</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">QToolButton</p></td>
+<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Go to hierarchy</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Go to a hierarchy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go to a hierarchy: pick one, or type part of its name to narrow the list</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">choice</p></td>
 </tr>
 </tbody>
@@ -3939,6 +3960,11 @@ current value).</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">QToolButton</p></td>
+<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Events per multi-step</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">How many events More Steps ▸ Multi advances</p></td>

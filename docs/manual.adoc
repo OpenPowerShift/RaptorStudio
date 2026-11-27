@@ -735,9 +735,11 @@ ranking charts read (System, or any hierarchy by its indented path). Scope
 and **Compare** are framed buttons with a caret that open a searchable
 picker: type to find a hierarchy by name, or start with `>` to search by
 path (`>Intake > Pump`); a header line says how many hierarchies match
-(*N of M*). Compare allows at most four and its button shows how many are
-ticked; with none ticked the four with the most downtime are compared (*Top
-four by downtime*). On a narrow panel (under about 600 px) a chart dropdown
+(*N of M*). Compare takes up to six hierarchies for the overlay, twelve for
+the small multiples and run-by-run charts and four for the Sankey, and its
+button shows how many are ticked; with none ticked the ones with the most
+downtime are compared, as many as **Show** says (four to start with, and
+*Top four by downtime* in the picker clears the choice). On a narrow panel (under about 600 px) a chart dropdown
 replaces the chart list. A comparison is also drawn on the canvas: each
 compared hierarchy's oval gets a ring in its chart colour, other elements and
 links fade, and a row of chips with a remove button sits on the Charts page;
@@ -756,7 +758,21 @@ the lost flow is a small share of the flow generated.
 diagram. **Depth** is *All levels* by default: ranking charts then use the
 top level, while the treemap and sunburst draw every level. Choose *Top
 level* or *Level N* to show one level in a ranking and to stop the nested
-charts at that level. **Compare** selects the hierarchies for the overlay,
+charts at that level; the menu lists as many levels as the model's
+hierarchy is deep, so a model nested four deep offers *Top level* and
+*Level 2* to *Level 4*. **Show** (*Top 5*, *Top 10*, *Top 20*, *Top 50*,
+*All*) sets how many items a ranking draws, largest first, for the
+Pareto charts, the scorecard, frequency against duration, downtime against
+lost capacity and the change chart; each chart starts at its own count and
+keeps your choice for the session. A chart that cannot stay readable with
+many items offers fewer (the overlay up to six lines, the small multiples
+and the run-by-run chart up to twelve); the tooltip says so. The rest are
+gathered into *N others* or left off the chart, and **All items…** (or
+right-click ▸ *All items…*) opens a sortable table of every item behind the
+ranking, the ones in *N others* included, with its value, share and
+cumulative share. *Export CSV…* in that table, or *Export ▸ Save all items
+(CSV)…*, writes every item to a file. Charts that are not rankings (over
+time, histograms) have neither control. **Compare** selects the hierarchies for the overlay,
 small multiples and Sankey; **Baseline** stores a finished run for the
 change chart. A chart's data carries each hierarchy's full path (`Intake >
 Pump house`); labels use the short name, and the Scope menu shows the

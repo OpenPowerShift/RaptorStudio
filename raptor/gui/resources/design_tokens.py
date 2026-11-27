@@ -741,6 +741,8 @@ def _build_stylesheet(c: dict) -> str:
         color: {c['text']};
     }}
     QMenu {{
+        /* A menu taller than the screen scrolls instead of being cut off. */
+        menu-scrollable: 1;
         font-family: {TYPE['family']};
         font-size: {TYPE['body']}px;
         background: {c['surface']};
@@ -831,6 +833,10 @@ def _build_stylesheet(c: dict) -> str:
         color: {c['text']};
     }}
     QComboBox {{
+        /* A list popup that honours maxVisibleItems (10 by default, then it
+           scrolls). Without this, styles such as KDE Breeze open the popup as
+           a menu that lists every entry, as tall as the screen. */
+        combobox-popup: 0;
         background: {c['input_bg']};
         color: {c['text']};
         border: 1px solid {c['border']};
@@ -850,6 +856,9 @@ def _build_stylesheet(c: dict) -> str:
         selection-background-color: {c['selection_bg']};
         selection-color: {c['selection_text']};
         outline: none;
+    }}
+    QComboBox QAbstractItemView::item {{
+        min-height: {px(20)}px;
     }}
     QLineEdit {{
         background: {c['input_bg']};

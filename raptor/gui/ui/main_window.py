@@ -1166,20 +1166,46 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._statusbar.showMessage(f"Added {n} element(s)", 4000)
 
     def _edit_paste_data(self) -> None:
-        from raptor.gui.ui import dialogs
+        """Paste Special: the dialog, then the paste as one undo step."""
         if text_editing.active_editor() is not None:
             return
-        groups = dialogs.choose_data_groups(self)
-        if groups is None:
+        view = self._diagram_dock.view
+        context = view.special_context()
+        if context is None:
+            self._statusbar.showMessage(
+                "Copy an element, then select the elements to paste onto",
+                5000)
             return
-        n = self._diagram_dock.view.paste_data(tuple(groups))
+        source, targets = context
+        from raptor.core.edit import paste_special as ps
+        from raptor.gui.ui.paste_special_dialog import ask_paste_special
+
+        def preview(groups, tag_mode, comment_mode):
+            plan = ps.plan_special(view._rbd_ref, source, targets, groups,
+                                   tag_mode=tag_mode,
+                                   comment_mode=comment_mode)
+            line = plan.summary()
+            if plan.notes:
+                line += " " + " ".join(plan.notes)
+            return line, plan.fields > 0
+
+        name = str(source.row.get(ps._NAME_COLUMN[source.kind]) or "")
+        heading = (f"Copy parts of {source.kind} {name!r} onto the "
+                   f"{len(targets)} selected element"
+                   f"{'' if len(targets) == 1 else 's'}. Names, positions "
+                   "and links are never changed.")
+        answer = ask_paste_special(self, heading,
+                                   ps.applicability(source, targets), preview)
+        if answer is None:
+            return
+        groups, tag_mode, comment_mode = answer
+        n = view.paste_data(tuple(groups), tag_mode, comment_mode)
         if n:
             self._statusbar.showMessage(
-                f"Pasted {', '.join(groups).lower()} data onto "
-                f"{n} block(s)", 5000)
+                f"Pasted {', '.join(groups).lower()} onto {n} element(s)",
+                5000)
         else:
-            self._statusbar.showMessage(
-                "Select blocks and copy a block first", 5000)
+            self._statusbar.showMessage("Nothing to change", 5000)
 
     def _on_focus_changed(self, _old, new) -> None:
         """Cut/Copy/Paste follow the text editor that has the keyboard,
@@ -1575,8 +1601,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self._results.set_level_filter(self._level_allowed_names(parent_id))
         if hasattr(self._results, "set_hierarchy_options"):
             v3 = self._diagram_dock.view
+            from raptor.gui.ui.element_picker import hierarchy_paths_of
             self._results.set_hierarchy_options(
-                {h: hh.name for h, hh in v3.hiers.items()}, parent_id)
+                hierarchy_paths_of(v3.hiers), parent_id)
             self._results.set_chart_hierarchy(parent_id)
         self._refresh_goto_combo()
         # Add Hierarchy and Collapse depend on how deep this level is.
@@ -3316,10 +3343,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             pass
 
     def _push_hierarchy_options(self):
-        """Feed the results filter combo with {id: name} for every
+        """Feed the results filter combo with {id: path} for every
         hierarchy; keep the combo on the CURRENT level."""
         v = self._diagram_dock.view
-        hiers = {hid: h.name for hid, h in v.hiers.items()}
+        from raptor.gui.ui.element_picker import hierarchy_paths_of
+        hiers = hierarchy_paths_of(v.hiers)
         self._results.set_hierarchy_options(hiers,
                                             v._current_parent)
         self._push_tag_options()
@@ -3916,17 +3944,21 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._diagram_dock.view.enter_level(int(hid))
 
     def _refresh_goto_combo(self):
-        """(Re)build the Goto list from the view's parsed hierarchies,
-        indented one step per nesting level (Raptor 7's tree)."""
+        """(Re)build the Goto list from the view's parsed hierarchies, each
+        named by its path from the top level."""
         combo = self._goto_combo
         combo.blockSignals(True)
         combo.clear()
         v = self._diagram_dock.view
         hiers = getattr(v, "hiers", {}) or {}
-        for hid in sorted(hiers, key=lambda h: (hiers[h].level,
-                                                hiers[h].name.lower())):
-            h = hiers[hid]
-            combo.addItem(f"{'    ' * max(h.level - 1, 0)}{h.name}", hid)
+        # Each entry is the hierarchy's whole path ("SWBD1 ▸ FDR_EB11"),
+        # so same-named or nested ones are told apart and a typed fragment
+        # of any ancestor finds it; sorted by path, a parent precedes its
+        # children.
+        from raptor.gui.ui.element_picker import hierarchy_paths_of
+        paths = hierarchy_paths_of(hiers)
+        for hid in sorted(hiers, key=lambda h: paths[h].lower()):
+            combo.addItem(paths[hid], hid)
         combo.setEnabled(bool(hiers))
         # Keep the combo in sync with where we are: on a hierarchy, that
         # one; at the top level, none (so the placeholder shows).
