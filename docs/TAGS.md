@@ -53,13 +53,15 @@ over the runs, so its interval is honest.
   from the tags at that moment. Editing tags afterwards does not change a
   finished run. Charts of a tag say so once the tags have changed, and a new
   run brings them up to date.
-- **Contribution charts only.** Tags overlap and cut across hierarchies, so
-  a chart that splits a whole into parts (the treemap and sunburst, the
-  stacked overlay, the "not inside a hierarchy" remainder, the scorecard)
-  would draw something false. A tag scope offers the ranking (Pareto),
-  run-to-run outcome, chance of reaching a value, convergence, small
-  multiples, run by run, cause heatmap, component failures, cost Pareto and
-  the importance quadrant.
+- **No chart of the tags as parts.** Tags overlap and cut across
+  hierarchies, so a chart that splits the system into tags (the hierarchy
+  treemap and sunburst, the stacked overlay, the "not inside a hierarchy"
+  remainder, the scorecard) would draw something false. A tag scope offers
+  the ranking (Pareto), run-to-run outcome, chance of reaching a value,
+  convergence, small multiples, run by run, cause heatmap, component
+  failures, cost Pareto, the importance quadrant, and the downtime, lost
+  capacity and cost treemaps of the tag's own elements (those elements are
+  a true whole, so their treemap holds).
 - **A tag inside a hierarchy** has no per-run list (it would multiply the
   stored results by the number of hierarchies), so its run-by-run charts are
   unavailable; the tag itself has them.

@@ -66,6 +66,7 @@ def test_a_tag_scope_offers_only_contribution_charts_and_they_draw(qapp):
     keys = {e.key for e in page._entries.values() if not e.missing}
     assert keys <= ChartsPage.TAG_SCOPE_CHARTS, keys
     assert "hierarchy-map" not in keys and "hierarchy-pareto" in keys
+    assert "downtime-treemap" in keys          # a tag's own elements (#351)
     for title in drawable:
         assert page.select(title)
         assert page.selected_spec() is not None, title

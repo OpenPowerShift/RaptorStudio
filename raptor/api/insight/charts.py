@@ -1670,6 +1670,12 @@ def hierarchy_scorecard(attribution: dict[str, Any], top: int = 8,  # noqa: C901
         scope={"kind": "system", "id": 0, "name": "System", "path": ["System"]})
 
 
+def _levels(depth: int | None) -> int:
+    """Depth inside a chosen hierarchy: None means 1 level down (the
+    direct contents), 0 every level."""
+    return 1 if depth is None else int(depth)
+
+
 def hierarchy_pareto(attribution: dict[str, Any],
                      hierarchy: int | str | None = None,
                      top: int = 12, depth: int | None = 1) -> ChartSpec:
@@ -1705,7 +1711,7 @@ def hierarchy_pareto(attribution: dict[str, Any],
         subtitle = (f"share of system downtime, stacked by main cause"
                     f" · {hier.depth_text(depth)}")
     else:
-        parts = [part for part in hier.child_parts(source, row)
+        parts = [part for part in hier.child_parts(source, row, _levels(depth))
                  if float(part.get("share") or 0.0) > 0]
         all_parts = list(parts)
         total_parts = len(parts)
@@ -1724,7 +1730,7 @@ def hierarchy_pareto(attribution: dict[str, Any],
         if total_parts > len(series):
             caption += f" Showing {len(series)} of {total_parts} parts."
         subtitle = (f"share of {row['name']}'s downtime, stacked by main cause"
-                    f" · {hier.depth_text(depth)}")
+                    f" · {hier.levels_text(_levels(depth))}")
     spec = ChartSpec(
         "pareto", "Hierarchy Pareto" if row is None else f"Pareto inside {row['name']}",
         subtitle, "hierarchy" if row is None else "element",
@@ -2153,7 +2159,7 @@ def hierarchy_heatmap(attribution: dict[str, Any],
     source, row, meta = _hierarchy_context(attribution, hierarchy)
     matrix: list[dict[str, Any]] = []
     if row is not None:
-        parts = [part for part in hier.child_parts(source, row)
+        parts = [part for part in hier.child_parts(source, row, _levels(depth))
                  if float(part.get("share") or 0.0) > 0]
         for part in parts:
             item = part.get("row") or part.get("element") or {}
@@ -2192,7 +2198,7 @@ def hierarchy_heatmap(attribution: dict[str, Any],
     spec = ChartSpec(
         "heatmap", "Hierarchy by cause" if row is None else f"Causes inside {row['name']}",
         "each row adds to 100 % of that hierarchy's downtime"
-        f" · {hier.depth_text(depth)}", "cause",
+        f" · {hier.levels_text(_levels(depth)) if row is not None else hier.depth_text(depth)}", "cause",
         "hierarchy", series=matrix, caption=caption,
         provenance={"runs": attribution.get("runs", 0), "format": "percent",
                     "row_label": "hierarchy",
@@ -2569,6 +2575,11 @@ def _treemap(items: list[dict[str, Any]], *, title: str, subtitle: str,
                                 for cell in rest]})
     for cell in cells:
         cell["share"] = float(cell["value"]) / total if total else 0.0
+        if not cell["name"].endswith(" others"):
+            # a hierarchy gathered by depth: its members' own shares
+            for item in cell.get("items") or []:
+                item.setdefault("share", float(item.get("value") or 0.0) / total
+                                if total else 0.0)
     rects = layout(cells, width, height)
     series = [{**cell, **rect.to_dict(),
                "aspect": rect.aspect if rect.area > 0 else None}
@@ -2698,8 +2709,12 @@ def phase_cause_heatmap(attribution: dict[str, Any]) -> ChartSpec:
 
 
 def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
-                     height: float = 600.0, top: int = 200) -> ChartSpec:
-    """The downtime treemap: area = share of downtime, label = element."""
+                     height: float = 600.0, top: int = 200, depth: int = 0,
+                     scope_row: dict[str, Any] | None = None) -> ChartSpec:
+    """The downtime treemap: area = share of downtime, label = element.
+
+    `depth` (with the chosen `scope_row`) gathers anything nested deeper
+    into one cell per hierarchy at that level (`hierarchy.roll_up`)."""
     scope = attribution.get("scope")
     rows = [row for row in attribution.get("elements") or []
             if float((row.get("dtci") or {}).get("mean") or 0.0) > 0]
@@ -2707,7 +2722,9 @@ def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
     items = [{"name": row["name"],
               "value": (float(row["dtci"]["mean"] or 0.0) / total
                         if scope and total else float(row["dtci"]["mean"] or 0.0)),
-              "cause": row.get("main_cause")} for row in rows]
+              "cause": row.get("main_cause"),
+              "kind": row.get("kind"), "id": row.get("id")} for row in rows]
+    items = hier.roll_up(attribution, items, scope_row, depth)
     what = f"{scope['name']} downtime" if scope else "system downtime"
     return _treemap(items, title="Downtime treemap",
                     subtitle=f"area = share of {what}; colour = main "
@@ -2719,26 +2736,39 @@ def downtime_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
 
 
 def lost_capacity_treemap(attribution: dict[str, Any], *, width: float = 1000.0,
-                          height: float = 600.0, top: int = 200) -> ChartSpec:
+                          height: float = 600.0, top: int = 200, depth: int = 0,
+                          scope_row: dict[str, Any] | None = None) -> ChartSpec:
     """Area = share of the lost flow; colour = what caused the element's lost
     flow (its downtime cause when an older result has no capacity causes)."""
     causes = {row["name"]: row.get("main_cause")
               for row in attribution.get("elements") or []}
     capacity = attribution.get("capacity") or {}
     items = [{"name": row["name"], "value": (row.get("share") or {}).get("mean") or 0.0,
-              "cause": row.get("main_cause") or causes.get(row["name"])}
+              "cause": row.get("main_cause") or causes.get(row["name"]),
+              "kind": row.get("kind"), "id": row.get("id")}
              for row in capacity.get("elements") or []]
+    scope = attribution.get("scope")
+    total = sum(float(item["value"]) for item in items)
+    if scope and total:
+        # scoped rows keep their share of the system's lost flow; the map
+        # of one scope shows shares of that scope's own (as the downtime
+        # treemap does), so the cells, caption and items table agree
+        items = [{**item, "value": float(item["value"]) / total} for item in items]
+    items = hier.roll_up(attribution, items, scope_row, depth)
+    what = (f"{scope['name']}'s lost flow" if scope else "the lost flow")
     return _treemap(items, title="Lost capacity treemap",
-                    subtitle="area = share of the lost flow; colour = main "
+                    subtitle=f"area = share of {what}; colour = main "
                              "cause; click a cell to locate",
-                    fmt="percent", what="the lost flow",
+                    fmt="percent", what=what,
                     runs=int(attribution.get("runs", 0) or 0),
                     width=width, height=height, top=top,
                     empty=_no_capacity(attribution))
 
 
 def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
-                 height: float = 600.0, top: int = 200) -> ChartSpec:
+                 height: float = 600.0, top: int = 200, depth: int = 0,
+                 attribution: dict[str, Any] | None = None,
+                 scope_row: dict[str, Any] | None = None) -> ChartSpec:
     """Area = mean life-cycle cost per run; colour = its largest component
     (purchase, operating, spares, disposal).  Spare pools are cells of
     their own, so the spares picture is complete."""
@@ -2749,6 +2779,13 @@ def cost_treemap(costs: list[dict[str, Any]], *, width: float = 1000.0,
         group = max(parts, key=lambda k: parts[k]) if any(parts.values()) else None
         items.append({"name": row["name"], "value": float(row.get("total") or 0.0),
                       "cause": group})
+    if depth and attribution:
+        # cost rows hold names; the element rows give their (kind, id)
+        keys = {str(row.get("name")): (str(row.get("kind")), int(row.get("id") or 0))
+                for row in attribution.get("elements") or []
+                if row.get("kind") is not None}
+        items = hier.roll_up(attribution, items, scope_row, depth,
+                             key=lambda item: keys.get(str(item.get("name"))))
     return _treemap(items, title="Cost treemap",
                     subtitle="area = mean life-cycle cost per run; colour = "
                              "largest part of it",
@@ -2919,6 +2956,12 @@ def parse_fold(mode: str | float | None) -> dict[str, Any]:
 _CAPTION_NAMES = 12
 
 
+def _member_count(rows: list[dict[str, Any]]) -> int:
+    """How many items `rows` stand for: an "N others" cell counts its
+    members, so folding it again cannot under-count (#351)."""
+    return sum(len(row["items"]) if row.get("items") else 1 for row in rows)
+
+
 def fold_small(spec: ChartSpec, min_share: float = 0.0, *,
                top: int | None = None, fraction: float | None = None,
                tail_share: float | None = None) -> ChartSpec:
@@ -2953,7 +2996,7 @@ def _fold_small(spec: ChartSpec, min_share: float = 0.0, *,  # noqa: C901, PLR09
         count = (int(top) if top is not None
                  else max(1, math.ceil(len(rows) * float(fraction or 0.0))))
         keep, small = rows[:count], rows[count:]
-        label = f"{len(small)} others"
+        label = f"{_member_count(small)} others"
     elif tail_share is not None:
         ordered = sorted(rows, key=lambda row: -abs(float(row.get("value") or 0.0)))
         total = sum(abs(float(row.get("value") or 0.0)) for row in ordered)
@@ -2967,16 +3010,18 @@ def _fold_small(spec: ChartSpec, min_share: float = 0.0, *,  # noqa: C901, PLR09
             reached += abs(float(ordered[index].get("value") or 0.0))
         keep = [row for index, row in enumerate(ordered) if index not in taken]
         small = [row for index, row in enumerate(ordered) if index in taken]
-        label = f"{len(small)} others (last {pct(tail_share)} of the total)"
+        label = f"{_member_count(small)} others (last {pct(tail_share)} of the total)"
     else:
         for row in rows:
             share = _share_of(spec, row)
             (small if share is not None and share < min_share else keep).append(row)
-        label = f"{len(small)} others below {pct(min_share)}"
+        label = f"{_member_count(small)} others below {pct(min_share)}"
     if len(small) < 2:
         return spec
     total = sum(float(r.get("value") or 0.0) for r in small)
-    names = [str(r.get("name")) for r in small]
+    # an earlier "N others" cell is named by its members, never by its label
+    names = [str(item.get("name")) for r in small
+             for item in (r.get("items") or [r])]
     details: list[dict[str, Any]] = []
     for row in small:
         entry = {"name": row.get("name"), "value": float(row.get("value") or 0.0),
@@ -3002,7 +3047,7 @@ def _fold_small(spec: ChartSpec, min_share: float = 0.0, *,  # noqa: C901, PLR09
     if causes and total > 0:
         folded["causes"] = {c: v / total for c, v in causes.items()}
     provenance = {**spec.provenance, "folded_below": min_share,
-                  "folded": len(small), "cut": []}
+                  "folded": len(names), "cut": []}
     # a caption is one or two sentences: a long tail is named in full in the
     # folded row's `items` (the right-click table and the CSV), not here
     shown_names = names if len(names) <= _CAPTION_NAMES else [
