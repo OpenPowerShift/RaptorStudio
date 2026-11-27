@@ -1587,7 +1587,12 @@ Parameter notes:
 | --- | --- | --- |
 | `blocks` | integer | yes |
 | `changes` | array<any> | yes |
+| `comment_changes` | array<any> | yes |
 | `count` | integer | yes |
+| `elements` | integer | yes |
+| `notes` | array<any> | yes |
+| `tag_changes` | array<any> | yes |
+| `unchanged` | integer | yes |
 
 **Example**
 
