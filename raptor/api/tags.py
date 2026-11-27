@@ -96,7 +96,10 @@ def describe_tag(ws: Any, model_id: str, tag: str, *,
         raise ValueError("a tag needs a name")
     if not create:
         _known(rbd, clean)
+    before = _tags.all_tags(rbd)
     _tags.set_tag_info(rbd, clean, colour=colour, description=description)
+    if colour is None:          # an explicit "" asked for the automatic one
+        _tags.colour_new_tags(rbd, before)
     return _row(rbd, clean, _tags.tag_index(rbd))
 
 
@@ -136,6 +139,7 @@ def set_tags(ws: Any, model_id: str, refs: Iterable[str],
     wanted = _check_refs(rbd, refs)
     clean = _tags._unique_tags(tags)
     changed = []
+    known_before = _tags.all_tags(rbd)
     for ref in wanted:
         before = _tags.tags_for(rbd, ref)
         if mode == "replace":
@@ -147,6 +151,7 @@ def set_tags(ws: Any, model_id: str, refs: Iterable[str],
         if after != before:
             _tags.set_tags(rbd, ref, after)
             changed.append({"ref": ref, "tags": after})
+    _tags.colour_new_tags(rbd, known_before)
     return {"changed": changed, "count": len(changed), "mode": mode}
 
 

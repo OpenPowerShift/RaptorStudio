@@ -2287,6 +2287,22 @@ def inspector_dock_icon(colour: str) -> QIcon:
     return _icon("inspectordock", colour, draw)
 
 
+def tags_dock_icon(colour: str) -> QIcon:
+    """Tags dock: a panel holding a small tag (Data ▸ Tags has the bare tag)."""
+    def draw(p: QPainter, c: QColor):
+        _stroke(p, c, 3)
+        _panel(p, c)
+        p.setPen(_pen(c, 3))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolygon(QPolygonF([QPointF(12, 17), QPointF(25, 17),
+                                 QPointF(35, 25), QPointF(25, 33),
+                                 QPointF(12, 33)]))
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(15, 23, 4, 4)
+    return _icon("tagsdock", colour, draw)
+
+
 def results_dock_icon(colour: str) -> QIcon:
     """Results dock: a panel holding a bar chart."""
     def draw(p: QPainter, c: QColor):

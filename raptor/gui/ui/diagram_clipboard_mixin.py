@@ -144,7 +144,7 @@ class ClipboardMixin(_Base):
         if after is None:
             return
         from raptor.core import tags as tag_model
-        from raptor.gui.ui.tags_dialog import TagsCommand
+        from raptor.gui.ui.tags_panel import TagsCommand
         rbd = self._rbd_ref
         before = (tag_model.clean_tags(getattr(rbd, "tags", None)),
                   tag_model.clean_tag_info(getattr(rbd, "tag_info", None)))
@@ -323,7 +323,7 @@ class ClipboardMixin(_Base):
                 self._stack.push(BlockCellsCmd(self, plan.cells,
                                                "Paste data onto blocks"))
             if plan.tags_after is not None:
-                from raptor.gui.ui.tags_dialog import TagsCommand
+                from raptor.gui.ui.tags_panel import TagsCommand
                 self._stack.push(TagsCommand(self, before, plan.tags_after,
                                              "Paste tags"))
             for change in plan.comments:

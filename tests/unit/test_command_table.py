@@ -32,6 +32,9 @@ OFF_RIBBON = {
     # A modeless dialog opened by Ctrl+Shift+H; a ribbon button pushed
     # View's other tools off a 1280 px window.
     "view.undo_history",
+    # Data ▸ Tags opens the Tags panel; a tenth View ▸ Panels toggle added
+    # a column and shrank View ▸ Appearance at 1280 px.
+    "view.tags_toggle",
     # The canvas menu's Duplicate submenu and shortcuts (Ctrl+Alt+D,
     # Ctrl+Shift+V); on the ribbon they pushed Build off a 1280 px window.
     "home.duplicate_parallel", "home.array", "home.paste_data",

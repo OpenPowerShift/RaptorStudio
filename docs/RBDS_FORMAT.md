@@ -721,7 +721,9 @@ fatal. Tags are at most 48 characters; case is kept, so `Pumps` and
 
 `tag_info` is optional per tag. `colour` is a six-digit hex value such as
 `#2F80ED` (stored uppercase); a tag without one takes a colour from its
-name, so a colour equal to that default is not stored. `description` is at
+name, so a colour equal to that default is not stored. A tag made by the
+application is given the first palette colour no other tag shows (see
+`docs/TAGS.md`), which is stored unless it happens to equal the name's own. `description` is at
 most 400 characters. An entry with no elements carrying the tag (`"spares":
 {}` above) is a tag created on purpose and kept.
 

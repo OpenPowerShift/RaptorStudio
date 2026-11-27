@@ -47,6 +47,7 @@ class InspectorRowsMixin(_Base):
         # fills in later: declaring it as `T` would be wrong and `T | None` would force
         # a None check at every use, so it stays Any with its real type noted.
         _comment_edit: Any
+        def current_target(self) -> tuple[str, object] | None: ...
         def _comment_for(self, etype: str, oid: int, name: str) -> str: ...
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
         _stack: Any  # really Any | None
@@ -781,7 +782,33 @@ class InspectorRowsMixin(_Base):
         chips.tags_edited.connect(
             lambda tags, ref=ref: self.element_tags_changed.emit(ref, tags))
         self._tag_chips = chips
+        self._tag_chips_ref = ref
         form.addRow("Tags:", chips)
+
+    def refresh_tag_chips(self, rbd) -> bool:
+        """Show the model's current tags on the live chips, in place.
+
+        True when this pane's chips took the update, so the caller can skip
+        the full rebuild (which would jump the scroll and lose the add
+        box's focus). False when the pane shows something else."""
+        chips = getattr(self, "_tag_chips", None)
+        ref = getattr(self, "_tag_chips_ref", "")
+        target = self.current_target()
+        if chips is None or not ref or target is None or rbd is None:
+            return False
+        from raptor.core import tags as T
+        try:
+            if T.element_ref(target[0], target[1]) != ref:
+                return False
+            known = T.all_tags(rbd)
+            mine = T.tags_for(rbd, ref)
+            chips.set_state(
+                mine, known,
+                {t: T.tag_colour(rbd, t) for t in {*known, *mine}},
+                {t: T.tag_description(rbd, t) for t in mine})
+        except (RuntimeError, ValueError):   # widget deleted by a rebuild
+            return False
+        return True
 
     def _phasing_group(self, layout: QLayout | None, kind: str, oid: int,
                        phased_now: bool,

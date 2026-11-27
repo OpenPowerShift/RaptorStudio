@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from raptor.gui import i18n
-from raptor.gui.ui.tags_dialog import swatch
+from raptor.gui.ui.tags_panel import swatch
 
 #: Past this many tags the legend offers a search box.
 SEARCH_FROM = 8
