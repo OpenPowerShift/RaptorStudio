@@ -8,6 +8,21 @@ from __future__ import annotations
 SOURCES: tuple[str, ...] = (
     # button texts set through `ChartsPage._retext` (not a literal setText)
     "Baseline: none", "Baseline: set", "Compare: top 4", "Scope: System",
+    "Compare: top 5", "Compare: top 6", "Compare: top 8", "Compare: top 10",
+    "Compare: top 12",
+    # the Show control's tooltip notes (raptor.api.insight.ranking)
+    "Drawn as bubbles, which overlap past about 50: the All items table "
+    "lists every element.",
+    "A line chart stays readable up to about six lines: the All items table "
+    "lists every hierarchy.",
+    "One panel each: more than 12 do not fit a page.",
+    "One strip each: more than 12 do not fit a page.",
+    # the all-items table (raptor.api.insight.ranking)
+    "rank", "name", "level / path", "share", "cumulative share", "main cause",
+    "standard error", "share of downtime", "lost energy", "outages a run",
+    "members", "starters", "on the chart", "before", "after", "change",
+    "status", "Share is of the items listed here.",
+    "Ranked by the size of the change.",
     # list headings
     "All charts", "The answer", "By hierarchy", "Over time", "Why it goes down",
     "Lost capacity", "Year by year", "Cost", "What matters most",

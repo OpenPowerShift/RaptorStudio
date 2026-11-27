@@ -14,7 +14,8 @@ tree, so it stays a fixed size however big the model is:
 * the tree is one QTreeWidget item per hierarchy, never one QAction.
 
 Two modes: ``scope`` picks one hierarchy (or the whole system) and closes;
-``compare`` toggles up to four and applies as they change.
+``compare`` toggles up to the chart's limit (four unless the page raises
+it) and applies as they change.
 
 Tags (when the run has them) sit under a **Tags** heading after the
 hierarchies: each tag, and under it the tag inside each hierarchy that holds
@@ -38,7 +39,8 @@ from PySide6.QtWidgets import (
 from raptor.gui import i18n
 from raptor.gui.resources.design_tokens import SPACING, active_colour, px
 
-#: The comparison charts draw at most this many branches.
+#: The comparison charts draw at most this many branches unless the page
+#: raises the limit for the chart in view (`set_limit`).
 COMPARE_LIMIT = 4
 #: The list's height cap; past it, it scrolls.
 TREE_MAX_HEIGHT = 320
@@ -84,6 +86,7 @@ class HierarchyTreePopup(QFrame):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(*(SPACING["sm"],) * 4)
         lay.setSpacing(SPACING["sm"])
+        self.limit = COMPARE_LIMIT
         self.header_label = QLabel("")
         if mode == SCOPE:
             self.header_label.setText("Show a hierarchy")
@@ -410,7 +413,7 @@ class HierarchyTreePopup(QFrame):
         ticked = item.checkState(0) == Qt.CheckState.Checked
         chosen = [r for r in self._current if r != ref]
         if ticked:
-            if len(chosen) >= COMPARE_LIMIT:
+            if len(chosen) >= self.limit:
                 self._building = True
                 item.setCheckState(0, Qt.CheckState.Unchecked)
                 self._building = False
@@ -425,11 +428,15 @@ class HierarchyTreePopup(QFrame):
         if self.mode == COMPARE:
             self.ticked_label.setText(i18n.tr("%1 ticked").replace(
                 "%1", str(len(self._current))))
-        full = len(self._current) >= COMPARE_LIMIT
+        full = len(self._current) >= self.limit
         if refused or full:
-            self.note_label.setText(i18n.tr(
-                "Four are ticked, the most the comparison charts draw. "
-                "Untick one to pick another."))
+            self.note_label.setText(
+                i18n.tr("Four are ticked, the most the comparison charts draw. "
+                        "Untick one to pick another.")
+                if self.limit == COMPARE_LIMIT else
+                i18n.tr("%1 are ticked, the most this chart draws. "
+                        "Untick one to pick another.").replace(
+                            "%1", str(self.limit)))
             self.note_label.show()
         else:
             self.note_label.hide()
@@ -452,6 +459,23 @@ class HierarchyTreePopup(QFrame):
             return
         self.hide()
         self.scope_chosen.emit(int(item.data(0, _REF) or 0))
+
+    def set_limit(self, limit: int) -> None:
+        """How many branches the chart in view draws (it differs by chart:
+        an overlay of many lines is unreadable, a grid of panels is not)."""
+        limit = max(1, int(limit))
+        self.limit = limit
+        if self.mode != COMPARE:
+            return
+        four = limit == COMPARE_LIMIT
+        self.header_label.setText(
+            i18n.tr("Compare up to four hierarchies") if four else
+            i18n.tr("Compare up to %1 hierarchies").replace("%1", str(limit)))
+        if self.top_button is not None:
+            self.top_button.setText(
+                i18n.tr("Top four by downtime") if four else
+                i18n.tr("Top %1 by downtime").replace("%1", str(limit)))
+        self._update_note()
 
     def _top_four(self) -> None:
         self.set_current([])

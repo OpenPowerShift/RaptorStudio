@@ -19,11 +19,14 @@ from raptor.api.insight.attribution import CAUSE_LABELS
 
 #: Categorical colours for hierarchy identity, in reading order.  The hues
 #: follow Okabe-Ito where its lighter entries still met 3:1 on the light
-#: surface; the amber, blue, purple and olive are darker or lighter versions
-#: of the same hues so every mark also reads on the dark surface.  Cause
-#: colours stay separate: identity here, cause in the element charts.
+#: surface; the amber and purple are darker versions so every mark also
+#: reads on the dark surface.  Each entry is a different hue: the sixth was
+#: a second blue and the eighth a second amber, which read as the same
+#: hierarchy once a comparison could show more than four (olive and red,
+#: both at least 3:1 on the light and the dark surface, replace them).
+#: Cause colours stay separate: identity here, cause in the element charts.
 SERIES_COLOURS = ("#0072B2", "#D55E00", "#009E73", "#CC79A7",
-                  "#A66A00", "#2A7396", "#7A6BA3", "#8A6B14")
+                  "#A66A00", "#6B8E23", "#7A6BA3", "#E54848")
 
 
 def path_text(row: dict[str, Any]) -> str:
