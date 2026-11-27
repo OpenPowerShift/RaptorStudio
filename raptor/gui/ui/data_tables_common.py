@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QLabel,
     QApplication,
     QTableWidget, QTableWidgetItem,
 )
@@ -124,6 +125,33 @@ def _is_time_param(label: str) -> bool:
     regardless of the model's own units."""
     return bool(label) and label not in (
         "Shape", "Shape2", "N Trials", "Probability")
+
+
+
+class _ShrinkLabel(QLabel):
+    """A one-line note that gives way when the dock is narrow: it draws its
+    text elided ("Edits apply to the…") and shows it whole as a tooltip,
+    instead of setting the dock's (and so the window's) minimum width.
+    `text()` stays the full text."""
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        hint.setWidth(min(hint.width(), 24))
+        return hint
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self.setToolTip(text)
+
+    def paintEvent(self, _event) -> None:
+        from PySide6.QtGui import QPainter
+        painter = QPainter(self)
+        rect = self.contentsRect()
+        shown = self.fontMetrics().elidedText(
+            self.text(), Qt.TextElideMode.ElideRight, rect.width())
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        painter.drawText(rect, int(self.alignment()) | int(
+            Qt.AlignmentFlag.AlignVCenter), shown)
 
 
 class _WholeModel:

@@ -39,6 +39,7 @@ SKIP_DIRS = {"locale", "__pycache__"}
 #: Widget constructor -> positions of literal UI text.
 CONSTRUCTORS: dict[str, tuple[int, ...]] = {
     "QLabel": (0,),
+    "_ShrinkLabel": (0,),        # data_tables_common: a QLabel that elides
     "QPushButton": (0,),
     "QCheckBox": (0,),
     "QRadioButton": (0,),

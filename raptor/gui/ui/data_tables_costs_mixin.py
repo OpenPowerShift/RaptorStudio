@@ -50,6 +50,8 @@ class DataTablesCostsMixin(_Base):
         def _confirm_multi(self, n: int) -> bool: ...
         _costs_table: raptor.gui.ui.data_tables_common._DataTable
         def _is_foreign(self, kind: str, oid: int | None) -> bool: ...
+        def _can_edit(self, kind: str, oid: int | None) -> bool: ...
+        def _commit(self, kind: str, oid: int, call: Any, what: str = ...) -> bool: ...
         def _level_item(self, kind: str, oid: int) -> Any: ...
         @staticmethod
         def _row_count(n: int) -> str: ...
@@ -204,10 +206,10 @@ class DataTablesCostsMixin(_Base):
         pooled = 0
         todo: list[tuple[int, list[float]]] = []
         for k in keys:
-            if self._is_foreign("block", k):
+            if not self._can_edit("block", k):
                 read_only += 1
                 continue
-            other = self._view.blocks.get(k)
+            other = self._src().blocks.get(k)
             if other is None:
                 continue
             if self._cost_field_readonly(other, attr):
@@ -236,7 +238,10 @@ class DataTablesCostsMixin(_Base):
             stack.beginMacro(f"Set {header} on {self._row_count(len(todo))}")
         try:
             for k, values in todo:
-                self._view.set_block_costs(k, values, index=idx)
+                self._commit("block", k,
+                             lambda k=k, values=values: self._view.set_block_costs(
+                                 k, values, index=idx) or True,
+                             f"Set {header}")
         finally:
             if grouped:
                 stack.endMacro()
