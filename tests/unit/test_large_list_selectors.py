@@ -125,3 +125,19 @@ def test_results_hierarchy_filter_is_searchable(qapp):
     assert [combo.itemText(i) for i in range(combo.count())] == ["All", "A ▸ Gens", "B"]
     assert combo.itemData(1) == 100
     assert Qt.MatchFlag.MatchContains == combo.completer().filterMode()
+
+
+def test_setting_the_text_of_a_searchable_combo_selects_that_entry():
+    from PySide6.QtWidgets import QComboBox
+
+    from raptor.gui.ui.element_picker import searchable
+    combo = searchable(QComboBox())
+    combo.addItem("No breakpoint", None)
+    combo.addItem("Pump A", 7)
+    combo.addItem("Pump B", 8)
+    combo.setCurrentText("Pump B")
+    assert combo.currentData() == 8
+    combo.setCurrentText("Pump")             # partial: nothing chosen yet
+    assert combo.currentData() == 8
+    combo.setCurrentText("No breakpoint")
+    assert combo.currentData() is None and combo.currentIndex() == 0

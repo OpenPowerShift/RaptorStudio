@@ -51,6 +51,16 @@ def searchable(combo: QComboBox, placeholder: str = "Type to search") -> QComboB
             else:
                 combo.setEditText("")
         edit.editingFinished.connect(settle)
+
+        def exact(text: str) -> None:
+            # An editable combo's setCurrentText() changes only the text, so
+            # currentData() stayed on the old entry: callers that choose by
+            # name (the UI sweeps, restored state) silently chose nothing.
+            # Text that is exactly an entry selects it.
+            index = combo.findText(text, Qt.MatchFlag.MatchExactly)
+            if index >= 0 and index != combo.currentIndex():
+                combo.setCurrentIndex(index)
+        combo.editTextChanged.connect(exact)
     return combo
 
 
