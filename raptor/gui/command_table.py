@@ -778,9 +778,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
         icon="tag_icon:text",
         tooltip=(
             "Component tags — coloured labels on elements that may span "
-            "hierarchies. Filter the Explorer or a chart by one; they "
-            "never change the simulation"),
-        handler="_open_tags_dialog",
+            "hierarchies. Opens the Tags panel beside the canvas; filter "
+            "the Explorer or a chart by one. They never change the "
+            "simulation"),
+        handler="_show_tags_dock",
         enabled_when="model_open"),
     CommandSpec(
         id="data.import_table",
@@ -1506,6 +1507,15 @@ COMMANDS: tuple[CommandSpec, ...] = (
             "and what to do about it"),
         checkable=True),
     CommandSpec(
+        id="view.tags_toggle",
+        attr="_tags_toggle_action",
+        text="Tags",
+        icon="tag_icon:text",
+        tooltip=(
+            "Show the Tags panel — name, colour and apply component tags "
+            "while you select on the canvas"),
+        checkable=True),
+    CommandSpec(
         id="view.reset_layout",
         attr="_reset_layout_action",
         text="Reset Layout",
@@ -1766,6 +1776,7 @@ LAYOUT: tuple[Page, ...] = (
                         Btn("view.results_toggle"), Btn("view.run_toggle"),
                         Btn("view.live_log_toggle"),
                         Btn("view.advisor_toggle"),
+                        Btn("view.tags_toggle"),
                         Btn("view.data_tables"), Btn("view.reset_layout")),
              priority=3),
        # Focus, Tag Colours and Preferences share one column: with

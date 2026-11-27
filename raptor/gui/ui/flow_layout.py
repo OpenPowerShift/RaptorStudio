@@ -7,7 +7,9 @@ edge of the row it lands on, as in a box layout."""
 from __future__ import annotations
 
 from PySide6.QtCore import QMargins, QPoint, QRect, QSize, Qt
-from PySide6.QtWidgets import QLayout, QLayoutItem, QSizePolicy, QSpacerItem, QWidget
+from PySide6.QtWidgets import (
+    QLayout, QLayoutItem, QSizePolicy, QSpacerItem, QWidget, QWidgetItem,
+)
 
 
 class FlowLayout(QLayout):
@@ -21,6 +23,16 @@ class FlowLayout(QLayout):
 
     def addItem(self, item: QLayoutItem) -> None:  # noqa: N802 - Qt name
         self._items.append(item)
+
+    def insertWidget(self, index: int, widget: QWidget) -> None:  # noqa: N802
+        """Put *widget* at *index* (box-layout name)."""
+        self.addChildWidget(widget)
+        self._items.insert(index, QWidgetItem(widget))
+        self.invalidate()
+
+    def removeWidget(self, widget: QWidget) -> None:  # noqa: N802 - Qt name
+        self._items = [i for i in self._items if i.widget() is not widget]
+        self.invalidate()
 
     def addStretch(self, _factor: int = 1) -> None:  # noqa: N802 - box-layout name
         self._items.append(QSpacerItem(

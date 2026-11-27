@@ -1733,7 +1733,17 @@
    "has_menu": false,
    "shortcuts": [],
    "text": "Tags\u2026",
-   "tooltip": "Component tags \u2014 coloured labels on elements that may span hierarchies. Filter the Explorer or a chart by one; they never change the simulation\n\nUnavailable: open or create a model first"
+   "tooltip": "Component tags \u2014 coloured labels on elements that may span hierarchies. Opens the Tags panel beside the canvas; filter the Explorer or a chart by one. They never change the simulation\n\nUnavailable: open or create a model first"
+  },
+  "_tags_toggle_action": {
+   "checkable": true,
+   "checked": false,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "Tags",
+   "tooltip": "Show the Tags panel \u2014 name, colour and apply component tags while you select on the canvas"
   },
   "_terminate_action": {
    "checkable": false,
@@ -2048,6 +2058,7 @@
    "_syscfg_action": false,
    "_tag_colours_action": false,
    "_tags_action": false,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -2227,6 +2238,7 @@
    "_syscfg_action": true,
    "_tag_colours_action": true,
    "_tags_action": true,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -2406,6 +2418,7 @@
    "_syscfg_action": false,
    "_tag_colours_action": false,
    "_tags_action": false,
+   "_tags_toggle_action": true,
    "_terminate_action": false,
    "_theme_action": true,
    "_undo_action": false,
@@ -3275,6 +3288,11 @@
        "kind": "action",
        "large": false,
        "text": "Advisor"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "Tags"
       },
       {
        "kind": "action",

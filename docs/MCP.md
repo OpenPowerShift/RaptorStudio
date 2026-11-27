@@ -479,7 +479,9 @@ returns the deleted annotation id and its kind.
   simulation.
 - `tag_elements` sets, adds or removes tags on named elements
   (`Block:3`, `Node:1`, `Event:2`, `Hier:900`); `mode="replace"` with no
-  tags clears them. An unknown element is refused, not skipped.
+  tags clears them. An unknown element is refused, not skipped. A tag the
+  call creates takes the first palette colour no other tag in the model
+  shows (`list_tags` reports it).
 - `describe_tag` sets a tag's colour and description (and creates an empty
   tag), `rename_tag` renames one everywhere (onto an existing tag merges
   them) and `delete_tag` removes one from every element. Each saves the
