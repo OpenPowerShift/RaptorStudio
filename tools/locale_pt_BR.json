@@ -222,6 +222,8 @@
   "Anchored, it moves with its target. Centre ignores the gap. Drag the annotation to place it where you like; it keeps following its target from there. Reset position returns it to its Location, Break link frees it. Use Pick on canvas… to choose the target by clicking it.": "Ancorada, ela se move com o alvo. Centro ignora o espaço. Arraste a anotação para colocá-la onde quiser; ela continua seguindo o alvo a partir dali. Redefinir posição a devolve à sua Localização, Quebrar vínculo a solta. Use Escolher no diagrama… para definir o alvo com um clique.",
   "Animate": "Animar",
   "Animate by default:": "Animar por padrão:",
+  "Animate is on: an animated run uses one core, so you can watch each event. Turn Animate off to run at full speed on these cores.": "Animar está ativado: uma execução animada usa um núcleo, para que você possa acompanhar cada evento. Desative Animar para executar em velocidade máxima nestes núcleos.",
+  "Animate is on: an animated run uses one core.": "Animar está ativado: uma execução animada usa um núcleo.",
   "Animate new runs by default": "Animar novas execuções por padrão",
   "Animate — 1 core, every event shown": "Animar — 1 núcleo, cada evento exibido",
   "Animate: a clean run you can watch -- on one core, the diagram re-coloured as each event happens and the event log streamed into the Results panel. Off: full speed on several cores (the Cores box). Remembered between sessions; not part of the model.": "Animar: uma execução limpa que você pode acompanhar -- em um núcleo, o diagrama é recolorido a cada evento e o registro de eventos é transmitido para o Painel de resultados. Desligado: velocidade máxima em vários núcleos (a caixa Núcleos). Lembrado entre sessões; não faz parte do modelo.",

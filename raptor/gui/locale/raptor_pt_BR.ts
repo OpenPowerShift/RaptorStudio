@@ -6903,6 +6903,14 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>Núcleos</translation>
     </message>
     <message>
+      <source>Animate is on: an animated run uses one core.</source>
+      <translation>Animar está ativado: uma execução animada usa um núcleo.</translation>
+    </message>
+    <message>
+      <source>Animate is on: an animated run uses one core, so you can watch each event. Turn Animate off to run at full speed on these cores.</source>
+      <translation>Animar está ativado: uma execução animada usa um núcleo, para que você possa acompanhar cada evento. Desative Animar para executar em velocidade máxima nestes núcleos.</translation>
+    </message>
+    <message>
       <source>Multi-step events</source>
       <translation>Eventos de passo múltiplo</translation>
     </message>
