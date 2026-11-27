@@ -97,6 +97,8 @@ class ElementEditMixin(_Base):
         def _refresh_node_badges(self) -> None: ...
         _scene: PySide6.QtWidgets.QGraphicsScene
         _stack: Any
+        _loading: bool
+        def _row_for(self, section_name: str, oid: int) -> dict | None: ...
         annotations: list[Any]
         blocks: dict[int, raptor.core.model.RBDBlock]
         events: dict[int, Any]
@@ -778,6 +780,59 @@ class ElementEditMixin(_Base):
             return False
         self._stack.push(StreamCmd(self, block_id, which,
                                    (cur_f, cur_r), (which, value)))
+        return True
+
+    _OFF_LEVEL = {"block": ("BLOCK_DATA", "blocks"),
+                  "node": ("NODE_DATA", "nodes"),
+                  "event": ("EVENT_DATA", "events")}
+
+    def edit_off_level(self, kind: str, oid: int, fn: Any,
+                       text: str = "Edit") -> bool:
+        """Run the edit `fn()` on an element whose level is not open, as
+        one undoable change of its file row (Data Tables ▸ Edit all levels).
+
+        The canvas holds the open level only, and every mutator works on
+        its live objects.  So the element is built from its row and put
+        among them for the duration of `fn` only, with a scratch undo stack:
+        the mutator applies exactly the change (and the row write) it makes
+        on the open level.  The row it leaves is recorded, the old row put
+        back, and one `RowEditCmd` pushed on the real stack, where the input
+        rules check it as they check any edit.  An element on the open level
+        just runs `fn()`."""
+        from PySide6.QtGui import QUndoStack
+        from raptor.core.fileio.typed import (
+            block_from_row, event_from_row, node_from_row)
+        from raptor.gui.ui.diagram_commands import RowEditCmd
+        section, attr = self._OFF_LEVEL[kind]
+        store = getattr(self, attr)
+        if oid in store:
+            return bool(fn())
+        row = self._row_for(section, oid)
+        if row is None:
+            return False
+        build = {"block": block_from_row, "node": node_from_row,
+                 "event": event_from_row}[kind]
+        try:
+            obj = build(row)
+        except (ValueError, KeyError):
+            return False
+        old = dict(row)
+        real, loading = self._stack, self._loading
+        store[oid] = obj
+        self._stack = QUndoStack()
+        # no canvas refresh for a step of this: one comes with the push
+        self._loading = True
+        try:
+            result = fn()
+        finally:
+            store.pop(oid, None)
+            self._stack, self._loading = real, loading
+        new = dict(row)
+        row.clear()
+        row.update(old)
+        if new == old:
+            return bool(result)
+        self._stack.push(RowEditCmd(self, kind, oid, section, old, new, text))
         return True
 
     def _apply_rename(self, kind: str, oid: int, name: str):
