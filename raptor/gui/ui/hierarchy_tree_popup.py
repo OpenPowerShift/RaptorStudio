@@ -268,7 +268,7 @@ class HierarchyTreePopup(QFrame):
                               | Qt.AlignmentFlag.AlignVCenter)
         colour = str(row.get("colour") or "")
         if colour:
-            from raptor.gui.ui.tags_dialog import swatch
+            from raptor.gui.ui.tags_panel import swatch
             item.setIcon(0, swatch([colour]))
         if row.get("description"):
             item.setToolTip(0, str(row["description"]))

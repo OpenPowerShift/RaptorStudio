@@ -142,7 +142,7 @@ class ClipboardMixin(_Base):
         if after is None:
             return
         from raptor.core import tags as tag_model
-        from raptor.gui.ui.tags_dialog import TagsCommand
+        from raptor.gui.ui.tags_panel import TagsCommand
         rbd = self._rbd_ref
         before = (tag_model.clean_tags(getattr(rbd, "tags", None)),
                   tag_model.clean_tag_info(getattr(rbd, "tag_info", None)))

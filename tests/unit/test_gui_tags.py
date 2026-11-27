@@ -62,11 +62,6 @@ def _select_tag(win, tag: str | None) -> None:
     QApplication.processEvents()
 
 
-def _dialog(win, selected=()):
-    from raptor.gui.ui.tags_dialog import TagsDialog
-    return TagsDialog(win, win._diagram_dock.view._rbd_ref, list(selected))
-
-
 def test_a_tag_view_shows_only_tagged_elements_and_their_folders(win):
     rbd = win._diagram_dock.view._rbd_ref
     a, b = (f"block:{i}" for i in _blocks(rbd)[:2])
@@ -149,7 +144,7 @@ def test_a_tag_view_picks_up_a_newly_tagged_element(win):
 
 
 def test_the_tags_command_is_one_undoable_step(win):
-    from raptor.gui.ui.tags_dialog import TagsCommand
+    from raptor.gui.ui.tags_panel import TagsCommand
     view = win._diagram_dock.view
     rbd = view._rbd_ref
     ref = f"block:{_blocks(rbd)[0]}"
@@ -185,88 +180,6 @@ def test_the_selector_shows_colour_and_count_in_the_tooltip(win):
     assert not combo.itemIcon(i).isNull()
 
 
-def test_the_dialog_renames_recolours_and_describes(win):
-    rbd = win._diagram_dock.view._rbd_ref
-    ref = f"block:{_blocks(rbd)[0]}"
-    T.set_tags(rbd, ref, ["pump"])
-    dlg = _dialog(win)
-    assert dlg._current == "pump"
-    dlg._name.setText("feed pump")
-    dlg._name.editingFinished.emit()
-    dlg._colour.setCurrentIndex(dlg._colour.findData("#9B51E0"))
-    dlg._description.setText("Feed")
-    dlg._description.editingFinished.emit()
-    tags, info = dlg.result_data()
-    assert tags == {ref: ["feed pump"]}
-    assert info == {"feed pump": {"colour": "#9B51E0", "description": "Feed"}}
-
-
-def test_the_dialog_keeps_a_hand_edited_custom_colour(win):
-    rbd = win._diagram_dock.view._rbd_ref
-    T.set_tags(rbd, f"block:{_blocks(rbd)[0]}", ["custom"])
-    T.set_tag_info(rbd, "custom", colour="#123456")
-    dlg = _dialog(win)
-    assert dlg._colour.currentData() == "#123456"
-    assert dlg.result_data()[1]["custom"]["colour"] == "#123456"
-
-
-def test_the_dialog_search_narrows_a_long_tag_list(win):
-    rbd = win._diagram_dock.view._rbd_ref
-    ref = f"block:{_blocks(rbd)[0]}"
-    T.set_tags(rbd, ref, [f"tag {i:03d}" for i in range(300)] + ["pumps"])
-    dlg = _dialog(win)
-    assert dlg._list.count() == 301
-    dlg._search.setText("pum")
-    assert dlg._list.count() == 1
-    assert dlg._current == "pumps"
-
-
-def test_new_tag_applies_to_the_selection_and_delete_removes_it(
-        win, monkeypatch):
-    rbd = win._diagram_dock.view._rbd_ref
-    a, b = (f"block:{i}" for i in _blocks(rbd)[:2])
-    dlg = _dialog(win, [a, b])
-    dlg._new_tag()
-    assert T.tag_index(dlg._draft)["tag"] == {a, b}
-    import raptor.gui.ui.dialogs as dialogs
-    monkeypatch.setattr(dialogs, "question_box", lambda *a, **k: True)
-    dlg._delete_tag()
-    assert dlg.result_data() == ({}, {})
-
-
-def test_the_dialog_applies_tags_and_drops_deleted_elements(win):
-    ref = f"block:{_blocks(win._diagram_dock.view._rbd_ref)[0]}"
-    dlg = _dialog(win, [ref])
-    dlg._tags_edit.setText(" pumps, rotating, pumps ")
-    dlg._apply_tags()
-    dlg._draft.tags["block:424242"] = ["gone"]
-    tags, _info = dlg.result_data()
-    assert tags == {ref: ["pumps", "rotating"]}
-
-
-def test_the_dialog_caps_a_huge_member_list(win):
-    rbd = win._diagram_dock.view._rbd_ref
-    dlg = _dialog(win)
-    names = {f"block:{i}": f"B{i}" for i in range(1, 206)}
-    dlg._name_map = names
-    for ref in names:
-        T.set_tags(dlg._draft, ref, ["big"])
-    dlg._show_members("big")
-    assert "… and 5 more" in dlg._members.toPlainText()
-    assert dlg._members_label.text() == "Elements (205)"
-    assert rbd is not None
-
-
-def test_typing_tags_then_ok_keeps_them(win):
-    view = win._diagram_dock.view
-    ref = f"block:{next(i for i in view.blocks if i > 0)}"
-    dlg = _dialog(win, [ref])
-    dlg._tags_edit.setText("duty, rotating")
-    dlg._tags_edit.textEdited.emit("duty, rotating")
-    dlg.accept()
-    assert dlg.result_data()[0][ref] == ["duty", "rotating"]
-
-
 def test_tags_are_reachable_from_the_explorer_and_the_canvas(win):
     from PySide6.QtCore import QPointF
     from PySide6.QtGui import QMouseEvent
@@ -275,7 +188,7 @@ def test_tags_are_reachable_from_the_explorer_and_the_canvas(win):
     manage = combo.findData(win._explorer._MANAGE)
     assert manage >= 0
     asked: list = []
-    win._explorer.manage_tags_requested.disconnect(win._open_tags_dialog)
+    win._explorer.manage_tags_requested.disconnect(win._show_tags_dock)
     win._explorer.manage_tags_requested.connect(lambda: asked.append(1))
     combo.setCurrentIndex(manage)
     QApplication.processEvents()
@@ -283,7 +196,7 @@ def test_tags_are_reachable_from_the_explorer_and_the_canvas(win):
 
     view = win._diagram_dock.view
     requested: list = []
-    view.tags_requested.disconnect(win._open_tags_dialog)
+    view.tags_requested.disconnect(win._show_tags_dock)
     view.tags_requested.connect(lambda: requested.append(1))
     item = next(iter(view._block_items.values()))
 
@@ -395,3 +308,87 @@ def test_the_explorer_tag_filters_the_results_tables_too(win):
     win._results._tag_filter_combo.activated.emit(0)
     QApplication.processEvents()
     assert win._explorer.current_tag() == "" and seen[-1] is None
+
+
+def _focused(widget) -> bool:
+    """Is *widget* its window's focus widget? (An offscreen window is never
+    the active one, so `hasFocus()` is false even for the right widget.)"""
+    return widget.window().focusWidget() is widget
+
+
+def _scroll_area_of(widget):
+    from PySide6.QtWidgets import QScrollArea
+    parent = widget.parentWidget()
+    while parent is not None and not isinstance(parent, QScrollArea):
+        parent = parent.parentWidget()
+    return parent
+
+
+def test_adding_a_tag_keeps_the_inspector_scroll_and_the_add_box_focus(win):
+    from raptor.gui.ui.tag_chips import TagChips
+    bid = _blocks(win._rbd)[0]
+    insp = win._inspector
+    insp.resize(300, 260)
+    insp.show_block(bid)
+    for _ in range(4):
+        QApplication.processEvents()
+    chips = insp.findChild(TagChips)
+    area = _scroll_area_of(chips)
+    insp._tabs.setCurrentWidget(area)   # the Tags row lives on one tab
+    for _ in range(4):
+        QApplication.processEvents()
+    assert chips.isVisible()
+    bar = area.verticalScrollBar()
+    assert bar.maximum() > 0, "the pane must scroll for this test to mean anything"
+    area.ensureWidgetVisible(chips)
+    bar.setValue(bar.maximum())
+    win.activateWindow()
+    chips.add_edit.setFocus()
+    QApplication.processEvents()
+    before = bar.value()
+    assert before > 0
+    assert _focused(chips.add_edit), "precondition: the box starts focused"
+    chips.add_edit.setText("first")
+    chips.add_edit.returnPressed.emit()
+    for _ in range(4):
+        QApplication.processEvents()
+    chips2 = insp.findChild(TagChips)
+    assert chips2 is chips, "the chips were rebuilt, not updated in place"
+    assert chips.tags() == ["first"]
+    assert T.tags_for(win._rbd, f"block:{bid}") == ["first"]
+    assert _scroll_area_of(chips).verticalScrollBar().value() == before
+    assert _focused(chips.add_edit)
+    # and a second tag straight away, then a removal
+    chips.add_edit.setText("second")
+    chips.add_edit.returnPressed.emit()
+    for _ in range(4):
+        QApplication.processEvents()
+    assert chips.tags() == ["first", "second"]
+    chips._remove("first")
+    for _ in range(4):
+        QApplication.processEvents()
+    assert chips.tags() == ["second"]
+    assert _scroll_area_of(chips).verticalScrollBar().value() == before
+    # the other tags are listed in the picker, with their own colours
+    assert insp.findChild(TagChips) is chips
+
+
+def test_new_tags_from_the_inspector_get_distinct_colours_and_one_undo(win):
+    rbd = win._rbd
+    bid = _blocks(rbd)[0]
+    ref = f"block:{bid}"
+    win._inspector.show_block(bid)
+    for name in ("one", "two", "three"):
+        win._on_element_tags_changed(ref, [*T.tags_for(rbd, ref), name])
+        QApplication.processEvents()
+    colours = [T.tag_colour(rbd, t) for t in ("one", "two", "three")]
+    assert colours == list(T.TAG_COLOURS[:3])
+    win._undo_stack.undo()
+    assert T.tags_for(rbd, ref) == ["one", "two"]
+    assert "three" not in T.all_tags(rbd)
+    assert "three" not in T.clean_tag_info(rbd.tag_info)
+    win._undo_stack.undo()
+    win._undo_stack.undo()
+    assert T.all_tags(rbd) == [] and T.clean_tag_info(rbd.tag_info) == {}
+    win._undo_stack.redo()
+    assert T.tag_colour(rbd, "one") == T.TAG_COLOURS[0]
