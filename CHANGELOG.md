@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.12.0](https://github.com/OpenPowerShift/RaptorStudio/compare/v0.11.0...v0.12.0) (2026-11-27)
+
+
+### Features
+
+* **a11y:** interface scaling, high contrast and focus rings ([9b4a5a3](https://github.com/OpenPowerShift/RaptorStudio/commit/9b4a5a3335132d7def4e6e2f060e6fe3bdbc0f01))
+* **a11y:** scale literal widget sizes, name dialogs and the canvas for screen readers ([c6ed558](https://github.com/OpenPowerShift/RaptorStudio/commit/c6ed55825fc43dba56251f02033c46b4b6099876))
+* **drivers:** calculate attribution once at the end of the run ([0554199](https://github.com/OpenPowerShift/RaptorStudio/commit/055419941cd92c1222e98320842651b71af1ed0f))
+* **fileio:** .rbdz archive with saved results ([b3133cd](https://github.com/OpenPowerShift/RaptorStudio/commit/b3133cdc204a8449d097cb2e9a99b60a00a2bd35))
+* **groups:** component groups and tags, with group views ([0f1fc11](https://github.com/OpenPowerShift/RaptorStudio/commit/0f1fc11226df9178437bd5c043d114eb97039542))
+* **gui:** ring and fade compared hierarchies on the canvas, with chips on the Charts tab ([640c5ed](https://github.com/OpenPowerShift/RaptorStudio/commit/640c5ed3658135f4819b5452c23ca82716d860e2))
+* **health:** project health and share-safe copies ([6d11941](https://github.com/OpenPowerShift/RaptorStudio/commit/6d119419f32317414dc6f88221c3936503f75ad9))
+* **history:** model undo browser and configurable history cap ([ec14bd9](https://github.com/OpenPowerShift/RaptorStudio/commit/ec14bd95729698de5888042988786577c354368f))
+* **history:** versioned project history and restore ([5549fb7](https://github.com/OpenPowerShift/RaptorStudio/commit/5549fb7d8bd44be58c0159b5cd8ab5d288475765))
+* **i18n:** Brazilian Portuguese full GUI ([04e9337](https://github.com/OpenPowerShift/RaptorStudio/commit/04e93378eafd5b1641dafb0d9e4be8f60fcc995c))
+* **i18n:** Qt Linguist localisation framework and French catalogue ([606cd28](https://github.com/OpenPowerShift/RaptorStudio/commit/606cd282076116ac8760f87e2a5572b38842e70f))
+* **import:** spreadsheet data-table import ([a50586c](https://github.com/OpenPowerShift/RaptorStudio/commit/a50586ce23bf38ee18eb1fdc6c816a1ffecf77dc))
+* **import:** spreadsheet import from the API, the CLI and MCP ([58b9e52](https://github.com/OpenPowerShift/RaptorStudio/commit/58b9e5290a228e03897b250d73f68cee03cdeab1))
+* **insight:** cost and reliability charts, saved targets and currency ([20ac19e](https://github.com/OpenPowerShift/RaptorStudio/commit/20ac19e9a3f752557591baf2f94af1b4b060829e)), closes [#345](https://github.com/OpenPowerShift/RaptorStudio/issues/345)
+* **insight:** hierarchy visualisation, phase and capacity charts ([c8101b3](https://github.com/OpenPowerShift/RaptorStudio/commit/c8101b33fc849e54913fbf3791b0d28272307f27))
+* project, sharing, versions and groups from the CLI, API and MCP; pin labelled versions ([5a8f868](https://github.com/OpenPowerShift/RaptorStudio/commit/5a8f868680516aa8cf46f4cc2264a9054ffbc082))
+* **rbdz:** carry capacity, cost and weak-link detail so an archive reopens complete ([a048171](https://github.com/OpenPowerShift/RaptorStudio/commit/a048171ec939e83c8075cd4a5a1bee33b57b8c41))
+
+
+### Bug Fixes
+
+* **a11y:** apply saved appearance to the first window ([3cf6c19](https://github.com/OpenPowerShift/RaptorStudio/commit/3cf6c199165f5613875e7c29c18dbe79059847df))
+* **a11y:** preserve OS font, scale ribbon geometry, complete focus ([d5b7a10](https://github.com/OpenPowerShift/RaptorStudio/commit/d5b7a1099da01ebf4b5c2f1a1a378bac552dba4f))
+* **charts:** keep baseline and compare picks across re-runs, fit axis titles, share HOPs dot size, tidy scorecard/quartile/delta layouts, translate chart text for pt-BR ([4bca4d4](https://github.com/OpenPowerShift/RaptorStudio/commit/4bca4d423366e4c0210347ea2e0104a6cada3787))
+* **drivers:** keep capacity tracks aligned in lazy replay ([4b43f83](https://github.com/OpenPowerShift/RaptorStudio/commit/4b43f83ae20cd27c009fae213dbd5027b10c7fda))
+* **groups:** prune on delete, preserve cut dim, keep typed tags ([d356ae7](https://github.com/OpenPowerShift/RaptorStudio/commit/d356ae7c9e6d0a2e9ead6f0b67b9b803fd907f75))
+* **gui:** capacity axis warning goes through the msgbox seam ([5e71c29](https://github.com/OpenPowerShift/RaptorStudio/commit/5e71c299ea6b80e2c9e16947e6caf6f303bcb33a))
+* **gui:** own glyph for Model History, keep dynamic titles in i18n ([3cce905](https://github.com/OpenPowerShift/RaptorStudio/commit/3cce905087d1fcbadc81f73e8b1bed253aa89348))
+* **gui:** translate the comparison chip's remove label ([2b06ceb](https://github.com/OpenPowerShift/RaptorStudio/commit/2b06cebe5cb81bb3f746af37b13daea2c829723e))
+* **health:** close share-safe leaks and fix keyed counts ([8f34302](https://github.com/OpenPowerShift/RaptorStudio/commit/8f343023e0f0dfe657ba341519802bbb57cb9af8))
+* **health:** harden share-safe copies and health reporting ([d89d7b4](https://github.com/OpenPowerShift/RaptorStudio/commit/d89d7b4d8cd4279349953a1cbf2be59432e9f08d))
+* **health:** neutral share name, complete CLI counts and docs ([933d085](https://github.com/OpenPowerShift/RaptorStudio/commit/933d0852fadad92796b0d5817fd95daf9c62656e))
+* **history:** drop key tip for the removed ribbon button ([0b8beb2](https://github.com/OpenPowerShift/RaptorStudio/commit/0b8beb2408236a303002f319941df814efbd5227))
+* **history:** keep jump dirty state and row shading correct ([fc9767a](https://github.com/OpenPowerShift/RaptorStudio/commit/fc9767a801da15d54c2e0bd65e15e955a8e365a4))
+* **history:** make jumps atomic and clarify the cap ([89cedfa](https://github.com/OpenPowerShift/RaptorStudio/commit/89cedfa70b405454fe47e9aa996981c55b714ee8))
+* **history:** persist recovered indexes and protect CLI restores ([885adaa](https://github.com/OpenPowerShift/RaptorStudio/commit/885adaa6d3227c7250402f68f475a80fa9016195))
+* **history:** reload after restore, verify snapshots, recover indexes ([d284705](https://github.com/OpenPowerShift/RaptorStudio/commit/d2847055eeac5ad2d90c65dcbea80d98e39cb876))
+* **i18n:** keep combo data stable and translate command tooltips ([b567f44](https://github.com/OpenPowerShift/RaptorStudio/commit/b567f44cc24d6c78b0a01ac48b6503dc8a87960d))
+* **i18n:** persist language, stable page keys, Qt catalogues ([acc91de](https://github.com/OpenPowerShift/RaptorStudio/commit/acc91de2a8707f28c34f0dfcf30638385901f7c1))
+* **i18n:** review Brazilian Portuguese in context ([ccd3f7d](https://github.com/OpenPowerShift/RaptorStudio/commit/ccd3f7dca38760fdc58a6a766116b71c1b768c7e))
+* **i18n:** translate pt-BR command tooltips ([0afc308](https://github.com/OpenPowerShift/RaptorStudio/commit/0afc308cb250dee24bc8a6c276d5715e5838a433))
+* **import:** bound formulas, refuse row overflow, validate merged rows ([ddb7311](https://github.com/OpenPowerShift/RaptorStudio/commit/ddb73119073b9b03b52df49151c99dc02ab4bdab))
+* **inspector:** translate every rebuild, wrap forms to the dock, keep pt-BR from clipping ([bb38633](https://github.com/OpenPowerShift/RaptorStudio/commit/bb38633adc6dc06c172f8d0a24e0828acdc6e9e7))
+* **mcp:** answer the handshake before loading workspace models ([1016162](https://github.com/OpenPowerShift/RaptorStudio/commit/10161621d0770b717688e0f395dc6ee1700ec995))
+* **mcp:** answer the handshake before loading workspace models ([e3dcb8b](https://github.com/OpenPowerShift/RaptorStudio/commit/e3dcb8b187bca132427fbe964dc76302f73b1ed1))
+* **rbdz:** preserve archive results and stream plot export ([8c030be](https://github.com/OpenPowerShift/RaptorStudio/commit/8c030bed646dded66d578e6d936d13467a1ec062))
+* **run:** a stop after the last run does not report a stopped batch ([54f14fa](https://github.com/OpenPowerShift/RaptorStudio/commit/54f14fa38e71c1e2dd422f45ad43b2859dfdb6fb))
+* **workspace:** refuse symlinked models/runs/renders directories ([2153f5d](https://github.com/OpenPowerShift/RaptorStudio/commit/2153f5da1620216f11b668767fb86267b269c396))
+
+
+### Documentation
+
+* **mcp:** workspace directories must not be symlinks; lazy start-up ([001bd1c](https://github.com/OpenPowerShift/RaptorStudio/commit/001bd1c2d0122d3ecf53cebb062e6028ee5917d3))
+* re-render the book ([0ab8508](https://github.com/OpenPowerShift/RaptorStudio/commit/0ab8508c3fecf8905b4ad1b3effe333c5e5cd79f))
+* re-render the book ([8821a98](https://github.com/OpenPowerShift/RaptorStudio/commit/8821a982d2c8ac7b5c5a3c7b282e14a291cc315f))
+* regenerate the MCP reference for the merged run_chart and version tools ([a9f2509](https://github.com/OpenPowerShift/RaptorStudio/commit/a9f25098b5c1d28a847e02544bc913245721f6ec))
+* TAGS.md rewritten for tags, decisions, help reference ([0fab9a1](https://github.com/OpenPowerShift/RaptorStudio/commit/0fab9a1239f9abee9e1b20da78d1ef19122aa207))
+* versions, background save, capacity target, chart pickers, groups menus, share-safe renames, ch16 tools ([e417dba](https://github.com/OpenPowerShift/RaptorStudio/commit/e417dbaa1737c4e28d138d8b2ac6c6f6bf72a09b))
+
 ## [0.11.0](https://github.com/OpenPowerShift/RaptorStudio/compare/v0.10.0...v0.11.0) (2026-11-19)
 
 
