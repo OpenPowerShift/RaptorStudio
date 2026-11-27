@@ -18,21 +18,28 @@ from PySide6.QtWidgets import QComboBox, QCompleter, QListView
 from raptor.core.fileio.element_size import NAME_COLUMNS
 
 
-def searchable(combo: QComboBox) -> QComboBox:
+#: Rows a picker's list (and its search popup) shows before it scrolls.
+MAX_VISIBLE = 15
+
+
+def searchable(combo: QComboBox, placeholder: str = "Type to search") -> QComboBox:
     """Let `combo` be typed into: a popup lists the entries containing
     what was typed, in any case. Text that matches no entry is put back
-    to the chosen one when typing stops, so `currentText()` is always an
-    entry."""
+    to the chosen one when typing stops (or cleared, when nothing is
+    chosen), so `currentText()` is always an entry or empty. The list and
+    the search popup show `MAX_VISIBLE` rows, then scroll."""
     combo.setEditable(True)
     combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+    combo.setMaxVisibleItems(MAX_VISIBLE)
     completer = QCompleter(combo.model(), combo)
     completer.setFilterMode(Qt.MatchFlag.MatchContains)
     completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
     completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+    completer.setMaxVisibleItems(MAX_VISIBLE)
     combo.setCompleter(completer)
     edit = combo.lineEdit()
     if edit is not None:
-        edit.setPlaceholderText("Type to search")
+        edit.setPlaceholderText(placeholder)
         edit.setClearButtonEnabled(True)
 
         def settle() -> None:
@@ -41,8 +48,24 @@ def searchable(combo: QComboBox) -> QComboBox:
                 combo.setCurrentIndex(index)
             elif combo.currentIndex() >= 0:
                 combo.setEditText(combo.itemText(combo.currentIndex()))
+            else:
+                combo.setEditText("")
         edit.editingFinished.connect(settle)
     return combo
+
+
+def hierarchy_paths_of(hiers: dict[int, Any]) -> dict[int, str]:
+    """hierarchy id -> "SWBD1 ▸ FDR_EB11", from the canvas's parsed
+    hierarchies (objects with `.name` and `.parent_id`)."""
+    out: dict[int, str] = {}
+    for hid in hiers:
+        names, current, seen = [], hid, set()
+        while current in hiers and current not in seen:
+            seen.add(current)
+            names.append(str(hiers[current].name))
+            current = int(getattr(hiers[current], "parent_id", 0) or 0)
+        out[hid] = " ▸ ".join(reversed(names))
+    return out
 
 
 def hierarchy_paths(rbd: Any) -> dict[int, tuple[str, int]]:
