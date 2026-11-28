@@ -16,7 +16,7 @@ import weakref
 from typing import Any, cast
 from pathlib import Path
 from PySide6.QtCore import (Qt, QTimer, QObject, QPoint, QEvent, QEventLoop)
-from PySide6.QtGui import (QCursor, QKeySequence, QAction, QShortcut)
+from PySide6.QtGui import (QCursor, QKeySequence, QAction, QShortcut, QPalette)
 from PySide6.QtWidgets import (
     QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QFileDialog, QMessageBox,
     QDialog, QFormLayout, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
@@ -26,6 +26,7 @@ from raptor.gui.ui.fev_mixin import FevMixin
 from raptor.gui.ui.isolate_mixin import IsolateMixin
 from raptor.gui.ui.background_run_mixin import BackgroundRunMixin
 from raptor.gui.ui.overlay_mixin import OverlayMixin
+from raptor.gui.overlay_layers import LAYERS, layer_availability
 from raptor.gui.ui.status_summary_mixin import StatusSummaryMixin
 from raptor.gui.ui.autosave_mixin import AutosaveMixin
 from raptor.gui.ui.own_streams_mixin import OwnStreamsMixin
@@ -2680,25 +2681,8 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     def _sync_overlay_actions(self, report_data) -> None:
         """Results > Show on Canvas: each overlay is offered when the run
         produced its data. One left on from data that is gone goes off."""
-        logs = bool(report_data) and bool(getattr(self._results, "_event_logs", None))
-        have = {
-            "_weak_color_action": any(d.weak_stats for d in report_data),
-            "_capacity_overlay_action": any(d.capacity is not None
-                                            for d in report_data),
-            "_cost_overlay_action": any(d.cost is not None
-                                        for d in report_data),
-            "_spares_overlay_action": any(d.weak_stats for d in report_data),
-            # Per run, not per model: importance only exists when the
-            # experiment asked for it, so the button appears with the run.
-            "_importance_overlay_action": bool(
-                getattr(self._results, "_importance", None)),
-            # the layers replay the event log (the Drivers tab's attribution)
-            "_downtime_overlay_action": logs,
-            "_lost_capacity_overlay_action": logs and any(
-                d.capacity is not None for d in report_data),
-            # model findings need no run; run findings come with this one
-            "_advisor_overlay_action": self._advisor_has_element_findings(),
-        }
+        have = {layer.action_attr: self._overlay_reason(layer.id, report_data)
+                is None for layer in LAYERS}
         # A new result set invalidates every previous overlay: clear the
         # canvas before re-enabling/disabling actions, never leave old
         # gauges/fills/tooltips behind.
@@ -2715,6 +2699,60 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 self._weak_color_action.isChecked()
                 or self._cost_overlay_action.isChecked())
         self._update_overlay_chip()
+        self._refresh_overlay_combo()
+
+    def _overlay_reason(self, layer_id: str, report_data=None) -> str | None:
+        """Why a Show on Canvas layer cannot be used now (None: it can)."""
+        results = getattr(self, "_results", None)  # absent while building
+        if report_data is None:
+            report_data = getattr(results, "_report_data", None)
+        return layer_availability(
+            layer_id, report_data,
+            has_event_log=bool(report_data) and bool(
+                getattr(results, "_event_logs", None)),
+            has_importance=bool(getattr(results, "_importance", None)),
+            has_element_findings=self._advisor_has_element_findings())
+
+    def _refresh_overlay_combo(self) -> None:
+        """Grey out, italicise and explain the combo's unusable layers."""
+        combo = getattr(self, "_overlay_combo", None)
+        if combo is None or getattr(self, "_refreshing_overlay_combo", False):
+            return
+        self._refreshing_overlay_combo = True
+        try:
+            model = combo.model()
+            by_attr = {layer.action_attr: layer.id for layer in LAYERS}
+            for index, (_label, attr) in enumerate(self._overlay_entries):
+                if attr is None:
+                    continue
+                action = getattr(self, attr, None)
+                enabled = action is not None and action.isEnabled()
+                reason = None
+                if not enabled:
+                    reason = (self._overlay_reason(by_attr[attr])
+                              or i18n.tr("Not available for the results on "
+                                         "screen."))
+                item = model.item(index)
+                item.setEnabled(enabled)
+                font = combo.font()
+                font.setItalic(not enabled)
+                item.setFont(font)
+                item.setForeground(
+                    combo.palette().color(QPalette.ColorGroup.Disabled,
+                                          QPalette.ColorRole.Text)
+                    if not enabled else combo.palette().text())
+                item.setToolTip(reason or "")
+                item.setStatusTip(reason or "")
+            # _uncheck_overlay blocks the toggled signal the combo follows,
+            # so a layer that went off with its data must reset the combo.
+            current = next((i for i, (_l, attr) in
+                            enumerate(self._overlay_entries)
+                            if attr and getattr(self, attr).isChecked()), 0)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(current)
+            combo.blockSignals(False)
+        finally:
+            self._refreshing_overlay_combo = False
 
     def _uncheck_overlay(self, attr: str) -> None:
         """Untick an overlay's ribbon button without running its handler."""
