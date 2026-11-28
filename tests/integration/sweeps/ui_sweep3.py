@@ -90,6 +90,7 @@ while w._step_session and w._step_session.step():
     pass
 if w._step_session:
     w._on_step_finish()
+    w._wait_step_finalize(30.0)
 app.processEvents()
 
 # =================== 4. Project Settings dialog ============================

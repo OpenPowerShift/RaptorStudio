@@ -130,6 +130,7 @@ def test_finishing_clears_the_animate_off_live_colours(window, qapp):
     window._run_progress_label.setVisible(True)
 
     window._on_step_finish()
+    assert window._wait_step_finalize(30.0)   # Finish runs on a worker (#386)
     qapp.processEvents()
     assert view._live_state_cache is None
     assert not window._run_progress.isVisible()
@@ -263,6 +264,7 @@ def test_finish_hides_the_run_progress_widgets(window):
     window._run_progress.setVisible(True)
     window._run_progress_label.setVisible(True)
     window._on_step_finish()
+    assert window._wait_step_finalize(30.0)   # Finish runs on a worker (#386)
     QApplication.processEvents()
     assert view._live_state_cache is None
     assert not window._run_progress.isVisible()

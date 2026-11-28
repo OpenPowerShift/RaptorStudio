@@ -226,7 +226,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
     _bg_thread: Any = None
     _bg_last_progress: Any = None
     _bg_last_bar: Any = None
-    #: A Terminate finalize running on a worker thread: plain state dict
+    #: A Terminate or Finish running on a worker thread: plain state dict
     #: shared with the thread and polled by `_step_finalize_timer` (no
     #: cross-thread Qt calls), plus the thread itself.
     _step_finalize_state: Any = None
@@ -1974,8 +1974,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         tool-cancel, annotation-edit exit) take over via the re-dispatch;
         a stepped session is left alone (Terminate ends it)."""
         if getattr(self, "_step_finalize_state", None) is not None:
-            self._statusbar.showMessage(
-                "Finalizing the stepped run — results appear when ready", 4000)
+            # Esc stops a Finish, as it stops a run; a Terminate cannot be
+            # cancelled.
+            if not self._stop_step_finalize():
+                self._statusbar.showMessage(
+                    "Finalizing the stepped run — results appear when ready", 4000)
             return True
         if getattr(self, "_run_action", None) is not None and \
                 not self._run_action.isEnabled():
@@ -3124,6 +3127,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # the session being discarded, so drop them and let the worker
         # finish on its own.
         finalizing = self._step_finalize_state is not None
+        label = self._step_finalize_label()
         self._discard_step_finalize()
         ended = self._end_step_session()
         if not ended:
@@ -3135,7 +3139,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             self._statusbar.showMessage("Stepped run discarded — model changed")
         elif finalizing:
             self._statusbar.showMessage(
-                "Early-terminate results discarded — model changed", 6000)
+                f"{label} results discarded — model changed", 6000)
 
     def _update_title(self):
         star = "*" if self._dirty else ""
@@ -4236,16 +4240,9 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             # Closing discards the in-flight finalize: its results cannot
             # be shown after the window is gone. Keep its state until the
             # worker is actually done, then let the poll clear/unlock it.
+            # A Finish is asked to stop too, so the wait is short.
             self._discard_step_finalize()
-            thread = self._step_finalize_thread
-            deadline = time.monotonic() + 15.0
-            while thread is not None and thread.is_alive() \
-                    and time.monotonic() < deadline:
-                QApplication.processEvents()
-                thread.join(0.05)
-            state = self._step_finalize_state
-            if state is not None and state.get("done"):
-                self._step_finalize_poll_tick()
+            self._wait_step_finalize(15.0)
             return True
         bg_state = getattr(self, "_bg_state", None) or {}
         if not bg_state or bg_state.get("done"):

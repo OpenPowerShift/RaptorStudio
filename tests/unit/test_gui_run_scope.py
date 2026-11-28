@@ -197,6 +197,7 @@ def test_stepping_a_hierarchy_scope_steps_the_extract(win):
         win._on_step()
         assert win._step_session is session
         win._on_step_finish()
+        assert win._wait_step_finalize(30.0)   # Finish runs on a worker (#386)
         iso = (win._results._manifest or {}).get("isolation") or {}
         assert iso.get("hierarchy") == "650path"
     finally:

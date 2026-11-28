@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 
 from raptor.gui.ui import msgbox
-import time
 from PySide6.QtCore import (Qt)
 from PySide6.QtWidgets import (
     QApplication,
@@ -16,10 +15,6 @@ from PySide6.QtWidgets import (
 from raptor.core.fileio.typed import system_config_from_row
 from raptor.core.model import BlockStatus
 from raptor.core.engine.step_session import StepSession
-from raptor.core.engine.reports import (
-    build_end_of_run_report,
-    build_final_results_report,
-)
 
 
 
@@ -69,6 +64,7 @@ class StepMixin(_Base):
         _live_log_tree: PySide6.QtWidgets.QTreeWidget
         _live_sim_action: PySide6.QtGui.QAction
         def _on_fev_log_close(self) -> None: ...
+        def _on_step_finish(self) -> None: ...
         def _prepare_run_model(self, copy: bool = ...) -> Any: ...
         def _present_run_results(self, event_logs: Any, eor_lines: Any, final_lines: Any, report_data: Any, ao_lines: list[str] | None = ..., cap_lines: list[str] | None = ..., manifest: Any = ...) -> Any: ...
         _rbd: Any  # really raptor.core.fileio.rbd.RbdFile | None
@@ -730,61 +726,3 @@ class StepMixin(_Base):
                 "The jump could not be executed:\n\n" + traceback.format_exc(limit=4))
             self._end_step_session()
             self._reset_live_log()
-
-    def _on_step_finish(self):
-        """Complete the stepped run (remaining events + closing passes),
-        then present results exactly like a normal batch run."""
-        if self._step_session is None:
-            return
-        session = self._step_session
-        self._on_fev_log_close()
-        self._end_step_session(clear_sink=False)
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            event_logs, _ = session.finish_all()
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            msgbox.critical(self, "Simulation Failed",
-                                 f"The run failed:\n\n{e}")
-            self._clear_failed_step()
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
-            self._clear_run_eta()
-            self._statusbar.showMessage("Run failed")
-            return
-        eor_lines: list[str] = []
-        final_lines: list[str] = []
-        report_data = list(self._step_sink)
-        if report_data:
-            model = session.model
-            date = time.ctime()
-            file_name = session.rbd_file.file_name
-            eor_lines = [f"End_Of_Run Report for {file_name}  {date}", ""]
-            for report in report_data:
-                eor_lines.extend(build_end_of_run_report(report, model.blocks_by_id))
-            final_lines = build_final_results_report(
-                report_data, model.blocks_by_id, file_name,
-                model.run_length, date,
-                termination_type=model.termination_type,
-            )
-        QApplication.restoreOverrideCursor()
-        self._diagram_dock.view.clear_live_states()
-        # The manifest says how many runs the numbers on screen come from.
-        step_manifest = self._build_run_manifest(
-            self._last_run_model if getattr(self, "_step_isolation", None)
-            else None, getattr(self, "_step_isolation", None))
-        if step_manifest:
-            step_manifest["trials"] = len(event_logs)
-        try:
-            self._present_run_results(event_logs, eor_lines, final_lines,
-                                      report_data,
-                                      ao_lines=list(self._step_ao or []),
-                                      cap_lines=session.cap_lines,
-                                      manifest=step_manifest)
-        finally:
-            # Finish is the end of the stepped run: the progress line
-            # belongs to the finishing/population work, not to the idle
-            # results screen (#230).
-            self._run_progress.setVisible(False)
-            self._run_progress_label.setVisible(False)
-            self._clear_run_eta()

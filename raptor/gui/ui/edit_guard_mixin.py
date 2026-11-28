@@ -40,6 +40,7 @@ class EditGuardMixin(_Base):
         _EDIT_GUARD_WINDOW: float
         _diagram_dock: raptor.gui.ui.diagram.DiagramDock
         def _discard_step_finalize(self, message: str | None = ...) -> bool: ...
+        def _step_finalize_label(self) -> str: ...
         _edit_during_run_guard: bool
         _edit_guard_prompt_times: list[float]
         _edit_guard_reentrancy: bool
@@ -306,11 +307,12 @@ class EditGuardMixin(_Base):
         session teardown)."""
         self._edit_run_abandoned = True
         if self._step_finalize_state is not None:
-            # Terminate's finalize cannot be cancelled; drop its results
-            # and let the worker wind down. The status says so instead of
-            # silently losing the early-terminate report.
+            # Drop a Terminate's or Finish's results and let the worker
+            # wind down (a Finish stops after the event in hand; a
+            # Terminate cannot be cancelled). The status says so instead
+            # of silently losing the report.
             self._discard_step_finalize(
-                "Early-terminate results discarded — model edited")
+                f"{self._step_finalize_label()} results discarded — model edited")
             self._sync_run_settings_lock()
             return
         if getattr(self, "_step_session", None) is not None:

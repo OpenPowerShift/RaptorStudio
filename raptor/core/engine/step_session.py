@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from raptor.core.engine.orchestrator import _Cascade
 from raptor.core.engine.driver import SingleRunDriver, build_engine_ctx
+from raptor.core.engine.errors import RunAborted
 from raptor.core.fileio.rbd import RbdFile
 from raptor.core.scheduler import Scheduler
 
@@ -31,6 +32,8 @@ class StepSession:
         #: One `(event_log_lines, RunReportData | None)` per run finished so far (the current run is not in it).
         self._cap_done: list[str] = []
         self.completed: list[tuple[list[str], object]] = []
+        #: True once a `finish_all(should_stop=...)` was stopped part-way: the session is over.
+        self.stopped = False
         self._driver = SingleRunDriver(ctx, 0)
         self._driver.kickoff()
 
@@ -46,6 +49,9 @@ class StepSession:
         cs = self._driver.capacity_state
         if cs is None:
             return []
+        if self.stopped and not self._driver.finalized:
+            # A Finish stopped mid-run: the abandoned run's rows are dropped, as a batch Stop drops them.
+            return list(self._cap_done)
         if not self._cap_done:
             return list(cs.cap_file_lines)
         return (self._cap_done + list(cs.cap_file_lines)
@@ -94,13 +100,14 @@ class StepSession:
     def done(self) -> bool:
         """No more events within the horizon (or the termination callback
         already fired)."""
-        return self._driver.stop_requested or self._driver.finalized
+        return (self._driver.stop_requested or self._driver.finalized
+                or self.stopped)
 
     def step(self) -> bool:
         """Advance one calendar entry; False when the run has nothing left.
         Callers should follow a False with `finish_run()`."""
-        # A finalized session is immutable.
-        if self._driver.finalized:
+        # A finalized (or Finish-stopped) session is immutable.
+        if self._driver.finalized or self.stopped:
             return False
         return self._driver.step_once()
 
@@ -140,12 +147,45 @@ class StepSession:
         self._driver.kickoff()
         return True
 
-    def finish_all(self):
+    def finish_all(self, *, progress=None, should_stop=None):
         """Finish this run and every later one (Raptor 7's Run once stepping is switched off). Returns
-        `(logs_per_run, reports)` for all runs, earlier jumped-over ones included."""
-        self.finish_run()
-        while self.jump_to_next_run_start():
-            self.finish_run()
+        `(logs_per_run, reports)` for all runs, earlier jumped-over ones included.
+
+        Both hooks are optional and observe only: neither draws a random number or reorders anything,
+        so the result is the same with or without them.
+
+        `progress(done, total)` is called after each run is finalized, `done` counting from the first
+        run of the session (the batch's own convention).
+
+        `should_stop()` is checked between runs and after every processed event (the scheduler's
+        `block_hook`, the batch Stop's own check). When it returns True the run in hand is abandoned
+        without its closing passes, as a batch Stop abandons it: `self.stopped` is set, and the return
+        holds the finished runs plus that run's partial log with `None` for its report. The session
+        is over afterwards."""
+        self.stopped = False
+        hook = None
+        if should_stop is not None:
+            def hook():
+                if should_stop():
+                    raise RunAborted()
+        try:
+            while True:
+                driver = self._driver
+                if not driver.finalized:
+                    driver.scheduler.block_hook = hook
+                    try:
+                        self.finish_run()
+                    finally:
+                        driver.scheduler.block_hook = None
+                if progress is not None:
+                    progress(self.run_index + 1, self.num_runs)
+                if not self.has_next_run:
+                    break
+                if should_stop is not None and should_stop():
+                    raise RunAborted()
+                self.jump_to_next_run_start()
+        except RunAborted:
+            self.stopped = True
         runs = self.completed + [(self._driver.logs, getattr(self, "_last_report", None))]
         return [lg for lg, _ in runs], [r for _, r in runs]
 

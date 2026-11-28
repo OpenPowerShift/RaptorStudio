@@ -174,6 +174,7 @@ def test_sparing_rows_narrow_to_subtree(window):
     # Produce real results cheaply via the step debugger's finish path.
     w._ensure_step_session()
     w._on_step_finish()
+    assert w._wait_step_finalize(30.0)   # Finish runs on a worker (#386)
     sp = w._results.section_table("SPARING")
     assert sp is not None and sp.rowCount() > 0
 
