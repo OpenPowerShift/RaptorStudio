@@ -730,6 +730,10 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         # launch with Animate off left the dial looking usable).
         self._set_speed_state_enabled(self._live_sim_action.isChecked())
         self._sync_annotation_toggles()
+        self._state_legend_action.blockSignals(True)
+        self._state_legend_action.setChecked(
+            settings.get_bool("appearance/state_legend", True))
+        self._state_legend_action.blockSignals(False)
         # Controls that exist but are not on the ribbon.
         self._init_find_box()
         self._init_report_stream_actions()
@@ -4104,6 +4108,11 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
         self.statusBar().showMessage(
             "Annotations shown" if on else
             "Annotations hidden (still in the model and saved)", 4000)
+
+    def _set_state_legend_shown(self, on: bool) -> None:
+        """View > State Legend: hides or shows the canvas colour key at
+        once, even mid-session (a view setting, saved across launches)."""
+        self._diagram_dock.view.set_state_legend_enabled(bool(on))
 
     def _set_positions_locked(self, on: bool) -> None:
         """Arrange ▸ Lock Positions: saved with the model, so a change

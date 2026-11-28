@@ -66,6 +66,9 @@ class ZoomMixin(_Base):
         if not self._user_zoomed and getattr(self, "_content_rect", None):
             self.fitInView(self._content_rect, Qt.AspectRatioMode.KeepAspectRatio)
         self._apply_lod()
+        legend = getattr(self, "_state_legend", None)
+        if legend is not None:
+            legend.reposition()
 
     def zoom_percent(self) -> int:
         return round(self.transform().m11() * 100)

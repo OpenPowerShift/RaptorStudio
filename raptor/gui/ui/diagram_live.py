@@ -6,6 +6,7 @@ from raptor.api import money
 from raptor.api.insight.axes import pct
 
 from raptor.gui.ui.qtcompat import req
+from raptor.gui.ui import settings as app_settings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from raptor.gui.resources.design_tokens import (
@@ -449,6 +450,40 @@ class LiveOverlayMixin:
         self._live_state_cache = (blocks if isinstance(blocks, dict)
                                   else {b.id: b for b in blocks},
                                   cap_data, model, phase)
+        self._sync_state_legend()
+
+    # -- state colour legend (bottom-right of the viewport) ----------------
+    def state_legend_enabled(self: DiagramView) -> bool:  # type: ignore[misc]
+        """View > State colour legend (a view setting, default on)."""
+        return bool(app_settings.get_bool("appearance/state_legend", True))
+
+    def set_state_legend_enabled(self: DiagramView, on: bool) -> None:  # type: ignore[misc]
+        app_settings.set_value("appearance/state_legend", bool(on))
+        self._sync_state_legend()
+
+    def state_legend_shown(self: DiagramView) -> bool:  # type: ignore[misc]
+        legend = getattr(self, "_state_legend", None)
+        return legend is not None and not legend.isHidden()
+
+    def _sync_state_legend(self: DiagramView) -> None:  # type: ignore[misc]
+        """Show the legend while a Debug session or animated run is
+        colouring blocks (the live-state cache exists), unless the user
+        turned it off or Failure Effects View (which is not a run) is open."""
+        want = (getattr(self, "_live_state_cache", None) is not None
+                and not getattr(self, "_fev_view_open", False)
+                and self.state_legend_enabled())
+        legend = getattr(self, "_state_legend", None)
+        if want and legend is None:
+            from raptor.gui.ui.state_legend import StateLegend
+            legend = self._state_legend = StateLegend(self)
+        if legend is None:
+            return
+        if want:
+            legend.refresh()
+            legend.show()
+            legend.raise_()
+        else:
+            legend.hide()
 
     def _engine_links_by_file_id(self: DiagramView, by_engine_num: dict  # type: ignore[misc]
                                  ) -> dict:
@@ -549,6 +584,7 @@ class LiveOverlayMixin:
         # finished/stopped run must not re-paint fresh items with its
         # stale end-state on the next level traversal.
         self._live_state_cache = None
+        self._sync_state_legend()
 
         def _painted() -> bool:
             """True when any item on this level carries a live colour."""
@@ -702,6 +738,7 @@ class LiveOverlayMixin:
     #: Live run state cache (blocks, cap_data, model) -- see
     #: `update_live_states`'s tail and `_reapply_live_states`.
     _live_state_cache: tuple | None = None
+    _state_legend: Any = None
     _hier_boundary_cache: dict[int, tuple[int, ...]] | None = None
     _link_file_ids_cache: list[int] | None = None
 

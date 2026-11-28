@@ -326,6 +326,7 @@ current value).
 |Hierarchy |Zoom to hierarchy: enter the selected hierarchy oval (like double-clicking it) |
 |Annotations |Show or hide every annotation (text, shapes, arrows) on the canvas. Hidden annotations stay in the model and are saved. |
 |Comments |Show or hide only the canvas notes that show an element's comment; other annotations stay. |
+|State Legend |Show or hide the state colour key at the bottom right of the canvas while a Debug session or an animated run colours the blocks |
 |===
 
 ==== Panels

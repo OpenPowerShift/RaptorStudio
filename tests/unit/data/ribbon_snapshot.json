@@ -1617,6 +1617,16 @@
    "text": "Single-Point Failures",
    "tooltip": "List every component that alone can fail the system \u2014 series elements; export as a text file\n\nUnavailable: open or create a model first"
   },
+  "_state_legend_action": {
+   "checkable": true,
+   "checked": true,
+   "context": 1,
+   "has_icon": true,
+   "has_menu": false,
+   "shortcuts": [],
+   "text": "State Legend",
+   "tooltip": "Show or hide the state colour key at the bottom right of the canvas while a Debug session or an animated run colours the blocks"
+  },
   "_step_action": {
    "checkable": false,
    "checked": false,
@@ -2047,6 +2057,7 @@
    "_speed_reset_max": false,
    "_speed_slower": false,
    "_spof_action": false,
+   "_state_legend_action": true,
    "_step_action": false,
    "_step_change_action": false,
    "_step_finish_action": false,
@@ -2227,6 +2238,7 @@
    "_speed_reset_max": false,
    "_speed_slower": false,
    "_spof_action": true,
+   "_state_legend_action": true,
    "_step_action": true,
    "_step_change_action": true,
    "_step_finish_action": false,
@@ -2407,6 +2419,7 @@
    "_speed_reset_max": false,
    "_speed_slower": false,
    "_spof_action": false,
+   "_state_legend_action": true,
    "_step_action": false,
    "_step_change_action": false,
    "_step_finish_action": false,
@@ -3245,6 +3258,11 @@
        "kind": "action",
        "large": false,
        "text": "Comments"
+      },
+      {
+       "kind": "action",
+       "large": false,
+       "text": "State Legend"
       }
      ],
      "title": "Zoom and Show"
