@@ -1373,6 +1373,34 @@
       <translation>Erro inesperado</translation>
     </message>
     <message>
+      <source>No weak link data in these results: enable Weak Link in the Run panel's Analysis section and run again.</source>
+      <translation>Não há dados de elo fraco nestes resultados: ative Elo fraco na seção Análise do painel de execução e execute novamente.</translation>
+    </message>
+    <message>
+      <source>No costs in these results: switch on Cost Analysis and run again.</source>
+      <translation>Não há custos nestes resultados: ative a análise de custos e execute novamente.</translation>
+    </message>
+    <message>
+      <source>No importance measures in these results: switch on Run ▸ Analysis ▸ Importance measures and run again.</source>
+      <translation>Não há medidas de importância nestes resultados: ative Executar ▸ Análise ▸ Medidas de importância e execute novamente.</translation>
+    </message>
+    <message>
+      <source>No capacity data in these results: switch on Capacity analysis and run again.</source>
+      <translation>Não há dados de capacidade nestes resultados: ative a análise de capacidade e execute novamente.</translation>
+    </message>
+    <message>
+      <source>Needs the event log: tick Event log under Run panel ▸ Recording and run again.</source>
+      <translation>Requer o registro de eventos: marque Registro de eventos em Painel de execução ▸ Gravação e execute novamente.</translation>
+    </message>
+    <message>
+      <source>Run the simulation first: this layer shows results.</source>
+      <translation>Execute a simulação primeiro: esta camada mostra resultados.</translation>
+    </message>
+    <message>
+      <source>The Advisor has no finding that names an element in this model.</source>
+      <translation>O Consultor não tem nenhum achado que cite um elemento neste modelo.</translation>
+    </message>
+    <message>
       <source>Why?</source>
       <translation>Por quê?</translation>
     </message>
@@ -5925,6 +5953,10 @@ Continuar?</translation>
     <message>
       <source>Escape — paused (Esc again to stop, or Pause/Resume to continue)</source>
       <translation>Escape — pausado (Esc novamente para parar, ou Pausar/Retomar para continuar)</translation>
+    </message>
+    <message>
+      <source>Not available for the results on screen.</source>
+      <translation>Não disponível para os resultados exibidos.</translation>
     </message>
     <message>
       <source>Close the explainer</source>

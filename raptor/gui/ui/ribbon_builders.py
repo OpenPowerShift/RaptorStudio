@@ -991,17 +991,10 @@ class RibbonBuilders(_Base):
         combo = QComboBox()
         combo.setObjectName("CanvasOverlayCombo")
         self._overlay_combo = combo
-        entries = (
-            ("No canvas overlay", None),
-            ("Share of downtime", "_downtime_overlay_action"),
-            ("Lost capacity", "_lost_capacity_overlay_action"),
-            ("Weak link (own availability)", "_weak_color_action"),
-            ("Capacity", "_capacity_overlay_action"),
-            ("Cost", "_cost_overlay_action"),
-            ("Spares", "_spares_overlay_action"),
-            ("Importance", "_importance_overlay_action"),
-            ("Advisor findings", "_advisor_overlay_action"),
-        )
+        from raptor.gui.overlay_layers import LAYERS
+        entries = (("No canvas overlay", None),
+                   *((layer.label, layer.action_attr) for layer in LAYERS))
+        self._overlay_entries = entries
         for label, _attr in entries:
             combo.addItem(label)
         self._overlay_actions = [attr for _label, attr in entries if attr]
@@ -1032,6 +1025,8 @@ class RibbonBuilders(_Base):
             action = getattr(self, attr, None)
             if action is not None:
                 action.toggled.connect(sync)
+                action.changed.connect(self._refresh_overlay_combo)
         group.add_widget(combo)
         group.add_widget(QLabel(" "))
         sync()
+        self._refresh_overlay_combo()
