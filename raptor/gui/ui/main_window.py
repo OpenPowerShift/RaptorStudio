@@ -16,7 +16,7 @@ import weakref
 from typing import Any, cast
 from pathlib import Path
 from PySide6.QtCore import (Qt, QTimer, QObject, QPoint, QEvent, QEventLoop)
-from PySide6.QtGui import (QCursor, QKeySequence, QAction, QShortcut, QPalette)
+from PySide6.QtGui import (QColor, QCursor, QKeySequence, QAction, QShortcut)
 from PySide6.QtWidgets import (
     QApplication, QToolTip, QDoubleSpinBox, QMainWindow, QDockWidget, QFileDialog, QMessageBox,
     QDialog, QFormLayout, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QToolButton, QTreeWidget, QTreeWidgetItem,
@@ -2420,6 +2420,7 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
             dock.setMinimumSize(px(340), 1)
 
     def _on_theme_changed(self, dark: bool):
+        self._refresh_overlay_combo()
         self._theme_action.blockSignals(True)
         self._theme_action.setChecked(dark)
         if dark:
@@ -2737,10 +2738,13 @@ class MainWindow(EditGuardMixin, RunMixin, ReportStreamsMixin, StepTerminateMixi
                 font = combo.font()
                 font.setItalic(not enabled)
                 item.setFont(font)
-                item.setForeground(
-                    combo.palette().color(QPalette.ColorGroup.Disabled,
-                                          QPalette.ColorRole.Text)
-                    if not enabled else combo.palette().text())
+                # the stylesheet overrides the palette's disabled text, so
+                # grey it explicitly; _on_theme_changed re-runs this
+                if enabled:   # the stylesheet's own text colour
+                    item.setData(None, Qt.ItemDataRole.ForegroundRole)
+                else:
+                    item.setForeground(
+                        QColor(ThemeManager.instance().colour["muted"]))
                 item.setToolTip(reason or "")
                 item.setStatusTip(reason or "")
             # _uncheck_overlay blocks the toggled signal the combo follows,

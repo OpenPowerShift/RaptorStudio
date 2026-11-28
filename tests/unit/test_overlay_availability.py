@@ -112,3 +112,25 @@ def test_selected_layer_falls_back_when_results_go(qapp):
     _run(win, qapp, "TwoBlockRedundancy")
     assert not win._cost_overlay_action.isChecked()
     assert win._overlay_combo.currentIndex() == 0
+
+
+def test_greyed_layers_follow_a_theme_flip(qapp):
+    """The stylesheet hides the palette's disabled colour, so the combo
+    greys unusable layers itself, and must re-grey them for a new theme."""
+    from PySide6.QtCore import Qt
+    from raptor.gui.resources.design_tokens import ThemeManager
+    win = MainWindow()
+    _run(win, qapp, "TwoBlockRedundancy")
+    theme = ThemeManager.instance()
+    try:
+        for dark in (True, False):
+            theme.set_dark(dark)
+            qapp.processEvents()
+            cost, _ = _item(win, "Cost")
+            assert cost.foreground().color().name().lower() == \
+                theme.colour["muted"].lower()
+            usable, _ = _item(win, "Share of downtime")
+            assert usable.data(Qt.ItemDataRole.ForegroundRole) is None
+    finally:
+        theme.set_dark(False)
+        win._dirty = False
