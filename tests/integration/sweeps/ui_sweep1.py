@@ -296,7 +296,7 @@ def t_step20_finish():
     w._ensure_step_session()
     for _ in range(20):
         w._on_step()
-    w._on_step_finish(); app.processEvents()
+    w._on_step_finish(); w._wait_step_finalize(30.0); app.processEvents()
     assert w._results._tabs.isVisible() or True
     assert w._results._runs_table.topLevelItemCount() >= 1, \
         "stepped finish produced no results rows"

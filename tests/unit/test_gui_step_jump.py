@@ -51,6 +51,7 @@ def test_finishing_after_a_jump_reports_every_run(window, qapp):
     window._jump_action.trigger()
     assert window._step_session.run_index == 1 and window._step_session.time == 0.0
     window._on_step_finish()
+    assert window._wait_step_finalize(30.0)   # Finish runs on a worker (#386)
     qapp.processEvents()
     assert window._step_session is None
     assert len(window._results._event_logs) == 3 and len(window._results._report_data) == 3

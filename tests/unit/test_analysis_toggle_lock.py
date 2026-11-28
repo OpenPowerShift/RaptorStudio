@@ -74,7 +74,7 @@ def _experiment(window):
     return window._current_experiment()
 
 
-def _wait_for_terminate(window, qapp, timeout: float = 10.0) -> None:
+def _wait_for_finalize(window, qapp, timeout: float = 10.0) -> None:
     deadline = time.monotonic() + timeout
     while window._step_finalize_state is not None \
             and time.monotonic() < deadline:
@@ -166,10 +166,9 @@ class TestUnlocksAgain:
         qapp.processEvents()
         (window._on_step_finish if end == "finish"
          else window._on_step_terminate)()
-        if end == "terminate":
-            # Terminate finalizes on a worker now: the lock is released
-            # when the finished results are presented, not on the click.
-            _wait_for_terminate(window, qapp)
+        # Terminate and Finish finalize on a worker: the lock is released
+        # when the finished results are presented, not on the click.
+        _wait_for_finalize(window, qapp)
         qapp.processEvents()
         for col in ANALYSES:
             assert window._analysis_actions[col].isEnabled(), \
@@ -179,7 +178,7 @@ class TestUnlocksAgain:
         window._on_step()
         qapp.processEvents()
         window._on_step_finish()
-        qapp.processEvents()
+        _wait_for_finalize(window, qapp)   # Finish runs on a worker (#386)
         tip = window._analysis_actions["costAnalysis"].toolTip()
         assert "locked" not in tip.lower(), \
             f"a re-enabled control must not still describe being locked: {tip!r}"
@@ -189,7 +188,7 @@ class TestUnlocksAgain:
         window._on_step()
         qapp.processEvents()
         window._on_step_finish()
-        qapp.processEvents()
+        _wait_for_finalize(window, qapp)   # Finish runs on a worker (#386)
         act = window._analysis_actions["capacityAnalysis"]
         act.setChecked(True)
         qapp.processEvents()
@@ -221,7 +220,7 @@ class TestLockIsDerivedNotRemembered:
         qapp.processEvents()
         assert not window._analysis_actions["weakAnalysis"].isEnabled(), \
             "controls must stay locked while the finalize worker runs"
-        _wait_for_terminate(window, qapp)
+        _wait_for_finalize(window, qapp)
         assert all(window._analysis_actions[c].isEnabled() for c in ANALYSES)
 
     def test_lock_matches_the_run_panel(self, window, qapp):
@@ -234,6 +233,6 @@ class TestLockIsDerivedNotRemembered:
         assert all(not window._analysis_actions[c].isEnabled()
                    for c in ANALYSES)
         window._on_step_finish()
-        qapp.processEvents()
+        _wait_for_finalize(window, qapp)   # Finish runs on a worker (#386)
         assert window._run_panel.is_enabled() is True
         assert all(window._analysis_actions[c].isEnabled() for c in ANALYSES)

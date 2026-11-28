@@ -93,3 +93,66 @@ def test_step_and_jump_stops_match_a_real_session():
         session.step_to_change()
         stops.append(round(session.time, 6))
     assert stops == [0.0, 0.444507, 0.686393]
+
+
+@pytest.mark.parametrize("name", ["TwoBlockRedundancy", "MotorDemo"])
+def test_finish_all_hooks_do_not_change_the_results(name):
+    """#386: Finish runs on a worker with a progress callback and a Stop check. Neither may draw a number or
+    reorder anything: the same session finished with and without them gives the same logs and reports."""
+    runs = 3
+
+    def finish(**hooks):
+        sink: list = []
+        session = StepSession(_short(name), num_runs=runs, report_sink=sink)
+        session.step_to_change()
+        session.step_to_change()
+        logs, reports = session.finish_all(**hooks)
+        assert not session.stopped
+        return [list(x) for x in logs], reports, sink, session.cap_lines
+
+    seen: list = []
+    calls = [0]
+
+    def should_stop():
+        calls[0] += 1
+        return False
+
+    plain = finish()
+    hooked = finish(progress=lambda d, t: seen.append((d, t)), should_stop=should_stop)
+    assert hooked == plain
+    assert seen == [(1, runs), (2, runs), (3, runs)]
+    assert calls[0] > runs, "the Stop check must run inside a run, not only between runs"
+
+
+def test_finish_all_stopped_mid_run_keeps_the_finished_runs():
+    sink: list = []
+    session = StepSession(_short("TwoBlockRedundancy", "200"), num_runs=3, report_sink=sink)
+    progress: list = []
+    calls = [0]
+
+    def should_stop():
+        # Stop a few events into the second run.
+        if progress:
+            calls[0] += 1
+        return calls[0] > 3
+
+    logs, reports = session.finish_all(progress=lambda d, t: progress.append(d), should_stop=should_stop)
+    assert session.stopped and session.done
+    assert progress == [1]
+    assert len(logs) == 2 and logs[1], "the interrupted run's partial log is kept"
+    assert reports[0] is not None and reports[1] is None
+    assert len(sink) == 1, "the abandoned run adds no report"
+    assert session.step() is False
+
+
+def test_finish_all_stopped_between_runs():
+    sink: list = []
+    session = StepSession(_short("TwoBlockRedundancy"), num_runs=3, report_sink=sink)
+    flag = [False]
+
+    def progress(done, total):
+        flag[0] = True
+
+    logs, reports = session.finish_all(progress=progress, should_stop=lambda: flag[0])
+    assert session.stopped
+    assert len(logs) == 1 and reports[0] is not None and len(sink) == 1

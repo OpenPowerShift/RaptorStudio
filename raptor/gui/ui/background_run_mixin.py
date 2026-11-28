@@ -113,6 +113,7 @@ class BackgroundRunMixin(_Base):
         _speed_slower: Any
         _speed_state: Any  # really dict[str, None]
         def _start_run_eta(self) -> None: ...
+        def _stop_step_finalize(self) -> bool: ...
         _statusbar: PySide6.QtWidgets.QStatusBar
         _step_finalize_state: Any
         _step_session: Any
@@ -863,8 +864,10 @@ class BackgroundRunMixin(_Base):
         # `_bg_state` check -- the same "bg_running" test
         # `keyPressEvent`'s own Esc handler uses.
         if getattr(self, "_step_finalize_state", None) is not None:
-            self._statusbar.showMessage(
-                "Finalizing the stepped run — results appear when ready", 4000)
+            # A Finish stops like a batch; a Terminate cannot be cancelled.
+            if not self._stop_step_finalize():
+                self._statusbar.showMessage(
+                    "Finalizing the stepped run — results appear when ready", 4000)
             return
         bg_state = getattr(self, "_bg_state", None)
         bg_running = bool(bg_state and not bg_state.get("done"))
