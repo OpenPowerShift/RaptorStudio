@@ -82,6 +82,9 @@ DEFAULTS: dict[str, Any] = {
     # part of it: hidden notes are still saved.
     "appearance/show_annotations": True,
     "appearance/show_comment_notes": True,
+    # View > State Legend: the colour key on the canvas during a Debug
+    # session or animated run.
+    "appearance/state_legend": True,
     # Digits after the decimal point on Weak Link canvas labels.
     "appearance/weak_link_digits": 3,
     # The two lines under a block's name on the canvas: one of

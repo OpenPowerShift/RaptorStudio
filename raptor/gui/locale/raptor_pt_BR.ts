@@ -398,6 +398,14 @@
       <translation>Colorir por etiqueta: uma faixa acima de cada elemento etiquetado, uma cor por etiqueta (até três). Apenas visualização; aparece junto com qualquer sobreposição de resultados</translation>
     </message>
     <message>
+      <source>State Legend</source>
+      <translation>Legenda de estados</translation>
+    </message>
+    <message>
+      <source>Show or hide the state colour key at the bottom right of the canvas while a Debug session or an animated run colours the blocks</source>
+      <translation>Mostra ou oculta a legenda de estados (código de cor) no canto inferior direito do quadro enquanto uma sessão de depuração ou uma execução animada colore os blocos</translation>
+    </message>
+    <message>
       <source>Annotations</source>
       <translation>Anotações</translation>
     </message>
@@ -7299,6 +7307,38 @@ O Custo é simulado quando Custo está ativado na seção Análise do Painel de 
       <translation>Atalhos de teclado</translation>
     </message>
     <message>
+      <source>Running</source>
+      <translation>Em operação</translation>
+    </message>
+    <message>
+      <source>Standby</source>
+      <translation>Em espera</translation>
+    </message>
+    <message>
+      <source>Idle</source>
+      <translation>Ocioso</translation>
+    </message>
+    <message>
+      <source>Failed, in repair</source>
+      <translation>Falhou, em reparo</translation>
+    </message>
+    <message>
+      <source>Repair hold</source>
+      <translation>Retenção de reparo</translation>
+    </message>
+    <message>
+      <source>Maintenance</source>
+      <translation>Manutenção</translation>
+    </message>
+    <message>
+      <source>Maintenance hold</source>
+      <translation>Manutenção em espera</translation>
+    </message>
+    <message>
+      <source>Done</source>
+      <translation>Concluído</translation>
+    </message>
+    <message>
       <source>Current system status (live):
 Green = fully working · Yellow = degraded · Red = fully down</source>
       <translation>Status atual do sistema (ao vivo):
@@ -11801,10 +11841,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Atrasos</translation>
     </message>
     <message>
-      <source>Done</source>
-      <translation>Concluído</translation>
-    </message>
-    <message>
       <source>Done %</source>
       <translation>Concluído %</translation>
     </message>
@@ -11839,10 +11875,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>Green %</source>
       <translation>Verde %</translation>
-    </message>
-    <message>
-      <source>Idle</source>
-      <translation>Ocioso</translation>
     </message>
     <message>
       <source>Initial spares</source>
@@ -11949,10 +11981,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
       <translation>Vermelho %</translation>
     </message>
     <message>
-      <source>Repair hold</source>
-      <translation>Retenção de reparo</translation>
-    </message>
-    <message>
       <source>Repair hold %</source>
       <translation>Retenção de reparo %</translation>
     </message>
@@ -11971,10 +11999,6 @@ Este modelo: %1 blocos · %2 nós · %3 eventos · %4 hierarquias · tempo em %5
     <message>
       <source>St. dev.</source>
       <translation>Desvio padrão</translation>
-    </message>
-    <message>
-      <source>Standby</source>
-      <translation>Em espera</translation>
     </message>
     <message>
       <source>Standby %</source>

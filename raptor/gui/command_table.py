@@ -301,6 +301,18 @@ COMMANDS: tuple[CommandSpec, ...] = (
         enabled_when="model_open",
         checkable=True),
     CommandSpec(
+        id="view.state_legend",
+        attr="_state_legend_action",
+        text="State Legend",
+        icon="state_legend_icon:text",
+        tooltip=("Show or hide the state colour key at the bottom right of "
+                 "the canvas while a Debug session or an animated run "
+                 "colours the blocks"),
+        handler="_set_state_legend_shown",
+        on="toggled",
+        checkable=True,
+        checked=True),
+    CommandSpec(
         id="view.show_annotations",
         attr="_show_annotations_action",
         text="Annotations",
@@ -1773,7 +1785,8 @@ LAYOUT: tuple[Page, ...] = (
                       # no longer fitted 1280 px
                       Btn("arrange.zoom_hierarchy"),
                       Btn("view.show_annotations"),
-                      Btn("view.show_comment_notes")), priority=4),
+                      Btn("view.show_comment_notes"),
+                      Btn("view.state_legend")), priority=4),
        Group("Panels", (Btn("view.explorer_toggle"),
                         Btn("view.inspector_toggle"),
                         Btn("view.fev_inspector_toggle"),

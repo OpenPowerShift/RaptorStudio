@@ -544,6 +544,9 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
                 item.setPen(QPen(QColor(c["border"]), 0.5))
             else:
                 continue
+        legend = getattr(self, "_state_legend", None)
+        if legend is not None:
+            legend.update()
         self.update()
 
     def _retheme_current(self, _dark: bool):
@@ -886,6 +889,7 @@ class DiagramView(NudgeMixin, AutoLayoutMixin, NavigationMixin,
             self._tag_hiers: set[str] = set()
             self._tag_model = rbd
         self._live_state_cache = None
+        self._sync_state_legend()
         self._hier_boundary_cache = None
         self._link_file_ids_cache = None
         self._user_arranged = False

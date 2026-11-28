@@ -83,7 +83,7 @@ KEY_TIPS: dict[str, dict[str, str]] = {
         "view.run_toggle": "U", "view.data_tables": "D",
         "view.live_log_toggle": "G", "view.advisor_toggle": "A",
         "view.reset_layout": "L", "view.theme": "T", "view.prefs": "P",
-        "view.tag_colours": "Y",
+        "view.tag_colours": "Y", "view.state_legend": "K",
         "view.focus": "M", "view.show_annotations": "W",
         "view.show_comment_notes": "C",
     },

@@ -1113,6 +1113,20 @@ def tag_colours_icon(colour: str) -> QIcon:
     return _icon("tag_colours", colour, draw)
 
 
+def state_legend_icon(colour: str) -> QIcon:
+    """State colour legend: a key strip of three swatches with labels."""
+    def draw(p: QPainter, c: QColor):
+        p.setPen(_outline_pen(c))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(6, 14, 36, 20, 3, 3)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(c)
+        for x in (11, 20, 29):
+            p.drawRect(x, 19, 6, 6)
+            p.drawRect(x, 28, 6, 2)
+    return _icon("state_legend", colour, draw)
+
+
 def droplet_icon(colour: str) -> QIcon:
     """Weak-link colouring: droplet quartered G/Y/R."""
     def draw(p: QPainter, c: QColor):
